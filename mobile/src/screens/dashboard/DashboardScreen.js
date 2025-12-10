@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { checkForUpdates } from '../../services/UpdateService';
+import CircularProgress from '../../components/CircularProgress';
 
 const { width, height } = Dimensions.get('window');
 
@@ -354,6 +356,14 @@ export default function DashboardScreen() {
     }
   };
 
+  const getProgress = () => {
+    if (!tiempoTrabajado) return 0;
+    const [hours, minutes, seconds] = tiempoTrabajado.split(':').map(Number);
+    const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+    const targetSeconds = 8 * 3600; // 8 hours
+    return Math.min(totalSeconds / targetSeconds, 1);
+  };
+
   return (
     <View style={styles.container}>
       {/* Modern Header Background */}
@@ -400,7 +410,7 @@ export default function DashboardScreen() {
       ]}>
         <ScrollView 
           style={styles.content}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl 
@@ -443,126 +453,138 @@ export default function DashboardScreen() {
             /* USER VIEW */
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
               {/* Main Status Card */}
-              <View style={styles.card}>
-                <View style={[styles.statusPill, { backgroundColor: getEstadoColor() + '20' }]}>
-                  <View style={[styles.statusDot, { backgroundColor: getEstadoColor() }]} />
-                  <Text style={[styles.statusText, { color: getEstadoColor() }]}>
-                    {getEstadoTexto().toUpperCase()}
-                  </Text>
-                </View>
-
-                <View style={styles.timerContainer}>
-                  <Text style={styles.timerValue}>
-                    {activeSession?.estadoActual === 'break' || activeSession?.estadoActual === 'almuerzo' 
-                      ? tiempoDescanso 
-                      : tiempoTrabajado}
-                  </Text>
-                  <Text style={styles.timerLabel}>
-                    {activeSession?.estadoActual === 'break' ? 'TIEMPO EN BREAK' : 
-                     activeSession?.estadoActual === 'almuerzo' ? 'TIEMPO EN ALMUERZO' : 
-                     'TIEMPO TRABAJADO'}
-                  </Text>
-                </View>
-
-                <View style={styles.gridInfo}>
-                  <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>ENTRADA</Text>
-                    <Text style={styles.infoValue}>{formatHora(activeSession?.entrada?.hora)}</Text>
+              <BlurView intensity={90} tint="systemThickMaterialLight" style={styles.blurCard}>
+                <View style={styles.cardContentInner}>
+                  <View style={[styles.statusPill, { backgroundColor: getEstadoColor() + '20' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: getEstadoColor() }]} />
+                    <Text style={[styles.statusText, { color: getEstadoColor() }]}>
+                      {getEstadoTexto().toUpperCase()}
+                    </Text>
                   </View>
-                  {activeSession?.salida && (
+
+                  <View style={styles.timerContainer}>
+                    <CircularProgress
+                      size={240}
+                      strokeWidth={15}
+                      progress={getProgress()}
+                      colors={[getPrimaryColor(), getSecondaryColor()]}
+                      bgStrokeColor="rgba(0,0,0,0.05)"
+                    >
+                      <Text style={styles.timerValue}>
+                        {activeSession?.estadoActual === 'break' || activeSession?.estadoActual === 'almuerzo' 
+                          ? tiempoDescanso 
+                          : tiempoTrabajado}
+                      </Text>
+                      <Text style={styles.timerLabel}>
+                        {activeSession?.estadoActual === 'break' ? 'TIEMPO EN BREAK' : 
+                        activeSession?.estadoActual === 'almuerzo' ? 'TIEMPO EN ALMUERZO' : 
+                        'TIEMPO TRABAJADO'}
+                      </Text>
+                    </CircularProgress>
+                  </View>
+
+                  <View style={styles.gridInfo}>
                     <View style={styles.infoItem}>
-                      <Text style={styles.infoLabel}>SALIDA</Text>
-                      <Text style={styles.infoValue}>{formatHora(activeSession.salida.hora)}</Text>
+                      <Text style={styles.infoLabel}>ENTRADA</Text>
+                      <Text style={styles.infoValue}>{formatHora(activeSession?.entrada?.hora)}</Text>
+                    </View>
+                    {activeSession?.salida && (
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>SALIDA</Text>
+                        <Text style={styles.infoValue}>{formatHora(activeSession.salida.hora)}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Action Buttons */}
+                  {activeSession && activeSession.estadoActual !== 'finalizado' && (
+                    <View style={styles.actionButtonsContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.modernButton,
+                          { backgroundColor: getPrimaryColor() },
+                          (loading || activeSession.estadoActual === 'almuerzo') && styles.buttonDisabled
+                        ]}
+                        onPress={handleBreak}
+                        disabled={loading || activeSession.estadoActual === 'almuerzo'}
+                      >
+                        <Text style={styles.modernButtonText}>
+                          {activeSession.estadoActual === 'break' ? 'Finalizar Break' : 'Tomar Break'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.modernButton,
+                          { backgroundColor: getSecondaryColor(), marginTop: 12 },
+                          (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.buttonDisabled
+                        ]}
+                        onPress={handleAlmuerzo}
+                        disabled={loading || activeSession.estadoActual === 'break' || !!activeSession.almuerzo?.fin}
+                      >
+                        <Text style={styles.modernButtonText}>
+                          {activeSession.estadoActual === 'almuerzo' ? 'Finalizar Almuerzo' : 'Ir a Almuerzo'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.modernButton,
+                          { backgroundColor: '#ff4757', marginTop: 24 },
+                          (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.buttonDisabled
+                        ]}
+                        onPress={handleFinalizarJornada}
+                        disabled={loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo'}
+                      >
+                        <Text style={styles.modernButtonText}>Finalizar Jornada</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
-
-                {/* Action Buttons */}
-                {activeSession && activeSession.estadoActual !== 'finalizado' && (
-                  <View style={styles.actionButtonsContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.modernButton,
-                        { backgroundColor: getPrimaryColor() },
-                        (loading || activeSession.estadoActual === 'almuerzo') && styles.buttonDisabled
-                      ]}
-                      onPress={handleBreak}
-                      disabled={loading || activeSession.estadoActual === 'almuerzo'}
-                    >
-                      <Text style={styles.modernButtonText}>
-                        {activeSession.estadoActual === 'break' ? 'Finalizar Break' : 'Tomar Break'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.modernButton,
-                        { backgroundColor: getSecondaryColor(), marginTop: 12 },
-                        (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.buttonDisabled
-                      ]}
-                      onPress={handleAlmuerzo}
-                      disabled={loading || activeSession.estadoActual === 'break' || !!activeSession.almuerzo?.fin}
-                    >
-                      <Text style={styles.modernButtonText}>
-                        {activeSession.estadoActual === 'almuerzo' ? 'Finalizar Almuerzo' : 'Ir a Almuerzo'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.modernButton,
-                        { backgroundColor: '#ff4757', marginTop: 24 },
-                        (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.buttonDisabled
-                      ]}
-                      onPress={handleFinalizarJornada}
-                      disabled={loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo'}
-                    >
-                      <Text style={styles.modernButtonText}>Finalizar Jornada</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+              </BlurView>
 
               {/* Daily Log Card */}
-              <View style={[styles.card, { marginTop: 20 }]}>
-                <Text style={styles.sectionTitle}>REGISTRO DE HOY</Text>
-                
-                {activeSession?.breaks?.map((b, i) => (
-                  <View key={i} style={styles.logRow}>
-                    <View style={styles.logIconContainer}>
-                      <Text>☕</Text>
+              <BlurView intensity={30} tint="light" style={[styles.blurCard, { marginTop: 20 }]}>
+                <View style={styles.cardContentInner}>
+                  <Text style={styles.sectionTitle}>REGISTRO DE HOY</Text>
+                  
+                  {activeSession?.breaks?.map((b, i) => (
+                    <View key={i} style={styles.logRow}>
+                      <View style={styles.logIconContainer}>
+                        <Text>☕</Text>
+                      </View>
+                      <View style={styles.logDetails}>
+                        <Text style={styles.logTitle}>Break {i + 1}</Text>
+                        <Text style={styles.logTime}>
+                          {formatHora(b.inicio)} - {b.fin ? formatHora(b.fin) : 'En curso'}
+                        </Text>
+                      </View>
+                      {b.duracion && <Text style={styles.logDuration}>{b.duracion}</Text>}
                     </View>
-                    <View style={styles.logDetails}>
-                      <Text style={styles.logTitle}>Break {i + 1}</Text>
-                      <Text style={styles.logTime}>
-                        {formatHora(b.inicio)} - {b.fin ? formatHora(b.fin) : 'En curso'}
-                      </Text>
-                    </View>
-                    {b.duracion && <Text style={styles.logDuration}>{b.duracion}</Text>}
-                  </View>
-                ))}
+                  ))}
 
-                {activeSession?.almuerzo && (
-                  <View style={styles.logRow}>
-                    <View style={styles.logIconContainer}>
-                      <Text>🍽️</Text>
+                  {activeSession?.almuerzo && (
+                    <View style={styles.logRow}>
+                      <View style={styles.logIconContainer}>
+                        <Text>🍽️</Text>
+                      </View>
+                      <View style={styles.logDetails}>
+                        <Text style={styles.logTitle}>Almuerzo</Text>
+                        <Text style={styles.logTime}>
+                          {formatHora(activeSession.almuerzo.inicio)} - {activeSession.almuerzo.fin ? formatHora(activeSession.almuerzo.fin) : 'En curso'}
+                        </Text>
+                      </View>
+                      {activeSession.almuerzo.duracion && (
+                        <Text style={styles.logDuration}>{activeSession.almuerzo.duracion}</Text>
+                      )}
                     </View>
-                    <View style={styles.logDetails}>
-                      <Text style={styles.logTitle}>Almuerzo</Text>
-                      <Text style={styles.logTime}>
-                        {formatHora(activeSession.almuerzo.inicio)} - {activeSession.almuerzo.fin ? formatHora(activeSession.almuerzo.fin) : 'En curso'}
-                      </Text>
-                    </View>
-                    {activeSession.almuerzo.duracion && (
-                      <Text style={styles.logDuration}>{activeSession.almuerzo.duracion}</Text>
-                    )}
-                  </View>
-                )}
+                  )}
 
-                {(!activeSession?.breaks?.length && !activeSession?.almuerzo) && (
-                  <Text style={styles.emptyText}>No hay registros de actividad aún.</Text>
-                )}
-              </View>
+                  {(!activeSession?.breaks?.length && !activeSession?.almuerzo) && (
+                    <Text style={styles.emptyText}>No hay registros de actividad aún.</Text>
+                  )}
+                </View>
+              </BlurView>
             </Animated.View>
           )}
 
@@ -592,7 +614,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   headerGradient: {
-    height: height * 0.35,
+    height: height * 0.28,
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingHorizontal: 24,
   },
@@ -659,16 +681,32 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: 'transparent',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    marginTop: -60,
+    marginTop: -80,
     overflow: 'hidden',
   },
   content: {
     flex: 1,
     padding: 20,
     paddingTop: 32,
+  },
+  blurCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  cardContentInner: {
+    padding: 24,
   },
   card: {
     backgroundColor: '#fff',
@@ -706,10 +744,10 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   timerValue: {
-    fontSize: 56,
+    fontSize: 36,
     fontWeight: '800',
     color: '#1c1c1e',
-    letterSpacing: -2,
+    letterSpacing: -1,
     fontVariant: ['tabular-nums'],
   },
   timerLabel: {

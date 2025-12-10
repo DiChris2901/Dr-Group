@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
 import BottomTabNavigator from './BottomTabNavigator'; // ✅ FASE 0.3: Bottom Tab Navigator
 import AsistenciaDetailScreen from '../screens/asistencias/AsistenciaDetailScreen'; // ✅ FASE 0.5: Detalle de asistencia
+import DashboardScreen from '../screens/dashboard/DashboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,14 +25,20 @@ function AppNavigator({ navigation }, ref) {
 
   // ✅ PASO 1.3: Determinar rol del usuario
   const userRole = userProfile?.role || 'USER';
+  const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
   return (
     <NavigationContainer ref={ref}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            {/* ✅ FASE 0.3: Bottom Tab Navigator con 4 tabs (Inicio, Calendario, Reportes, Asistencias) */}
-            <Stack.Screen name="Main" component={BottomTabNavigator} />
+            {isAdmin ? (
+              /* ✅ ADMIN: Acceso completo con Bottom Tab Navigator */
+              <Stack.Screen name="Main" component={BottomTabNavigator} />
+            ) : (
+              /* ✅ USER: Solo Dashboard sin navegación inferior */
+              <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            )}
             
             {/* ✅ FASE 0.5: Pantalla de detalle de asistencia */}
             <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />

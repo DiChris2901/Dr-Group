@@ -1,15 +1,35 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../contexts/ThemeContext'; // ✅ FIX: Usar custom hook
+import { useTheme } from '../contexts/ThemeContext';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
-import CalendarioScreen from '../screens/calendario/CalendarioScreen'; // ✅ FASE 0.4
+import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
 
 const Tab = createBottomTabNavigator();
+
+const TabIcon = ({ name, color, size, focused }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: focused ? 1.2 : 1,
+      friction: 4,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  }, [focused]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <MaterialIcons name={name} size={size} color={color} />
+    </Animated.View>
+  );
+};
 
 /**
  * BottomTabNavigator - Navegación principal con 4 tabs
@@ -25,9 +45,10 @@ const Tab = createBottomTabNavigator();
  * - Colores dinámicos desde ThemeContext
  * - Íconos Material Icons
  * - Spacing generoso
+ * - Micro-interacciones en íconos
  */
 export default function BottomTabNavigator() {
-  const { getPrimaryColor, getSecondaryColor } = useTheme(); // ✅ FIX: Usar custom hook
+  const { getPrimaryColor } = useTheme();
 
   return (
     <Tab.Navigator
@@ -66,15 +87,11 @@ export default function BottomTabNavigator() {
       }}
     >
       <Tab.Screen 
-        name="Inicio" 
+        name="Dashboard" 
         component={DashboardScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons 
-              name="access-time" 
-              size={focused ? 28 : 24} // Material 3: ícono activo más grande
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="access-time" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Jornada'
         }}
@@ -84,12 +101,8 @@ export default function BottomTabNavigator() {
         name="Calendario" 
         component={CalendarioScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons 
-              name="event" 
-              size={focused ? 28 : 24}
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="event" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Calendario'
         }}
@@ -99,12 +112,8 @@ export default function BottomTabNavigator() {
         name="Reportes" 
         component={ReportesScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons 
-              name="bar-chart" 
-              size={focused ? 28 : 24}
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="bar-chart" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Reportes'
         }}
@@ -114,12 +123,8 @@ export default function BottomTabNavigator() {
         name="Asistencias" 
         component={AsistenciasScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons 
-              name="event-note" 
-              size={focused ? 28 : 24}
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="event-note" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Historial'
         }}
