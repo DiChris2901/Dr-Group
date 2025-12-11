@@ -11,6 +11,7 @@ import AsistenciaDetailScreen from '../screens/asistencias/AsistenciaDetailScree
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
+import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
 
@@ -43,6 +44,7 @@ function AppNavigator({ navigation }, ref) {
             <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />
             <Stack.Screen name="Novedades" component={NovedadesScreen} />
             <Stack.Screen name="AdminNovedades" component={AdminNovedadesScreen} />
+            <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} />
           </>
         ) : (
           // Usuario no autenticado

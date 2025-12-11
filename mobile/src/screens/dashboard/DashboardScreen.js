@@ -33,7 +33,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-  const { user, userProfile, activeSession, signOut, registrarBreak, finalizarBreak, registrarAlmuerzo, finalizarAlmuerzo, finalizarJornada } = useAuth();
+  const { user, userProfile, activeSession, signOut, iniciarJornada, registrarBreak, finalizarBreak, registrarAlmuerzo, finalizarAlmuerzo, finalizarJornada } = useAuth();
   const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
   const { scheduleNotification, cancelNotification } = useNotifications();
   
@@ -294,9 +294,12 @@ export default function DashboardScreen() {
                 await new Promise(resolve => setTimeout(resolve, 500));
                 await finalizarJornada();
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert('✅ Jornada Finalizada', 'Tu jornada se ha cerrado correctamente.');
               } catch (error) {
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                Alert.alert('Error', error.message);
+                Alert.alert('❌ Error', error.message || 'No se pudo finalizar la jornada');
+              } finally {
+                // ✅ Siempre quitar loading al finalizar
                 setFinalizando(false);
                 setLoading(false);
               }
@@ -322,9 +325,12 @@ export default function DashboardScreen() {
             try {
               await finalizarJornada();
               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('✅ Jornada Finalizada', 'Tu jornada se ha cerrado correctamente.');
             } catch (error) {
               await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', error.message);
+              Alert.alert('❌ Error', error.message || 'No se pudo finalizar la jornada');
+            } finally {
+              // ✅ Siempre quitar loading al finalizar
               setFinalizando(false);
               setLoading(false);
             }
@@ -492,13 +498,63 @@ export default function DashboardScreen() {
                   >
                     <Text style={styles.modernButtonText}>🔔 Gestionar Novedades</Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modernButton, { backgroundColor: '#9c27b0', marginTop: 12 }]}
+                    onPress={() => navigation.navigate('AdminSettings')}
+                  >
+                    <Text style={styles.modernButtonText}>⚙️ Configurar Jornada</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </Animated.View>
           ) : (
             /* USER VIEW */
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-              {/* Main Status Card */}
+              {/* ✅ Si NO hay sesión activa, mostrar botón de Iniciar Jornada */}
+              {!activeSession || activeSession.estadoActual === 'finalizado' ? (
+                <BlurView intensity={90} tint="systemThickMaterialLight" style={styles.blurCard}>
+                  <View style={styles.cardContentInner}>
+                    <View style={styles.noSessionContainer}>
+                      <Text style={styles.noSessionIcon}>🏢</Text>
+                      <Text style={styles.noSessionTitle}>Sin Jornada Activa</Text>
+                      <Text style={styles.noSessionSubtitle}>
+                        Presiona el botón para iniciar tu jornada laboral
+                      </Text>
+                      
+                      <TouchableOpacity
+                        style={[styles.startWorkButton, { backgroundColor: getPrimaryColor() }]}
+                        onPress={async () => {
+                          try {
+                            setLoading(true);
+                            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                            await iniciarJornada();
+                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            Alert.alert('✅ Jornada Iniciada', 'Tu jornada laboral ha comenzado correctamente.');
+                          } catch (error) {
+                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                            Alert.alert('❌ Error', error.message || 'No se pudo iniciar la jornada');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.startWorkButtonText}>▶️ INICIAR JORNADA</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <Text style={styles.hintText}>
+                        💡 Si tienes alguna novedad (llegada tarde, cita médica), repórtala en la pestaña "Novedades" antes de iniciar.
+                      </Text>
+                    </View>
+                  </View>
+                </BlurView>
+              ) : (
+              /* Main Status Card */
               <BlurView intensity={90} tint="systemThickMaterialLight" style={styles.blurCard}>
                 <View style={styles.cardContentInner}>
                   <View style={[styles.statusPill, { backgroundColor: getEstadoColor() + '20' }]}>
@@ -588,8 +644,10 @@ export default function DashboardScreen() {
                   )}
                 </View>
               </BlurView>
+              )}
 
-              {/* Daily Log Card */}
+              {/* Daily Log Card - Solo si hay sesión activa */}
+              {activeSession && activeSession.estadoActual !== 'finalizado' && (
               <BlurView intensity={30} tint="light" style={[styles.blurCard, { marginTop: 20 }]}>
                 <View style={styles.cardContentInner}>
                   <Text style={styles.sectionTitle}>REGISTRO DE HOY</Text>
@@ -631,6 +689,7 @@ export default function DashboardScreen() {
                   )}
                 </View>
               </BlurView>
+              )}
             </Animated.View>
           )}
 
@@ -931,4 +990,55 @@ const styles = StyleSheet.create({
   adminActions: {
     gap: 12,
   },
+  // ✅ Estilos para botón "Iniciar Jornada"
+  noSessionContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noSessionIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  noSessionTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1c1c1e',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  noSessionSubtitle: {
+    fontSize: 15,
+    color: '#8e8e93',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  startWorkButton: {
+    width: '100%',
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+    marginBottom: 24,
+  },
+  startWorkButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  hintText: {
+    fontSize: 13,
+    color: '#8e8e93',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
 });
+

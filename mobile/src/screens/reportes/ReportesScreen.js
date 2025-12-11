@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { collection, query, getDocs, where } from 'firebase/firestore';
+import { collection, query, getDocs, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -22,7 +22,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-f
 const { width, height } = Dimensions.get('window');
 
 export default function ReportesScreen() {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
   
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,9 @@ export default function ReportesScreen() {
     totalHoras: 0,
     diasTrabajados: 0,
     promedioDiario: 0,
-    puntualidad: 100
+    puntualidad: 100,
+    chartData: [0, 0, 0, 0, 0, 0, 0],
+    chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
   });
 
   // Animations
@@ -86,13 +88,15 @@ export default function ReportesScreen() {
 
       // ✅ FILTRO DE SEGURIDAD: Si no es admin, solo ver sus propios datos
       if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
-        if (!userProfile?.uid) {
+        const targetUid = userProfile?.uid || user?.uid;
+        
+        if (!targetUid) {
           setLoading(false);
           return;
         }
         q = query(
           collection(db, 'asistencias'),
-          where('uid', '==', userProfile.uid),
+          where('uid', '==', targetUid),
           where('fecha', '>=', fechaDesdeStr),
           where('fecha', '<=', fechaHastaStr)
         );
@@ -101,20 +105,123 @@ export default function ReportesScreen() {
       const querySnapshot = await getDocs(q);
       const asistencias = querySnapshot.docs.map(doc => doc.data());
       
-      // Calcular métricas simples
+      // Calcular métricas reales
       let totalMinutos = 0;
+      let onTimeCount = 0;
+      
+      // Arrays para gráfico
+      let chartData = [];
+      let chartLabels = [];
+      
+      if (rangoSeleccionado === 'semana') {
+        chartLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+        const days = new Array(7).fill(0);
+        
+        asistencias.forEach(a => {
+          if (a.fecha) {
+            // Crear fecha segura (evitar problemas de zona horaria con string YYYY-MM-DD)
+            const [year, month, day] = a.fecha.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
+            const dayIndex = date.getDay(); // 0 = Domingo, 1 = Lunes...
+            const index = dayIndex === 0 ? 6 : dayIndex - 1; // Mover Domingo al final (6)
+            
+            if (a.horasTrabajadas) {
+              const [h, m] = a.horasTrabajadas.split(':').map(Number);
+              days[index] += h + (m / 60);
+            }
+          }
+        });
+        
+        // Escalar a porcentaje (asumiendo 12h como 100% para visualización)
+        chartData = days.map(h => Math.min((h / 12) * 100, 100));
+        
+      } else {
+        // Lógica para Mes (Agrupado por semanas)
+        chartLabels = ['S1', 'S2', 'S3', 'S4', 'S5'];
+        const weeks = new Array(5).fill(0);
+        
+        asistencias.forEach(a => {
+          if (a.fecha) {
+            const [year, month, day] = a.fecha.split('-').map(Number);
+            // Calcular semana aproximada del mes (0-4)
+            const weekIndex = Math.floor((day - 1) / 7);
+            
+            if (a.horasTrabajadas && weekIndex < 5) {
+              const [h, m] = a.horasTrabajadas.split(':').map(Number);
+              weeks[weekIndex] += h + (m / 60);
+            }
+          }
+        });
+        
+        // Escalar a porcentaje (asumiendo 50h/semana como 100%)
+        chartData = weeks.map(h => Math.min((h / 50) * 100, 100));
+      }
+
+      // ✅ Obtener configuración de jornada
+      let workStartHour = 8;
+      let workStartMinute = 0;
+      let gracePeriod = 15;
+      let workDays = [1, 2, 3, 4, 5]; // Lunes a Viernes por defecto
+
+      try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'work_schedule'));
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          if (data.startTime) {
+            const [h, m] = data.startTime.split(':').map(Number);
+            workStartHour = h;
+            workStartMinute = m;
+          }
+          if (data.gracePeriod !== undefined) {
+            gracePeriod = Number(data.gracePeriod);
+          }
+          if (data.workDays) {
+            workDays = data.workDays;
+          }
+        }
+      } catch (e) {
+        console.log('Usando configuración por defecto (08:00 + 15m)');
+      }
+
+      let punctualityBaseCount = 0;
+
       asistencias.forEach(a => {
+        // Total Horas
         if (a.horasTrabajadas) {
           const [h, m] = a.horasTrabajadas.split(':').map(Number);
           totalMinutos += (h * 60) + m;
+        }
+        
+        // ✅ Puntualidad Dinámica (Solo en días laborales)
+        if (a.entrada?.hora) {
+          const date = a.entrada.hora.toDate ? a.entrada.hora.toDate() : new Date(a.entrada.hora);
+          const dayOfWeek = date.getDay(); // 0=Dom, 1=Lun...
+          
+          // Solo evaluar puntualidad si es un día laboral configurado
+          if (workDays.includes(dayOfWeek)) {
+            punctualityBaseCount++;
+            
+            const hour = date.getHours();
+            const minute = date.getMinutes();
+            
+            // Calcular minutos totales del día para comparar
+            const entryTime = hour * 60 + minute;
+            const limitTime = workStartHour * 60 + workStartMinute + gracePeriod;
+
+            if (entryTime <= limitTime) {
+              onTimeCount++;
+            }
+          }
         }
       });
 
       setStats({
         totalHoras: Math.floor(totalMinutos / 60),
         diasTrabajados: asistencias.length,
-        promedioDiario: asistencias.length ? Math.floor(totalMinutos / asistencias.length / 60) : 0,
-        puntualidad: 98 // Mock value for now
+        promedioDiario: asistencias.length ? (totalMinutos / asistencias.length / 60).toFixed(1) : 0,
+        puntualidad: punctualityBaseCount > 0 ? Math.round((onTimeCount / punctualityBaseCount) * 100) : 100,
+        chartData,
+        chartLabels
       });
       
     } catch (err) {
@@ -246,14 +353,16 @@ export default function ReportesScreen() {
             />
           </View>
 
-          {/* Gráfico Placeholder (Visual) */}
+          {/* Gráfico Real */}
           <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Rendimiento Semanal</Text>
+            <Text style={styles.chartTitle}>
+              {rangoSeleccionado === 'semana' ? 'Rendimiento Semanal' : 'Rendimiento Mensual'}
+            </Text>
             <View style={styles.chartPlaceholder}>
-              {[60, 80, 45, 90, 75, 30, 85].map((h, i) => (
+              {stats.chartData.map((h, i) => (
                 <View key={i} style={styles.barContainer}>
-                  <View style={[styles.bar, { height: `${h}%`, backgroundColor: getPrimaryColor() }]} />
-                  <Text style={styles.barLabel}>{['L', 'M', 'M', 'J', 'V', 'S', 'D'][i]}</Text>
+                  <View style={[styles.bar, { height: `${Math.max(h, 5)}%`, backgroundColor: getPrimaryColor() }]} />
+                  <Text style={styles.barLabel}>{stats.chartLabels[i]}</Text>
                 </View>
               ))}
             </View>
@@ -271,7 +380,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   headerGradient: {
-    height: height * 0.25,
+    height: height * 0.30, // Aumentado para evitar corte
     paddingTop: Platform.OS === 'ios' ? 60 : 50,
     paddingHorizontal: 24,
   },
@@ -279,14 +388,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28, // Reducido para diseño sobrio
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -295,11 +404,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F7',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    marginTop: -40,
+    marginTop: -50, // Ajustado
     overflow: 'hidden',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16, // Reducido de 20
     paddingBottom: 100,
   },
   filterContainer: {
@@ -307,11 +416,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 4,
     borderRadius: 16,
-    marginBottom: 24,
+    marginBottom: 16, // Reducido de 24
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10, // Reducido de 12
     alignItems: 'center',
     borderRadius: 12,
   },
@@ -319,7 +428,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 13, // Reducido de 14
     fontWeight: '600',
     color: '#999',
   },
@@ -330,65 +439,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16, // Reducido de 24
   },
   statCardContainer: {
-    width: (width - 52) / 2,
+    width: (width - 44) / 2, // Ajustado para padding 16 (16*2 + 12 gap = 44)
   },
   statCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
+    borderRadius: 20, // Reducido de 24
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40, // Reducido de 48
+    height: 40, // Reducido de 48
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8, // Reducido de 12
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20, // Reducido de 24
     fontWeight: '800',
     color: '#2d3436',
-    marginBottom: 4,
-  },
-  statTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#b2bec3',
-    letterSpacing: 1,
     marginBottom: 2,
   },
+  statTitle: {
+    fontSize: 9, // Reducido de 10
+    fontWeight: '700',
+    color: '#b2bec3',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
   statSubtitle: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#dfe6e9',
+    textAlign: 'center',
   },
   chartCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20, // Reducido de 24
+    padding: 16, // Reducido de 24
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
   },
   chartTitle: {
-    fontSize: 18,
+    fontSize: 16, // Reducido de 18
     fontWeight: '700',
     color: '#2d3436',
-    marginBottom: 24,
+    marginBottom: 16, // Reducido de 24
   },
   chartPlaceholder: {
-    height: 150,
+    height: 140, // Reducido de 150
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
@@ -398,12 +509,12 @@ const styles = StyleSheet.create({
     width: 20,
   },
   bar: {
-    width: 8,
-    borderRadius: 4,
-    marginBottom: 8,
+    width: 6, // Reducido de 8
+    borderRadius: 3,
+    marginBottom: 6,
   },
   barLabel: {
-    fontSize: 12,
+    fontSize: 10, // Reducido de 12
     color: '#b2bec3',
     fontWeight: '600',
   },

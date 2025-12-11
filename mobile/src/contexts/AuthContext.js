@@ -82,7 +82,8 @@ export const AuthProvider = ({ children }) => {
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
-            setUserProfile(userDoc.data());
+            // ✅ Incluir UID en el perfil para evitar errores
+            setUserProfile({ ...userDoc.data(), uid: firebaseUser.uid });
           }
           
           // ✅ Cargar sesión activa si existe (Persistencia)
@@ -133,28 +134,92 @@ export const AuthProvider = ({ children }) => {
         console.warn('No se pudo cargar perfil del usuario:', profileError);
       }
 
-      // ✅ ADMIN y SUPER_ADMIN no registran jornadas laborales
-      if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
-        console.log('Usuario administrador - No se registra jornada laboral');
-        return { success: true, user };
+      // ✅ Ya no auto-registramos entrada al login
+      // El usuario debe presionar "Iniciar Jornada" manualmente
+      console.log('Login exitoso - Usuario debe iniciar jornada manualmente');
+      return { success: true, user };
+    } catch (error) {
+      console.error('Error en signIn:', error);
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      // ✅ Ya NO finalizamos automáticamente la jornada al cerrar sesión
+      // El usuario debe finalizar jornada manualmente antes de salir
+      await firebaseSignOut(auth);
+      setActiveSession(null);
+    } catch (error) {
+      console.error('Error en signOut:', error);
+      throw error;
+    }
+  };
+
+  // ✅ NUEVA FUNCIÓN: Iniciar jornada laboral manualmente
+  const iniciarJornada = async () => {
+    try {
+      if (!user) {
+        throw new Error('No hay usuario autenticado');
       }
 
-      // 3. Obtener ubicación (solo para usuarios normales)
+      // ✅ Verificar que no haya sesión activa
+      if (activeSession && !activeSession.salida) {
+        throw new Error('Ya tienes una jornada activa');
+      }
+
+      // 1. Obtener ubicación con TIMEOUT de 5 segundos
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({});
+          // ✅ Promise.race para timeout
+          const locationPromise = Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced, // Más rápido que High
+          });
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+          );
+          
+          const loc = await Promise.race([locationPromise, timeoutPromise]);
           location = {
             lat: loc.coords.latitude,
             lon: loc.coords.longitude
           };
+
+          // ✅ Verificar si está en oficina
+          try {
+            const settingsDoc = await getDoc(doc(db, 'settings', 'location'));
+            if (settingsDoc.exists()) {
+              const officeLoc = settingsDoc.data();
+              const R = 6371e3; // metros
+              const φ1 = location.lat * Math.PI/180;
+              const φ2 = officeLoc.lat * Math.PI/180;
+              const Δφ = (officeLoc.lat - location.lat) * Math.PI/180;
+              const Δλ = (officeLoc.lon - location.lon) * Math.PI/180;
+
+              const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              const d = R * c;
+
+              location.tipo = d <= (officeLoc.radius || 100) ? 'Oficina' : 'Remoto';
+              location.distanciaOficina = Math.round(d);
+            } else {
+              location.tipo = 'Remoto (Sin Config)';
+            }
+          } catch (e) {
+            console.log('Error verificando oficina:', e);
+            location.tipo = 'Remoto (Error)';
+          }
         }
       } catch (locError) {
-        console.warn('No se pudo obtener ubicación:', locError);
+        console.warn('No se pudo obtener ubicación (timeout o error):', locError.message);
+        // ✅ Continuar sin ubicación
       }
 
-      // 4. Obtener información del dispositivo (React Native Platform API)
+      // 2. Obtener información del dispositivo
       const deviceInfo = {
         brand: 'Android',
         manufacturer: 'Unknown',
@@ -163,17 +228,19 @@ export const AuthProvider = ({ children }) => {
         osVersion: Platform.Version?.toString() || 'Unknown'
       };
 
-      // 5. Registrar entrada en asistencias
-      // ✅ Usar fecha local en lugar de UTC para evitar desajustes de zona horaria
+      // 3. Obtener nombre del empleado desde userProfile
+      const nombreEmpleado = userProfile?.name || userProfile?.displayName || user.email.split('@')[0];
+
+      // 4. Registrar entrada en asistencias
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const asistenciaData = {
-        uid: user.uid, // ✅ Cambiar empleadoId por uid (consistencia con dashboard)
+        uid: user.uid,
         empleadoEmail: user.email,
-        empleadoNombre: nombreEmpleado, // ✅ Ahora tiene el nombre correcto
+        empleadoNombre: nombreEmpleado,
         fecha: today,
         entrada: {
-          hora: Timestamp.now(), // ✅ Usar Timestamp de Firestore (maneja zona horaria correctamente)
+          hora: Timestamp.now(),
           ubicacion: location,
           dispositivo: `${deviceInfo.brand} ${deviceInfo.modelName}`
         },
@@ -191,30 +258,9 @@ export const AuthProvider = ({ children }) => {
         id: asistenciaRef.id
       });
 
-      return { success: true, user };
+      return { success: true, sessionId: asistenciaRef.id };
     } catch (error) {
-      console.error('Error en signIn:', error);
-      throw error;
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      // Si hay sesión activa y no ha finalizado, marcar como finalizada
-      if (activeSession && !activeSession.salida) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), {
-          salida: {
-            hora: Timestamp.now() // ✅ Usar Timestamp de Firestore
-          },
-          estadoActual: 'finalizado',
-          updatedAt: Timestamp.now()
-        });
-      }
-      
-      await firebaseSignOut(auth);
-      setActiveSession(null);
-    } catch (error) {
-      console.error('Error en signOut:', error);
+      console.error('Error iniciando jornada:', error);
       throw error;
     }
   };
@@ -409,18 +455,28 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession) return;
 
     try {
+      // ✅ Obtener ubicación con TIMEOUT de 5 segundos
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({});
+          // ✅ Promise.race para timeout
+          const locationPromise = Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced, // Más rápido que High
+          });
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+          );
+          
+          const loc = await Promise.race([locationPromise, timeoutPromise]);
           location = {
             lat: loc.coords.latitude,
             lon: loc.coords.longitude
           };
         }
       } catch (locError) {
-        console.warn('No se pudo obtener ubicación:', locError);
+        console.warn('No se pudo obtener ubicación (timeout o error):', locError.message);
+        // ✅ Continuar sin ubicación
       }
 
       // Calcular horas trabajadas en formato HH:MM:SS
@@ -476,10 +532,13 @@ export const AuthProvider = ({ children }) => {
         });
       }
 
-      setActiveSession(null);
-      
-      // ✅ Cerrar sesión automáticamente después de finalizar jornada
-      await signOut();
+      // ✅ Solo actualizar el estado de la sesión a finalizado
+      // NO cerrar sesión automáticamente
+      setActiveSession({
+        ...activeSession,
+        ...updateData,
+        estadoActual: 'finalizado'
+      });
     } catch (error) {
       console.error('Error finalizando jornada:', error);
       throw error;
@@ -520,6 +579,7 @@ export const AuthProvider = ({ children }) => {
     activeSession,
     signIn,
     signOut,
+    iniciarJornada, // ✅ Nueva función
     registrarBreak,
     finalizarBreak,
     registrarAlmuerzo,
