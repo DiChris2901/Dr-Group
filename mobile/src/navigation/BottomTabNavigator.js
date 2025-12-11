@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
+import { Animated, View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -15,21 +16,20 @@ import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 const Tab = createBottomTabNavigator();
 
 const TabIcon = ({ name, color, size, focused }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: focused ? 1.2 : 1,
-      friction: 4,
-      tension: 100,
-      useNativeDriver: true,
-    }).start();
-  }, [focused]);
-
+  // Ionicons logic: filled when focused, outline when not
+  const iconName = focused ? name : `${name}-outline`;
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <MaterialIcons name={name} size={size} color={color} />
-    </Animated.View>
+    <View style={{
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: focused ? color + '20' : 'transparent', // 20 = 12% opacity approx
+      paddingHorizontal: 20,
+      paddingVertical: 4,
+      borderRadius: 16, // Pill shape
+      marginBottom: 4
+    }}>
+      <Ionicons name={iconName} size={24} color={color} />
+    </View>
   );
 };
 
@@ -50,6 +50,7 @@ const TabIcon = ({ name, color, size, focused }) => {
 export default function BottomTabNavigator() {
   const { getPrimaryColor } = useTheme();
   const { userProfile } = useAuth();
+  const insets = useSafeAreaInsets();
   
   const userRole = userProfile?.role || 'USER';
   const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
@@ -59,35 +60,27 @@ export default function BottomTabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: getPrimaryColor(),
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarInactiveTintColor: '#64748b', // Slate 500
         tabBarStyle: {
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
+          height: 80 + (Platform.OS === 'ios' ? insets.bottom : 10), // Ajuste dinámico
           backgroundColor: '#ffffff',
-          borderRadius: 30,
-          height: 70,
-          borderTopWidth: 0,
-          paddingBottom: 10,
-          paddingTop: 10,
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 10,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 20,
-          elevation: 10,
+          borderTopWidth: 1,
+          borderTopColor: '#f1f5f9', // Slate 100
+          elevation: 0, // Flat design (Material 3)
+          paddingTop: 12,
+          paddingBottom: 12 + (Platform.OS === 'ios' ? insets.bottom : 10), // Ajuste dinámico
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '600',
-          marginBottom: 5,
+          marginTop: 4,
         },
         tabBarIconStyle: {
-          marginTop: 5,
+          marginBottom: 0,
         },
+        tabBarItemStyle: {
+          paddingVertical: 8,
+        }
       }}
     >
       <Tab.Screen 
@@ -95,7 +88,7 @@ export default function BottomTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="access-time" size={24} color={color} focused={focused} />
+            <TabIcon name="grid" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Jornada'
         }}
@@ -107,7 +100,7 @@ export default function BottomTabNavigator() {
           component={CalendarioScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon name="event" size={24} color={color} focused={focused} />
+              <TabIcon name="calendar" size={24} color={color} focused={focused} />
             ),
             tabBarLabel: 'Calendario'
           }}
@@ -118,7 +111,7 @@ export default function BottomTabNavigator() {
           component={NovedadesScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon name="notification-important" size={24} color={color} focused={focused} />
+              <TabIcon name="notifications" size={24} color={color} focused={focused} />
             ),
             tabBarLabel: 'Novedades'
           }}
@@ -141,7 +134,7 @@ export default function BottomTabNavigator() {
         component={AsistenciasScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="event-note" size={24} color={color} focused={focused} />
+            <TabIcon name="time" size={24} color={color} focused={focused} />
           ),
           tabBarLabel: 'Historial'
         }}

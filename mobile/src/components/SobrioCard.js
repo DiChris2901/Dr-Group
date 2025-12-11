@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 
 /**
  * SobrioCard - Card component con Material 3 Expressive Design
@@ -15,14 +15,25 @@ export default function SobrioCard({
   children, 
   style, 
   variant = 'primary', // 'primary' | 'secondary'
-  borderColor = '#667eea' // Color del tema (dinámico desde ThemeContext)
+  borderColor = '#667eea', // Color del tema (dinámico desde ThemeContext)
+  onPress
 }) {
   const variantStyles = variant === 'primary' 
     ? styles.cardPrimary 
     : styles.cardSecondary;
 
+  const cardStyle = [styles.card, variantStyles, { borderColor: borderColor + '26' }, style];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} style={cardStyle} activeOpacity={0.7}>
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
   return (
-    <View style={[styles.card, variantStyles, { borderColor: borderColor + '26' }, style]}>
+    <View style={cardStyle}>
       {children}
     </View>
   );

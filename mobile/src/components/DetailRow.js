@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 /**
  * DetailRow - Componente para mostrar información con Material 3 Expressive Design
@@ -34,9 +35,7 @@ export default function DetailRow({
     ]}>
       {icon && (
         <View style={styles.iconContainer}>
-          <Text style={[styles.icon, { color: highlight ? highlightColor : iconColor }]}>
-            {icon}
-          </Text>
+          <Ionicons name={icon} size={24} color={highlight ? highlightColor : iconColor} />
         </View>
       )}
       <View style={styles.content}>

@@ -1,43 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
-  Platform,
-  Modal,
-  ScrollView,
-  Linking
+  Animated,
+  Linking,
+  Dimensions
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
-import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+import { 
+  Text, 
+  useTheme, 
+  Avatar, 
+  Surface, 
+  IconButton, 
+  Chip,
+  Searchbar,
+  FAB,
+  Portal,
+  Modal,
+  Button
+} from 'react-native-paper';
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useTheme } from '../../contexts/ThemeContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width } = Dimensions.get('window');
 
 export default function AdminNovedadesScreen({ navigation }) {
-  const { getGradient, getPrimaryColor } = useTheme();
+  const theme = useTheme();
   const [novedades, setNovedades] = useState([]);
+  const [filteredNovedades, setFilteredNovedades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('pending'); // 'pending' | 'all'
   const [selectedNovedad, setSelectedNovedad] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   const fetchNovedades = async () => {
     try {
-      const q = query(
-        collection(db, 'novedades'),
-        orderBy('date', 'desc')
-      );
+      const q = query(collection(db, 'novedades'), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNovedades(data);
+      filterData(data, searchQuery, filterStatus);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudieron cargar las novedades');
@@ -51,506 +62,300 @@ export default function AdminNovedadesScreen({ navigation }) {
     fetchNovedades();
   }, []);
 
+  useEffect(() => {
+    filterData(novedades, searchQuery, filterStatus);
+  }, [searchQuery, filterStatus, novedades]);
+
+  const filterData = (data, query, status) => {
+    let filtered = data;
+    
+    // Filter by Status
+    if (status === 'pending') {
+      filtered = filtered.filter(item => item.status === 'pending');
+    }
+
+    // Filter by Search
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.userName?.toLowerCase().includes(lowerQuery) ||
+        item.type?.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    setFilteredNovedades(filtered);
+  };
+
   const handleStatusChange = async (id, newStatus) => {
     try {
-      await updateDoc(doc(db, 'novedades', id), {
-        status: newStatus
-      });
-      // Actualizar localmente
+      // Optimistic Update
       setNovedades(prev => prev.map(item => 
         item.id === id ? { ...item, status: newStatus } : item
       ));
+
+      await updateDoc(doc(db, 'novedades', id), { status: newStatus });
       
-      // Si está en el modal, actualizar también
-      if (selectedNovedad && selectedNovedad.id === id) {
+      if (selectedNovedad?.id === id) {
         setSelectedNovedad(prev => ({ ...prev, status: newStatus }));
       }
-      
-      Alert.alert('Éxito', `Novedad ${newStatus === 'approved' ? 'aprobada' : 'rechazada'} correctamente`);
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el estado');
+      fetchNovedades(); // Revert on error
     }
   };
 
-  const openAttachment = async (url) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'No se puede abrir este archivo');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error al intentar abrir el archivo');
-    }
+  const renderRightActions = (progress, dragX, item) => {
+    const trans = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [0, 100],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <View style={styles.rightActionContainer}>
+        <Animated.View style={[styles.actionButton, { backgroundColor: theme.colors.error, transform: [{ translateX: trans }] }]}>
+          <IconButton icon="close" iconColor="white" onPress={() => handleStatusChange(item.id, 'rejected')} />
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Rechazar</Text>
+        </Animated.View>
+      </View>
+    );
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return '#4caf50';
-      case 'rejected': return '#f44336';
-      default: return '#ff9800';
-    }
-  };
+  const renderLeftActions = (progress, dragX, item) => {
+    const trans = dragX.interpolate({
+      inputRange: [0, 100],
+      outputRange: [-100, 0],
+      extrapolate: 'clamp',
+    });
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'approved': return 'Aprobado';
-      case 'rejected': return 'Rechazado';
-      default: return 'Pendiente';
-    }
+    return (
+      <View style={styles.leftActionContainer}>
+        <Animated.View style={[styles.actionButton, { backgroundColor: theme.colors.primary, transform: [{ translateX: trans }] }]}>
+          <IconButton icon="check" iconColor="white" onPress={() => handleStatusChange(item.id, 'approved')} />
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Aprobar</Text>
+        </Animated.View>
+      </View>
+    );
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => {
-        setSelectedNovedad(item);
-        setModalVisible(true);
-      }}
+    <Swipeable
+      renderRightActions={(p, d) => renderRightActions(p, d, item)}
+      renderLeftActions={(p, d) => renderLeftActions(p, d, item)}
     >
-      <View style={styles.cardHeader}>
-        <View>
-          <Text style={styles.userName}>{item.userName}</Text>
-          <Text style={styles.date}>
-            {item.date?.toDate ? format(item.date.toDate(), "d 'de' MMMM, h:mm a", { locale: es }) : ''}
-          </Text>
+      <Surface style={styles.card} elevation={1} onPress={() => { setSelectedNovedad(item); setModalVisible(true); }}>
+        <View style={styles.cardContent}>
+          <Avatar.Text 
+            size={48} 
+            label={item.userName ? item.userName.substring(0, 2).toUpperCase() : 'NA'} 
+            style={{ backgroundColor: theme.colors.primaryContainer }}
+            color={theme.colors.primary}
+          />
+          <View style={styles.textContainer}>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{item.userName || 'Usuario'}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
+              {item.type?.replace('_', ' ').toUpperCase()}
+            </Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+              {item.date?.toDate ? format(item.date.toDate(), "d MMM, h:mm a", { locale: es }) : 'Fecha inválida'}
+            </Text>
+          </View>
+          <View style={styles.statusContainer}>
+             {item.status === 'pending' && <Chip icon="clock" style={{ backgroundColor: theme.colors.tertiaryContainer }}>Pendiente</Chip>}
+             {item.status === 'approved' && <Chip icon="check" style={{ backgroundColor: '#E8F5E9' }} textStyle={{ color: '#2E7D32' }}>Aprobado</Chip>}
+             {item.status === 'rejected' && <Chip icon="close" style={{ backgroundColor: '#FFEBEE' }} textStyle={{ color: '#C62828' }}>Rechazado</Chip>}
+          </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.typeRow}>
-        <MaterialIcons name="info-outline" size={16} color="#666" />
-        <Text style={styles.typeText}>{item.type.replace('_', ' ').toUpperCase()}</Text>
-      </View>
-
-      <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-      
-      {item.attachmentUrl && (
-        <View style={styles.attachmentIndicator}>
-          <MaterialIcons name="attach-file" size={14} color="#666" />
-          <Text style={styles.attachmentTextSmall}>Adjunto disponible</Text>
-        </View>
-      )}
-
-      {item.status === 'pending' && (
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { borderColor: '#f44336' }]}
-            onPress={() => handleStatusChange(item.id, 'rejected')}
-          >
-            <Text style={{ color: '#f44336', fontWeight: '600' }}>Rechazar</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#4caf50', borderColor: '#4caf50' }]}
-            onPress={() => handleStatusChange(item.id, 'approved')}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Aprobar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </TouchableOpacity>
+      </Surface>
+    </Swipeable>
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={getGradient()}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Gestión de Novedades</Text>
-      </LinearGradient>
-
-      {loading ? (
-        <ActivityIndicator size="large" color={getPrimaryColor()} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={novedades}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNovedades(); }} />
-          }
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No hay novedades reportadas</Text>
-          }
-        />
-      )}
-
-      {/* Modal de Detalle */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Detalle de Novedad</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
-                <MaterialIcons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedNovedad && (
-              <ScrollView contentContainerStyle={styles.modalBody}>
-                {/* User Info */}
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="person" size={24} color={getPrimaryColor()} />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Usuario</Text>
-                    <Text style={styles.detailValue}>{selectedNovedad.userName}</Text>
-                    <Text style={styles.detailSubValue}>{selectedNovedad.userEmail}</Text>
-                  </View>
-                </View>
-
-                {/* Date */}
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="event" size={24} color={getPrimaryColor()} />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Fecha de Reporte</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedNovedad.date?.toDate ? format(selectedNovedad.date.toDate(), "EEEE d 'de' MMMM, yyyy - h:mm a", { locale: es }) : ''}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Type */}
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="category" size={24} color={getPrimaryColor()} />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Tipo de Novedad</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedNovedad.type.replace('_', ' ').toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Status */}
-                <View style={styles.detailRow}>
-                  <MaterialIcons name="info" size={24} color={getStatusColor(selectedNovedad.status)} />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Estado Actual</Text>
-                    <View style={[styles.statusBadge, { alignSelf: 'flex-start', marginTop: 4, backgroundColor: getStatusColor(selectedNovedad.status) + '20' }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(selectedNovedad.status) }]}>
-                        {getStatusLabel(selectedNovedad.status)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                {/* Description */}
-                <Text style={styles.sectionTitle}>Descripción</Text>
-                <View style={styles.descriptionBox}>
-                  <Text style={styles.fullDescription}>{selectedNovedad.description}</Text>
-                </View>
-
-                {/* Attachment */}
-                {selectedNovedad.attachmentUrl && (
-                  <View style={styles.attachmentSection}>
-                    <Text style={styles.sectionTitle}>Documento Adjunto</Text>
-                    <TouchableOpacity 
-                      style={styles.attachmentButton}
-                      onPress={() => openAttachment(selectedNovedad.attachmentUrl)}
-                    >
-                      <MaterialIcons name="description" size={32} color="#e91e63" />
-                      <View style={styles.attachmentInfo}>
-                        <Text style={styles.attachmentName}>
-                          {selectedNovedad.attachmentName || 'Ver Comprobante'}
-                        </Text>
-                        <Text style={styles.attachmentHint}>Toca para abrir documento</Text>
-                      </View>
-                      <MaterialIcons name="open-in-new" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Actions in Modal */}
-                {selectedNovedad.status === 'pending' && (
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity 
-                      style={[styles.modalActionButton, { backgroundColor: '#ffebee', borderColor: '#f44336' }]}
-                      onPress={() => handleStatusChange(selectedNovedad.id, 'rejected')}
-                    >
-                      <MaterialIcons name="close" size={20} color="#f44336" />
-                      <Text style={{ color: '#f44336', fontWeight: '700', marginLeft: 8 }}>Rechazar</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={[styles.modalActionButton, { backgroundColor: '#e8f5e9', borderColor: '#4caf50' }]}
-                      onPress={() => handleStatusChange(selectedNovedad.id, 'approved')}
-                    >
-                      <MaterialIcons name="check" size={20} color="#4caf50" />
-                      <Text style={{ color: '#4caf50', fontWeight: '700', marginLeft: 8 }}>Aprobar</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-              </ScrollView>
-            )}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>Inbox</Text>
+          <View style={styles.filterChips}>
+            <Chip 
+              selected={filterStatus === 'pending'} 
+              onPress={() => setFilterStatus('pending')}
+              style={{ marginRight: 8 }}
+              showSelectedOverlay
+            >
+              Pendientes
+            </Chip>
+            <Chip 
+              selected={filterStatus === 'all'} 
+              onPress={() => setFilterStatus('all')}
+              showSelectedOverlay
+            >
+              Todos
+            </Chip>
           </View>
         </View>
-      </Modal>
-    </View>
+
+        <Searchbar
+          placeholder="Buscar empleado..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={styles.searchBar}
+          elevation={0}
+        />
+
+        {filteredNovedades.length === 0 && !loading ? (
+          <View style={styles.emptyState}>
+            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.primary} />
+            <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: 'bold' }}>¡Todo al día!</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>No hay novedades pendientes.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredNovedades}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNovedades(); }} />}
+          />
+        )}
+
+        {/* Detail Modal */}
+        <Portal>
+          <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.background }]}>
+            {selectedNovedad && (
+              <View>
+                <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginBottom: 16 }}>Detalle de Novedad</Text>
+                
+                <View style={styles.detailRow}>
+                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Empleado:</Text>
+                  <Text variant="bodyLarge">{selectedNovedad.userName}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Tipo:</Text>
+                  <Text variant="bodyLarge">{selectedNovedad.type?.replace('_', ' ').toUpperCase()}</Text>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Descripción:</Text>
+                  <Text variant="bodyLarge">{selectedNovedad.description || 'Sin descripción'}</Text>
+                </View>
+
+                {selectedNovedad.attachmentUrl && (
+                  <Button 
+                    mode="outlined" 
+                    icon="paperclip" 
+                    onPress={() => Linking.openURL(selectedNovedad.attachmentUrl)}
+                    style={{ marginTop: 16 }}
+                  >
+                    Ver Adjunto
+                  </Button>
+                )}
+
+                <View style={styles.modalActions}>
+                  <Button 
+                    mode="contained" 
+                    buttonColor={theme.colors.error} 
+                    onPress={() => { handleStatusChange(selectedNovedad.id, 'rejected'); setModalVisible(false); }}
+                    style={{ flex: 1, marginRight: 8 }}
+                  >
+                    Rechazar
+                  </Button>
+                  <Button 
+                    mode="contained" 
+                    buttonColor={theme.colors.primary} 
+                    onPress={() => { handleStatusChange(selectedNovedad.id, 'approved'); setModalVisible(false); }}
+                    style={{ flex: 1, marginLeft: 8 }}
+                  >
+                    Aprobar
+                  </Button>
+                </View>
+              </View>
+            )}
+          </Modal>
+        </Portal>
+
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    padding: 24,
+    paddingBottom: 16,
+  },
+  filterChips: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: 16,
   },
-  backButton: {
-    marginRight: 16,
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
+  searchBar: {
+    marginHorizontal: 24,
+    marginBottom: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
   },
   listContent: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 100,
   },
   card: {
-    backgroundColor: '#fff',
+    marginBottom: 12,
     borderRadius: 16,
+    backgroundColor: 'white',
+    overflow: 'hidden', // Important for swipeable
+  },
+  cardContent: {
+    flexDirection: 'row',
     padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    alignItems: 'center',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  textContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  statusContainer: {
+    marginLeft: 8,
+  },
+  rightActionContainer: {
+    width: 100,
+    marginBottom: 12,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  leftActionContainer: {
+    width: 100,
+    marginBottom: 12,
+    justifyContent: 'center',
     alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1c1c1e',
-  },
-  date: {
-    fontSize: 12,
-    color: '#8e8e93',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  typeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    marginLeft: 6,
-  },
-  description: {
-    fontSize: 14,
-    color: '#3a3a3c',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  attachmentIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: '#f5f5f5',
-    padding: 6,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    gap: 4
-  },
-  attachmentTextSmall: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500'
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f2f2f7',
-    paddingTop: 12,
   },
   actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#8e8e93',
-    marginTop: 40,
-    fontStyle: 'italic',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '85%',
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    width: 100,
+    height: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderRadius: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1c1c1e',
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 40,
   },
-  closeButton: {
-    padding: 4,
-  },
-  modalBody: {
-    padding: 20,
+  modal: {
+    margin: 20,
+    padding: 24,
+    borderRadius: 24,
   },
   detailRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    alignItems: 'flex-start',
-  },
-  detailTextContainer: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#8e8e93',
-    marginBottom: 4,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    fontSize: 16,
-    color: '#1c1c1e',
-    fontWeight: '500',
-  },
-  detailSubValue: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginVertical: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1c1c1e',
     marginBottom: 12,
-    marginTop: 10,
-  },
-  descriptionBox: {
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  fullDescription: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 24,
-  },
-  attachmentSection: {
-    marginBottom: 24,
-  },
-  attachmentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  attachmentInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  attachmentName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1c1c1e',
-    marginBottom: 2,
-  },
-  attachmentHint: {
-    fontSize: 12,
-    color: '#8e8e93',
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  modalActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
+    marginTop: 24,
+  }
 });

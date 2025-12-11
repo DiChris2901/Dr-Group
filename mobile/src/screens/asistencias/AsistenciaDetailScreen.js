@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
@@ -68,7 +68,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
         style={styles.header}
       >
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
@@ -92,7 +92,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
           <OverlineText style={styles.sectionTitle}>ENTRADA</OverlineText>
           <SobrioCard>
             <DetailRow
-              icon="login"
+              icon="log-in"
               label="Hora de Entrada"
               value={formatearHora(asistencia.entrada?.hora)}
               iconColor={getPrimaryColor()}
@@ -100,7 +100,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
             />
             {asistencia.entrada?.ubicacion && (
               <DetailRow
-                icon="location-on"
+                icon="location"
                 label="Ubicación"
                 value={`${asistencia.entrada.ubicacion.lat.toFixed(6)}, ${asistencia.entrada.ubicacion.lon.toFixed(6)}`}
                 iconColor="#4caf50"
@@ -108,7 +108,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
             )}
             {asistencia.entrada?.dispositivo && (
               <DetailRow
-                icon="smartphone"
+                icon="phone-portrait"
                 label="Dispositivo"
                 value={asistencia.entrada.dispositivo}
                 iconColor="#2196f3"
@@ -132,14 +132,14 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
                   )}
                 </View>
                 <DetailRow
-                  icon="play-arrow"
+                  icon="play"
                   label="Inicio"
                   value={formatearHora(breakItem.inicio)}
                   iconColor="#ff9800"
                 />
                 {breakItem.fin && (
                   <DetailRow
-                    icon="stop"
+                    icon="square"
                     label="Fin"
                     value={formatearHora(breakItem.fin)}
                     iconColor="#ff9800"
@@ -159,7 +159,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
             <OverlineText style={styles.sectionTitle}>ALMUERZO</OverlineText>
             <SobrioCard>
               <DetailRow
-                icon="play-arrow"
+                icon="play"
                 label="Inicio"
                 value={formatearHora(asistencia.almuerzo.inicio)}
                 iconColor="#2196f3"
@@ -167,7 +167,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
               {asistencia.almuerzo.fin && (
                 <>
                   <DetailRow
-                    icon="stop"
+                    icon="square"
                     label="Fin"
                     value={formatearHora(asistencia.almuerzo.fin)}
                     iconColor="#2196f3"
@@ -196,7 +196,7 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
             <OverlineText style={styles.sectionTitle}>SALIDA</OverlineText>
             <SobrioCard>
               <DetailRow
-                icon="logout"
+                icon="log-out"
                 label="Hora de Salida"
                 value={formatearHora(asistencia.salida.hora)}
                 iconColor={getSecondaryColor()}

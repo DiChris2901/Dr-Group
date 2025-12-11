@@ -1,24 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
   Animated,
   Dimensions
 } from 'react-native';
+import { Text, TextInput, Button, Surface, useTheme, Avatar } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../../contexts/ThemeContext';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme as useAppTheme } from '../../contexts/ThemeContext'; // Renamed to avoid conflict
 
 const { height } = Dimensions.get('window');
 
@@ -28,12 +24,14 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [isBiometricSupported, setIsBiometricSupported] = useState(false);
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false);
+  const [secureTextEntry, setSecureTextEntry] = useState(true);
 
   const { signIn } = useAuth();
-  const { getGradient, getPrimaryColor, lastUserPhoto } = useTheme();
+  const theme = useTheme(); // Material 3 Theme
+  const { lastUserPhoto } = useAppTheme(); // Legacy context for photo
   
   // Animaciones
-  const slideAnim = useRef(new Animated.Value(height)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // ✅ Verificar soporte biométrico y credenciales guardadas
@@ -137,108 +135,116 @@ export default function LoginScreen() {
     }
   };
 
-  // ✅ Colores dinámicos del tema
-  const primaryColor = getPrimaryColor();
-
   return (
-    <LinearGradient
-      colors={getGradient()}
-      style={styles.container}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          {/* Logo */}
-          <Animated.View style={[styles.logoContainer, { opacity: fadeAnim }]}>
-            {lastUserPhoto ? (
-              <Image
-                source={{ uri: lastUserPhoto }}
-                style={styles.lastUserPhoto}
-              />
-            ) : (
-              <View style={styles.logoCircle}>
-                <Text style={styles.logoText}>DR</Text>
-              </View>
-            )}
-            <Text style={styles.title}>Bienvenido</Text>
-            <Text style={styles.subtitle}>Control de Asistencia</Text>
+          
+          {/* Header Section */}
+          <Animated.View style={[styles.headerContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.logoWrapper}>
+              {lastUserPhoto ? (
+                <Avatar.Image 
+                  size={100} 
+                  source={{ uri: lastUserPhoto }} 
+                  style={{ backgroundColor: theme.colors.primaryContainer }}
+                />
+              ) : (
+                <Avatar.Text 
+                  size={100} 
+                  label="DR" 
+                  style={{ backgroundColor: theme.colors.primary }}
+                  color={theme.colors.onPrimary}
+                  labelStyle={{ fontSize: 40, fontWeight: 'bold' }}
+                />
+              )}
+            </View>
+            
+            <Text variant="displaySmall" style={[styles.title, { color: theme.colors.primary }]}>
+              Bienvenido
+            </Text>
+            <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.secondary }]}>
+              Dr Group Mobile
+            </Text>
           </Animated.View>
 
-          {/* Formulario */}
+          {/* Form Section */}
           <Animated.View 
             style={[
-              styles.form, 
-              { transform: [{ translateY: slideAnim }] }
+              styles.formContainer, 
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }] 
+              }
             ]}
           >
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ejemplo@drgroup.com"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <TextInput
+              label="Correo Electrónico"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              left={<TextInput.Icon icon="email" />}
+              outlineStyle={{ borderRadius: 16 }}
+            />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Contraseña</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <TextInput
+              label="Contraseña"
+              value={password}
+              onChangeText={setPassword}
+              mode="outlined"
+              secureTextEntry={secureTextEntry}
+              style={styles.input}
+              left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon 
+                  icon={secureTextEntry ? "eye" : "eye-off"} 
+                  onPress={() => setSecureTextEntry(!secureTextEntry)} 
+                />
+              }
+              outlineStyle={{ borderRadius: 16 }}
+            />
 
-            <TouchableOpacity
-              style={[
-                styles.button, 
-                { backgroundColor: primaryColor }, // ✅ Color dinámico del tema
-                loading && styles.buttonDisabled
-              ]}
+            <Button
+              mode="contained"
               onPress={handleLogin}
+              loading={loading}
               disabled={loading}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>INICIAR JORNADA</Text>
-              )}
-            </TouchableOpacity>
+              INICIAR JORNADA
+            </Button>
 
-            {/* ✅ Botón Biométrico */}
+            {/* Biometric Button */}
             {isBiometricSupported && hasStoredCredentials && (
-              <TouchableOpacity
-                style={[styles.biometricButton, { borderColor: primaryColor }]}
+              <Button
+                mode="outlined"
                 onPress={handleBiometricLogin}
                 disabled={loading}
+                style={styles.biometricButton}
+                icon="fingerprint"
               >
-                <Text style={[styles.biometricText, { color: primaryColor }]}>
-                  👆 Ingresar con Biometría
-                </Text>
-              </TouchableOpacity>
+                Ingresar con Biometría
+              </Button>
             )}
 
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ⏱️ Al iniciar sesión se registrará tu hora de entrada
+            <Surface style={[styles.infoBox, { backgroundColor: theme.colors.secondaryContainer }]} elevation={0}>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer }}>
+                ⏱️ Al iniciar sesión se registrará tu hora de entrada automáticamente.
               </Text>
-            </View>
+            </Surface>
+
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
@@ -251,145 +257,57 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'flex-end', // ✅ Empujar contenido hacia abajo
-    padding: 0, // ✅ Eliminar padding global para que el sheet toque los bordes
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 60,
-    flex: 1,
+    paddingHorizontal: 24,
     justifyContent: 'center',
   },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
+  headerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backdropFilter: 'blur(10px)', // Solo web, pero no estorba
+    marginBottom: 48,
   },
-  lastUserPhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 20,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  logoText: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 2,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '500',
-    letterSpacing: 0.5,
-  },
-  form: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 32,
-    paddingTop: 40,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  logoWrapper: {
+    marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 20,
-    width: '100%',
+    elevation: 8,
   },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6B7280',
+  title: {
+    fontWeight: 'bold',
     marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  input: {
-    height: 60,
-    borderWidth: 0, // ✅ Sin bordes
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    fontSize: 17,
-    backgroundColor: '#F3F4F6', // ✅ Fondo gris claro moderno
-    color: '#1F2937',
+  subtitle: {
     fontWeight: '500',
   },
+  formContainer: {
+    width: '100%',
+  },
+  input: {
+    marginBottom: 16,
+    backgroundColor: '#fff',
+  },
   button: {
-    height: 60,
-    borderRadius: 20, // ✅ Rounded moderno
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    marginTop: 8,
+    borderRadius: 100, // Pill shape
     elevation: 4,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  buttonContent: {
+    height: 56,
   },
-  buttonText: {
-    color: '#fff',
+  buttonLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
   biometricButton: {
-    height: 56,
-    borderRadius: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginTop: 16,
-    borderWidth: 1,
-    backgroundColor: 'transparent',
-  },
-  biometricText: {
-    fontSize: 16,
-    fontWeight: '600',
+    borderRadius: 100,
+    borderColor: 'transparent',
   },
   infoBox: {
-    marginTop: 24,
+    marginTop: 32,
     padding: 16,
-    backgroundColor: '#f0f4ff',
-    borderRadius: 16, // 🎨 Material 3 Medium (antes 8)
-    borderLeftWidth: 4,
-    // borderLeftColor se aplicará dinámicamente si se necesita
-    borderLeftColor: '#667eea', // Mantener como fallback
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 6,
-    lineHeight: 20,
+    borderRadius: 16,
+    alignItems: 'center',
   },
 });

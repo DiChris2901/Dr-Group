@@ -1,33 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   FlatList,
   RefreshControl
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
+import { 
+  Text, 
+  Surface, 
+  Button, 
+  TextInput, 
+  Chip, 
+  useTheme, 
+  Avatar, 
+  SegmentedButtons, 
+  Card, 
+  IconButton, 
+  ActivityIndicator,
+  Divider,
+  Badge
+} from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export default function NovedadesScreen({ navigation }) {
+export default function NovedadesScreen({ navigation, isModal = false, onClose }) {
   const { user, userProfile } = useAuth();
-  const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
+  const theme = useTheme();
   
   const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
   const [type, setType] = useState('llegada_tarde');
@@ -45,11 +54,11 @@ export default function NovedadesScreen({ navigation }) {
   const [loadingHistorial, setLoadingHistorial] = useState(true);
 
   const tiposNovedad = [
-    { id: 'llegada_tarde', label: '⏰ Llegada Tarde', icon: 'access-time' },
-    { id: 'olvido_salida', label: '🏃 Olvido de Salida', icon: 'exit-to-app' },
-    { id: 'urgencia_medica', label: '🏥 Urgencia Médica', icon: 'local-hospital' },
-    { id: 'calamidad', label: '🚨 Calamidad', icon: 'warning' },
-    { id: 'otro', label: '📝 Otro', icon: 'edit' },
+    { id: 'llegada_tarde', label: 'Llegada Tarde', icon: 'clock-alert-outline' },
+    { id: 'olvido_salida', label: 'Olvido de Salida', icon: 'exit-run' },
+    { id: 'urgencia_medica', label: 'Urgencia Médica', icon: 'hospital-box-outline' },
+    { id: 'calamidad', label: 'Calamidad', icon: 'alert-circle-outline' },
+    { id: 'otro', label: 'Otro', icon: 'pencil-outline' },
   ];
 
   useEffect(() => {
@@ -163,7 +172,7 @@ export default function NovedadesScreen({ navigation }) {
               }
               // 2. Delete document
               await deleteDoc(doc(db, 'novedades', item.id));
-              Alert.alert('Éxito', 'Reporte eliminado correctamente');
+              // Alert.alert('Éxito', 'Reporte eliminado correctamente'); // Removed to avoid double alert/interruption
             } catch (error) {
               console.error(error);
               Alert.alert('Error', 'No se pudo eliminar el reporte');
@@ -184,12 +193,10 @@ export default function NovedadesScreen({ navigation }) {
 
     // Validation for medical urgency
     if (type === 'urgencia_medica') {
-      // If editing, we need either a new attachment OR an existing one
       if (editingId && !attachment && !existingAttachment) {
         Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
         return;
       }
-      // If creating, we need an attachment
       if (!editingId && !attachment) {
         Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
         return;
@@ -203,7 +210,6 @@ export default function NovedadesScreen({ navigation }) {
 
       // If new attachment is selected
       if (attachment) {
-        // Upload new file
         const response = await fetch(attachment.uri);
         const blob = await response.blob();
         const filename = `novedades/${user.uid}/${Date.now()}_${attachment.name}`;
@@ -232,9 +238,8 @@ export default function NovedadesScreen({ navigation }) {
         description: description.trim(),
         attachmentUrl,
         attachmentName,
-        // If editing, keep original date, else new date
         ...(editingId ? { updatedAt: Timestamp.now() } : { date: Timestamp.now(), createdAt: Timestamp.now() }),
-        status: 'pending' // Reset status to pending on edit
+        status: 'pending'
       };
 
       if (editingId) {
@@ -267,9 +272,9 @@ export default function NovedadesScreen({ navigation }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'approved': return '#4caf50'; // Verde
-      case 'rejected': return '#f44336'; // Rojo
-      default: return '#ff9800'; // Naranja (Pendiente)
+      case 'approved': return theme.colors.primary;
+      case 'rejected': return theme.colors.error;
+      default: return theme.colors.tertiary;
     }
   };
 
@@ -282,98 +287,81 @@ export default function NovedadesScreen({ navigation }) {
   };
 
   const renderHistorialItem = ({ item }) => (
-    <View style={styles.historyCard}>
-      <View style={styles.historyHeader}>
-        <View style={styles.historyTypeContainer}>
-          <MaterialIcons 
-            name={tiposNovedad.find(t => t.id === item.type)?.icon || 'info'} 
-            size={20} 
-            color="#555" 
-          />
-          <Text style={styles.historyType}>
-            {tiposNovedad.find(t => t.id === item.type)?.label || item.type}
-          </Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]} mode="elevated">
+      <Card.Title
+        title={tiposNovedad.find(t => t.id === item.type)?.label || item.type}
+        subtitle={format(item.date.toDate(), "d 'de' MMMM, yyyy - h:mm a", { locale: es })}
+        left={(props) => <Avatar.Icon {...props} icon={tiposNovedad.find(t => t.id === item.type)?.icon || 'alert'} style={{ backgroundColor: theme.colors.secondaryContainer }} color={theme.colors.onSecondaryContainer} />}
+        right={(props) => (
+          <Chip 
+            style={{ marginRight: 16, backgroundColor: getStatusColor(item.status) + '20' }} 
+            textStyle={{ color: getStatusColor(item.status), fontSize: 12 }}
+          >
             {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-      
-      <Text style={styles.historyDate}>
-        {item.date?.toDate ? format(item.date.toDate(), "d 'de' MMMM, h:mm a", { locale: es }) : ''}
-      </Text>
-      
-      <Text style={styles.historyDescription} numberOfLines={2}>
-        {item.description}
-      </Text>
-
-      {item.attachmentUrl && (
-        <View style={styles.attachmentBadge}>
-          <MaterialIcons name="attach-file" size={16} color="#666" />
-          <Text style={styles.attachmentText}>Archivo adjunto</Text>
-        </View>
-      )}
-
-      {/* Actions for pending items */}
+          </Chip>
+        )}
+      />
+      <Card.Content>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
+          {item.description}
+        </Text>
+        {item.attachmentUrl && (
+          <View style={styles.attachmentBadge}>
+            <IconButton icon="paperclip" size={16} />
+            <Text variant="bodySmall" style={{ color: theme.colors.primary }}>Archivo adjunto</Text>
+          </View>
+        )}
+        {item.adminResponse && (
+          <Surface style={[styles.responseBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Respuesta Admin:</Text>
+            <Text variant="bodySmall">{item.adminResponse}</Text>
+          </Surface>
+        )}
+      </Card.Content>
       {item.status === 'pending' && (
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { borderColor: '#2196f3' }]} 
-            onPress={() => handleEdit(item)}
-          >
-            <MaterialIcons name="edit" size={18} color="#2196f3" />
-            <Text style={[styles.actionButtonText, { color: '#2196f3' }]}>Editar</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, { borderColor: '#f44336', marginLeft: 12 }]} 
-            onPress={() => handleDelete(item)}
-          >
-            <MaterialIcons name="delete" size={18} color="#f44336" />
-            <Text style={[styles.actionButtonText, { color: '#f44336' }]}>Eliminar</Text>
-          </TouchableOpacity>
-        </View>
+        <Card.Actions>
+          <Button onPress={() => handleEdit(item)} textColor={theme.colors.primary}>Editar</Button>
+          <Button onPress={() => handleDelete(item)} textColor={theme.colors.error}>Eliminar</Button>
+        </Card.Actions>
       )}
-    </View>
+    </Card>
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={getGradient()}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novedades</Text>
-      </LinearGradient>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+            Novedades
+          </Text>
+          <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>
+            Reporta incidencias laborales
+          </Text>
+        </View>
+        {isModal && (
+          <IconButton icon="close" onPress={onClose} />
+        )}
+      </View>
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'reportar' && { borderBottomColor: getPrimaryColor() }]}
-          onPress={() => setActiveTab('reportar')}
-        >
-          <Text style={[styles.tabText, activeTab === 'reportar' && { color: getPrimaryColor(), fontWeight: '700' }]}>
-            {editingId ? 'Editar Reporte' : 'Reportar'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'historial' && { borderBottomColor: getPrimaryColor() }]}
-          onPress={() => setActiveTab('historial')}
-        >
-          <Text style={[styles.tabText, activeTab === 'historial' && { color: getPrimaryColor(), fontWeight: '700' }]}>
-            Mis Reportes
-          </Text>
-        </TouchableOpacity>
+        <SegmentedButtons
+          value={activeTab}
+          onValueChange={setActiveTab}
+          buttons={[
+            {
+              value: 'reportar',
+              label: 'Reportar',
+              icon: 'pencil-plus',
+            },
+            {
+              value: 'historial',
+              label: 'Historial',
+              icon: 'history',
+            },
+          ]}
+        />
       </View>
 
       {activeTab === 'reportar' ? (
@@ -381,391 +369,212 @@ export default function NovedadesScreen({ navigation }) {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-            <Text style={styles.sectionTitle}>Tipo de Novedad</Text>
-            <View style={styles.typesGrid}>
-              {tiposNovedad.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.typeCard,
-                    type === item.id && { borderColor: getPrimaryColor(), backgroundColor: getPrimaryColor() + '10' }
-                  ]}
-                  onPress={() => setType(item.id)}
+          <ScrollView contentContainerStyle={styles.formContent}>
+            {editingId && (
+              <Surface style={[styles.editBanner, { backgroundColor: theme.colors.tertiaryContainer }]}>
+                <Text style={{ color: theme.colors.onTertiaryContainer }}>Editando reporte</Text>
+                <IconButton icon="close" size={20} onPress={cancelEdit} />
+              </Surface>
+            )}
+
+            <Text variant="titleMedium" style={styles.sectionTitle}>Tipo de Novedad</Text>
+            <View style={styles.chipContainer}>
+              {tiposNovedad.map((t) => (
+                <Chip
+                  key={t.id}
+                  selected={type === t.id}
+                  onPress={() => {
+                    setType(t.id);
+                    if (t.id === 'olvido_salida') {
+                      setAttachment(null);
+                      setExistingAttachment(null);
+                    }
+                  }}
+                  showSelectedOverlay
+                  style={styles.chip}
+                  icon={t.icon}
                 >
-                  <MaterialIcons 
-                    name={item.icon} 
-                    size={32} 
-                    color={type === item.id ? getPrimaryColor() : '#8e8e93'} 
-                  />
-                  <Text style={[
-                    styles.typeLabel,
-                    type === item.id && { color: getPrimaryColor(), fontWeight: '700' }
-                  ]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
+                  {t.label}
+                </Chip>
               ))}
             </View>
 
-            {(type === 'urgencia_medica' || type === 'llegada_tarde') && (
-              <View style={styles.attachmentSection}>
-                <Text style={styles.sectionTitle}>
-                  {type === 'urgencia_medica' ? 'Comprobante (Incapacidad)' : 'Fotografía / Evidencia (Opcional)'}
+            <Text variant="titleMedium" style={styles.sectionTitle}>Descripción</Text>
+            <TextInput
+              mode="outlined"
+              placeholder="Describe detalladamente lo sucedido..."
+              multiline
+              numberOfLines={4}
+              value={description}
+              onChangeText={setDescription}
+              style={styles.input}
+            />
+
+            {type !== 'olvido_salida' && (
+              <>
+                <Text variant="titleMedium" style={styles.sectionTitle}>
+                  {type === 'urgencia_medica' ? 'Adjuntar Incapacidad (Obligatorio)' : 'Adjuntar Evidencia'}
                 </Text>
-                
-                {(attachment || existingAttachment) ? (
-                  <View style={[styles.uploadButton, { borderColor: getPrimaryColor(), borderStyle: 'solid' }]}>
-                    <MaterialIcons name="check-circle" size={32} color="#4caf50" />
-                    <View style={styles.uploadTextContainer}>
-                      <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
-                        {attachment ? "Archivo seleccionado" : "Archivo actual"}
-                      </Text>
-                      <Text style={styles.uploadSubtitle} numberOfLines={1}>
-                        {attachment ? attachment.name : existingAttachment.name}
-                      </Text>
-                    </View>
-                    <TouchableOpacity 
+                <View style={styles.attachButtons}>
+                  {type !== 'urgencia_medica' && (
+                    <Button 
+                      mode="outlined" 
+                      icon="camera" 
+                      onPress={takePhoto}
+                      style={{ flex: 1 }}
+                    >
+                      Cámara
+                    </Button>
+                  )}
+                  <Button 
+                    mode="outlined" 
+                    icon="file-document" 
+                    onPress={pickDocument}
+                    style={{ flex: 1 }}
+                  >
+                    {type === 'urgencia_medica' ? 'Subir Comprobante' : 'Archivo'}
+                  </Button>
+                </View>
+
+                {(attachment || existingAttachment) && (
+                  <Surface style={[styles.filePreview, { backgroundColor: theme.colors.secondaryContainer }]}>
+                    <IconButton icon="file-check" />
+                    <Text style={{ flex: 1, color: theme.colors.onSecondaryContainer }} numberOfLines={1}>
+                      {attachment ? attachment.name : existingAttachment.name}
+                    </Text>
+                    <IconButton 
+                      icon="close" 
                       onPress={() => {
                         setAttachment(null);
                         setExistingAttachment(null);
                       }} 
-                      style={styles.removeButton}
-                    >
-                      <MaterialIcons name="close" size={20} color="#ff5252" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  type === 'llegada_tarde' ? (
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <TouchableOpacity 
-                        style={[styles.uploadButton, { flex: 1, borderColor: getPrimaryColor(), flexDirection: 'column', gap: 8, paddingVertical: 24 }]} 
-                        onPress={takePhoto}
-                      >
-                        <MaterialIcons name="camera-alt" size={32} color={getPrimaryColor()} />
-                        <Text style={{ color: getPrimaryColor(), fontWeight: '600' }}>Tomar Foto</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={[styles.uploadButton, { flex: 1, borderColor: getPrimaryColor(), flexDirection: 'column', gap: 8, paddingVertical: 24 }]} 
-                        onPress={pickDocument}
-                      >
-                        <MaterialIcons name="cloud-upload" size={32} color={getPrimaryColor()} />
-                        <Text style={{ color: getPrimaryColor(), fontWeight: '600' }}>Subir Archivo</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity 
-                      style={[styles.uploadButton, { borderColor: getPrimaryColor() }]} 
-                      onPress={pickDocument}
-                    >
-                      <MaterialIcons name="cloud-upload" size={32} color={getPrimaryColor()} />
-                      <View style={styles.uploadTextContainer}>
-                        <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
-                          Adjuntar Incapacidad
-                        </Text>
-                        <Text style={styles.uploadSubtitle}>
-                          Toca para seleccionar PDF o Imagen
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  )
+                    />
+                  </Surface>
                 )}
-              </View>
+              </>
             )}
 
-            <Text style={styles.sectionTitle}>Descripción / Justificación</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Explica detalladamente lo sucedido..."
-                placeholderTextColor="#aeb0b2"
-                multiline
-                numberOfLines={6}
-                value={description}
-                onChangeText={setDescription}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={{ gap: 12 }}>
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: getPrimaryColor() }]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.submitButtonText}>
-                    {editingId ? 'Actualizar Reporte' : 'Enviar Reporte'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              {editingId && (
-                <TouchableOpacity
-                  style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', marginTop: 12 }]}
-                  onPress={cancelEdit}
-                  disabled={loading}
-                >
-                  <Text style={[styles.submitButtonText, { color: '#666' }]}>Cancelar Edición</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <Button 
+              mode="contained" 
+              onPress={handleSubmit} 
+              loading={loading}
+              disabled={loading}
+              style={styles.submitButton}
+              contentStyle={{ height: 50 }}
+            >
+              {editingId ? 'Actualizar Reporte' : 'Enviar Reporte'}
+            </Button>
+            
+            {editingId && (
+               <Button onPress={cancelEdit} style={{ marginTop: 10 }}>Cancelar Edición</Button>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       ) : (
-        <View style={styles.content}>
+        <View style={{ flex: 1 }}>
           {loadingHistorial ? (
-            <ActivityIndicator size="large" color={getPrimaryColor()} style={{ marginTop: 40 }} />
+            <ActivityIndicator style={{ marginTop: 50 }} size="large" />
           ) : (
             <FlatList
               data={historial}
               renderItem={renderHistorialItem}
               keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={styles.listContent}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <MaterialIcons name="history" size={64} color="#ccc" />
-                  <Text style={styles.emptyText}>No tienes reportes registrados</Text>
+                  <Avatar.Icon size={80} icon="clipboard-text-outline" style={{ backgroundColor: theme.colors.surfaceVariant }} color={theme.colors.onSurfaceVariant} />
+                  <Text variant="titleMedium" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No hay reportes registrados</Text>
                 </View>
               }
             />
           )}
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 16,
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1c1e',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  typesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  typeCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  typeLabel: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#8e8e93',
-    textAlign: 'center',
-  },
-  attachmentSection: {
-    marginBottom: 24,
-  },
-  uploadButton: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  uploadTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  uploadTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  uploadSubtitle: {
-    fontSize: 12,
-    color: '#8e8e93',
-  },
-  removeButton: {
-    padding: 8,
-  },
-  inputContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  textArea: {
-    fontSize: 16,
-    color: '#1c1c1e',
-    minHeight: 120,
-  },
-  submitButton: {
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8e8e93',
-  },
-  historyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  historyHeader: {
+    padding: 24,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
   },
-  historyTypeContainer: {
+  tabContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 16,
+  },
+  formContent: {
+    padding: 24,
+    paddingTop: 0,
+    paddingBottom: 100,
+  },
+  sectionTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontWeight: 'bold',
+  },
+  chipContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  historyType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+  chip: {
+    marginBottom: 4,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  input: {
+    backgroundColor: 'transparent',
   },
-  actionButtonsContainer: {
+  attachButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    gap: 12,
+    marginBottom: 16,
   },
-  actionButton: {
+  filePreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    padding: 8,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  submitButton: {
+    marginTop: 8,
+    borderRadius: 12,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  card: {
+    marginBottom: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    gap: 4,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  historyDate: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 8,
-  },
-  historyDescription: {
-    fontSize: 14,
-    color: '#444',
-    lineHeight: 20,
   },
   attachmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 4,
   },
-  attachmentText: {
-    fontSize: 12,
-    color: '#666',
+  responseBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
   },
   emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
+    marginTop: 60,
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#8e8e93',
-  },
+  editBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  }
 });
