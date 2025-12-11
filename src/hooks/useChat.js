@@ -93,20 +93,22 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
           // Helper para procesar un documento
           const processDoc = (docSnap) => {
             const data = docSnap.data();
-            const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
+            // ✅ Manejo robusto de fechas
+            const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt instanceof Date ? data.createdAt : new Date());
 
             return {
               id: docSnap.id,
               ...data,
               createdAt,
+              _rawCreatedAt: data.createdAt, // ✅ Guardar timestamp original para ordenamiento preciso
               status: {
                 ...data.status,
-                readAt: data.status?.readAt?.toDate()
+                readAt: data.status?.readAt?.toDate ? data.status.readAt.toDate() : data.status?.readAt
               },
               metadata: {
                 ...data.metadata,
-                editedAt: data.metadata?.editedAt?.toDate(),
-                deletedAt: data.metadata?.deletedAt?.toDate()
+                editedAt: data.metadata?.editedAt?.toDate ? data.metadata.editedAt.toDate() : data.metadata?.editedAt,
+                deletedAt: data.metadata?.deletedAt?.toDate ? data.metadata.deletedAt.toDate() : data.metadata?.deletedAt
               },
               reactions: data.reactions || {}
             };
@@ -127,7 +129,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
                   m._optimistic && 
                   m.senderId === processedMessage.senderId &&
                   m.text === processedMessage.text &&
-                  Math.abs(m.createdAt - processedMessage.createdAt) < 5000
+                  // Aumentar tolerancia de tiempo para evitar duplicados por clock skew
+                  Math.abs((m.createdAt?.getTime?.() || 0) - (processedMessage.createdAt?.getTime?.() || 0)) < 10000
                 );
 
                 if (tempIndex !== -1) {
@@ -155,9 +158,31 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
 
             // 🔄 CRÍTICO: Re-ordenar SIEMPRE por createdAt ASCENDENTE (mensajes antiguos primero, recientes al final)
             updatedMessages.sort((a, b) => {
-              const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : a.createdAt;
-              const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : b.createdAt;
-              return timeA - timeB; // Ascendente: antiguos arriba, recientes abajo
+              // 1. Intentar usar Timestamp original para máxima precisión (nanosegundos)
+              if (a._rawCreatedAt?.toMillis && b._rawCreatedAt?.toMillis) {
+                const diff = a._rawCreatedAt.toMillis() - b._rawCreatedAt.toMillis();
+                if (diff !== 0) return diff;
+                // Si milisegundos son iguales, intentar nanosegundos si existen
+                if (a._rawCreatedAt.nanoseconds && b._rawCreatedAt.nanoseconds) {
+                  const nanoDiff = a._rawCreatedAt.nanoseconds - b._rawCreatedAt.nanoseconds;
+                  if (nanoDiff !== 0) return nanoDiff;
+                }
+              }
+
+              // 2. Fallback a Date objects
+              const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt || 0);
+              const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt || 0);
+              
+              if (timeA !== timeB) {
+                return timeA - timeB;
+              }
+
+              // 3. Tie-breaker: Mensajes optimistas al final (asumiendo que son los más recientes)
+              if (a._optimistic && !b._optimistic) return 1;
+              if (!a._optimistic && b._optimistic) return -1;
+
+              // 4. Tie-breaker final: ID para estabilidad determinista
+              return (a.id || '').localeCompare(b.id || '');
             });
 
             return updatedMessages;
