@@ -268,6 +268,11 @@ export const AuthProvider = ({ children }) => {
   const registrarBreak = async () => {
     if (!activeSession) return;
     
+    // ✅ Validar máximo 2 breaks
+    if (activeSession.breaks && activeSession.breaks.length >= 2) {
+      throw new Error('Has alcanzado el límite máximo de 2 breaks por día.');
+    }
+
     try {
       const breakInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
       const updatedBreaks = [
@@ -361,6 +366,11 @@ export const AuthProvider = ({ children }) => {
 
   const registrarAlmuerzo = async () => {
     if (!activeSession) return;
+
+    // ✅ Validar máximo 1 almuerzo
+    if (activeSession.almuerzo) {
+      throw new Error('Ya has registrado tu hora de almuerzo hoy.');
+    }
 
     try {
       const almuerzoInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore

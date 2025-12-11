@@ -249,7 +249,7 @@ export default function DashboardScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'No se pudo registrar el break');
+      Alert.alert('Error', error.message || 'No se pudo registrar el break');
     } finally {
       setLoading(false);
     }
@@ -268,7 +268,7 @@ export default function DashboardScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'No se pudo registrar el almuerzo');
+      Alert.alert('Error', error.message || 'No se pudo registrar el almuerzo');
     } finally {
       setLoading(false);
     }
