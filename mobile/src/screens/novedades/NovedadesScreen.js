@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -24,15 +26,32 @@ export default function NovedadesScreen({ navigation }) {
   
   const [type, setType] = useState('llegada_tarde');
   const [description, setDescription] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const tiposNovedad = [
     { id: 'llegada_tarde', label: '⏰ Llegada Tarde', icon: 'access-time' },
     { id: 'olvido_salida', label: '🏃 Olvido de Salida', icon: 'exit-to-app' },
-    { id: 'cita_medica', label: '🏥 Cita Médica', icon: 'local-hospital' },
+    { id: 'urgencia_medica', label: '🏥 Urgencia Médica', icon: 'local-hospital' },
     { id: 'calamidad', label: '🚨 Calamidad', icon: 'warning' },
     { id: 'otro', label: '📝 Otro', icon: 'edit' },
   ];
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*', 'application/pdf'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        setAttachment(result.assets[0]);
+      }
+    } catch (err) {
+      console.error('Error picking document:', err);
+      Alert.alert('Error', 'No se pudo seleccionar el archivo');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!description.trim()) {
@@ -40,14 +59,35 @@ export default function NovedadesScreen({ navigation }) {
       return;
     }
 
+    if (type === 'urgencia_medica' && !attachment) {
+      Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
+      return;
+    }
+
     setLoading(true);
     try {
+      let attachmentUrl = null;
+      let attachmentName = null;
+
+      if (attachment) {
+        const response = await fetch(attachment.uri);
+        const blob = await response.blob();
+        const filename = `novedades/${user.uid}/${Date.now()}_${attachment.name}`;
+        const storageRef = ref(storage, filename);
+        
+        await uploadBytes(storageRef, blob);
+        attachmentUrl = await getDownloadURL(storageRef);
+        attachmentName = attachment.name;
+      }
+
       await addDoc(collection(db, 'novedades'), {
         uid: user.uid,
         userName: userProfile?.name || user.email,
         userEmail: user.email,
         type,
         description: description.trim(),
+        attachmentUrl,
+        attachmentName,
         date: Timestamp.now(),
         status: 'pending', // pending, approved, rejected
         createdAt: Timestamp.now()
@@ -113,6 +153,35 @@ export default function NovedadesScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {type === 'urgencia_medica' && (
+            <View style={styles.attachmentSection}>
+              <Text style={styles.sectionTitle}>Comprobante (Incapacidad)</Text>
+              <TouchableOpacity 
+                style={[styles.uploadButton, { borderColor: getPrimaryColor() }]} 
+                onPress={pickDocument}
+              >
+                <MaterialIcons 
+                  name={attachment ? "check-circle" : "cloud-upload"} 
+                  size={32} 
+                  color={attachment ? "#4caf50" : getPrimaryColor()} 
+                />
+                <View style={styles.uploadTextContainer}>
+                  <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
+                    {attachment ? "Archivo seleccionado" : "Adjuntar Incapacidad"}
+                  </Text>
+                  <Text style={styles.uploadSubtitle} numberOfLines={1}>
+                    {attachment ? attachment.name : "Toca para seleccionar PDF o Imagen"}
+                  </Text>
+                </View>
+                {attachment && (
+                  <TouchableOpacity onPress={() => setAttachment(null)} style={styles.removeButton}>
+                    <MaterialIcons name="close" size={20} color="#ff5252" />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Text style={styles.sectionTitle}>Descripción / Justificación</Text>
           <View style={styles.inputContainer}>
@@ -202,6 +271,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8e8e93',
     textAlign: 'center',
+  },
+  attachmentSection: {
+    marginBottom: 24,
+  },
+  uploadButton: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  uploadTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  uploadTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  uploadSubtitle: {
+    fontSize: 12,
+    color: '#8e8e93',
+  },
+  removeButton: {
+    padding: 8,
   },
   inputContainer: {
     backgroundColor: '#fff',
