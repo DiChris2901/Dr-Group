@@ -589,6 +589,7 @@ const AsistenciasPage = () => {
                       <TableCell align="center">Fecha</TableCell>
                       <TableCell align="center">Entrada</TableCell>
                       <TableCell align="center">Ubicación</TableCell>
+                      <TableCell align="center">Modalidad</TableCell>
                       <TableCell align="center">Dispositivo</TableCell>
                       <TableCell align="center">Breaks</TableCell>
                       <TableCell align="center">Almuerzo</TableCell>
@@ -671,6 +672,34 @@ const AsistenciasPage = () => {
                                 <LocationOnIcon />
                               </IconButton>
                             </Tooltip>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                          )}
+                        </TableCell>
+
+                        {/* Modalidad */}
+                        <TableCell align="center">
+                          {asistencia.entrada?.ubicacion?.tipo ? (
+                            <Chip
+                              label={asistencia.entrada.ubicacion.tipo}
+                              size="small"
+                              sx={{
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                backgroundColor: asistencia.entrada.ubicacion.tipo === 'Oficina' 
+                                  ? alpha(theme.palette.success.main, 0.1)
+                                  : alpha(theme.palette.warning.main, 0.1),
+                                color: asistencia.entrada.ubicacion.tipo === 'Oficina'
+                                  ? theme.palette.success.main
+                                  : theme.palette.warning.main,
+                                border: `1px solid ${
+                                  asistencia.entrada.ubicacion.tipo === 'Oficina'
+                                    ? alpha(theme.palette.success.main, 0.3)
+                                    : alpha(theme.palette.warning.main, 0.3)
+                                }`
+                              }}
+                            />
                           ) : (
                             <Typography variant="caption" color="text.secondary">-</Typography>
                           )}
