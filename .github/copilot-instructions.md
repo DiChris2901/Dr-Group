@@ -1498,3 +1498,54 @@ Al recibir una petición del usuario, **PRIMERO verificar el OS**:
 - "sidebar", "ProfilePage", "CommitmentsList"
 
 ---
+
+## 📦 INVENTARIO DE LIBRERÍAS Y RECURSOS
+
+### 🌐 DASHBOARD WEB (React + Vite)
+**Core:**
+- React 18.2.0
+- Vite 5.0.8
+- React Router DOM 6.20.1
+
+**UI & Estilos:**
+- Material-UI (MUI) v5 (@mui/material, @mui/icons-material)
+- Emotion (@emotion/react, @emotion/styled)
+- Framer Motion 10.16.16 (Animaciones)
+- Recharts 2.12.7 (Gráficos)
+- Chart.js 4.5.0 (Gráficos alternativos)
+
+**Funcionalidades:**
+- Firebase 10.7.1 (Auth, Firestore, Storage)
+- Date-fns 4.1.0 (Manejo de fechas)
+- ExcelJS 4.4.0 (Exportación Excel profesional)
+- JSPDF 3.0.3 + AutoTable (Generación PDF)
+- EmailJS 4.4.1 (Envío de correos)
+- Twilio 5.9.0 (SMS/WhatsApp)
+- Google Generative AI 0.24.1 (IA)
+
+### 📱 APP MÓVIL (React Native + Expo)
+**Core:**
+- React Native 0.81.5
+- Expo 54.0.23
+- React Navigation 7.x (Native Stack, Bottom Tabs)
+
+**UI & Componentes:**
+- React Native Paper v5 (Material Design 3)
+- @expo/vector-icons (Ionicons - Estándar Oficial)
+- React Native Safe Area Context
+- Expo Linear Gradient (Fondos)
+- Expo Blur (Efectos visuales)
+- React Native SVG (Gráficos vectoriales)
+- React Native Chart Kit (Gráficos móviles)
+- React Native Maps (Mapas)
+
+**Funcionalidades:**
+- Firebase 12.5.0 (Auth, Firestore, Storage)
+- Expo Document Picker (Selección de archivos)
+- Expo Image Picker (Cámara y Galería)
+- Expo Location (Geolocalización)
+- Expo Local Authentication (Biometría)
+- Expo Secure Store (Almacenamiento seguro)
+- Expo Notifications (Notificaciones push)
+- Expo Keep Awake (Mantener pantalla encendida)
+- Date-fns 4.1.0 (Manejo de fechas)
