@@ -340,8 +340,8 @@ export default function AsistenciasScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Location */}
-                {selectedAsistencia.entrada?.ubicacion && (
+                {/* Location - Oculto para el usuario */}
+                {/* {selectedAsistencia.entrada?.ubicacion && (
                   <TouchableOpacity 
                     style={styles.locationButton}
                     onPress={() => openMap(selectedAsistencia.entrada.ubicacion.lat, selectedAsistencia.entrada.ubicacion.lon)}
@@ -357,7 +357,7 @@ export default function AsistenciasScreen({ navigation }) {
                       </Text>
                     </View>
                   </TouchableOpacity>
-                )}
+                )} */}
 
                 {/* Breaks */}
                 {selectedAsistencia.breaks && selectedAsistencia.breaks.length > 0 && (
