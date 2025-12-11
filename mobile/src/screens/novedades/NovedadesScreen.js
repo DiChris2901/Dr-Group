@@ -16,8 +16,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { collection, addDoc, Timestamp, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImagePicker from 'expo-image-picker';
+import { collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -33,6 +34,11 @@ export default function NovedadesScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // Edit states
+  const [editingId, setEditingId] = useState(null);
+  const [existingAttachment, setExistingAttachment] = useState(null);
+  const [originalAttachment, setOriginalAttachment] = useState(null);
   
   // Historial states
   const [historial, setHistorial] = useState([]);
@@ -80,23 +86,124 @@ export default function NovedadesScreen({ navigation }) {
     }
   };
 
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para tomar fotos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setAttachment({
+          uri: asset.uri,
+          name: asset.fileName || `foto_${Date.now()}.jpg`,
+          mimeType: 'image/jpeg',
+          size: asset.fileSize
+        });
+      }
+    } catch (err) {
+      console.error('Error taking photo:', err);
+      Alert.alert('Error', 'No se pudo tomar la foto');
+    }
+  };
+
+  const handleEdit = (item) => {
+    setEditingId(item.id);
+    setType(item.type);
+    setDescription(item.description);
+    if (item.attachmentUrl) {
+      const att = { url: item.attachmentUrl, name: item.attachmentName };
+      setExistingAttachment(att);
+      setOriginalAttachment(att);
+    } else {
+      setExistingAttachment(null);
+      setOriginalAttachment(null);
+    }
+    setAttachment(null);
+    setActiveTab('reportar');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setType('llegada_tarde');
+    setDescription('');
+    setAttachment(null);
+    setExistingAttachment(null);
+    setOriginalAttachment(null);
+  };
+
+  const handleDelete = (item) => {
+    Alert.alert(
+      'Eliminar Reporte',
+      '¿Estás seguro de que deseas eliminar este reporte? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              // 1. Delete attachment if exists
+              if (item.attachmentUrl) {
+                try {
+                  const fileRef = ref(storage, item.attachmentUrl);
+                  await deleteObject(fileRef);
+                } catch (e) {
+                  console.warn('Error deleting file:', e);
+                }
+              }
+              // 2. Delete document
+              await deleteDoc(doc(db, 'novedades', item.id));
+              Alert.alert('Éxito', 'Reporte eliminado correctamente');
+            } catch (error) {
+              console.error(error);
+              Alert.alert('Error', 'No se pudo eliminar el reporte');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Por favor describe la novedad');
       return;
     }
 
-    if (type === 'urgencia_medica' && !attachment) {
-      Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
-      return;
+    // Validation for medical urgency
+    if (type === 'urgencia_medica') {
+      // If editing, we need either a new attachment OR an existing one
+      if (editingId && !attachment && !existingAttachment) {
+        Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
+        return;
+      }
+      // If creating, we need an attachment
+      if (!editingId && !attachment) {
+        Alert.alert('Requerido', 'Para urgencias médicas es obligatorio adjuntar la incapacidad o comprobante.');
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      let attachmentUrl = null;
-      let attachmentName = null;
+      let attachmentUrl = existingAttachment?.url || null;
+      let attachmentName = existingAttachment?.name || null;
 
+      // If new attachment is selected
       if (attachment) {
+        // Upload new file
         const response = await fetch(attachment.uri);
         const blob = await response.blob();
         const filename = `novedades/${user.uid}/${Date.now()}_${attachment.name}`;
@@ -107,7 +214,17 @@ export default function NovedadesScreen({ navigation }) {
         attachmentName = attachment.name;
       }
 
-      await addDoc(collection(db, 'novedades'), {
+      // Handle deletion of old file if it was replaced or removed
+      if (originalAttachment?.url && originalAttachment.url !== attachmentUrl) {
+        try {
+          const oldFileRef = ref(storage, originalAttachment.url);
+          await deleteObject(oldFileRef);
+        } catch (e) {
+          console.warn('Error deleting old file:', e);
+        }
+      }
+
+      const data = {
         uid: user.uid,
         userName: userProfile?.name || user.email,
         userEmail: user.email,
@@ -115,28 +232,34 @@ export default function NovedadesScreen({ navigation }) {
         description: description.trim(),
         attachmentUrl,
         attachmentName,
-        date: Timestamp.now(),
-        status: 'pending', // pending, approved, rejected
-        createdAt: Timestamp.now()
-      });
+        // If editing, keep original date, else new date
+        ...(editingId ? { updatedAt: Timestamp.now() } : { date: Timestamp.now(), createdAt: Timestamp.now() }),
+        status: 'pending' // Reset status to pending on edit
+      };
 
-      Alert.alert(
-        'Éxito',
-        'Novedad reportada correctamente.',
-        [
+      if (editingId) {
+        await updateDoc(doc(db, 'novedades', editingId), data);
+        Alert.alert('Éxito', 'Reporte actualizado correctamente', [
+          { text: 'OK', onPress: () => {
+            cancelEdit();
+            setActiveTab('historial');
+          }}
+        ]);
+      } else {
+        await addDoc(collection(db, 'novedades'), data);
+        Alert.alert('Éxito', 'Novedad reportada correctamente', [
           { 
             text: 'Ver Historial', 
             onPress: () => {
-              setDescription('');
-              setAttachment(null);
+              cancelEdit();
               setActiveTab('historial');
             } 
           }
-        ]
-      );
+        ]);
+      }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'No se pudo enviar el reporte');
+      Alert.alert('Error', `No se pudo ${editingId ? 'actualizar' : 'enviar'} el reporte`);
     } finally {
       setLoading(false);
     }
@@ -192,6 +315,27 @@ export default function NovedadesScreen({ navigation }) {
           <Text style={styles.attachmentText}>Archivo adjunto</Text>
         </View>
       )}
+
+      {/* Actions for pending items */}
+      {item.status === 'pending' && (
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { borderColor: '#2196f3' }]} 
+            onPress={() => handleEdit(item)}
+          >
+            <MaterialIcons name="edit" size={18} color="#2196f3" />
+            <Text style={[styles.actionButtonText, { color: '#2196f3' }]}>Editar</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionButton, { borderColor: '#f44336', marginLeft: 12 }]} 
+            onPress={() => handleDelete(item)}
+          >
+            <MaterialIcons name="delete" size={18} color="#f44336" />
+            <Text style={[styles.actionButtonText, { color: '#f44336' }]}>Eliminar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -219,7 +363,7 @@ export default function NovedadesScreen({ navigation }) {
           onPress={() => setActiveTab('reportar')}
         >
           <Text style={[styles.tabText, activeTab === 'reportar' && { color: getPrimaryColor(), fontWeight: '700' }]}>
-            Reportar
+            {editingId ? 'Editar Reporte' : 'Reportar'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -264,32 +408,69 @@ export default function NovedadesScreen({ navigation }) {
               ))}
             </View>
 
-            {type === 'urgencia_medica' && (
+            {(type === 'urgencia_medica' || type === 'llegada_tarde') && (
               <View style={styles.attachmentSection}>
-                <Text style={styles.sectionTitle}>Comprobante (Incapacidad)</Text>
-                <TouchableOpacity 
-                  style={[styles.uploadButton, { borderColor: getPrimaryColor() }]} 
-                  onPress={pickDocument}
-                >
-                  <MaterialIcons 
-                    name={attachment ? "check-circle" : "cloud-upload"} 
-                    size={32} 
-                    color={attachment ? "#4caf50" : getPrimaryColor()} 
-                  />
-                  <View style={styles.uploadTextContainer}>
-                    <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
-                      {attachment ? "Archivo seleccionado" : "Adjuntar Incapacidad"}
-                    </Text>
-                    <Text style={styles.uploadSubtitle} numberOfLines={1}>
-                      {attachment ? attachment.name : "Toca para seleccionar PDF o Imagen"}
-                    </Text>
-                  </View>
-                  {attachment && (
-                    <TouchableOpacity onPress={() => setAttachment(null)} style={styles.removeButton}>
+                <Text style={styles.sectionTitle}>
+                  {type === 'urgencia_medica' ? 'Comprobante (Incapacidad)' : 'Fotografía / Evidencia (Opcional)'}
+                </Text>
+                
+                {(attachment || existingAttachment) ? (
+                  <View style={[styles.uploadButton, { borderColor: getPrimaryColor(), borderStyle: 'solid' }]}>
+                    <MaterialIcons name="check-circle" size={32} color="#4caf50" />
+                    <View style={styles.uploadTextContainer}>
+                      <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
+                        {attachment ? "Archivo seleccionado" : "Archivo actual"}
+                      </Text>
+                      <Text style={styles.uploadSubtitle} numberOfLines={1}>
+                        {attachment ? attachment.name : existingAttachment.name}
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setAttachment(null);
+                        setExistingAttachment(null);
+                      }} 
+                      style={styles.removeButton}
+                    >
                       <MaterialIcons name="close" size={20} color="#ff5252" />
                     </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
+                  </View>
+                ) : (
+                  type === 'llegada_tarde' ? (
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity 
+                        style={[styles.uploadButton, { flex: 1, borderColor: getPrimaryColor(), flexDirection: 'column', gap: 8, paddingVertical: 24 }]} 
+                        onPress={takePhoto}
+                      >
+                        <MaterialIcons name="camera-alt" size={32} color={getPrimaryColor()} />
+                        <Text style={{ color: getPrimaryColor(), fontWeight: '600' }}>Tomar Foto</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={[styles.uploadButton, { flex: 1, borderColor: getPrimaryColor(), flexDirection: 'column', gap: 8, paddingVertical: 24 }]} 
+                        onPress={pickDocument}
+                      >
+                        <MaterialIcons name="cloud-upload" size={32} color={getPrimaryColor()} />
+                        <Text style={{ color: getPrimaryColor(), fontWeight: '600' }}>Subir Archivo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={[styles.uploadButton, { borderColor: getPrimaryColor() }]} 
+                      onPress={pickDocument}
+                    >
+                      <MaterialIcons name="cloud-upload" size={32} color={getPrimaryColor()} />
+                      <View style={styles.uploadTextContainer}>
+                        <Text style={[styles.uploadTitle, { color: getPrimaryColor() }]}>
+                          Adjuntar Incapacidad
+                        </Text>
+                        <Text style={styles.uploadSubtitle}>
+                          Toca para seleccionar PDF o Imagen
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )
+                )}
               </View>
             )}
 
@@ -307,17 +488,31 @@ export default function NovedadesScreen({ navigation }) {
               />
             </View>
 
-            <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: getPrimaryColor() }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Enviar Reporte</Text>
+            <View style={{ gap: 12 }}>
+              <TouchableOpacity
+                style={[styles.submitButton, { backgroundColor: getPrimaryColor() }]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>
+                    {editingId ? 'Actualizar Reporte' : 'Enviar Reporte'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {editingId && (
+                <TouchableOpacity
+                  style={[styles.submitButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', marginTop: 12 }]}
+                  onPress={cancelEdit}
+                  disabled={loading}
+                >
+                  <Text style={[styles.submitButtonText, { color: '#666' }]}>Cancelar Edición</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       ) : (
@@ -513,7 +708,28 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   statusText: {
     fontSize: 12,
