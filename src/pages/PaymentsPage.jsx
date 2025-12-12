@@ -84,7 +84,8 @@ import {
   Delete,
   CloudUpload,
   DragHandle as DragIcon,
-  Share
+  Share,
+  Person
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -150,6 +151,7 @@ const PaymentsPage = () => {
   // Estados para el visor de comprobantes
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [autoOpenPdfViewer, setAutoOpenPdfViewer] = useState(false);
   
   // Estados para edición de archivos
   const [editingReceipt, setEditingReceipt] = useState(null);
@@ -943,6 +945,15 @@ useEffect(() => {
   const handleViewReceipt = (payment) => {
     console.log('📄 Abriendo visor para pago:', payment);
     setSelectedPayment(payment);
+    setAutoOpenPdfViewer(false);
+    setReceiptViewerOpen(true);
+  };
+
+  // Función para abrir PDF del comprobante directamente
+  const handleOpenPdfDirect = (payment) => {
+    console.log('📄 Abriendo PDF directo para pago:', payment);
+    setSelectedPayment(payment);
+    setAutoOpenPdfViewer(true);
     setReceiptViewerOpen(true);
   };
 
@@ -954,6 +965,7 @@ useEffect(() => {
   const handleCloseReceiptViewer = () => {
     setReceiptViewerOpen(false);
     setSelectedPayment(null);
+    setAutoOpenPdfViewer(false);
   };
 
   // Función para mostrar notificaciones
@@ -2720,9 +2732,9 @@ useEffect(() => {
               {/* Header de la tabla - Estilo Commitments */}
               <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: '0.9fr 2fr 1.5fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
+                gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 0.9fr 1.8fr 0.5fr',
                 gap: 2,
-                p: 3,
+                p: 2.5,
                 backgroundColor: 'background.paper',
                 borderRadius: '1px 1px 0 0',
                 border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
@@ -2739,7 +2751,6 @@ useEffect(() => {
                   'EMPRESA',
                   'BENEFICIARIO',
                   'MONTO',
-                  'MÉTODO',
                   'FECHA',
                   'REFERENCIA',
                   'COMENTARIOS',
@@ -2750,11 +2761,7 @@ useEffect(() => {
                     sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      justifyContent: column === 'MONTO' ? 'center' : 
-                                    column === 'MÉTODO' ? 'center' :
-                                    column === 'FECHA' ? 'center' :
-                                    column === 'REFERENCIA' ? 'center' :
-                                    column === 'ACCIONES' ? 'center' : 'flex-start'
+                      justifyContent: 'flex-start'
                     }}
                   >
                     <Typography
@@ -2797,7 +2804,7 @@ useEffect(() => {
                   >
                     <Box sx={{
                       display: 'grid',
-                      gridTemplateColumns: '0.9fr 2fr 1.5fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
+                      gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 0.9fr 1.8fr 0.5fr',
                       gap: 2,
                       p: 2.5,
                       borderBottom: index === paginatedPayments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
@@ -2844,7 +2851,6 @@ useEffect(() => {
                         variant="body2" 
                         sx={{ 
                           fontWeight: 500,
-                          mb: 0.5,
                           color: 'text.primary',
                           fontSize: '0.875rem',
                           lineHeight: 1.3
@@ -2852,37 +2858,18 @@ useEffect(() => {
                       >
                         {payment.concept || 'Sin concepto'}
                       </Typography>
-                      {payment.reference && (
-                        <Typography 
-                          variant="caption" 
-                          sx={{
-                            display: 'block',
-                            color: 'text.secondary',
-                            fontSize: '0.75rem',
-                            lineHeight: 1.2,
-                            fontWeight: 400
-                          }}
-                        >
-                          Ref: {payment.reference}
-                        </Typography>
-                      )}
                     </Box>
 
                     {/* Empresa */}
-                    <Box sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 1
-                    }}>
-                      <Avatar
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          bgcolor: 'primary.main',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
-                        }}
-                      >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        color: theme.palette.primary.main,
+                        fontSize: '0.875rem',
+                        fontWeight: 600
+                      }}>
                         {(payment.companyName || 'SC').charAt(0)}
                       </Avatar>
                       <Typography 
@@ -2899,7 +2886,8 @@ useEffect(() => {
                     </Box>
 
                     {/* Beneficiario */}
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Person sx={{ fontSize: 16, color: alpha(theme.palette.text.secondary, 0.5) }} />
                       <Typography 
                         variant="body2" 
                         sx={{ 
@@ -2914,10 +2902,10 @@ useEffect(() => {
                     </Box>
 
                     {/* Monto - Estilo Commitments */}
-                    <Box sx={{ textAlign: 'center' }}>
+                    <Box>
                       <Typography variant="body2" sx={{ 
-                        fontWeight: 600, 
-                        color: 'text.primary',
+                        fontWeight: 700, 
+                        color: theme.palette.success.main,
                         fontFamily: 'system-ui, -apple-system, sans-serif',
                         fontSize: '0.875rem',
                         lineHeight: 1.2,
@@ -2927,28 +2915,8 @@ useEffect(() => {
                       </Typography>
                     </Box>
 
-                    {/* Método */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Chip 
-                        label={payment.method} 
-                        size="small" 
-                        variant="outlined" 
-                        sx={{ 
-                          height: 24,
-                          fontSize: '0.75rem',
-                          fontWeight: 500,
-                          borderRadius: 0.5,
-                          borderColor: alpha(theme.palette.divider, 0.3),
-                          '& .MuiChip-label': { 
-                            px: 1,
-                            lineHeight: 1.2
-                          }
-                        }} 
-                      />
-                    </Box>
-
                     {/* Fecha */}
-                    <Box sx={{ textAlign: 'center' }}>
+                    <Box>
                       <Typography variant="body2" sx={{
                         color: 'text.secondary',
                         fontSize: '0.875rem',
@@ -2960,32 +2928,25 @@ useEffect(() => {
                     </Box>
 
                     {/* Referencia */}
-                    <Box sx={{ textAlign: 'center', minWidth: 0 }}>
+                    <Box>
                       <Typography variant="body2" sx={{ 
                         fontFamily: 'monospace', 
                         color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 400,
-                        lineHeight: 1.3,
-                        wordBreak: 'break-all',
-                        overflowWrap: 'anywhere'
+                        lineHeight: 1.3
                       }}>
                         {payment.reference || '-'}
                       </Typography>
                     </Box>
 
                     {/* Comentarios */}
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box>
                       <Typography
                         variant="body2"
                         sx={{
                           fontSize: '0.8rem',
                           color: 'text.secondary',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
                           lineHeight: 1.3
                         }}
                       >
@@ -2993,64 +2954,21 @@ useEffect(() => {
                       </Typography>
                     </Box>
 
-                    {/* ACCIONES MEJORADAS - Botones directos como en CommitmentsList */}
+                    {/* ACCIONES - Botón único de menú */}
                     <Box sx={{ 
-                      display: 'flex', 
-                      gap: 0.5,
-                      justifyContent: 'center'
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
                     }}>
-                      {/* Ver pago */}
-                      <Tooltip title="Ver pago" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewPayment(payment)}
-                          sx={{ 
-                            color: 'primary.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
-                          }}
-                        >
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      {/* Editar pago */}
-                      <Tooltip title="Editar pago" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditPayment(payment)}
-                          sx={{ 
-                            color: 'warning.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
-                          }}
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      {/* Compartir en chat */}
-                      <Tooltip title="Compartir en chat" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleSharePayment(payment)}
-                          sx={{ 
-                            color: 'info.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
-                          }}
-                        >
-                          <Share fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      {/* Menú contextual para más acciones */}
-                      <Tooltip title="Más opciones" arrow>
+                      <Tooltip title="Opciones" arrow>
                         <IconButton
                           size="small"
                           onClick={(event) => handleActionMenuOpen(event, payment)}
                           sx={{ 
                             color: 'text.secondary',
                             '&:hover': { 
-                              backgroundColor: alpha(theme.palette.text.primary, 0.08),
-                              color: 'text.primary'
+                              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                              color: 'primary.main'
                             }
                           }}
                         >
@@ -3327,6 +3245,7 @@ useEffect(() => {
       <PaymentReceiptViewer
         open={receiptViewerOpen}
         onClose={handleCloseReceiptViewer}
+        autoOpenPdf={autoOpenPdfViewer}
         commitment={selectedPayment ? {
           id: selectedPayment.commitmentId,
           companyName: selectedPayment.companyName,
@@ -4859,29 +4778,16 @@ useEffect(() => {
         }}
         TransitionComponent={Fade}
       >
-        {/* Ver comprobante - solo si existe */}
-        {currentPayment?.attachments?.length > 0 && (
-          <ListItemButton onClick={() => {
-            handleViewReceipt(currentPayment);
-            handleActionMenuClose();
-          }}>
-            <ListItemIcon>
-              <Visibility sx={{ color: 'primary.main' }} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Ver comprobante"
-              primaryTypographyProps={{ fontSize: '0.9rem' }}
-            />
-          </ListItemButton>
-        )}
-
-        {/* Compartir al chat */}
-        <ListItemButton onClick={() => handleSharePayment(currentPayment)}>
+        {/* Ver pago */}
+        <ListItemButton onClick={() => {
+          handleViewPayment(currentPayment);
+          handleActionMenuClose();
+        }}>
           <ListItemIcon>
-            <Share sx={{ color: 'success.main' }} />
+            <Visibility sx={{ color: 'primary.main' }} />
           </ListItemIcon>
           <ListItemText 
-            primary="Compartir en chat"
+            primary="Ver pago"
             primaryTypographyProps={{ fontSize: '0.9rem' }}
           />
         </ListItemButton>
@@ -4892,7 +4798,7 @@ useEffect(() => {
           handleActionMenuClose();
         }}>
           <ListItemIcon>
-            <Edit sx={{ color: 'info.main' }} />
+            <Edit sx={{ color: 'warning.main' }} />
           </ListItemIcon>
           <ListItemText 
             primary="Editar pago"
@@ -4900,11 +4806,42 @@ useEffect(() => {
           />
         </ListItemButton>
 
+        {/* Compartir al chat */}
+        <ListItemButton onClick={() => {
+          handleSharePayment(currentPayment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Share sx={{ color: 'success.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Compartir en chat"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
+        {/* Divider antes de gestión de comprobantes */}
+        {currentPayment?.attachments?.length > 0 && <Divider sx={{ my: 0.5 }} />}
+
+        {/* Ver comprobante - solo si existe */}
+        {currentPayment?.attachments?.length > 0 && (
+          <ListItemButton onClick={() => {
+            handleOpenPdfDirect(currentPayment);
+            handleActionMenuClose();
+          }}>
+            <ListItemIcon>
+              <Visibility sx={{ color: 'info.main' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Ver comprobante"
+              primaryTypographyProps={{ fontSize: '0.9rem' }}
+            />
+          </ListItemButton>
+        )}
+
         {/* Gestión de comprobantes - solo si existe */}
         {currentPayment?.attachments?.length > 0 && (
           <>
-            <Divider sx={{ my: 0.5 }} />
-            
             <ListItemButton onClick={() => handleOpenReceiptManagement(currentPayment)}>
               <ListItemIcon>
                 <SwapIcon sx={{ color: 'warning.main' }} />

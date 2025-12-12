@@ -39,7 +39,8 @@ const PaymentReceiptViewer = ({
   onClose, 
   commitment, // Cambiado de payment a commitment
   receiptUrl,
-  receiptMetadata 
+  receiptMetadata,
+  autoOpenPdf = false // Nueva prop para abrir PDF automáticamente
 }) => {
   // 🔍 DEBUG INICIAL: Ver qué datos están llegando al modal
   console.log('🚀 PaymentReceiptViewer PROPS RECEIVED:', {
@@ -85,6 +86,13 @@ const PaymentReceiptViewer = ({
   // 💳 Estados para información de cuotas
   const [installmentInfo, setInstallmentInfo] = useState(null);
   const [loadingInstallmentInfo, setLoadingInstallmentInfo] = useState(false);
+
+  // Efecto para abrir automáticamente el PDF viewer cuando autoOpenPdf es true
+  useEffect(() => {
+    if (open && autoOpenPdf && commitment?.receiptUrls?.length > 0) {
+      setPreviewDialogOpen(true);
+    }
+  }, [open, autoOpenPdf, commitment]);
 
   // Función para cargar datos del compromiso original
   const loadOriginalCommitmentData = async (commitmentId) => {
@@ -1364,7 +1372,13 @@ const PaymentReceiptViewer = ({
       {/* 📄 Vista previa del PDF - COMPONENTE COMPARTIDO IDÉNTICO */}
       <PDFPreviewDialog
         open={previewDialogOpen}
-        onClose={() => setPreviewDialogOpen(false)}
+        onClose={() => {
+          setPreviewDialogOpen(false);
+          // Si se abrió automáticamente el PDF, cerrar también el modal padre
+          if (autoOpenPdf) {
+            onClose();
+          }
+        }}
         receiptUrl={finalReceiptUrl}
         receiptMetadata={receiptMetadata}
         canDownloadReceipts={false} // Sin descarga en visor de comprobantes ya pagados

@@ -25,7 +25,13 @@ import {
   InputLabel,
   CircularProgress,
   Avatar,
-  Paper
+  Paper,
+  Menu,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Fade
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,7 +79,8 @@ import {
   Image,
   FolderOpen,
   Info,
-  Share
+  Share,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
 import ShareToChat from '../common/ShareToChat';
@@ -206,28 +213,43 @@ const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', '
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.8fr', // ✅ Con columna Comentarios
-      gap: 2, // ✅ Mismo gap que las filas
-      alignItems: 'center',
-      px: 2,
-      py: 1.5,
-      background: theme.palette.mode === 'dark'
-        ? alpha(theme.palette.primary.main, 0.12)
-        : alpha(theme.palette.primary.main, 0.08),
-      borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+      gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.5fr', // ✅ Reducción de ACCIONES
+      gap: 2,
+      p: 2.5,
+      backgroundColor: 'background.paper',
+      borderRadius: '1px 1px 0 0',
+      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+      borderBottom: `2px solid ${alpha(theme.palette.divider, 0.2)}`,
       position: 'sticky',
       top: 0,
-      zIndex: 1
+      zIndex: 10,
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
+      minWidth: 0
     }}>
       {columns.map(col => (
-        <Typography key={col} variant="caption" sx={{
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          fontWeight: 600,
-          fontSize: '0.65rem',
-          color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.dark,
-          opacity: 0.85
-        }}>{col}</Typography>
+        <Box 
+          key={col}
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'flex-start'
+          }}
+        >
+          <Typography
+            variant="overline"
+            sx={{
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: 'text.primary',
+              letterSpacing: '0.8px',
+              lineHeight: 1,
+              textTransform: 'uppercase',
+              opacity: 0.85
+            }}
+          >
+            {col.toUpperCase()}
+          </Typography>
+        </Box>
       ))}
     </Box>
   );
@@ -408,6 +430,11 @@ const CommitmentsList = ({
   const [commitmentToShare, setCommitmentToShare] = useState(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [viewerSize, setViewerSize] = useState('normal');
+  const [autoOpenPdfViewer, setAutoOpenPdfViewer] = useState(false);
+  
+  // Estados para menú contextual de acciones
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [currentCommitment, setCurrentCommitment] = useState(null);
   
   // Estados adicionales para modal de confirmación y datos de empresa
   const [companyData, setCompanyData] = useState(null);
@@ -1066,6 +1093,16 @@ const CommitmentsList = ({
     setCommitmentToShare(null);
   };
 
+  // Funciones para el menú contextual de acciones
+  const handleActionMenuOpen = (event, commitment) => {
+    setActionMenuAnchor(event.currentTarget);
+    setCurrentCommitment(commitment);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionMenuAnchor(null);
+  };
+
   // ✅ TODAS LAS FUNCIONES DEL VISOR DE COMPROBANTES ELIMINADAS COMPLETAMENTE
   // - handleViewReceipt (completamente eliminada)
   // - handleCloseReceiptViewer (completamente eliminada)
@@ -1314,6 +1351,25 @@ const CommitmentsList = ({
       setInvoiceUrl(url);
       setDocumentInfo(docInfo);
       setDocumentDimensions(dimensions);
+      setAutoOpenPdfViewer(false);
+      setPdfViewerOpen(true);
+      setViewerSize('normal');
+    }
+  };
+
+  // Función para abrir PDF directamente desde menú de acciones
+  const handleOpenPdfDirect = async (commitment) => {
+    const url = extractInvoiceUrl(commitment);
+    if (url) {
+      const docInfo = await getDocumentInfo(commitment, url);
+      const dimensions = getOptimalDimensions(docInfo);
+      
+      setSelectedCommitment(commitment);
+      setInvoiceUrl(url);
+      setDocumentInfo(docInfo);
+      setDocumentDimensions(dimensions);
+      setAutoOpenPdfViewer(true);
+      setViewDialogOpen(true);
       setPdfViewerOpen(true);
       setViewerSize('normal');
     }
@@ -1326,6 +1382,13 @@ const CommitmentsList = ({
     setDocumentDimensions({ width: 'xl', height: '90vh' });
     setDocumentInfoOpen(false);
     setViewerSize('normal');
+    setAutoOpenPdfViewer(false);
+    
+    // Si se abrió automáticamente, cerrar también el modal de detalle
+    if (autoOpenPdfViewer) {
+      setViewDialogOpen(false);
+      setSelectedCommitment(null);
+    }
   };
 
   const handleToggleDocumentInfo = () => {
@@ -2735,10 +2798,9 @@ const CommitmentsList = ({
                 >
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.8fr',
+                    gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.5fr',
                     gap: 2,
-                    px: 2,
-                    py: 2,
+                    p: 2.5,
                     borderBottom: index === commitments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
                     '&:hover': {
                       backgroundColor: 'rgba(0, 0, 0, 0.03)'
@@ -2853,135 +2915,27 @@ const CommitmentsList = ({
                       </Typography>
                     </Box>
 
-                    {/* Acciones */}
+                    {/* Acciones - Botón único de menú */}
                     <Box sx={{ 
-                      display: 'flex', 
-                      gap: 0.5,
-                      justifyContent: 'center'
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
                     }}>
-                      {showTooltips ? (
-                        <>
-                          <Tooltip title="Ver detalles" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewCommitment(commitment)}
-                              sx={{ 
-                                color: 'primary.main',
-                                '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
-                              }}
-                            >
-                              <Visibility fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
-                          {!commitment.paid && !commitment.isPaid && (
-                            <Tooltip title="Marcar como pagado" arrow>
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate('/payments/new')}
-                                sx={{ 
-                                  color: 'success.main',
-                                  '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
-                                }}
-                              >
-                                <Payment fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                          <Tooltip title="Editar" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditFromCard(commitment)}
-                              sx={{ 
-                                color: 'warning.main',
-                                '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
-                              }}
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Eliminar" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDeleteCommitment(commitment)}
-                              sx={{ 
-                                color: 'error.main',
-                                '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
-                              }}
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Compartir en chat" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleShareCommitment(commitment)}
-                              sx={{ 
-                                color: 'info.main',
-                                '&:hover': { backgroundColor: 'rgba(2, 136, 209, 0.1)' }
-                              }}
-                            >
-                              <Share fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewCommitment(commitment)}
-                            sx={{ 
-                              color: 'primary.main',
-                              '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
-                            }}
-                          >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                          {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
-                          {!commitment.paid && !commitment.isPaid && (
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate('/payments/new')}
-                              sx={{ 
-                                color: 'success.main',
-                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
-                              }}
-                            >
-                              <Payment fontSize="small" />
-                            </IconButton>
-                          )}
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEditFromCard(commitment)}
-                            sx={{ 
-                              color: 'warning.main',
-                              '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
-                            }}
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteCommitment(commitment)}
-                            sx={{ 
-                              color: 'error.main',
-                              '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
-                            }}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleShareCommitment(commitment)}
-                            sx={{ 
-                              color: 'info.main',
-                              '&:hover': { backgroundColor: 'rgba(2, 136, 209, 0.1)' }
-                            }}
-                          >
-                            <Share fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
+                      <Tooltip title="Opciones" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handleActionMenuOpen(event, commitment)}
+                          sx={{ 
+                            color: 'text.secondary',
+                            '&:hover': { 
+                              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                              color: 'primary.main'
+                            }
+                          }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
                 </motion.div>
@@ -4337,6 +4291,118 @@ const CommitmentsList = ({
         entityType="commitment"
         entityName="Compromiso"
       />
+
+      {/* Menú contextual de acciones */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleActionMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            borderRadius: 2,
+            boxShadow: theme.shadows[8],
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          }
+        }}
+        TransitionComponent={Fade}
+      >
+        {/* Ver detalles */}
+        <ListItemButton onClick={() => {
+          handleViewCommitment(currentCommitment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Visibility sx={{ color: 'primary.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Ver detalles"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
+        {/* Marcar como pagado - solo si NO está pagado */}
+        {currentCommitment && !currentCommitment.paid && !currentCommitment.isPaid && (
+          <ListItemButton onClick={() => {
+            navigate('/payments/new');
+            handleActionMenuClose();
+          }}>
+            <ListItemIcon>
+              <Payment sx={{ color: 'success.main' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Marcar como pagado"
+              primaryTypographyProps={{ fontSize: '0.9rem' }}
+            />
+          </ListItemButton>
+        )}
+
+        {/* Editar */}
+        <ListItemButton onClick={() => {
+          handleEditFromCard(currentCommitment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Edit sx={{ color: 'warning.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Editar"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
+        {/* Compartir en chat */}
+        <ListItemButton onClick={() => {
+          handleShareCommitment(currentCommitment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Share sx={{ color: 'info.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Compartir en chat"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
+        {/* Divider antes de acciones especiales */}
+        {currentCommitment && extractInvoiceUrl(currentCommitment) && <Divider sx={{ my: 0.5 }} />}
+
+        {/* Ver factura - solo si tiene factura */}
+        {currentCommitment && extractInvoiceUrl(currentCommitment) && (
+          <ListItemButton onClick={() => {
+            handleOpenPdfDirect(currentCommitment);
+            handleActionMenuClose();
+          }}>
+            <ListItemIcon>
+              <PictureAsPdf sx={{ color: 'secondary.main' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Ver factura"
+              primaryTypographyProps={{ fontSize: '0.9rem' }}
+            />
+          </ListItemButton>
+        )}
+
+        <Divider sx={{ my: 0.5 }} />
+
+        {/* Eliminar */}
+        <ListItemButton onClick={() => {
+          handleDeleteCommitment(currentCommitment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Delete sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Eliminar"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+      </Menu>
     </Box>
   );
 };
