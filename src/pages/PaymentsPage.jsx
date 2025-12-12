@@ -446,12 +446,31 @@ const PaymentsPage = () => {
 
   // ✅ NUEVAS FUNCIONES PARA SISTEMA DE FILTROS APLICADOS
   const handleApplyFilters = () => {
+    // Normalizar siempre a arrays para filtros múltiples
+    const normalizedCompany = Array.isArray(companyFilter)
+      ? companyFilter
+      : companyFilter
+        ? [companyFilter]
+        : [];
+
+    const normalizedConcept = Array.isArray(conceptFilter)
+      ? conceptFilter
+      : conceptFilter
+        ? [conceptFilter]
+        : [];
+
+    const normalizedBeneficiary = Array.isArray(beneficiaryFilter)
+      ? beneficiaryFilter
+      : beneficiaryFilter
+        ? [beneficiaryFilter]
+        : [];
+
     setAppliedFilters({
       searchTerm,
-      companyFilter,
+      companyFilter: normalizedCompany,
       statusFilter,
-      conceptFilter,
-      beneficiaryFilter,
+      conceptFilter: normalizedConcept,
+      beneficiaryFilter: normalizedBeneficiary,
       receiptsFilter,
       dateRangeFilter,
       customStartDate,
@@ -462,20 +481,20 @@ const PaymentsPage = () => {
 
   const handleClearFilters = () => {
     setSearchTerm('');
-    setCompanyFilter('all');
+    setCompanyFilter([]);
     setStatusFilter('all');
-    setConceptFilter('all');
-    setBeneficiaryFilter('all');
+    setConceptFilter([]);
+    setBeneficiaryFilter([]);
     setReceiptsFilter('all');
     setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
     setAppliedFilters({
       searchTerm: '',
-      companyFilter: 'all',
+      companyFilter: [],
       statusFilter: 'all',
-      conceptFilter: 'all',
-      beneficiaryFilter: 'all',
+      conceptFilter: [],
+      beneficiaryFilter: [],
       receiptsFilter: 'all',
       dateRangeFilter: 'thisMonth',
       customStartDate: null,
@@ -577,27 +596,46 @@ const PaymentsPage = () => {
       );
     }
     
+    // Normalizar filtros múltiples a arrays seguros
+    const companyFilterArray = Array.isArray(appliedFilters.companyFilter)
+      ? appliedFilters.companyFilter
+      : appliedFilters.companyFilter
+        ? [appliedFilters.companyFilter]
+        : [];
+
+    const conceptFilterArray = Array.isArray(appliedFilters.conceptFilter)
+      ? appliedFilters.conceptFilter
+      : appliedFilters.conceptFilter
+        ? [appliedFilters.conceptFilter]
+        : [];
+
+    const beneficiaryFilterArray = Array.isArray(appliedFilters.beneficiaryFilter)
+      ? appliedFilters.beneficiaryFilter
+      : appliedFilters.beneficiaryFilter
+        ? [appliedFilters.beneficiaryFilter]
+        : [];
+
     // Filtro por empresa (múltiple)
     let matchesCompany = true;
-    if (appliedFilters.companyFilter && appliedFilters.companyFilter.length > 0) {
-      matchesCompany = appliedFilters.companyFilter.includes(payment.companyName);
+    if (companyFilterArray.length > 0) {
+      matchesCompany = companyFilterArray.includes(payment.companyName);
     }
     
     // Filtro por concepto (múltiple)
     let matchesConcept = true;
-    if (appliedFilters.conceptFilter && appliedFilters.conceptFilter.length > 0) {
-      matchesConcept = appliedFilters.conceptFilter.includes(payment.concept);
+    if (conceptFilterArray.length > 0) {
+      matchesConcept = conceptFilterArray.includes(payment.concept);
     }
     
     // Filtro por beneficiario/proveedor (múltiple)
     let matchesBeneficiary = true;
-    if (appliedFilters.beneficiaryFilter && appliedFilters.beneficiaryFilter.length > 0) {
+    if (beneficiaryFilterArray.length > 0) {
       // Obtener todos los valores posibles del pago y del compromiso relacionado
       const paymentProvider = payment.provider?.trim() || '';
       const paymentBeneficiary = payment.beneficiary?.trim() || '';
       
       // Verificar si alguno de los valores del array coincide
-      matchesBeneficiary = appliedFilters.beneficiaryFilter.some(filterValue => {
+      matchesBeneficiary = beneficiaryFilterArray.some(filterValue => {
         const trimmedFilter = filterValue.trim();
         // Buscar en ambos campos del pago
         let matches = (paymentProvider === trimmedFilter) || (paymentBeneficiary === trimmedFilter);
@@ -2682,7 +2720,7 @@ useEffect(() => {
               {/* Header de la tabla - Estilo Commitments */}
               <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: '0.9fr 2fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
+                gridTemplateColumns: '0.9fr 2fr 1.5fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
                 gap: 2,
                 p: 3,
                 backgroundColor: 'background.paper',
@@ -2699,6 +2737,7 @@ useEffect(() => {
                   'ESTADO',
                   'CONCEPTO', 
                   'EMPRESA',
+                  'BENEFICIARIO',
                   'MONTO',
                   'MÉTODO',
                   'FECHA',
@@ -2758,7 +2797,7 @@ useEffect(() => {
                   >
                     <Box sx={{
                       display: 'grid',
-                      gridTemplateColumns: '0.9fr 2fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
+                      gridTemplateColumns: '0.9fr 2fr 1.5fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
                       gap: 2,
                       p: 2.5,
                       borderBottom: index === paginatedPayments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
@@ -2856,6 +2895,21 @@ useEffect(() => {
                         }}
                       >
                         {payment.companyName || 'Sin empresa'}
+                      </Typography>
+                    </Box>
+
+                    {/* Beneficiario */}
+                    <Box>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          color: 'text.primary',
+                          fontSize: '0.875rem',
+                          lineHeight: 1.3
+                        }}
+                      >
+                        {payment.beneficiary || payment.provider || '-'}
                       </Typography>
                     </Box>
 

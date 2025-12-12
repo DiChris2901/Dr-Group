@@ -140,6 +140,13 @@ const CommitmentsPage = () => {
 
   // ✅ NUEVAS FUNCIONES PARA SISTEMA DE FILTROS
   const handleApplyFilters = () => {
+    console.log('🎯 [PAGE] Aplicando filtros:', {
+      companyFilter,
+      conceptFilter,
+      beneficiaryFilter,
+      statusFilter,
+      dateRangeFilter
+    });
     setAppliedFilters({
       searchTerm,
       companyFilter,
@@ -428,7 +435,7 @@ const CommitmentsPage = () => {
 
       {/* Lista de compromisos con control condicional */}
       <CommitmentsList
-        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.conceptFilter}|${appliedFilters.beneficiaryFilter}|${appliedFilters.dateRangeFilter}|${appliedFilters.customStartDate?.getTime()}|${appliedFilters.customEndDate?.getTime()}` : 'pending-filters'}
+        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter.join(',')}|${appliedFilters.statusFilter}|${appliedFilters.conceptFilter.join(',')}|${appliedFilters.beneficiaryFilter.join(',')}|${appliedFilters.dateRangeFilter}|${appliedFilters.customStartDate?.getTime()}|${appliedFilters.customEndDate?.getTime()}` : 'pending-filters'}
         searchTerm={appliedFilters.searchTerm}
         companyFilter={appliedFilters.companyFilter}
         statusFilter={appliedFilters.statusFilter}

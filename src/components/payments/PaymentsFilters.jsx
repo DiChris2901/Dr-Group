@@ -61,6 +61,16 @@ const PaymentsFilters = ({
 }) => {
   const theme = useTheme();
 
+  // Debug temporal para verificar tipos de filtros
+  console.log('[PaymentsFilters] tipos de filtros:', {
+    companyFilterType: Array.isArray(companyFilter) ? 'array' : typeof companyFilter,
+    companyFilter,
+    conceptFilterType: Array.isArray(conceptFilter) ? 'array' : typeof conceptFilter,
+    conceptFilter,
+    beneficiaryFilterType: Array.isArray(beneficiaryFilter) ? 'array' : typeof beneficiaryFilter,
+    beneficiaryFilter
+  });
+
   const handleSearchChange = (event) => {
     onSearchChange(event.target.value);
   };
@@ -258,9 +268,10 @@ const PaymentsFilters = ({
                   <InputLabel>Empresa</InputLabel>
                   <Select
                     multiple
-                    value={companyFilter}
+                    value={Array.isArray(companyFilter) ? companyFilter : (companyFilter ? [companyFilter] : [])}
                     onChange={(e) => {
-                      const value = e.target.value;
+                      const valueRaw = e.target.value;
+                      const value = Array.isArray(valueRaw) ? valueRaw : (valueRaw ? [valueRaw] : []);
                       if (value.includes('__all__')) {
                         const allSelected = companyFilter.length === uniqueCompanies.length;
                         handleCompanyChange(allSelected ? [] : uniqueCompanies);
@@ -272,7 +283,7 @@ const PaymentsFilters = ({
                     input={<OutlinedInput label="Empresa" />}
                     displayEmpty
                     renderValue={(selected) => {
-                      if (!selected || selected.length === 0) {
+                      if (!selected || selected.length === 0 || (selected.length === 1 && selected[0] === 'all')) {
                         return (
                           <Typography variant="body2" color="text.secondary">
                             Todas las empresas
@@ -496,9 +507,10 @@ const PaymentsFilters = ({
                   <InputLabel>Concepto</InputLabel>
                   <Select
                     multiple
-                    value={conceptFilter}
+                    value={Array.isArray(conceptFilter) ? conceptFilter : (conceptFilter ? [conceptFilter] : [])}
                     onChange={(e) => {
-                      const value = e.target.value;
+                      const valueRaw = e.target.value;
+                      const value = Array.isArray(valueRaw) ? valueRaw : (valueRaw ? [valueRaw] : []);
                       if (value.includes('__all__')) {
                         const allSelected = conceptFilter.length === uniqueConcepts.length;
                         handleConceptChange(allSelected ? [] : uniqueConcepts);
@@ -510,7 +522,7 @@ const PaymentsFilters = ({
                     input={<OutlinedInput label="Concepto" />}
                     displayEmpty
                     renderValue={(selected) => {
-                      if (!selected || selected.length === 0) {
+                      if (!selected || selected.length === 0 || (selected.length === 1 && selected[0] === 'all')) {
                         return (
                           <Typography variant="body2" color="text.secondary">
                             Todos los conceptos
@@ -607,9 +619,10 @@ const PaymentsFilters = ({
                   <InputLabel>Beneficiario</InputLabel>
                   <Select
                     multiple
-                    value={beneficiaryFilter}
+                    value={Array.isArray(beneficiaryFilter) ? beneficiaryFilter : (beneficiaryFilter ? [beneficiaryFilter] : [])}
                     onChange={(e) => {
-                      const value = e.target.value;
+                      const valueRaw = e.target.value;
+                      const value = Array.isArray(valueRaw) ? valueRaw : (valueRaw ? [valueRaw] : []);
                       if (value.includes('__all__')) {
                         const allSelected = beneficiaryFilter.length === uniqueBeneficiaries.length;
                         handleBeneficiaryChange(allSelected ? [] : uniqueBeneficiaries);
@@ -621,7 +634,7 @@ const PaymentsFilters = ({
                     input={<OutlinedInput label="Beneficiario" />}
                     displayEmpty
                     renderValue={(selected) => {
-                      if (!selected || selected.length === 0) {
+                      if (!selected || selected.length === 0 || (selected.length === 1 && selected[0] === 'all')) {
                         return (
                           <Typography variant="body2" color="text.secondary">
                             Todos los beneficiarios

@@ -460,8 +460,16 @@ const CommitmentsList = ({
     try {
       let q = query(collection(db, 'commitments'));
 
+      // 🐛 DEBUG: Log de filtros aplicados
+      console.log('🔍 Filtros recibidos:', {
+        companyFilter: debouncedCompanyFilter,
+        conceptFilter: debouncedConceptFilter,
+        beneficiaryFilter: debouncedBeneficiaryFilter
+      });
+
       // Aplicar filtros
       if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0) {
+        console.log('✅ Aplicando filtro de empresa (Firestore):', debouncedCompanyFilter);
         // Firestore 'in' operator has a limit of 10 items
         if (debouncedCompanyFilter.length <= 10) {
           q = query(q, where('companyId', 'in', debouncedCompanyFilter));
@@ -639,11 +647,15 @@ const CommitmentsList = ({
       // Aplicar filtros locales
       let filteredCommitments = commitmentsData;
 
+      console.log('📊 Total compromisos de Firestore:', commitmentsData.length);
+
       // Filtro por empresa (si hay más de 10 o si no se aplicó en Firestore)
       if (debouncedCompanyFilter && debouncedCompanyFilter.length > 10) {
+        console.log('🔍 Aplicando filtro local de empresa (>10)');
         filteredCommitments = filteredCommitments.filter(commitment =>
           commitment.companyId && debouncedCompanyFilter.includes(commitment.companyId)
         );
+        console.log('📊 Después de filtro empresa:', filteredCommitments.length);
       }
 
       // Filtro por término de búsqueda
@@ -661,20 +673,34 @@ const CommitmentsList = ({
 
       // Filtro por concepto
       if (debouncedConceptFilter && debouncedConceptFilter.length > 0) {
-        filteredCommitments = filteredCommitments.filter(commitment =>
-          commitment.concept && debouncedConceptFilter.some(c => 
+        console.log('🔍 Aplicando filtro de concepto:', debouncedConceptFilter);
+        const beforeCount = filteredCommitments.length;
+        filteredCommitments = filteredCommitments.filter(commitment => {
+          const match = commitment.concept && debouncedConceptFilter.some(c => 
             commitment.concept.toLowerCase() === c.toLowerCase()
-          )
-        );
+          );
+          if (!match && commitment.concept) {
+            console.log('❌ No match concepto:', commitment.concept, 'vs', debouncedConceptFilter);
+          }
+          return match;
+        });
+        console.log('📊 Filtro concepto: antes', beforeCount, 'después', filteredCommitments.length);
       }
 
       // Filtro por beneficiario
       if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter.length > 0) {
-        filteredCommitments = filteredCommitments.filter(commitment =>
-          commitment.beneficiary && debouncedBeneficiaryFilter.some(b => 
+        console.log('🔍 Aplicando filtro de beneficiario:', debouncedBeneficiaryFilter);
+        const beforeCount = filteredCommitments.length;
+        filteredCommitments = filteredCommitments.filter(commitment => {
+          const match = commitment.beneficiary && debouncedBeneficiaryFilter.some(b => 
             commitment.beneficiary.toLowerCase() === b.toLowerCase()
-          )
-        );
+          );
+          if (!match && commitment.beneficiary) {
+            console.log('❌ No match beneficiario:', commitment.beneficiary, 'vs', debouncedBeneficiaryFilter);
+          }
+          return match;
+        });
+        console.log('📊 Filtro beneficiario: antes', beforeCount, 'después', filteredCommitments.length);
       }
 
       // Filtro por estado
@@ -725,13 +751,10 @@ const CommitmentsList = ({
     
     let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
 
-    // Aplicar filtros básicos en Firestore
-    if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
-      q = query(collection(db, 'commitments'), where('companyId', '==', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
-    }
+    // Nota: el filtro por empresa se aplicará localmente para soportar selección múltiple.
     
     // ✅ Aplicar filtro de rango de fechas (Este mes, Último mes, etc.)
-    if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
+      if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
       const { startDate, endDate } = getDateRangeFromFilter(
         debouncedDateRangeFilter,
         debouncedCustomStartDate,
@@ -740,14 +763,15 @@ const CommitmentsList = ({
 
       if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
         if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
-          q = query(collection(db, 'commitments'),
-            where('companyId', '==', debouncedCompanyFilter),
+          q = query(
+            collection(db, 'commitments'),
             where('dueDate', '>=', startDate),
             where('dueDate', '<=', endDate),
             orderBy('dueDate', 'desc')
           );
         } else {
-          q = query(collection(db, 'commitments'),
+          q = query(
+            collection(db, 'commitments'),
             where('dueDate', '>=', startDate),
             where('dueDate', '<=', endDate),
             orderBy('dueDate', 'desc')
@@ -844,6 +868,13 @@ const CommitmentsList = ({
       // Aplicar filtros locales
       let filteredCommitments = commitmentsData;
 
+      // Filtro por empresa (múltiple, aplicado localmente)
+      if (Array.isArray(debouncedCompanyFilter) && debouncedCompanyFilter.length > 0) {
+        filteredCommitments = filteredCommitments.filter(commitment =>
+          commitment.companyId && debouncedCompanyFilter.includes(commitment.companyId)
+        );
+      }
+
       // Filtro por término de búsqueda
       if (debouncedSearchTerm) {
         filteredCommitments = filteredCommitments.filter(
@@ -857,17 +888,21 @@ const CommitmentsList = ({
         );
       }
 
-      // Filtro por concepto
-      if (debouncedConceptFilter && debouncedConceptFilter !== 'all') {
+      // Filtro por concepto (múltiple)
+      if (Array.isArray(debouncedConceptFilter) && debouncedConceptFilter.length > 0) {
         filteredCommitments = filteredCommitments.filter(commitment =>
-          commitment.concept && commitment.concept.toLowerCase() === debouncedConceptFilter.toLowerCase()
+          commitment.concept && debouncedConceptFilter.some(c =>
+            commitment.concept.toLowerCase() === c.toLowerCase()
+          )
         );
       }
 
-      // Filtro por beneficiario
-      if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter !== 'all') {
+      // Filtro por beneficiario (múltiple)
+      if (Array.isArray(debouncedBeneficiaryFilter) && debouncedBeneficiaryFilter.length > 0) {
         filteredCommitments = filteredCommitments.filter(commitment =>
-          commitment.beneficiary && commitment.beneficiary.toLowerCase() === debouncedBeneficiaryFilter.toLowerCase()
+          commitment.beneficiary && debouncedBeneficiaryFilter.some(b =>
+            commitment.beneficiary.toLowerCase() === b.toLowerCase()
+          )
         );
       }
 

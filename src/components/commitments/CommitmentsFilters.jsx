@@ -99,9 +99,8 @@ const CommitmentsFilters = ({
     onSearchChange('');
   };
 
-  const handleCompanyChange = (event, newValue) => {
-    // Selección múltiple: newValue es un array de objetos
-    const selectedIds = newValue.map(option => option.id).filter(id => id !== 'all');
+  const handleCompanyChange = (selectedIds) => {
+    // Selección múltiple: selectedIds es un array de IDs
     onCompanyChange(selectedIds);
   };
 
@@ -116,15 +115,13 @@ const CommitmentsFilters = ({
     onStatusChange(value);
   };
 
-  const handleConceptAutoChange = (event, newValue) => {
-    // Selección múltiple: newValue es un array de strings
-    const selectedConcepts = newValue.filter(concept => concept !== 'all');
+  const handleConceptChange = (selectedConcepts) => {
+    // Selección múltiple: selectedConcepts es un array de strings
     onConceptChange(selectedConcepts);
   };
 
-  const handleBeneficiaryAutoChange = (event, newValue) => {
-    // Selección múltiple: newValue es un array de strings
-    const selectedBeneficiaries = newValue.filter(beneficiary => beneficiary !== 'all');
+  const handleBeneficiaryChange = (selectedBeneficiaries) => {
+    // Selección múltiple: selectedBeneficiaries es un array de strings
     onBeneficiaryChange(selectedBeneficiaries);
   };
 
@@ -314,9 +311,9 @@ const CommitmentsFilters = ({
                       // Handle "Select All"
                       if (value.includes('__all__')) {
                         const allSelected = companyFilter.length === companies.length;
-                        handleCompanyChange(null, allSelected ? [] : companies);
+                        handleCompanyChange(allSelected ? [] : companies.map(c => c.id));
                       } else {
-                        handleCompanyChange(null, companies.filter(c => value.includes(c.id)));
+                        handleCompanyChange(value);
                       }
                     }}
                     input={<OutlinedInput label="Empresa" />}
@@ -495,9 +492,9 @@ const CommitmentsFilters = ({
                       const value = e.target.value;
                       if (value.includes('__all__')) {
                         const allSelected = conceptFilter.length === conceptOptions.length;
-                        handleConceptAutoChange(null, allSelected ? [] : conceptOptions);
+                        handleConceptChange(allSelected ? [] : conceptOptions);
                       } else {
-                        handleConceptAutoChange(null, value);
+                        handleConceptChange(value);
                       }
                     }}
                     input={<OutlinedInput label="Concepto" />}
@@ -601,9 +598,9 @@ const CommitmentsFilters = ({
                       const value = e.target.value;
                       if (value.includes('__all__')) {
                         const allSelected = beneficiaryFilter.length === beneficiaryOptions.length;
-                        handleBeneficiaryAutoChange(null, allSelected ? [] : beneficiaryOptions);
+                        handleBeneficiaryChange(allSelected ? [] : beneficiaryOptions);
                       } else {
-                        handleBeneficiaryAutoChange(null, value);
+                        handleBeneficiaryChange(value);
                       }
                     }}
                     input={<OutlinedInput label="Beneficiario" />}
