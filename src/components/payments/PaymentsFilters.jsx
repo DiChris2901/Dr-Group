@@ -22,7 +22,10 @@ import {
   TextField,
   Typography,
   alpha,
-  Avatar
+  Avatar,
+  Checkbox,
+  ListItemText,
+  OutlinedInput
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -41,10 +44,10 @@ const PaymentsFilters = ({
   onApplyFilters,
   onClearFilters,
   searchTerm = '',
-  companyFilter = 'all',
+  companyFilter = [],
   statusFilter = 'all',
-  conceptFilter = 'all',
-  beneficiaryFilter = 'all',
+  conceptFilter = [],
+  beneficiaryFilter = [],
   receiptsFilter = 'all',
   dateRangeFilter = 'all',
   customStartDate = null,
@@ -76,20 +79,20 @@ const PaymentsFilters = ({
     }
   };
 
-  const handleCompanyChange = (event) => {
-    onCompanyChange(event.target.value);
+  const handleCompanyChange = (newValue) => {
+    onCompanyChange(newValue);
   };
 
   const handleStatusChange = (event) => {
     onStatusChange(event.target.value);
   };
 
-  const handleConceptChange = (event) => {
-    onConceptChange(event.target.value);
+  const handleConceptChange = (newValue) => {
+    onConceptChange(newValue);
   };
 
-  const handleBeneficiaryChange = (event) => {
-    onBeneficiaryChange(event.target.value);
+  const handleBeneficiaryChange = (newValue) => {
+    onBeneficiaryChange(newValue);
   };
 
   const handleReceiptsChange = (event) => {
@@ -254,27 +257,86 @@ const PaymentsFilters = ({
                 >
                   <InputLabel>Empresa</InputLabel>
                   <Select
+                    multiple
                     value={companyFilter}
-                    onChange={handleCompanyChange}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes('__all__')) {
+                        const allSelected = companyFilter.length === uniqueCompanies.length;
+                        handleCompanyChange(allSelected ? [] : uniqueCompanies);
+                      } else {
+                        handleCompanyChange(value);
+                      }
+                    }}
                     onKeyDown={handleSelectKeyDown}
-                    label="Empresa"
+                    input={<OutlinedInput label="Empresa" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todas las empresas
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        return (
+                          <Typography variant="body2">
+                            {selected[0]}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} empresas
+                        </Typography>
+                      );
+                    }}
                     startAdornment={
                       <InputAdornment position="start">
                         <Business color="primary" />
                       </InputAdornment>
                     }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
+                        }
+                      }
+                    }}
                   >
-                    <MenuItem value="all">
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Business sx={{ mr: 1, color: 'text.secondary' }} />
-                        Todas las empresas
-                      </Box>
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={companyFilter.length === uniqueCompanies.length}
+                        indeterminate={companyFilter.length > 0 && companyFilter.length < uniqueCompanies.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={companyFilter.length === uniqueCompanies.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({companyFilter.length}/{uniqueCompanies.length})
+                      </Typography>
                     </MenuItem>
                     {uniqueCompanies.map((companyName) => {
                       const company = getCompanyByName(companyName);
                       return (
                         <MenuItem key={companyName} value={companyName}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                          <Checkbox
+                            checked={companyFilter.indexOf(companyName) > -1}
+                            sx={{
+                              color: theme.palette.primary.main,
+                              '&.Mui-checked': { color: theme.palette.primary.main }
+                            }}
+                          />
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
                             {company?.logoURL ? (
                               <Box
                                 sx={{
@@ -304,18 +366,20 @@ const PaymentsFilters = ({
                                 sx={{ 
                                   width: 24, 
                                   height: 24, 
-                                  mr: 1, 
-                                  bgcolor: 'primary.main',
-                                  fontSize: 12,
-                                  fontWeight: 'bold'
+                                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                  color: 'primary.main',
+                                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600
                                 }}
                               >
                                 {companyName.charAt(0)}
                               </Avatar>
                             )}
-                            <Typography variant="body2" sx={{ flex: 1 }}>
-                              {companyName}
-                            </Typography>
+                            <ListItemText
+                              primary={companyName}
+                              primaryTypographyProps={{ variant: 'body2' }}
+                            />
                           </Box>
                         </MenuItem>
                       );
@@ -431,20 +495,84 @@ const PaymentsFilters = ({
                 >
                   <InputLabel>Concepto</InputLabel>
                   <Select
+                    multiple
                     value={conceptFilter}
-                    onChange={handleConceptChange}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes('__all__')) {
+                        const allSelected = conceptFilter.length === uniqueConcepts.length;
+                        handleConceptChange(allSelected ? [] : uniqueConcepts);
+                      } else {
+                        handleConceptChange(value);
+                      }
+                    }}
                     onKeyDown={handleSelectKeyDown}
-                    label="Concepto"
+                    input={<OutlinedInput label="Concepto" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todos los conceptos
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        return (
+                          <Typography variant="body2">
+                            {selected[0]}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} conceptos
+                        </Typography>
+                      );
+                    }}
                     startAdornment={
                       <InputAdornment position="start">
                         <AccountBalance color="primary" />
                       </InputAdornment>
                     }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
+                        }
+                      }
+                    }}
                   >
-                    <MenuItem value="all">Todos los conceptos</MenuItem>
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={conceptFilter.length === uniqueConcepts.length}
+                        indeterminate={conceptFilter.length > 0 && conceptFilter.length < uniqueConcepts.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={conceptFilter.length === uniqueConcepts.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({conceptFilter.length}/{uniqueConcepts.length})
+                      </Typography>
+                    </MenuItem>
                     {uniqueConcepts.map((concept) => (
                       <MenuItem key={concept} value={concept}>
-                        {concept}
+                        <Checkbox
+                          checked={conceptFilter.indexOf(concept) > -1}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&.Mui-checked': { color: theme.palette.primary.main }
+                          }}
+                        />
+                        <ListItemText primary={concept} primaryTypographyProps={{ variant: 'body2' }} />
                       </MenuItem>
                     ))}
                   </Select>
@@ -478,20 +606,84 @@ const PaymentsFilters = ({
                 >
                   <InputLabel>Beneficiario</InputLabel>
                   <Select
+                    multiple
                     value={beneficiaryFilter}
-                    onChange={handleBeneficiaryChange}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes('__all__')) {
+                        const allSelected = beneficiaryFilter.length === uniqueBeneficiaries.length;
+                        handleBeneficiaryChange(allSelected ? [] : uniqueBeneficiaries);
+                      } else {
+                        handleBeneficiaryChange(value);
+                      }
+                    }}
                     onKeyDown={handleSelectKeyDown}
-                    label="Beneficiario"
+                    input={<OutlinedInput label="Beneficiario" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todos los beneficiarios
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        return (
+                          <Typography variant="body2">
+                            {selected[0]}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} beneficiarios
+                        </Typography>
+                      );
+                    }}
                     startAdornment={
                       <InputAdornment position="start">
                         <Person color="primary" />
                       </InputAdornment>
                     }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
+                        }
+                      }
+                    }}
                   >
-                    <MenuItem value="all">Todos los beneficiarios</MenuItem>
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={beneficiaryFilter.length === uniqueBeneficiaries.length}
+                        indeterminate={beneficiaryFilter.length > 0 && beneficiaryFilter.length < uniqueBeneficiaries.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={beneficiaryFilter.length === uniqueBeneficiaries.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({beneficiaryFilter.length}/{uniqueBeneficiaries.length})
+                      </Typography>
+                    </MenuItem>
                     {uniqueBeneficiaries.map((beneficiary) => (
                       <MenuItem key={beneficiary} value={beneficiary}>
-                        {beneficiary}
+                        <Checkbox
+                          checked={beneficiaryFilter.indexOf(beneficiary) > -1}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&.Mui-checked': { color: theme.palette.primary.main }
+                          }}
+                        />
+                        <ListItemText primary={beneficiary} primaryTypographyProps={{ variant: 'body2' }} />
                       </MenuItem>
                     ))}
                   </Select>

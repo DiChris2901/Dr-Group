@@ -126,9 +126,9 @@ const PaymentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [receiptsFilter, setReceiptsFilter] = useState('all'); // Nuevo filtro para comprobantes
-  const [companyFilter, setCompanyFilter] = useState('all'); // Filtro por empresa
-  const [conceptFilter, setConceptFilter] = useState('all'); // Filtro por concepto
-  const [beneficiaryFilter, setBeneficiaryFilter] = useState('all'); // Filtro por beneficiario/proveedor
+  const [companyFilter, setCompanyFilter] = useState([]); // Filtro por empresa (array)
+  const [conceptFilter, setConceptFilter] = useState([]); // Filtro por concepto (array)
+  const [beneficiaryFilter, setBeneficiaryFilter] = useState([]); // Filtro por beneficiario/proveedor (array)
   const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth'); // Filtro por rango de fechas
   const [customStartDate, setCustomStartDate] = useState(null); // Fecha inicial personalizada
   const [customEndDate, setCustomEndDate] = useState(null); // Fecha final personalizada
@@ -136,10 +136,10 @@ const PaymentsPage = () => {
   // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS APLICADOS
   const [appliedFilters, setAppliedFilters] = useState({
     searchTerm: '',
-    companyFilter: 'all',
+    companyFilter: [],
     statusFilter: 'all',
-    conceptFilter: 'all',
-    beneficiaryFilter: 'all',
+    conceptFilter: [],
+    beneficiaryFilter: [],
     receiptsFilter: 'all',
     dateRangeFilter: 'thisMonth',
     customStartDate: null,
@@ -484,13 +484,21 @@ const PaymentsPage = () => {
     setFiltersApplied(false);
   };
 
+  // Helper para comparar arrays
+  const arraysEqual = (a, b) => {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((val, index) => val === sortedB[index]);
+  };
+
   const hasFiltersChanged = () => {
     return (
       appliedFilters.searchTerm !== searchTerm ||
-      appliedFilters.companyFilter !== companyFilter ||
+      !arraysEqual(appliedFilters.companyFilter, companyFilter) ||
       appliedFilters.statusFilter !== statusFilter ||
-      appliedFilters.conceptFilter !== conceptFilter ||
-      appliedFilters.beneficiaryFilter !== beneficiaryFilter ||
+      !arraysEqual(appliedFilters.conceptFilter, conceptFilter) ||
+      !arraysEqual(appliedFilters.beneficiaryFilter, beneficiaryFilter) ||
       appliedFilters.receiptsFilter !== receiptsFilter ||
       appliedFilters.dateRangeFilter !== dateRangeFilter ||
       appliedFilters.customStartDate !== customStartDate ||
@@ -569,49 +577,42 @@ const PaymentsPage = () => {
       );
     }
     
-    // Filtro por empresa
+    // Filtro por empresa (múltiple)
     let matchesCompany = true;
-    if (appliedFilters.companyFilter !== 'all') {
-      matchesCompany = payment.companyName === appliedFilters.companyFilter;
+    if (appliedFilters.companyFilter && appliedFilters.companyFilter.length > 0) {
+      matchesCompany = appliedFilters.companyFilter.includes(payment.companyName);
     }
     
-    // Filtro por concepto
+    // Filtro por concepto (múltiple)
     let matchesConcept = true;
-    if (appliedFilters.conceptFilter !== 'all') {
-      matchesConcept = payment.concept === appliedFilters.conceptFilter;
+    if (appliedFilters.conceptFilter && appliedFilters.conceptFilter.length > 0) {
+      matchesConcept = appliedFilters.conceptFilter.includes(payment.concept);
     }
     
-    // Filtro por beneficiario/proveedor
+    // Filtro por beneficiario/proveedor (múltiple)
     let matchesBeneficiary = true;
-    if (appliedFilters.beneficiaryFilter !== 'all') {
+    if (appliedFilters.beneficiaryFilter && appliedFilters.beneficiaryFilter.length > 0) {
       // Obtener todos los valores posibles del pago y del compromiso relacionado
       const paymentProvider = payment.provider?.trim() || '';
       const paymentBeneficiary = payment.beneficiary?.trim() || '';
-      const filterValue = appliedFilters.beneficiaryFilter.trim();
       
-      // Buscar en ambos campos del pago
-      matchesBeneficiary = (paymentProvider === filterValue) || 
-                          (paymentBeneficiary === filterValue);
-      
-      // Si no encuentra match en el pago, buscar en el compromiso relacionado
-      if (!matchesBeneficiary && payment.commitmentId && firebaseCommitments?.length > 0) {
-        // Buscar el compromiso para obtener el beneficiario original
-        const relatedCommitment = firebaseCommitments.find(c => c.id === payment.commitmentId);
-        if (relatedCommitment) {
-          const commitmentProvider = relatedCommitment.provider?.trim() || '';
-          const commitmentBeneficiary = relatedCommitment.beneficiary?.trim() || '';
-          matchesBeneficiary = (commitmentProvider === filterValue) || 
-                              (commitmentBeneficiary === filterValue);
+      // Verificar si alguno de los valores del array coincide
+      matchesBeneficiary = appliedFilters.beneficiaryFilter.some(filterValue => {
+        const trimmedFilter = filterValue.trim();
+        // Buscar en ambos campos del pago
+        let matches = (paymentProvider === trimmedFilter) || (paymentBeneficiary === trimmedFilter);
+        
+        // Si no encuentra match en el pago, buscar en el compromiso relacionado
+        if (!matches && payment.commitmentId && firebaseCommitments?.length > 0) {
+          const relatedCommitment = firebaseCommitments.find(c => c.id === payment.commitmentId);
+          if (relatedCommitment) {
+            const commitmentProvider = relatedCommitment.provider?.trim() || '';
+            const commitmentBeneficiary = relatedCommitment.beneficiary?.trim() || '';
+            matches = (commitmentProvider === trimmedFilter) || (commitmentBeneficiary === trimmedFilter);
+          }
         }
-      }
-      
-      // Debug temporal
-      console.log('Filtro beneficiario detallado:', {
-        filterValue,
-        paymentProvider,
-        paymentBeneficiary,
-        matchesBeneficiary,
-        paymentId: payment.id
+        
+        return matches;
       });
     }
     

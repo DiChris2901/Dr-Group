@@ -36,10 +36,10 @@ const CommitmentsPage = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
-  const [companyFilter, setCompanyFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [conceptFilter, setConceptFilter] = useState('all');
-  const [beneficiaryFilter, setBeneficiaryFilter] = useState('all');
+  const [conceptFilter, setConceptFilter] = useState([]);
+  const [beneficiaryFilter, setBeneficiaryFilter] = useState([]);
   const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
@@ -50,10 +50,10 @@ const CommitmentsPage = () => {
   // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS
   const [appliedFilters, setAppliedFilters] = useState({
     searchTerm: '',
-    companyFilter: 'all',
+    companyFilter: [],
     statusFilter: 'all',
-    conceptFilter: 'all',
-    beneficiaryFilter: 'all',
+    conceptFilter: [],
+    beneficiaryFilter: [],
     dateRangeFilter: 'thisMonth',
     customStartDate: null,
     customEndDate: null
@@ -156,10 +156,10 @@ const CommitmentsPage = () => {
   const handleClearFilters = () => {
     console.log('🧹 [PAGE] *** CLEAR FILTERS ACTION ***');
     setSearchTerm('');
-    setCompanyFilter('all');
+    setCompanyFilter([]);
     setStatusFilter('all');
-    setConceptFilter('all');
-    setBeneficiaryFilter('all');
+    setConceptFilter([]);
+    setBeneficiaryFilter([]);
     setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
@@ -167,10 +167,10 @@ const CommitmentsPage = () => {
     // ✅ Aplicar filtros limpos inmediatamente
     const clearedFilters = {
       searchTerm: '',
-      companyFilter: 'all',
+      companyFilter: [],
       statusFilter: 'all',
-      conceptFilter: 'all',
-      beneficiaryFilter: 'all',
+      conceptFilter: [],
+      beneficiaryFilter: [],
       dateRangeFilter: 'thisMonth',
       customStartDate: null,
       customEndDate: null
@@ -182,12 +182,19 @@ const CommitmentsPage = () => {
   };
 
   const hasFiltersChanged = () => {
+    // Función auxiliar para comparar arrays
+    const arraysEqual = (arr1, arr2) => {
+      if (!Array.isArray(arr1) || !Array.isArray(arr2)) return arr1 === arr2;
+      if (arr1.length !== arr2.length) return false;
+      return arr1.every((val, index) => val === arr2[index]);
+    };
+
     return (
       appliedFilters.searchTerm !== searchTerm ||
-      appliedFilters.companyFilter !== companyFilter ||
+      !arraysEqual(appliedFilters.companyFilter, companyFilter) ||
       appliedFilters.statusFilter !== statusFilter ||
-      appliedFilters.conceptFilter !== conceptFilter ||
-      appliedFilters.beneficiaryFilter !== beneficiaryFilter ||
+      !arraysEqual(appliedFilters.conceptFilter, conceptFilter) ||
+      !arraysEqual(appliedFilters.beneficiaryFilter, beneficiaryFilter) ||
       appliedFilters.dateRangeFilter !== dateRangeFilter ||
       appliedFilters.customStartDate !== customStartDate ||
       appliedFilters.customEndDate !== customEndDate

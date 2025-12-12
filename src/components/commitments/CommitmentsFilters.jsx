@@ -24,7 +24,10 @@ import {
   Typography,
   alpha,
   Avatar,
-  Autocomplete
+  Autocomplete,
+  Checkbox,
+  ListItemText,
+  OutlinedInput
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { collection, getDocs } from 'firebase/firestore';
@@ -45,10 +48,10 @@ const CommitmentsFilters = ({
   onApplyFilters,
   onClearFilters,
   searchTerm = '',
-  companyFilter = 'all',
+  companyFilter = [],
   statusFilter = 'all',
-  conceptFilter = 'all',
-  beneficiaryFilter = 'all',
+  conceptFilter = [],
+  beneficiaryFilter = [],
   dateRangeFilter = 'all',
   customStartDate = null,
   customEndDate = null,
@@ -97,9 +100,9 @@ const CommitmentsFilters = ({
   };
 
   const handleCompanyChange = (event, newValue) => {
-    // Si es del autocomplete (newValue), usar el id, si es del select normal usar event.target.value
-    const value = newValue ? (newValue.id || newValue) : event.target.value;
-    onCompanyChange(value);
+    // Selección múltiple: newValue es un array de objetos
+    const selectedIds = newValue.map(option => option.id).filter(id => id !== 'all');
+    onCompanyChange(selectedIds);
   };
 
   const handleStatusChange = (event) => {
@@ -113,14 +116,16 @@ const CommitmentsFilters = ({
     onStatusChange(value);
   };
 
-  const handleConceptAutoChange = (event, value) => {
-    const selectedValue = value || 'all';
-    onConceptChange(selectedValue);
+  const handleConceptAutoChange = (event, newValue) => {
+    // Selección múltiple: newValue es un array de strings
+    const selectedConcepts = newValue.filter(concept => concept !== 'all');
+    onConceptChange(selectedConcepts);
   };
 
-  const handleBeneficiaryAutoChange = (event, value) => {
-    const selectedValue = value || 'all';
-    onBeneficiaryChange(selectedValue);
+  const handleBeneficiaryAutoChange = (event, newValue) => {
+    // Selección múltiple: newValue es un array de strings
+    const selectedBeneficiaries = newValue.filter(beneficiary => beneficiary !== 'all');
+    onBeneficiaryChange(selectedBeneficiaries);
   };
 
   const handleDateRangeChange = (value) => {
@@ -143,10 +148,10 @@ const CommitmentsFilters = ({
     
     // ✅ Limpiar todos los filtros del padre
     onSearchChange('');
-    onCompanyChange('all');
+    onCompanyChange([]);
     onStatusChange('all');
-    onConceptChange('all');
-    onBeneficiaryChange('all');
+    onConceptChange([]);
+    onBeneficiaryChange([]);
     onDateRangeChange('all');
     onCustomDateRangeChange(null, null);
     
@@ -167,7 +172,7 @@ const CommitmentsFilters = ({
     { value: 'paid', label: 'Pagados', color: 'success', icon: '✅' }
   ];
 
-  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || conceptFilter !== 'all' || beneficiaryFilter !== 'all' || dateRangeFilter !== 'all';
+  const hasActiveFilters = searchTerm || companyFilter.length > 0 || statusFilter !== 'all' || conceptFilter.length > 0 || beneficiaryFilter.length > 0 || dateRangeFilter !== 'all';
 
   return (
     <motion.div
@@ -276,100 +281,147 @@ const CommitmentsFilters = ({
               </motion.div>
             </Grid>
 
-            {/* Filtro por empresa con Autocomplete */}
+            {/* Filtro por empresa con Select Multiple */}
             <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div
                 initial={{ opacity: 0, x: 0 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <Autocomplete
+                <FormControl
                   fullWidth
-                  options={[{ id: 'all', name: 'Todas las empresas' }, ...companies]}
-                  value={companies.find(c => c.id === companyFilter) || { id: 'all', name: 'Todas las empresas' }}
-                  onChange={handleCompanyChange}
-                  getOptionLabel={(option) => option.name || ''}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  renderOption={(props, option) => {
-                    const { key, ...otherProps } = props;
-                    return (
-                      <Box key={key} {...otherProps} component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {option.id === 'all' ? (
-                          <Business sx={{ color: 'text.secondary', fontSize: 20 }} />
-                        ) : option.logoURL ? (
-                        <Box
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                      },
+                      '&.Mui-focused': {
+                        boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                      }
+                    }
+                  }}
+                >
+                  <InputLabel>Empresa</InputLabel>
+                  <Select
+                    multiple
+                    value={companyFilter}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Handle "Select All"
+                      if (value.includes('__all__')) {
+                        const allSelected = companyFilter.length === companies.length;
+                        handleCompanyChange(null, allSelected ? [] : companies);
+                      } else {
+                        handleCompanyChange(null, companies.filter(c => value.includes(c.id)));
+                      }
+                    }}
+                    input={<OutlinedInput label="Empresa" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todas las empresas
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        const company = companies.find(c => c.id === selected[0]);
+                        return (
+                          <Typography variant="body2">
+                            {company?.name || 'Empresa'}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} empresas
+                        </Typography>
+                      );
+                    }}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <Business color="primary" />
+                      </InputAdornment>
+                    }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
+                        }
+                      }
+                    }}
+                  >
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={companyFilter.length === companies.length}
+                        indeterminate={companyFilter.length > 0 && companyFilter.length < companies.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={companyFilter.length === companies.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({companyFilter.length}/{companies.length})
+                      </Typography>
+                    </MenuItem>
+                    {companies.map((company) => (
+                      <MenuItem key={company.id} value={company.id}>
+                        <Checkbox
+                          checked={companyFilter.indexOf(company.id) > -1}
                           sx={{
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: 0.5,
-                            backgroundColor: 'background.paper'
+                            color: theme.palette.primary.main,
+                            '&.Mui-checked': { color: theme.palette.primary.main }
                           }}
-                        >
-                          <Box
-                            component="img"
-                            src={option.logoURL}
-                            alt={`Logo de ${option.name}`}
-                            sx={{
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain'
-                            }}
+                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                          {company.logoURL ? (
+                            <Avatar
+                              src={company.logoURL}
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              {company.name.charAt(0)}
+                            </Avatar>
+                          ) : (
+                            <Avatar
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: 'primary.main',
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                fontWeight: 600
+                              }}
+                            >
+                              {company.name.charAt(0)}
+                            </Avatar>
+                          )}
+                          <ListItemText
+                            primary={company.name}
+                            primaryTypographyProps={{ variant: 'body2' }}
                           />
                         </Box>
-                      ) : (
-                        <Avatar 
-                          sx={{ 
-                            width: 24, 
-                            height: 24, 
-                            bgcolor: 'primary.main',
-                            fontSize: 12,
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          {option.name.charAt(0)}
-                        </Avatar>
-                      )}
-                      <Typography variant="body2">
-                        {option.name}
-                      </Typography>
-                    </Box>
-                    );
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Empresa"
-                      placeholder="Buscar empresa..."
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1,
-                          backgroundColor: theme.palette.background.paper,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Business color="primary" />
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                  )}
-                  noOptionsText="No se encontraron empresas"
-                  loading={loading}
-                />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </motion.div>
             </Grid>
 
@@ -415,87 +467,215 @@ const CommitmentsFilters = ({
               </motion.div>
             </Grid>
 
-            {/* Filtro por concepto (Autocomplete) */}
+            {/* Filtro por concepto */}
             <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
-                <Autocomplete
-                  disablePortal
-                  options={['all', ...conceptOptions]}
-                  value={conceptFilter}
-                  onChange={handleConceptAutoChange}
-                  getOptionLabel={(option) => option === 'all' ? 'Todos los conceptos' : option}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Concepto"
-                      onKeyDown={handleKeyDownApply}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1,
-                          backgroundColor: theme.palette.background.paper,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
-                          }
+                <FormControl
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                      },
+                      '&.Mui-focused': {
+                        boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                      }
+                    }
+                  }}
+                >
+                  <InputLabel>Concepto</InputLabel>
+                  <Select
+                    multiple
+                    value={conceptFilter}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes('__all__')) {
+                        const allSelected = conceptFilter.length === conceptOptions.length;
+                        handleConceptAutoChange(null, allSelected ? [] : conceptOptions);
+                      } else {
+                        handleConceptAutoChange(null, value);
+                      }
+                    }}
+                    input={<OutlinedInput label="Concepto" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todos los conceptos
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        return (
+                          <Typography variant="body2">
+                            {selected[0]}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} conceptos
+                        </Typography>
+                      );
+                    }}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <Description color="primary" />
+                      </InputAdornment>
+                    }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
                         }
-                      }}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Description color="primary" />
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                  )}
-                />
+                      }
+                    }}
+                  >
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={conceptFilter.length === conceptOptions.length}
+                        indeterminate={conceptFilter.length > 0 && conceptFilter.length < conceptOptions.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={conceptFilter.length === conceptOptions.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({conceptFilter.length}/{conceptOptions.length})
+                      </Typography>
+                    </MenuItem>
+                    {conceptOptions.map((concept) => (
+                      <MenuItem key={concept} value={concept}>
+                        <Checkbox
+                          checked={conceptFilter.indexOf(concept) > -1}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&.Mui-checked': { color: theme.palette.primary.main }
+                          }}
+                        />
+                        <ListItemText primary={concept} primaryTypographyProps={{ variant: 'body2' }} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </motion.div>
             </Grid>
 
-            {/* Filtro por beneficiario (Autocomplete) */}
+            {/* Filtro por beneficiario */}
             <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
-                <Autocomplete
-                  disablePortal
-                  options={['all', ...beneficiaryOptions]}
-                  value={beneficiaryFilter}
-                  onChange={handleBeneficiaryAutoChange}
-                  getOptionLabel={(option) => option === 'all' ? 'Todos los beneficiarios' : option}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Beneficiario"
-                      onKeyDown={handleKeyDownApply}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1,
-                          backgroundColor: theme.palette.background.paper,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
-                          }
+                <FormControl
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                      },
+                      '&.Mui-focused': {
+                        boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                      }
+                    }
+                  }}
+                >
+                  <InputLabel>Beneficiario</InputLabel>
+                  <Select
+                    multiple
+                    value={beneficiaryFilter}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.includes('__all__')) {
+                        const allSelected = beneficiaryFilter.length === beneficiaryOptions.length;
+                        handleBeneficiaryAutoChange(null, allSelected ? [] : beneficiaryOptions);
+                      } else {
+                        handleBeneficiaryAutoChange(null, value);
+                      }
+                    }}
+                    input={<OutlinedInput label="Beneficiario" />}
+                    displayEmpty
+                    renderValue={(selected) => {
+                      if (!selected || selected.length === 0) {
+                        return (
+                          <Typography variant="body2" color="text.secondary">
+                            Todos los beneficiarios
+                          </Typography>
+                        );
+                      }
+                      if (selected.length === 1) {
+                        return (
+                          <Typography variant="body2">
+                            {selected[0]}
+                          </Typography>
+                        );
+                      }
+                      return (
+                        <Typography variant="body2">
+                          {selected.length} beneficiarios
+                        </Typography>
+                      );
+                    }}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <Person color="primary" />
+                      </InputAdornment>
+                    }
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 400,
+                          borderRadius: 8,
+                          marginTop: 8
                         }
-                      }}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Person color="primary" />
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                  )}
-                />
+                      }
+                    }}
+                  >
+                    <MenuItem value="__all__" sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                      <Checkbox
+                        checked={beneficiaryFilter.length === beneficiaryOptions.length}
+                        indeterminate={beneficiaryFilter.length > 0 && beneficiaryFilter.length < beneficiaryOptions.length}
+                        sx={{
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': { color: theme.palette.primary.main },
+                          '&.MuiCheckbox-indeterminate': { color: theme.palette.primary.main }
+                        }}
+                      />
+                      <ListItemText
+                        primary={beneficiaryFilter.length === beneficiaryOptions.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        primaryTypographyProps={{ fontWeight: 600, color: 'primary.main', variant: 'body2' }}
+                      />
+                      <Typography variant="caption" sx={{ ml: 'auto', color: 'text.secondary' }}>
+                        ({beneficiaryFilter.length}/{beneficiaryOptions.length})
+                      </Typography>
+                    </MenuItem>
+                    {beneficiaryOptions.map((beneficiary) => (
+                      <MenuItem key={beneficiary} value={beneficiary}>
+                        <Checkbox
+                          checked={beneficiaryFilter.indexOf(beneficiary) > -1}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '&.Mui-checked': { color: theme.palette.primary.main }
+                          }}
+                        />
+                        <ListItemText primary={beneficiary} primaryTypographyProps={{ variant: 'body2' }} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </motion.div>
             </Grid>
 
@@ -533,16 +713,20 @@ const CommitmentsFilters = ({
                       sx={{ borderRadius: 2 }}
                     />
                   )}
-                  {companyFilter !== 'all' && (
+                  {companyFilter.length > 0 && companyFilter.map(companyId => (
                     <Chip
-                      label={`Empresa: ${companies.find(c => c.id === companyFilter)?.name || companyFilter}`}
+                      key={companyId}
+                      label={`Empresa: ${companies.find(c => c.id === companyId)?.name || companyId}`}
                       size="small"
                       color="info"
                       variant="outlined"
-                      onDelete={() => onCompanyChange('all')}
+                      onDelete={() => {
+                        const newFilter = companyFilter.filter(id => id !== companyId);
+                        onCompanyChange(newFilter);
+                      }}
                       sx={{ borderRadius: 2 }}
                     />
-                  )}
+                  ))}
                   {statusFilter !== 'all' && (
                     <Chip
                       label={`Estado: ${statusOptions.find(s => s.value === statusFilter)?.label || statusFilter}`}
@@ -553,26 +737,34 @@ const CommitmentsFilters = ({
                       sx={{ borderRadius: 2 }}
                     />
                   )}
-                  {conceptFilter !== 'all' && (
+                  {conceptFilter.length > 0 && conceptFilter.map(concept => (
                     <Chip
-                      label={`Concepto: ${conceptFilter}`}
+                      key={concept}
+                      label={`Concepto: ${concept}`}
                       size="small"
                       color="success"
                       variant="outlined"
-                      onDelete={() => onConceptChange('all')}
+                      onDelete={() => {
+                        const newFilter = conceptFilter.filter(c => c !== concept);
+                        onConceptChange(newFilter);
+                      }}
                       sx={{ borderRadius: 2 }}
                     />
-                  )}
-                  {beneficiaryFilter !== 'all' && (
+                  ))}
+                  {beneficiaryFilter.length > 0 && beneficiaryFilter.map(beneficiary => (
                     <Chip
-                      label={`Beneficiario: ${beneficiaryFilter}`}
+                      key={beneficiary}
+                      label={`Beneficiario: ${beneficiary}`}
                       size="small"
                       color="error"
                       variant="outlined"
-                      onDelete={() => onBeneficiaryChange('all')}
+                      onDelete={() => {
+                        const newFilter = beneficiaryFilter.filter(b => b !== beneficiary);
+                        onBeneficiaryChange(newFilter);
+                      }}
                       sx={{ borderRadius: 2 }}
                     />
-                  )}
+                  ))}
                   {dateRangeFilter !== 'all' && (
                     <Chip
                       label={`Período: ${dateRangeFilter === 'custom' && customStartDate && customEndDate 
