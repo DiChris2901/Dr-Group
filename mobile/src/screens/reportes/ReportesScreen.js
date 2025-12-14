@@ -30,6 +30,13 @@ export default function ReportesScreen() {
   const { userProfile, user } = useAuth();
   const theme = useTheme();
   
+  const dynamicStyles = {
+    container: { backgroundColor: theme.colors.background },
+    surface: { backgroundColor: theme.colors.surface },
+    text: { color: theme.colors.onSurface },
+    textSecondary: { color: theme.colors.onSurfaceVariant }
+  };
+  
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rangoSeleccionado, setRangoSeleccionado] = useState('semana');
@@ -238,7 +245,7 @@ export default function ReportesScreen() {
   };
 
   const StatCard = ({ title, value, subtitle, icon, color }) => (
-    <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Surface style={styles.statCard} elevation={1}>
       <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
         <Avatar.Icon size={40} icon={icon} style={{ backgroundColor: 'transparent' }} color={color} />
       </View>
@@ -377,7 +384,6 @@ const styles = StyleSheet.create({
   chartCard: {
     marginBottom: 24,
     borderRadius: 24,
-    backgroundColor: '#fff', // Fallback or use theme.colors.surface
   },
   statsGrid: {
     flexDirection: 'row',

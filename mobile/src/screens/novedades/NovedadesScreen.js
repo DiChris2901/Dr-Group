@@ -38,6 +38,13 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   const { user, userProfile } = useAuth();
   const theme = useTheme();
   
+  const dynamicStyles = {
+    container: { backgroundColor: theme.colors.background },
+    surface: { backgroundColor: theme.colors.surface },
+    text: { color: theme.colors.onSurface },
+    textSecondary: { color: theme.colors.onSurfaceVariant }
+  };
+  
   const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
   const [type, setType] = useState('llegada_tarde');
   const [description, setDescription] = useState('');

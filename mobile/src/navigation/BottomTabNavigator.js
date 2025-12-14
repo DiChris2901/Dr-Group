@@ -3,6 +3,7 @@ import { Animated, View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme as usePaperTheme } from 'react-native-paper';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,24 +15,6 @@ import ReportesScreen from '../screens/reportes/ReportesScreen';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 
 const Tab = createBottomTabNavigator();
-
-const TabIcon = ({ name, color, size, focused }) => {
-  // Ionicons logic: filled when focused, outline when not
-  const iconName = focused ? name : `${name}-outline`;
-  return (
-    <View style={{
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: focused ? color + '20' : 'transparent', // 20 = 12% opacity approx
-      paddingHorizontal: 20,
-      paddingVertical: 4,
-      borderRadius: 16, // Pill shape
-      marginBottom: 4
-    }}>
-      <Ionicons name={iconName} size={24} color={color} />
-    </View>
-  );
-};
 
 /**
  * BottomTabNavigator - Navegación principal con tabs dinámicos por rol
@@ -48,6 +31,7 @@ const TabIcon = ({ name, color, size, focused }) => {
  * 2. Novedades (NovedadesScreen)
  */
 export default function BottomTabNavigator() {
+  const paperTheme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
@@ -55,20 +39,23 @@ export default function BottomTabNavigator() {
   const userRole = userProfile?.role || 'USER';
   const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
+  // Color de íconos inactivos con mejor contraste en modo oscuro
+  const inactiveColor = paperTheme.dark ? '#94a3b8' : paperTheme.colors.onSurfaceVariant;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: getPrimaryColor(),
-        tabBarInactiveTintColor: '#64748b', // Slate 500
+        tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
-          height: 80 + (Platform.OS === 'ios' ? insets.bottom : 10), // Ajuste dinámico
-          backgroundColor: '#ffffff',
+          height: 80 + (Platform.OS === 'ios' ? insets.bottom : 10),
+          backgroundColor: paperTheme.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#f1f5f9', // Slate 100
-          elevation: 0, // Flat design (Material 3)
+          borderTopColor: paperTheme.colors.surfaceVariant,
+          elevation: 0,
           paddingTop: 12,
-          paddingBottom: 12 + (Platform.OS === 'ios' ? insets.bottom : 10), // Ajuste dinámico
+          paddingBottom: 12 + (Platform.OS === 'ios' ? insets.bottom : 10),
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -88,7 +75,7 @@ export default function BottomTabNavigator() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="grid" size={24} color={color} focused={focused} />
+            <Ionicons name={focused ? "grid" : "grid-outline"} size={24} color={color} />
           ),
           tabBarLabel: 'Jornada'
         }}
@@ -100,7 +87,7 @@ export default function BottomTabNavigator() {
           component={CalendarioScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon name="calendar" size={24} color={color} focused={focused} />
+              <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
             ),
             tabBarLabel: 'Calendario'
           }}
@@ -111,7 +98,7 @@ export default function BottomTabNavigator() {
           component={NovedadesScreen}
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon name="notifications" size={24} color={color} focused={focused} />
+              <Ionicons name={focused ? "notifications" : "notifications-outline"} size={24} color={color} />
             ),
             tabBarLabel: 'Novedades'
           }}
@@ -123,7 +110,7 @@ export default function BottomTabNavigator() {
         component={ReportesScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="bar-chart" size={24} color={color} focused={focused} />
+            <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={24} color={color} />
           ),
           tabBarLabel: isAdmin ? 'Reportes' : 'Estadísticas'
         }}
@@ -134,7 +121,7 @@ export default function BottomTabNavigator() {
         component={AsistenciasScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="time" size={24} color={color} focused={focused} />
+            <Ionicons name={focused ? "time" : "time-outline"} size={24} color={color} />
           ),
           tabBarLabel: 'Historial'
         }}

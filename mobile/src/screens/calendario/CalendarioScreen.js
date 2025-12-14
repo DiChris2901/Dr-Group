@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme as usePaperTheme } from 'react-native-paper';
 import { onSnapshot, query, collection } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -112,6 +113,7 @@ const EventoItem = ({ item, index }) => {
 };
 
 export default function CalendarioScreen({ navigation }) {
+  const paperTheme = usePaperTheme();
   const { getGradient, getPrimaryColor } = useTheme();
   const [allEventos, setAllEventos] = useState([]);
   const [filteredEventos, setFilteredEventos] = useState([]);
@@ -379,6 +381,8 @@ export default function CalendarioScreen({ navigation }) {
     }
   };
 
+  const styles = createStyles(paperTheme);
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -470,10 +474,10 @@ export default function CalendarioScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f6fa',
+    backgroundColor: theme.colors.background,
   },
   headerGradient: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
@@ -546,14 +550,14 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     marginBottom: 16,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: theme.dark ? '#000' : '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: theme.dark ? 0.3 : 0.05,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -571,19 +575,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingRight: 16,
     borderRightWidth: 1,
-    borderRightColor: '#f0f0f0',
+    borderRightColor: theme.colors.surfaceVariant,
     marginRight: 16,
     minWidth: 60,
   },
   dayText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2d3436',
+    color: theme.colors.onSurface,
   },
   monthText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#636e72',
+    color: theme.colors.onSurfaceVariant,
     marginTop: 4,
   },
   eventInfo: {
@@ -593,21 +597,21 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2d3436',
+    color: theme.colors.onSurface,
     marginBottom: 4,
   },
   eventTime: {
     fontSize: 12,
-    color: '#636e72',
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 4,
   },
   eventDesc: {
     fontSize: 12,
-    color: '#b2bec3',
+    color: theme.colors.outline,
   },
   companyText: {
     fontSize: 13,
-    color: '#636e72',
+    color: theme.colors.onSurfaceVariant,
     marginBottom: 2,
     fontWeight: '500',
   },
@@ -622,7 +626,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#b2bec3',
+    color: theme.colors.outline,
     marginTop: 16,
     marginBottom: 24,
   },

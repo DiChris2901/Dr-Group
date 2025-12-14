@@ -133,7 +133,26 @@ const AsistenciasPage = () => {
             });
           });
           
-          console.log('📊 Asistencias cargadas desde Firestore:', asistenciasData.length);
+          // ✅ Ordenar SIEMPRE por createdAt (fuente de verdad más precisa)
+          asistenciasData.sort((a, b) => {
+            // 1. Obtener timestamp de creación o entrada
+            const timeA = (a.createdAt instanceof Date && !isNaN(a.createdAt.getTime())) 
+              ? a.createdAt.getTime() 
+              : (a.entrada?.hora instanceof Date && !isNaN(a.entrada.hora.getTime()))
+                ? a.entrada.hora.getTime()
+                : 0;
+            
+            const timeB = (b.createdAt instanceof Date && !isNaN(b.createdAt.getTime())) 
+              ? b.createdAt.getTime() 
+              : (b.entrada?.hora instanceof Date && !isNaN(b.entrada.hora.getTime()))
+                ? b.entrada.hora.getTime()
+                : 0;
+            
+            // 2. Ordenar descendente (más reciente primero)
+            return timeB - timeA;
+          });
+          
+          console.log('📊 Asistencias cargadas y ordenadas:', asistenciasData.length);
           
           setAsistencias(asistenciasData);
           setLoading(false);

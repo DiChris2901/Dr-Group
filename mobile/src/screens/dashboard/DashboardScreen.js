@@ -14,7 +14,7 @@ import {
   FAB, 
   Portal, 
   Modal, 
-  useTheme, 
+  useTheme as usePaperTheme, 
   Avatar, 
   Chip,
   Button,
@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import RingChart from '../../components/RingChart';
 import NovedadesScreen from '../novedades/NovedadesScreen'; // We will reuse logic but adapt UI later if needed
 
@@ -31,7 +32,8 @@ const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-  const theme = useTheme();
+  const theme = usePaperTheme();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const { 
     user, 
     userProfile, 
@@ -213,9 +215,9 @@ export default function DashboardScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <IconButton 
-              icon="theme-light-dark" 
+              icon={isDarkMode ? "white-balance-sunny" : "moon-waning-crescent"} 
               mode="contained-tonal"
-              onPress={() => Alert.alert('Tema', 'El cambio de tema estará disponible pronto.')} 
+              onPress={toggleDarkMode} 
             />
             <IconButton 
               icon="bell-outline" 

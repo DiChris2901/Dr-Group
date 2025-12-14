@@ -232,6 +232,7 @@ export const AuthProvider = ({ children }) => {
       const nombreEmpleado = userProfile?.name || userProfile?.displayName || user.email.split('@')[0];
 
       // 4. Registrar entrada en asistencias
+      // ✅ Usar fecha LOCAL del dispositivo (lo que el usuario ve)
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const asistenciaData = {

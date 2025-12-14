@@ -9,7 +9,8 @@ import {
   Platform,
   Dimensions,
   Animated,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import { 
   Text, 
@@ -25,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { format, startOfMonth } from 'date-fns';
+import { format, startOfMonth, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +36,15 @@ const { width, height } = Dimensions.get('window');
 export default function AsistenciasScreen({ navigation }) {
   const { userProfile, user } = useAuth();
   const theme = useTheme();
+  
+  const dynamicStyles = {
+    container: { backgroundColor: theme.colors.background },
+    surface: { backgroundColor: theme.colors.surface },
+    text: { color: theme.colors.onSurface },
+    textSecondary: { color: theme.colors.onSurfaceVariant },
+    modalOverlay: { backgroundColor: theme.dark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' },
+    modalSurface: { backgroundColor: theme.colors.surface }
+  };
   
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,18 +132,15 @@ export default function AsistenciasScreen({ navigation }) {
         ...doc.data()
       }));
       
-      // Filtrar y ordenar en cliente para usuarios normales
-      if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
-        asistenciasData = asistenciasData
-          .sort((a, b) => {
-            const dateCompare = b.fecha.localeCompare(a.fecha);
-            if (dateCompare !== 0) return dateCompare;
-            
-            const timeA = a.entrada?.hora?.toMillis ? a.entrada.hora.toMillis() : 0;
-            const timeB = b.entrada?.hora?.toMillis ? b.entrada.hora.toMillis() : 0;
-            return timeB - timeA;
-          });
-      }
+      // ✅ Ordenar SIEMPRE por createdAt (fuente de verdad más precisa)
+      asistenciasData = asistenciasData.sort((a, b) => {
+        // 1. Obtener timestamp de creación o entrada
+        const timeA = a.createdAt?.toMillis?.() || a.entrada?.hora?.toMillis?.() || 0;
+        const timeB = b.createdAt?.toMillis?.() || b.entrada?.hora?.toMillis?.() || 0;
+        
+        // 2. Ordenar descendente (más reciente primero)
+        return timeB - timeA;
+      });
       
       setAsistencias(asistenciasData);
     } catch (error) {
@@ -194,7 +201,7 @@ export default function AsistenciasScreen({ navigation }) {
             )}
             <View>
               <Text variant="titleSmall" style={{ fontWeight: 'bold' }}>
-                {format(new Date(item.fecha), "EEEE d 'de' MMMM", { locale: es })}
+                {format(parseISO(item.fecha + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
               </Text>
               <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
                 {user.name || 'Usuario'}
@@ -286,9 +293,9 @@ export default function AsistenciasScreen({ navigation }) {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <Surface style={[styles.modalContent, { backgroundColor: theme.colors.surface }]} elevation={4}>
-            <View style={styles.modalHeader}>
+        <View style={[styles.modalOverlay, dynamicStyles.modalOverlay]}>
+          <Surface style={[styles.modalContent, dynamicStyles.modalSurface]} elevation={4}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Detalle de Asistencia</Text>
               <IconButton icon="close" onPress={() => setModalVisible(false)} />
             </View>
@@ -307,10 +314,60 @@ export default function AsistenciasScreen({ navigation }) {
                   <DetailRow 
                     icon="calendar" 
                     label="Fecha" 
-                    value={format(new Date(selectedAsistencia.fecha), "EEEE d 'de' MMMM, yyyy", { locale: es })} 
+                    value={format(parseISO(selectedAsistencia.fecha + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })} 
                     iconColor={theme.colors.primary}
                   />
                 </SobrioCard>
+
+                {/* Ubicación y Modalidad - SOLO ADMIN */}
+                {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && selectedAsistencia.entrada?.ubicacion && (
+                  <SobrioCard variant="outlined" style={{ marginBottom: 16 }}>
+                    <OverlineText style={{ marginBottom: 12 }}>INFORMACIÓN DE CONEXIÓN</OverlineText>
+                    
+                    {/* Modalidad */}
+                    <View style={{ marginBottom: 12 }}>
+                      <DetailRow 
+                        icon="wifi" 
+                        label="Modalidad" 
+                        value={selectedAsistencia.entrada.ubicacion.tipo || 'Remoto'} 
+                        iconColor={selectedAsistencia.entrada.ubicacion.tipo === 'Oficina' ? theme.colors.primary : theme.colors.warning}
+                        highlight={selectedAsistencia.entrada.ubicacion.tipo === 'Oficina'}
+                        highlightColor={theme.colors.primary}
+                      />
+                    </View>
+
+                    {/* Ubicación GPS */}
+                    {selectedAsistencia.entrada.ubicacion.lat && selectedAsistencia.entrada.ubicacion.lon && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const lat = selectedAsistencia.entrada.ubicacion.lat;
+                          const lon = selectedAsistencia.entrada.ubicacion.lon;
+                          const url = `https://www.google.com/maps?q=${lat},${lon}`;
+                          Linking.openURL(url);
+                        }}
+                      >
+                        <DetailRow 
+                          icon="location" 
+                          label="Ver Ubicación" 
+                          value={`${selectedAsistencia.entrada.ubicacion.lat.toFixed(6)}, ${selectedAsistencia.entrada.ubicacion.lon.toFixed(6)}`}
+                          iconColor={theme.colors.info}
+                        />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Dispositivo */}
+                    {selectedAsistencia.entrada.dispositivo && (
+                      <View style={{ marginTop: 12 }}>
+                        <DetailRow 
+                          icon="phone-portrait" 
+                          label="Dispositivo" 
+                          value={selectedAsistencia.entrada.dispositivo} 
+                          iconColor={theme.colors.secondary}
+                        />
+                      </View>
+                    )}
+                  </SobrioCard>
+                )}
 
                 <View style={styles.rowContainer}>
                   {/* Entry */}
@@ -447,7 +504,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f5',
   },
   modalBody: {
     padding: 20,

@@ -16,11 +16,13 @@ const DEFAULT_COLORS = {
 
 const STORAGE_KEY = '@theme_colors';
 const PHOTO_STORAGE_KEY = '@last_user_photo';
+const DARK_MODE_KEY = '@theme_dark_mode';
 
 export const ThemeProvider = ({ children }) => {
   const { user } = useAuth();
   const [colors, setColors] = useState(DEFAULT_COLORS);
   const [lastUserPhoto, setLastUserPhoto] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // ✅ Cargar colores y foto guardados al iniciar la app
   useEffect(() => {
@@ -34,6 +36,11 @@ export const ThemeProvider = ({ children }) => {
         const savedPhoto = await AsyncStorage.getItem(PHOTO_STORAGE_KEY);
         if (savedPhoto) {
           setLastUserPhoto(savedPhoto);
+        }
+
+        const savedDarkMode = await AsyncStorage.getItem(DARK_MODE_KEY);
+        if (savedDarkMode !== null) {
+          setIsDarkMode(savedDarkMode === 'true');
         }
       } catch (error) {
         // Si hay error, usar defaults
@@ -88,9 +95,21 @@ export const ThemeProvider = ({ children }) => {
     loadUserSettings();
   }, [user]);
 
+  const toggleDarkMode = async () => {
+    try {
+      const newMode = !isDarkMode;
+      setIsDarkMode(newMode);
+      await AsyncStorage.setItem(DARK_MODE_KEY, String(newMode));
+    } catch (error) {
+      console.error('Error al cambiar modo oscuro:', error);
+    }
+  };
+
   const value = {
     colors,
+    isDarkMode,
     lastUserPhoto, // ✅ Exponer la foto del último usuario
+    toggleDarkMode,
     // Helper para obtener array de gradiente
     getGradient: () => [colors.primary, colors.secondary],
     // Helper para obtener color único

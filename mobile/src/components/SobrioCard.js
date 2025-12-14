@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from 'react-native-paper';
 
 /**
  * SobrioCard - Card component con Material 3 Expressive Design
@@ -18,11 +19,23 @@ export default function SobrioCard({
   borderColor = '#667eea', // Color del tema (dinámico desde ThemeContext)
   onPress
 }) {
+  const theme = useTheme();
+  
   const variantStyles = variant === 'primary' 
     ? styles.cardPrimary 
     : styles.cardSecondary;
 
-  const cardStyle = [styles.card, variantStyles, { borderColor: borderColor + '26' }, style];
+  const cardStyle = [
+    styles.card, 
+    variantStyles, 
+    { 
+      backgroundColor: theme.colors.surface,
+      borderColor: borderColor + '26',
+      shadowColor: theme.dark ? '#000' : '#000',
+      shadowOpacity: theme.dark ? 0.3 : 0.12,
+    }, 
+    style
+  ];
 
   if (onPress) {
     return (
@@ -41,17 +54,14 @@ export default function SobrioCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 28, // 🎨 Material 3 Extra Large (antes 16)
     padding: 24, // ✅ Material 3 spacing (mantiene 24px)
     borderWidth: 1,
     // 🎨 Material 3 Elevation Level 1 (más definida)
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4, // ↑ Elevación mejorada (antes 2)
     },
-    shadowOpacity: 0.12, // ↑ Más definida (antes 0.06)
     shadowRadius: 16, // ↑ Radio expandido (antes 8)
     elevation: 4, // ↑ Android elevation (antes 2)
   },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 
 /**
  * DetailRow - Componente para mostrar información con Material 3 Expressive Design
@@ -20,6 +21,8 @@ export default function DetailRow({
   iconColor = '#667eea',
   highlightColor = '#4ade80'
 }) {
+  const theme = useTheme();
+  
   const bgColor = highlight 
     ? highlightColor + '14' // alpha 0.08
     : iconColor + '0A'; // alpha 0.04
@@ -39,10 +42,11 @@ export default function DetailRow({
         </View>
       )}
       <View style={styles.content}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
         {typeof value === 'string' || typeof value === 'number' ? (
           <Text style={[
             styles.value,
+            { color: theme.colors.onSurface },
             highlight && { color: highlightColor, fontWeight: '600' }
           ]}>
             {value}
@@ -79,7 +83,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12, // 🎨 Material 3 label size (↑ de 11px)
     fontWeight: '600',
-    color: '#64748b', // text.secondary
     textTransform: 'uppercase',
     letterSpacing: 1.0, // 🎨 Material 3 letter-spacing (↑ de 0.8)
     marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4px)
@@ -87,7 +90,6 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15, // 🎨 Material 3 body size (↑ de 14px)
     fontWeight: '500',
-    color: '#1e293b', // text.primary
     lineHeight: 22, // 🎨 Material 3 line-height (nuevo)
   },
 });
