@@ -5,7 +5,7 @@ import {
   FlatList,
   RefreshControl,
   Modal,
-  TouchableOpacity,
+  Pressable,
   Platform,
   Dimensions,
   Animated,
@@ -29,7 +29,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { format, startOfMonth, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,13 +39,20 @@ export default function AsistenciasScreen({ navigation }) {
   const { userProfile, user } = useAuth();
   const theme = useTheme();
   
+  // 🎨 Material You Expressive: Surface colors para profundidad (no sombras)
+  const surfaceColors = theme.dark 
+    ? materialTheme.schemes.dark 
+    : materialTheme.schemes.light;
+    
   const dynamicStyles = {
-    container: { backgroundColor: theme.colors.background },
-    surface: { backgroundColor: theme.colors.surface },
-    text: { color: theme.colors.onSurface },
-    textSecondary: { color: theme.colors.onSurfaceVariant },
+    container: { backgroundColor: surfaceColors.background },
+    surfaceContainerLow: { backgroundColor: surfaceColors.surfaceContainerLow },
+    surfaceContainer: { backgroundColor: surfaceColors.surfaceContainer },
+    text: { color: surfaceColors.onSurface },
+    textSecondary: { color: surfaceColors.onSurfaceVariant },
+    primary: { color: surfaceColors.primary },
     modalOverlay: { backgroundColor: theme.dark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' },
-    modalSurface: { backgroundColor: theme.colors.surface }
+    modalSurface: { backgroundColor: surfaceColors.surface }
   };
   
   const [asistencias, setAsistencias] = useState([]);
@@ -172,81 +181,129 @@ export default function AsistenciasScreen({ navigation }) {
     const isCompleted = !!item.salida;
     const isWorking = item.estadoActual === 'trabajando' || item.estadoActual === 'break' || item.estadoActual === 'almuerzo';
     
-    let statusColor = theme.colors.error;
+    let statusColor = surfaceColors.error;
     let statusLabel = 'INCOMPLETO';
-    let statusIcon = 'alert-circle-outline';
+    let statusIcon = 'alert-circle';
 
     if (isCompleted) {
-      statusColor = theme.colors.primary; // Verde/Primary para completado
+      statusColor = surfaceColors.primary;
       statusLabel = 'COMPLETADO';
-      statusIcon = 'check-circle-outline';
+      statusIcon = 'check-circle';
     } else if (isWorking) {
-      statusColor = theme.colors.tertiary; // Naranja/Tertiary para en curso
+      statusColor = surfaceColors.tertiary;
       statusLabel = 'EN CURSO';
-      statusIcon = 'clock-outline';
+      statusIcon = 'clock';
     }
 
+    const handlePress = () => {
+      Haptics.selectionAsync(); // ✅ Feedback táctil
+      handleItemPress(item);
+    };
+
     return (
-      <SobrioCard 
-        onPress={() => handleItemPress(item)}
-        style={{ marginBottom: 12 }}
-        variant={isCompleted ? 'surface' : 'outlined'}
+      <Pressable
+        onPress={handlePress}
+        android_ripple={{ 
+          color: surfaceColors.primary + '1F'  // ✅ Ripple tintado (12% opacidad)
+        }}
+        style={({ pressed }) => [
+          styles.expressiveCard,
+          {
+            backgroundColor: pressed 
+              ? surfaceColors.surfaceContainer  // ✅ Pressed state con surface color
+              : surfaceColors.surfaceContainerLow,
+            marginBottom: 20,  // ✅ Espaciado generoso (12→20)
+          }
+        ]}
       >
         <View style={styles.cardHeader}>
           <View style={styles.userInfo}>
             {user.photoURL ? (
-              <Avatar.Image size={32} source={{ uri: user.photoURL }} style={{ marginRight: 10 }} />
+              <Avatar.Image size={40} source={{ uri: user.photoURL }} style={{ marginRight: 12 }} />
             ) : (
-              <Avatar.Text size={32} label={(user.name || 'U').charAt(0)} style={{ marginRight: 10, backgroundColor: theme.colors.primaryContainer }} />
+              <Avatar.Text 
+                size={40} 
+                label={(user.name || 'U').charAt(0)} 
+                style={{ 
+                  marginRight: 12, 
+                  backgroundColor: surfaceColors.primaryContainer 
+                }} 
+              />
             )}
             <View>
-              <Text variant="titleSmall" style={{ fontWeight: 'bold' }}>
+              <Text 
+                variant="titleMedium" 
+                style={{ 
+                  fontWeight: '600',
+                  color: surfaceColors.onSurface,
+                  letterSpacing: -0.25  // ✅ Tight letter spacing
+                }}
+              >
                 {format(parseISO(item.fecha + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
               </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              <Text variant="bodySmall" style={{ color: surfaceColors.secondary }}>
                 {user.name || 'Usuario'}
               </Text>
             </View>
           </View>
-          <Chip 
-            icon={statusIcon} 
-            style={{ backgroundColor: statusColor + '20' }} 
-            textStyle={{ color: statusColor, fontSize: 10, fontWeight: 'bold' }}
-            compact
+          <View 
+            style={[
+              styles.statusChip,
+              { backgroundColor: statusColor + '20' }
+            ]}
           >
-            {statusLabel}
-          </Chip>
+            <MaterialCommunityIcons name={statusIcon} size={14} color={statusColor} />
+            <Text style={{ color: statusColor, fontSize: 10, fontWeight: '700', marginLeft: 4 }}>
+              {statusLabel}
+            </Text>
+          </View>
         </View>
-
-        <Divider style={{ marginVertical: 12 }} />
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <OverlineText style={{ color: theme.colors.secondary }}>Entrada</OverlineText>
-            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>{formatTime(item.entrada?.hora)}</Text>
+            <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Entrada
+            </Text>
+            <Text variant="titleMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface, marginTop: 4 }}>
+              {formatTime(item.entrada?.hora)}
+            </Text>
           </View>
           <View style={styles.statItem}>
-            <OverlineText style={{ color: theme.colors.secondary }}>Salida</OverlineText>
-            <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>{formatTime(item.salida?.hora)}</Text>
+            <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Salida
+            </Text>
+            <Text variant="titleMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface, marginTop: 4 }}>
+              {formatTime(item.salida?.hora)}
+            </Text>
           </View>
           <View style={styles.statItem}>
-            <OverlineText style={{ color: theme.colors.secondary }}>Total</OverlineText>
-            <Text variant="bodyMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+            <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Total
+            </Text>
+            <Text variant="titleMedium" style={{ fontWeight: '700', color: surfaceColors.primary, marginTop: 4 }}>
               {item.horasTrabajadas || '--:--'}
             </Text>
           </View>
         </View>
-      </SobrioCard>
+      </Pressable>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+        <Text 
+          variant="headlineMedium" 
+          style={{ 
+            fontWeight: '500', 
+            color: surfaceColors.onSurface,
+            letterSpacing: -0.25,  // ✅ Tight spacing
+            // ✅ Width Axis 110% se aplicará con Roboto Flex
+          }}
+        >
           Historial
         </Text>
-        <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>
+        <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
           Registro de Asistencias
         </Text>
       </View>
@@ -276,8 +333,8 @@ export default function AsistenciasScreen({ navigation }) {
           ListEmptyComponent={
             !loading && (
               <View style={styles.emptyState}>
-                <Ionicons name="time-outline" size={64} color={theme.colors.outline} />
-                <Text variant="bodyLarge" style={{ color: theme.colors.secondary, marginTop: 16 }}>
+                <MaterialCommunityIcons name="clock-outline" size={64} color={surfaceColors.outline} />
+                <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 20, textAlign: 'center' }}>
                   No hay registros disponibles
                 </Text>
               </View>
@@ -449,9 +506,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingHorizontal: 20,  // ✅ Espaciado generoso (24→20)
+    paddingTop: 24,
+    paddingBottom: 16,
   },
   sheetContainer: {
     flex: 1,
@@ -459,44 +516,62 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   listContent: {
-    padding: 16,
+    padding: 20,  // ✅ Espaciado generoso (16→20)
     paddingBottom: 100,
+  },
+  // ✅ Expressive Card (border radius 24px, elevation 0)
+  expressiveCard: {
+    borderRadius: 24,  // ✅ Orgánico (16→24)
+    padding: 20,  // ✅ Generoso (16→20)
+    elevation: 0,  // ✅ Tonal elevation
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,  // ✅ Espaciado generoso
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,  // ✅ Orgánico
+  },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
   },
   statItem: {
     alignItems: 'center',
-    flex: 1,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 60,
+    marginTop: 80,
+    paddingHorizontal: 40,
   },
-  // Modal Styles
+  // Modal Styles (Expressive)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 32,  // ✅ Orgánico (24→32)
+    borderTopRightRadius: 32,
     maxHeight: '85%',
     paddingBottom: 30,
+    elevation: 0,  // ✅ Tonal elevation
   },
   modalHeader: {
     flexDirection: 'row',
@@ -517,7 +592,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,  // ✅ Orgánico
   },
   detailTextContainer: {
     marginLeft: 16,
