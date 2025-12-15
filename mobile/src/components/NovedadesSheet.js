@@ -6,6 +6,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationService from '../services/NotificationService';
 
 export default function NovedadesSheet({ onClose, onSuccess }) {
   const { user, userProfile } = useAuth();
@@ -67,6 +68,10 @@ export default function NovedadesSheet({ onClose, onSuccess }) {
         status: 'pending', // pending, approved, rejected
         createdAt: Timestamp.now()
       });
+
+      // ✅ Notificar al admin sobre nueva novedad
+      const nombreEmpleado = userProfile?.name || userProfile?.displayName || user.email.split('@')[0];
+      await NotificationService.notifyAdminNewNovedad(nombreEmpleado, type);
 
       Alert.alert('Éxito', 'Novedad reportada correctamente');
       if (onSuccess) onSuccess();

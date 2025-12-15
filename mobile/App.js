@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { checkForUpdates } from './src/services/UpdateService';
+import NotificationService from './src/services/NotificationService';
 
 // 🎨 TEMA "PROJECT CHRONOS" - Deep Indigo Identity (Light)
 const lightTheme = {
@@ -54,9 +55,10 @@ function AppContent() {
   // Seleccionar tema según el estado
   const theme = isDarkMode ? darkTheme : lightTheme;
 
-  // ✅ Verificar actualizaciones OTA al iniciar
+  // ✅ Verificar actualizaciones OTA y solicitar permisos de notificaciones
   useEffect(() => {
     checkForUpdates();
+    NotificationService.requestPermissions();
   }, []);
 
   // ✅ PASO 3.6: Manejar tap en notificaciones

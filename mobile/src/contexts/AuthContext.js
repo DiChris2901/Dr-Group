@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { Platform, Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NotificationService from '../services/NotificationService';
 
 const AuthContext = createContext({});
 
@@ -259,6 +260,9 @@ export const AuthProvider = ({ children }) => {
         id: asistenciaRef.id
       });
 
+      // ✅ Programar notificación cuando complete 9 horas
+      await NotificationService.notifyWorkDayComplete(9);
+
       return { success: true, sessionId: asistenciaRef.id };
     } catch (error) {
       console.error('Error iniciando jornada:', error);
@@ -306,6 +310,9 @@ export const AuthProvider = ({ children }) => {
         breaks: updatedBreaks,
         estadoActual: 'break'
       });
+
+      // ✅ Programar notificación si el break es muy largo (15 min)
+      await NotificationService.notifyLongBreak(15);
     } catch (error) {
       console.error('Error registrando break:', error);
       throw error;

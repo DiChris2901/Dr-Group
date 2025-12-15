@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -54,16 +54,17 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [novedadesVisible, setNovedadesVisible] = useState(false);
 
+  // ✅ Memoizar función de formateo para evitar recrearla
+  const formatMs = useMemo(() => (ms) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, []);
+
   // ✅ Timer Logic
   useEffect(() => {
-    const formatMs = (ms) => {
-      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    };
-
     const updateTimer = () => {
       if (!activeSession || activeSession.estadoActual === 'finalizado') {
         setTiempoTrabajado('00:00:00');
@@ -130,7 +131,7 @@ export default function DashboardScreen() {
     const interval = setInterval(updateTimer, 1000);
     updateTimer();
     return () => clearInterval(interval);
-  }, [activeSession]);
+  }, [activeSession, formatMs]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
