@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   View, 
-  Text, 
   FlatList, 
   StyleSheet, 
   RefreshControl, 
@@ -11,13 +10,19 @@ import {
   Easing,
   Platform
 } from 'react-native';
+import { 
+  Text, 
+  useTheme as usePaperTheme, 
+  Surface, 
+  IconButton, 
+  Chip 
+} from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme as usePaperTheme } from 'react-native-paper';
 import { onSnapshot, query, collection } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useColombianHolidays } from '../../hooks/useColombianHolidays';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   esHabil, 
   calculateTenthBusinessDay, 
@@ -46,7 +51,7 @@ import { es } from 'date-fns/locale';
 const { width, height } = Dimensions.get('window');
 
 // Componente renderizado fuera para evitar "Invalid hook call"
-const EventoItem = ({ item, index }) => {
+const EventoItem = ({ item, index, styles, theme }) => {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   
   useEffect(() => {
@@ -77,37 +82,51 @@ const EventoItem = ({ item, index }) => {
     }
   };
 
+  const isValidDate = (d) => d instanceof Date && !isNaN(d);
+  const safeDate = isValidDate(item.date) ? item.date : new Date();
+  const priorityColor = getPriorityColor(item.priority, item.type);
+
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <View style={styles.card}>
-        <View style={[styles.priorityStrip, { backgroundColor: getPriorityColor(item.priority, item.type) }]} />
+      <Surface style={styles.card} elevation={1}>
+        <View style={[styles.priorityStrip, { backgroundColor: priorityColor }]} />
         <View style={styles.cardContent}>
           <View style={styles.dateBox}>
-            <Text style={styles.dayText}>{format(item.date, 'dd')}</Text>
-            <Text style={styles.monthText}>{format(item.date, 'MMM', { locale: es }).toUpperCase()}</Text>
+            <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+              {format(safeDate, 'dd')}
+            </Text>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, textTransform: 'uppercase' }}>
+              {format(safeDate, 'MMM', { locale: es })}
+            </Text>
           </View>
           <View style={styles.eventInfo}>
-            <Text style={styles.eventTitle}>{item.title}</Text>
-            <Text style={styles.eventTime}>
-              {item.allDay ? 'Todo el día' : format(item.date, 'h:mm a', { locale: es })} 
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4 }}>
+              {item.title}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>
+              {item.allDay ? 'Todo el día' : format(safeDate, 'h:mm a', { locale: es })} 
               {item.location ? ` • ${item.location}` : ''}
             </Text>
             
             {item.type === 'commitment' ? (
               <View style={{ marginTop: 4 }}>
-                <Text style={styles.companyText}>🏢 {item.companyName || 'Sin empresa'}</Text>
-                <Text style={[styles.amountText, { color: getPriorityColor(item.priority, item.type) }]}>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  🏢 {item.companyName || 'Sin empresa'}
+                </Text>
+                <Text variant="labelLarge" style={{ color: priorityColor, fontWeight: 'bold' }}>
                   {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(item.amount || 0)}
                 </Text>
               </View>
             ) : (
               item.description && (
-                <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
+                <Text variant="bodySmall" numberOfLines={2} style={{ color: theme.colors.outline }}>
+                  {item.description}
+                </Text>
               )
             )}
           </View>
         </View>
-      </View>
+      </Surface>
     </Animated.View>
   );
 };
@@ -202,7 +221,7 @@ export default function CalendarioScreen({ navigation }) {
 
   // 4. Combine and Generate Events
   useEffect(() => {
-    if (!holidays.length) return;
+    if (!holidays || !Array.isArray(holidays) || !holidays.length) return;
 
     const generatedEvents = [];
     const year = selectedDate.getFullYear();
@@ -384,49 +403,47 @@ export default function CalendarioScreen({ navigation }) {
   const styles = createStyles(paperTheme);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={getGradient()}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Calendario</Text>
-          
-          {/* View Selector */}
-          <View style={styles.viewSelector}>
-            {['day', 'week', 'month'].map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                style={[
-                  styles.viewOption,
-                  viewMode === mode && styles.viewOptionActive
-                ]}
-                onPress={() => setViewMode(mode)}
-              >
-                <Text style={[
-                  styles.viewOptionText,
-                  viewMode === mode && styles.viewOptionTextActive
-                ]}>
-                  {mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: paperTheme.colors.primary }}>
+          Calendario
+        </Text>
+        <IconButton icon="calendar-today" onPress={() => setSelectedDate(new Date())} />
+      </View>
 
-          {/* Date Navigator */}
-          <View style={styles.dateNavigator}>
-            <TouchableOpacity onPress={handlePrev} style={styles.navButton}>
-              <MaterialIcons name="chevron-left" size={28} color="#fff" />
+      {/* View Selector */}
+      <View style={styles.viewSelectorContainer}>
+        <View style={styles.viewSelector}>
+          {['day', 'week', 'month'].map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.viewOption,
+                viewMode === mode && { backgroundColor: paperTheme.colors.primaryContainer }
+              ]}
+              onPress={() => setViewMode(mode)}
+            >
+              <Text 
+                style={[
+                  styles.viewOptionText,
+                  viewMode === mode && { color: paperTheme.colors.onPrimaryContainer, fontWeight: 'bold' }
+                ]}
+              >
+                {mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
+              </Text>
             </TouchableOpacity>
-            <Text style={styles.dateLabel}>{getDateLabel()}</Text>
-            <TouchableOpacity onPress={handleNext} style={styles.navButton}>
-              <MaterialIcons name="chevron-right" size={28} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          ))}
         </View>
-      </LinearGradient>
+      </View>
+
+      {/* Date Navigator */}
+      <View style={styles.dateNavigator}>
+        <IconButton icon="chevron-left" onPress={handlePrev} />
+        <Text variant="titleLarge" style={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
+          {getDateLabel()}
+        </Text>
+        <IconButton icon="chevron-right" onPress={handleNext} />
+      </View>
 
       <Animated.View style={[
         styles.sheetContainer,
@@ -437,7 +454,7 @@ export default function CalendarioScreen({ navigation }) {
       ]}>
         <FlatList
           data={filteredEventos}
-          renderItem={({ item, index }) => <EventoItem item={item} index={index} />}
+          renderItem={({ item, index }) => <EventoItem item={item} index={index} styles={styles} theme={paperTheme} />}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -452,8 +469,8 @@ export default function CalendarioScreen({ navigation }) {
           ListEmptyComponent={
             !loading && (
               <View style={styles.emptyState}>
-                <MaterialIcons name="event-busy" size={64} color="#ccc" />
-                <Text style={styles.emptyText}>No hay eventos para esta fecha</Text>
+                <MaterialIcons name="event-busy" size={64} color={paperTheme.colors.outline} />
+                <Text variant="bodyLarge" style={styles.emptyText}>No hay eventos para esta fecha</Text>
                 <TouchableOpacity 
                   style={[styles.resetButton, { borderColor: getPrimaryColor() }]}
                   onPress={() => {
@@ -470,7 +487,7 @@ export default function CalendarioScreen({ navigation }) {
           }
         />
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -479,71 +496,43 @@ const createStyles = (theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    zIndex: 10,
-  },
-  headerContent: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 20,
+  viewSelectorContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   viewSelector: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceVariant,
+    borderRadius: 24,
     padding: 4,
-    marginBottom: 20,
-    width: '100%',
   },
   viewOption: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 16,
-  },
-  viewOptionActive: {
-    backgroundColor: '#fff',
+    borderRadius: 20,
   },
   viewOptionText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '600',
+    color: theme.colors.onSurfaceVariant,
     fontSize: 14,
-  },
-  viewOptionTextActive: {
-    color: '#667eea',
-    fontWeight: 'bold',
   },
   dateNavigator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
-  },
-  navButton: {
-    padding: 8,
-  },
-  dateLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    textTransform: 'capitalize',
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   sheetContainer: {
     flex: 1,
-    marginTop: -20,
-    backgroundColor: '#f5f6fa',
-    borderTopLeftRadius: 30,
-    borderTopTopRightRadius: 30,
-    paddingTop: 20,
+    backgroundColor: theme.colors.background,
   },
   listContent: {
     padding: 20,
@@ -555,11 +544,6 @@ const createStyles = (theme) => StyleSheet.create({
     marginBottom: 16,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: theme.dark ? '#000' : '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: theme.dark ? 0.3 : 0.05,
-    shadowRadius: 8,
-    elevation: 3,
   },
   priorityStrip: {
     width: 6,
@@ -575,49 +559,13 @@ const createStyles = (theme) => StyleSheet.create({
     justifyContent: 'center',
     paddingRight: 16,
     borderRightWidth: 1,
-    borderRightColor: theme.colors.surfaceVariant,
+    borderRightColor: theme.colors.outlineVariant,
     marginRight: 16,
     minWidth: 60,
-  },
-  dayText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.onSurface,
-  },
-  monthText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.onSurfaceVariant,
-    marginTop: 4,
   },
   eventInfo: {
     flex: 1,
     justifyContent: 'center',
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.onSurface,
-    marginBottom: 4,
-  },
-  eventTime: {
-    fontSize: 12,
-    color: theme.colors.onSurfaceVariant,
-    marginBottom: 4,
-  },
-  eventDesc: {
-    fontSize: 12,
-    color: theme.colors.outline,
-  },
-  companyText: {
-    fontSize: 13,
-    color: theme.colors.onSurfaceVariant,
-    marginBottom: 2,
-    fontWeight: '500',
-  },
-  amountText: {
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   emptyState: {
     alignItems: 'center',
@@ -625,7 +573,6 @@ const createStyles = (theme) => StyleSheet.create({
     paddingTop: 60,
   },
   emptyText: {
-    fontSize: 16,
     color: theme.colors.outline,
     marginTop: 16,
     marginBottom: 24,

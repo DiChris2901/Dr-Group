@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
+// import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen'; // Removed as per user request
+import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
 import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
@@ -70,28 +72,41 @@ export default function BottomTabNavigator() {
         }
       }}
     >
+      {/* 1. INICIO (Jornada) - Para TODOS (Incluido Admin) */}
       <Tab.Screen 
         name="Dashboard" 
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "grid" : "grid-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "timer" : "timer-outline"} size={24} color={color} />
           ),
-          tabBarLabel: 'Jornada'
+          tabBarLabel: 'Mi Jornada'
         }}
       />
-      
+
       {isAdmin ? (
-        <Tab.Screen 
-          name="Calendario" 
-          component={CalendarioScreen}
-          options={{
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
-            ),
-            tabBarLabel: 'Calendario'
-          }}
-        />
+        <>
+          <Tab.Screen 
+            name="Calendario" 
+            component={CalendarioScreen}
+            options={{
+              tabBarIcon: ({ color, focused }) => (
+                <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+              ),
+              tabBarLabel: 'Calendario'
+            }}
+          />
+          <Tab.Screen 
+            name="AdminNovedades" 
+            component={AdminNovedadesScreen}
+            options={{
+              tabBarIcon: ({ color, focused }) => (
+                <Ionicons name={focused ? "file-tray-full" : "file-tray-full-outline"} size={24} color={color} />
+              ),
+              tabBarLabel: 'Novedades'
+            }}
+          />
+        </>
       ) : (
         <Tab.Screen 
           name="Novedades" 
@@ -105,6 +120,7 @@ export default function BottomTabNavigator() {
         />
       )}
       
+      {/* COMMON TABS */}
       <Tab.Screen 
         name="Reportes" 
         component={ReportesScreen}

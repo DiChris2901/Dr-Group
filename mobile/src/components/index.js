@@ -5,7 +5,6 @@
 export { default as SobrioCard } from './SobrioCard';
 export { default as DetailRow } from './DetailRow';
 export { default as OverlineText } from './OverlineText';
-export { default as ProtectedScreen } from './ProtectedScreen';
 
 // Estados compartidos (Material 3 Expressive)
 export { default as EmptyState } from './shared/EmptyState';

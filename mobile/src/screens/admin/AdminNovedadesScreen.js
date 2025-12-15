@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,13 +11,11 @@ import {
 } from 'react-native';
 import { 
   Text, 
-  useTheme, 
+  useTheme as usePaperTheme, 
   Avatar, 
-  Surface, 
   IconButton, 
   Chip,
   Searchbar,
-  FAB,
   Portal,
   Modal,
   Button
@@ -29,10 +27,19 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// Custom Hooks & Components
+import { useTheme } from '../../contexts/ThemeContext';
+import SobrioCard from '../../components/SobrioCard';
+import DetailRow from '../../components/DetailRow';
+import OverlineText from '../../components/OverlineText';
+
 const { width } = Dimensions.get('window');
 
 export default function AdminNovedadesScreen({ navigation }) {
-  const theme = useTheme();
+  const paperTheme = usePaperTheme();
+  const { getPrimaryColor } = useTheme();
+  const primaryColor = getPrimaryColor();
+
   const [novedades, setNovedades] = useState([]);
   const [filteredNovedades, setFilteredNovedades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,7 +120,7 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.rightActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: theme.colors.error, transform: [{ translateX: trans }] }]}>
+        <Animated.View style={[styles.actionButton, { backgroundColor: paperTheme.colors.error, transform: [{ translateX: trans }] }]}>
           <IconButton icon="close" iconColor="white" onPress={() => handleStatusChange(item.id, 'rejected')} />
           <Text style={{ color: 'white', fontWeight: 'bold' }}>Rechazar</Text>
         </Animated.View>
@@ -130,7 +137,7 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.leftActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: theme.colors.primary, transform: [{ translateX: trans }] }]}>
+        <Animated.View style={[styles.actionButton, { backgroundColor: primaryColor, transform: [{ translateX: trans }] }]}>
           <IconButton icon="check" iconColor="white" onPress={() => handleStatusChange(item.id, 'approved')} />
           <Text style={{ color: 'white', fontWeight: 'bold' }}>Aprobar</Text>
         </Animated.View>
@@ -143,57 +150,76 @@ export default function AdminNovedadesScreen({ navigation }) {
       renderRightActions={(p, d) => renderRightActions(p, d, item)}
       renderLeftActions={(p, d) => renderLeftActions(p, d, item)}
     >
-      <Surface style={styles.card} elevation={1} onPress={() => { setSelectedNovedad(item); setModalVisible(true); }}>
-        <View style={styles.cardContent}>
+      <SobrioCard 
+        onPress={() => { setSelectedNovedad(item); setModalVisible(true); }}
+        borderColor={primaryColor}
+        style={{ marginBottom: 12 }}
+      >
+        <View style={styles.cardHeader}>
           <Avatar.Text 
-            size={48} 
+            size={40} 
             label={item.userName ? item.userName.substring(0, 2).toUpperCase() : 'NA'} 
-            style={{ backgroundColor: theme.colors.primaryContainer }}
-            color={theme.colors.primary}
+            style={{ backgroundColor: primaryColor + '20' }}
+            color={primaryColor}
           />
-          <View style={styles.textContainer}>
+          <View style={styles.headerText}>
             <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{item.userName || 'Usuario'}</Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
-              {item.type?.replace('_', ' ').toUpperCase()}
-            </Text>
-            <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+            <Text variant="bodySmall" style={{ color: paperTheme.colors.secondary }}>
               {item.date?.toDate ? format(item.date.toDate(), "d MMM, h:mm a", { locale: es }) : 'Fecha inválida'}
             </Text>
           </View>
-          <View style={styles.statusContainer}>
-             {item.status === 'pending' && <Chip icon="clock" style={{ backgroundColor: theme.colors.tertiaryContainer }}>Pendiente</Chip>}
-             {item.status === 'approved' && <Chip icon="check" style={{ backgroundColor: '#E8F5E9' }} textStyle={{ color: '#2E7D32' }}>Aprobado</Chip>}
-             {item.status === 'rejected' && <Chip icon="close" style={{ backgroundColor: '#FFEBEE' }} textStyle={{ color: '#C62828' }}>Rechazado</Chip>}
-          </View>
+          <Chip 
+            icon={item.status === 'pending' ? 'clock' : item.status === 'approved' ? 'check' : 'close'} 
+            style={{ backgroundColor: item.status === 'pending' ? paperTheme.colors.tertiaryContainer : item.status === 'approved' ? '#E8F5E9' : '#FFEBEE' }}
+            textStyle={{ color: item.status === 'pending' ? paperTheme.colors.onTertiaryContainer : item.status === 'approved' ? '#2E7D32' : '#C62828', fontSize: 10 }}
+            compact
+          >
+            {item.status === 'pending' ? 'Pendiente' : item.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+          </Chip>
         </View>
-      </Surface>
+        
+        <View style={{ marginTop: 12 }}>
+            <OverlineText color={paperTheme.colors.secondary} style={{ marginBottom: 4 }}>
+                {item.type?.replace('_', ' ')}
+            </OverlineText>
+            {item.description ? (
+                <Text numberOfLines={2} style={{ color: paperTheme.colors.onSurfaceVariant }}>
+                    {item.description}
+                </Text>
+            ) : null}
+        </View>
+      </SobrioCard>
     </Swipeable>
   );
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
         
         {/* Header */}
         <View style={styles.header}>
-          <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>Inbox</Text>
-          <View style={styles.filterChips}>
-            <Chip 
-              selected={filterStatus === 'pending'} 
-              onPress={() => setFilterStatus('pending')}
-              style={{ marginRight: 8 }}
-              showSelectedOverlay
-            >
-              Pendientes
-            </Chip>
-            <Chip 
-              selected={filterStatus === 'all'} 
-              onPress={() => setFilterStatus('all')}
-              showSelectedOverlay
-            >
-              Todos
-            </Chip>
-          </View>
+          <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: primaryColor }}>
+            Novedades
+          </Text>
+        </View>
+
+        {/* Filter Chips */}
+        <View style={styles.filterChips}>
+          <Chip 
+            selected={filterStatus === 'pending'} 
+            onPress={() => setFilterStatus('pending')}
+            style={{ marginRight: 8 }}
+            showSelectedOverlay
+          >
+            Pendientes
+          </Chip>
+          <Chip 
+            selected={filterStatus === 'all'} 
+            onPress={() => setFilterStatus('all')}
+            showSelectedOverlay
+          >
+            Historial
+          </Chip>
         </View>
 
         <Searchbar
@@ -206,9 +232,9 @@ export default function AdminNovedadesScreen({ navigation }) {
 
         {filteredNovedades.length === 0 && !loading ? (
           <View style={styles.emptyState}>
-            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.primary} />
+            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: primaryColor + '20' }} color={primaryColor} />
             <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: 'bold' }}>¡Todo al día!</Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>No hay novedades pendientes.</Text>
+            <Text variant="bodyMedium" style={{ color: paperTheme.colors.secondary }}>No hay novedades pendientes.</Text>
           </View>
         ) : (
           <FlatList
@@ -222,32 +248,45 @@ export default function AdminNovedadesScreen({ navigation }) {
 
         {/* Detail Modal */}
         <Portal>
-          <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.background }]}>
+          <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: paperTheme.colors.background }]}>
             {selectedNovedad && (
               <View>
-                <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginBottom: 16 }}>Detalle de Novedad</Text>
+                <OverlineText color={primaryColor} style={{ marginBottom: 16, fontSize: 16 }}>
+                  Detalle de Novedad
+                </OverlineText>
                 
-                <View style={styles.detailRow}>
-                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Empleado:</Text>
-                  <Text variant="bodyLarge">{selectedNovedad.userName}</Text>
-                </View>
+                <DetailRow 
+                  icon="person"
+                  label="Empleado"
+                  value={selectedNovedad.userName}
+                  iconColor={primaryColor}
+                />
                 
-                <View style={styles.detailRow}>
-                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Tipo:</Text>
-                  <Text variant="bodyLarge">{selectedNovedad.type?.replace('_', ' ').toUpperCase()}</Text>
-                </View>
+                <View style={{ height: 12 }} />
 
-                <View style={styles.detailRow}>
-                  <Text variant="labelLarge" style={{ color: theme.colors.secondary }}>Descripción:</Text>
-                  <Text variant="bodyLarge">{selectedNovedad.description || 'Sin descripción'}</Text>
-                </View>
+                <DetailRow 
+                  icon="alert-circle"
+                  label="Tipo"
+                  value={selectedNovedad.type?.replace('_', ' ').toUpperCase()}
+                  iconColor={paperTheme.colors.secondary}
+                />
+
+                <View style={{ height: 12 }} />
+
+                <DetailRow 
+                  icon="document-text"
+                  label="Descripción"
+                  value={selectedNovedad.description || 'Sin descripción'}
+                  iconColor={paperTheme.colors.tertiary}
+                />
 
                 {selectedNovedad.attachmentUrl && (
                   <Button 
                     mode="outlined" 
                     icon="paperclip" 
                     onPress={() => Linking.openURL(selectedNovedad.attachmentUrl)}
-                    style={{ marginTop: 16 }}
+                    style={{ marginTop: 24, borderColor: primaryColor }}
+                    textColor={primaryColor}
                   >
                     Ver Adjunto
                   </Button>
@@ -256,7 +295,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                 <View style={styles.modalActions}>
                   <Button 
                     mode="contained" 
-                    buttonColor={theme.colors.error} 
+                    buttonColor={paperTheme.colors.error} 
                     onPress={() => { handleStatusChange(selectedNovedad.id, 'rejected'); setModalVisible(false); }}
                     style={{ flex: 1, marginRight: 8 }}
                   >
@@ -264,7 +303,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                   </Button>
                   <Button 
                     mode="contained" 
-                    buttonColor={theme.colors.primary} 
+                    buttonColor={primaryColor} 
                     onPress={() => { handleStatusChange(selectedNovedad.id, 'approved'); setModalVisible(false); }}
                     style={{ flex: 1, marginLeft: 8 }}
                   >
@@ -303,23 +342,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 100,
   },
-  card: {
-    marginBottom: 12,
-    borderRadius: 16,
-    backgroundColor: 'white',
-    overflow: 'hidden', // Important for swipeable
-  },
-  cardContent: {
+  cardHeader: {
     flexDirection: 'row',
-    padding: 16,
     alignItems: 'center',
   },
-  textContainer: {
+  headerText: {
     flex: 1,
-    marginLeft: 16,
-  },
-  statusContainer: {
-    marginLeft: 8,
+    marginLeft: 12,
   },
   rightActionContainer: {
     width: 100,
@@ -338,7 +367,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 28, // Match SobrioCard radius
   },
   emptyState: {
     flex: 1,
@@ -349,10 +378,7 @@ const styles = StyleSheet.create({
   modal: {
     margin: 20,
     padding: 24,
-    borderRadius: 24,
-  },
-  detailRow: {
-    marginBottom: 12,
+    borderRadius: 28,
   },
   modalActions: {
     flexDirection: 'row',

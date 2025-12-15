@@ -1,5 +1,6 @@
 ﻿import React, { useRef, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -73,7 +74,6 @@ function AppContent() {
 
     return () => subscription.remove();
   }, []);
-
   return (
     <PaperProvider theme={theme}>
       <NotificationsProvider>
@@ -86,10 +86,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

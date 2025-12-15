@@ -9,7 +9,7 @@ import {
   Dimensions
 } from 'react-native';
 import { 
-  Text, 
+  Text as PaperText, 
   Surface, 
   FAB, 
   Portal, 
@@ -26,6 +26,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import RingChart from '../../components/RingChart';
+import FloatingActionBar from '../../components/FloatingActionBar';
+import NovedadesSheet from '../../components/NovedadesSheet';
 import NovedadesScreen from '../novedades/NovedadesScreen'; // We will reuse logic but adapt UI later if needed
 
 const { width } = Dimensions.get('window');
@@ -50,7 +52,7 @@ export default function DashboardScreen() {
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
   const [progress, setProgress] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
+  const [novedadesVisible, setNovedadesVisible] = useState(false);
 
   // ✅ Timer Logic
   useEffect(() => {
@@ -136,67 +138,6 @@ export default function DashboardScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  // ✅ FAB Actions Logic
-  const getFabActions = () => {
-    if (!activeSession) return [];
-
-    const actions = [];
-
-    if (activeSession.estadoActual === 'trabajando') {
-      // Verificar límite de breaks (Máximo 2)
-      const breaksCount = activeSession.breaks ? activeSession.breaks.length : 0;
-      
-      if (breaksCount < 2) {
-        actions.push({
-          icon: 'coffee',
-          label: `Tomar Break (${breaksCount}/2)`,
-          onPress: () => registrarBreak(),
-          style: { backgroundColor: theme.colors.tertiaryContainer },
-        });
-      } else {
-        // Opción desactivada (Gris)
-        actions.push({
-          icon: 'coffee-off',
-          label: 'Breaks Agotados',
-          onPress: () => Alert.alert('Límite Alcanzado', 'Ya has tomado los 2 breaks permitidos por jornada.'),
-          style: { backgroundColor: theme.colors.surfaceVariant },
-          color: theme.colors.onSurfaceVariant,
-        });
-      }
-
-      actions.push(
-        {
-          icon: 'food',
-          label: 'Almorzar',
-          onPress: () => registrarAlmuerzo(),
-          style: { backgroundColor: theme.colors.secondaryContainer },
-        },
-        {
-          icon: 'home-export-outline',
-          label: 'Finalizar Jornada',
-          onPress: () => finalizarJornada(),
-          style: { backgroundColor: theme.colors.errorContainer },
-        }
-      );
-    } else if (activeSession.estadoActual === 'break') {
-      actions.push({
-        icon: 'play',
-        label: 'Volver del Break',
-        onPress: () => finalizarBreak(),
-        style: { backgroundColor: theme.colors.primary },
-      });
-    } else if (activeSession.estadoActual === 'almuerzo') {
-      actions.push({
-        icon: 'play',
-        label: 'Volver del Almuerzo',
-        onPress: () => finalizarAlmuerzo(),
-        style: { backgroundColor: theme.colors.primary },
-      });
-    }
-
-    return actions;
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
@@ -206,12 +147,23 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+            <PaperText 
+              variant="headlineLarge"
+              style={{ 
+                color: theme.colors.primary
+              }}
+            >
               Hola, {userProfile?.displayName?.split(' ')[0] || 'Usuario'}
-            </Text>
-            <Text variant="bodyLarge" style={{ color: theme.colors.secondary }}>
+            </PaperText>
+            <PaperText 
+              variant="bodyLarge"
+              style={{ 
+                color: theme.colors.secondary,
+                marginTop: 4
+              }}
+            >
               {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </Text>
+            </PaperText>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <IconButton 
@@ -224,6 +176,13 @@ export default function DashboardScreen() {
               mode="contained-tonal"
               onPress={() => navigation.navigate('Notifications')} 
             />
+            {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
+              <IconButton 
+                icon="cog-outline" 
+                mode="contained-tonal"
+                onPress={() => navigation.navigate('AdminSettings')} 
+              />
+            )}
             <IconButton 
               icon="logout" 
               mode="contained-tonal"
@@ -248,6 +207,7 @@ export default function DashboardScreen() {
             progress={progress} 
             label={tiempoTrabajado}
             subLabel={activeSession?.estadoActual === 'trabajando' ? 'Tiempo Trabajado' : activeSession?.estadoActual?.toUpperCase() || 'INACTIVO'}
+            status={activeSession?.estadoActual || 'idle'}
             color={
               activeSession?.estadoActual === 'break' ? theme.colors.tertiary :
               activeSession?.estadoActual === 'almuerzo' ? theme.colors.secondary :
@@ -261,26 +221,26 @@ export default function DashboardScreen() {
           <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <Avatar.Icon size={40} icon="clock-start" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.primary} />
             <View style={styles.statText}>
-              <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>Entrada</Text>
-              <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>
+              <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Entrada</PaperText>
+              <PaperText variant="titleMedium" style={{ fontWeight: 'bold' }}>
                 {activeSession?.entrada?.hora ? 
                   (activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora))
                   .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                   : '--:--'}
-              </Text>
+              </PaperText>
             </View>
           </Surface>
 
           <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <Avatar.Icon size={40} icon="clock-end" style={{ backgroundColor: theme.colors.errorContainer }} color={theme.colors.error} />
             <View style={styles.statText}>
-              <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>Salida</Text>
-              <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>
+              <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Salida</PaperText>
+              <PaperText variant="titleMedium" style={{ fontWeight: 'bold' }}>
                 {activeSession?.salida?.hora ? 
                   (activeSession.salida.hora.toDate ? activeSession.salida.hora.toDate() : new Date(activeSession.salida.hora))
                   .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
                   : '--:--'}
-              </Text>
+              </PaperText>
             </View>
           </Surface>
         </View>
@@ -288,16 +248,16 @@ export default function DashboardScreen() {
         {/* Novedades Button */}
         <Surface style={[styles.actionCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={0}>
           <View style={styles.actionContent}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', color: theme.colors.onSecondaryContainer }}>
+            <PaperText variant="titleMedium" style={{ fontWeight: 'bold', color: theme.colors.onSecondaryContainer }}>
               ¿Alguna Novedad?
-            </Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSecondaryContainer }}>
+            </PaperText>
+            <PaperText variant="bodyMedium" style={{ color: theme.colors.onSecondaryContainer }}>
               Reporta llegadas tarde, permisos o incapacidades.
-            </Text>
+            </PaperText>
           </View>
           <Button 
             mode="contained" 
-            onPress={() => navigation.navigate('Novedades')}
+            onPress={() => setNovedadesVisible(true)}
             style={{ borderRadius: 12 }}
           >
             Reportar
@@ -306,39 +266,35 @@ export default function DashboardScreen() {
 
       </ScrollView>
 
-      {/* Floating Action Button Group or Single Start Button */}
-      {!activeSession ? (
-        <View style={{ position: 'absolute', bottom: 90, right: 16 }}>
-          <Button
-            mode="contained"
-            icon="login"
-            onPress={() => iniciarJornada()}
-            style={{ borderRadius: 16, height: 56, justifyContent: 'center' }}
-            contentStyle={{ height: 56, paddingHorizontal: 8 }}
-            labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
-          >
-            INICIAR
-          </Button>
-        </View>
-      ) : (
-        <FAB.Group
-          open={fabOpen}
-          visible
-          icon={fabOpen ? 'close' : 'menu'}
-          actions={getFabActions()}
-          onStateChange={({ open }) => setFabOpen(open)}
-          onPress={() => {
-            if (fabOpen) {
-              // do something if the speed dial is open
-            }
-          }}
-          style={styles.fab}
-          fabStyle={{ backgroundColor: theme.colors.primaryContainer }}
-        />
-      )}
+      {/* Floating Action Bar */}
+      <FloatingActionBar
+        status={activeSession?.estadoActual || 'off'}
+        onPressStart={() => iniciarJornada()}
+        onPressBreak={() => registrarBreak()}
+        onPressLunch={() => registrarAlmuerzo()}
+        onPressEnd={() => finalizarJornada()}
+        onPressResume={() => {
+          if (activeSession?.estadoActual === 'break') finalizarBreak();
+          if (activeSession?.estadoActual === 'almuerzo') finalizarAlmuerzo();
+        }}
+        breaksCount={activeSession?.breaks ? activeSession.breaks.length : 0}
+      />
 
-      {/* Novedades Bottom Sheet Modal - REMOVED in favor of navigation */}
-      {/* <Portal> ... </Portal> */}
+      {/* Novedades Bottom Sheet Modal */}
+      <Portal>
+        <Modal
+          visible={novedadesVisible}
+          onDismiss={() => setNovedadesVisible(false)}
+          contentContainerStyle={{ 
+            position: 'absolute', 
+            bottom: 0, 
+            left: 0, 
+            right: 0, 
+          }}
+        >
+          <NovedadesSheet onClose={() => setNovedadesVisible(false)} />
+        </Modal>
+      </Portal>
 
     </SafeAreaView>
   );

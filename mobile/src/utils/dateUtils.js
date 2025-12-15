@@ -3,7 +3,7 @@ import { addDays, getDay, parseISO } from 'date-fns';
 /**
  * Función para verificar si un día es hábil (no fin de semana ni festivo)
  */
-export const esHabil = (fecha, holidays) => {
+export const esHabil = (fecha, holidays = []) => {
   const dayOfWeek = getDay(fecha);
   const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6; // 0 = domingo, 6 = sábado
   
@@ -11,7 +11,7 @@ export const esHabil = (fecha, holidays) => {
   const fechaNormalizada = new Date(fecha);
   fechaNormalizada.setHours(0, 0, 0, 0);
   const fechaISO = fechaNormalizada.toISOString().split('T')[0];
-  const isHoliday = holidays.some(holiday => holiday.date === fechaISO);
+  const isHoliday = Array.isArray(holidays) && holidays.some(holiday => holiday.date === fechaISO);
   
   return !isWeekendDay && !isHoliday;
 };
@@ -42,7 +42,10 @@ export const sumarDiasHabiles = (fechaBase, diasAsumar, holidays) => {
  */
 export const calculateTenthBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
-  const fechaBase = new Date(year, month, 0); // Último día del mes anterior
+  // month es 1-based (1=Enero), así que month-1 es el índice 0-based del mes actual.
+  // new Date(year, monthIndex, 0) da el último día del mes ANTERIOR a monthIndex.
+  // Si queremos el último día del mes anterior a "month", usamos new Date(year, month-1, 0).
+  const fechaBase = new Date(year, month - 1, 0); 
   
   // Sumar 10 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 10, holidays);
@@ -56,7 +59,7 @@ export const calculateTenthBusinessDay = (year, month, holidays) => {
  */
 export const calculateThirdBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
-  const fechaBase = new Date(year, month, 0); // Último día del mes anterior
+  const fechaBase = new Date(year, month - 1, 0); 
   
   // Sumar 3 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 3, holidays);

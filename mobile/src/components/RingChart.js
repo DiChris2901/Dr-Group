@@ -11,10 +11,12 @@ export default function RingChart({
   strokeWidth = 20, 
   color,
   label = "00:00:00",
-  subLabel = "Tiempo Trabajado"
+  subLabel = "Tiempo Trabajado",
+  status = 'idle'
 }) {
   const theme = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   
@@ -31,13 +33,42 @@ export default function RingChart({
     }).start();
   }, [progress]);
 
+  // Breathing Animation for Break/Lunch
+  useEffect(() => {
+    let animation;
+    if (status === 'break' || status === 'almuerzo') {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [status]);
+
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange: [circumference, 0],
   });
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <Animated.View style={[styles.container, { width: size, height: size, transform: [{ scale: pulseAnim }] }]}>
       <Svg width={size} height={size} style={styles.svg}>
         <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
           {/* Background Circle */}
@@ -73,7 +104,7 @@ export default function RingChart({
           {subLabel}
         </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
