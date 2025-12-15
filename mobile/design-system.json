@@ -1,0 +1,417 @@
+{
+  "version": "3.0.0",
+  "lastUpdated": "2025-12-15",
+  "description": "Sistema de diseño completo para DR Group Mobile App - Material You Expressive (Google Design Award Winner style)",
+  
+  "typography": {
+    "fontFamilies": {
+      "primary": "Roboto Flex",
+      "fallback": "System",
+      "description": "Roboto Flex (variable font oficial de Material 3) permite ajustes dinámicos de peso y ancho. Máxima compatibilidad y performance."
+    },
+    "typeScale": {
+      "displayLarge": { "size": 64, "lineHeight": 72, "weight": 400, "letterSpacing": -0.5, "widthAxis": 110 },
+      "displayMedium": { "size": 52, "lineHeight": 60, "weight": 400, "letterSpacing": -0.25, "widthAxis": 110 },
+      "displaySmall": { "size": 44, "lineHeight": 52, "weight": 400, "letterSpacing": 0, "widthAxis": 110 },
+      "headlineLarge": { "size": 32, "lineHeight": 40, "weight": 500, "letterSpacing": -0.5, "widthAxis": 110 },
+      "headlineMedium": { "size": 28, "lineHeight": 36, "weight": 500, "letterSpacing": -0.25, "widthAxis": 110 },
+      "headlineSmall": { "size": 24, "lineHeight": 32, "weight": 500, "letterSpacing": 0, "widthAxis": 110 },
+      "titleLarge": { "size": 22, "lineHeight": 28, "weight": 500, "letterSpacing": 0 },
+      "titleMedium": { "size": 16, "lineHeight": 24, "weight": 500, "letterSpacing": 0.15 },
+      "titleSmall": { "size": 14, "lineHeight": 20, "weight": 500, "letterSpacing": 0.1 },
+      "bodyLarge": { "size": 16, "lineHeight": 24, "weight": 400, "letterSpacing": 0.5 },
+      "bodyMedium": { "size": 14, "lineHeight": 20, "weight": 400, "letterSpacing": 0.25 },
+      "bodySmall": { "size": 12, "lineHeight": 16, "weight": 400, "letterSpacing": 0.4 },
+      "labelLarge": { "size": 14, "lineHeight": 20, "weight": 500, "letterSpacing": 0.1 },
+      "labelMedium": { "size": 12, "lineHeight": 16, "weight": 500, "letterSpacing": 0.5 },
+      "labelSmall": { "size": 11, "lineHeight": 16, "weight": 500, "letterSpacing": 0.5 }
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+
+  "spacing": {
+    "description": "Sistema de espaciado basado en múltiplos de 4px (Material 3)",
+    "base": 4,
+    "density": {
+      "default": 1.0,
+      "comfortable": 0.875,
+      "compact": 0.75
+    },
+    "scale": {
+      "0": 0,
+      "1": 4,
+      "2": 8,
+      "3": 12,
+      "4": 16,
+      "5": 20,
+      "6": 24,
+      "8": 32,
+      "10": 40,
+      "12": 48,
+      "16": 64,
+      "20": 80,
+      "24": 96
+    },
+    "semantic": {
+      "xs": 4,
+      "sm": 8,
+      "md": 16,
+      "lg": 24,
+      "xl": 32,
+      "xxl": 48
+    },
+    "components": {
+      "cardPadding": 20,
+      "buttonPaddingHorizontal": 24,
+      "buttonPaddingVertical": 10,
+      "inputPaddingHorizontal": 16,
+      "inputPaddingVertical": 16,
+      "screenPadding": 20,
+      "listItemPadding": 16,
+      "sectionGap": 32,
+      "minimumTouchTarget": 48
+    }
+  },
+
+  "borderRadius": {
+    "description": "Radios de borde orgánicos (Material You Expressive - Google Design Award Winner)",
+    "none": 0,
+    "extraSmall": 8,
+    "small": 12,
+    "medium": 24,
+    "large": 32,
+    "extraLarge": 48,
+    "full": 9999,
+    "components": {
+      "button": {
+        "filled": 24,
+        "outlined": 24,
+        "text": 24
+      },
+      "card": {
+        "small": 20,
+        "medium": 24,
+        "large": 32
+      },
+      "input": {
+        "filled": 12,
+        "outlined": 12
+      },
+      "modal": 32,
+      "bottomSheet": 32,
+      "chip": 16,
+      "fab": 24,
+      "extendedFab": 24,
+      "avatar": 9999
+    }
+  },
+
+  "elevation": {
+    "description": "Tonal Elevation (Material You Expressive) - Colores de superficie en lugar de sombras",
+    "philosophy": "Google Expressive usa elevation: 0 por defecto y juega con colores surface, surfaceContainer, surfaceVariant",
+    "levels": {
+      "0": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 0 },
+        "shadowOpacity": 0,
+        "shadowRadius": 0,
+        "elevation": 0,
+        "surfaceTintOpacity": 0,
+        "useSurfaceColor": "surface"
+      },
+      "1": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 0 },
+        "shadowOpacity": 0,
+        "shadowRadius": 0,
+        "elevation": 0,
+        "surfaceTintOpacity": 0.05,
+        "useSurfaceColor": "surfaceContainerLow"
+      },
+      "2": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 0 },
+        "shadowOpacity": 0,
+        "shadowRadius": 0,
+        "elevation": 0,
+        "surfaceTintOpacity": 0.08,
+        "useSurfaceColor": "surfaceContainer"
+      },
+      "3": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 0 },
+        "shadowOpacity": 0,
+        "shadowRadius": 0,
+        "elevation": 0,
+        "surfaceTintOpacity": 0.11,
+        "useSurfaceColor": "surfaceContainerHigh"
+      },
+      "4": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 1 },
+        "shadowOpacity": 0.03,
+        "shadowRadius": 4,
+        "elevation": 1,
+        "surfaceTintOpacity": 0.14,
+        "useSurfaceColor": "surfaceContainerHighest"
+      },
+      "5": {
+        "shadowColor": "#000000",
+        "shadowOffset": { "width": 0, "height": 2 },
+        "shadowOpacity": 0.05,
+        "shadowRadius": 8,
+        "elevation": 2,
+        "surfaceTintOpacity": 0.16,
+        "useSurfaceColor": "surfaceVariant"
+      }
+    },
+    "components": {
+      "card": 1,
+      "cardHover": 2,
+      "filledButton": 0,
+      "elevatedButton": 0,
+      "buttonPressed": 0,
+      "fab": 0,
+      "fabPressed": 1,
+      "modal": 0,
+      "navigationBar": 0,
+      "appBar": 0
+    }
+  },
+
+  "colors": {
+    "description": "Paleta de colores basada en material-theme.json",
+    "source": "material-theme.json",
+    "seed": "#769CDF",
+    "defaultMode": "light",
+    "supportsDarkMode": true,
+    "coreColors": {
+      "primary": "#769CDF",
+      "secondary": "#3591FF",
+      "tertiary": "#4791EF"
+    }
+  },
+
+  "animations": {
+    "durations": {
+      "short1": 50,
+      "short2": 100,
+      "short3": 150,
+      "short4": 200,
+      "medium1": 250,
+      "medium2": 300,
+      "medium3": 350,
+      "medium4": 400,
+      "long1": 450,
+      "long2": 500,
+      "long3": 550,
+      "long4": 600,
+      "extraLong1": 700,
+      "extraLong2": 800,
+      "extraLong3": 900,
+      "extraLong4": 1000
+    },
+    "easing": {
+      "standard": [0.2, 0.0, 0, 1.0],
+      "standardAccelerate": [0.3, 0.0, 1, 1],
+      "standardDecelerate": [0, 0.0, 0, 1],
+      "emphasized": [0.2, 0.0, 0, 1.0],
+      "emphasizedAccelerate": [0.3, 0.0, 0.8, 0.15],
+      "emphasizedDecelerate": [0.05, 0.7, 0.1, 1.0],
+      "legacy": [0.4, 0.0, 0.2, 1],
+      "legacyAccelerate": [0.4, 0.0, 1, 1],
+      "legacyDecelerate": [0.0, 0.0, 0.2, 1]
+    }
+  },
+
+  "breakpoints": {
+    "description": "Breakpoints para responsive design (aunque en mobile es menos crítico)",
+    "values": {
+      "xs": 0,
+      "sm": 360,
+      "md": 768,
+      "lg": 1024,
+      "xl": 1280
+    }
+  },
+
+  "components": {
+    "description": "Especificaciones específicas para componentes custom (Material 3)",
+    "ExpressiveCard": {
+      "padding": 20,
+      "borderRadius": 24,
+      "elevation": 0,
+      "surfaceTintOpacity": 0.05,
+      "borderWidth": 0,
+      "useSurfaceColor": "surfaceContainerLow",
+      "states": {
+        "default": { "elevation": 0, "useSurfaceColor": "surfaceContainerLow" },
+        "pressed": { "elevation": 0, "useSurfaceColor": "surfaceContainer" },
+        "dragged": { "elevation": 1, "useSurfaceColor": "surfaceContainerHigh" }
+      }
+    },
+    "DetailRow": {
+      "padding": 12,
+      "borderRadius": 12,
+      "iconSize": 20,
+      "labelFontSize": 11,
+      "labelLetterSpacing": 0.8,
+      "labelTransform": "uppercase",
+      "valueFontSize": 14,
+      "backgroundOpacity": 0.04,
+      "borderOpacity": 0.2
+    },
+    "OverlineText": {
+      "fontSize": 12,
+      "fontWeight": 600,
+      "letterSpacing": 0.8,
+      "textTransform": "uppercase",
+      "marginBottom": 8
+    },
+    "Button": {
+      "variants": {
+        "filled": {
+          "height": 40,
+          "borderRadius": 24,
+          "paddingHorizontal": 24,
+          "paddingVertical": 10,
+          "elevation": 0,
+          "elevationPressed": 0,
+          "fontSize": 14,
+          "fontWeight": 500,
+          "letterSpacing": 0.1
+        },
+        "elevated": {
+          "height": 40,
+          "borderRadius": 24,
+          "paddingHorizontal": 24,
+          "paddingVertical": 10,
+          "elevation": 0,
+          "elevationPressed": 0,
+          "fontSize": 14,
+          "fontWeight": 500,
+          "letterSpacing": 0.1
+        },
+        "outlined": {
+          "height": 40,
+          "borderRadius": 24,
+          "paddingHorizontal": 24,
+          "paddingVertical": 10,
+          "borderWidth": 1,
+          "elevation": 0,
+          "fontSize": 14,
+          "fontWeight": 500,
+          "letterSpacing": 0.1
+        },
+        "text": {
+          "height": 40,
+          "borderRadius": 24,
+          "paddingHorizontal": 12,
+          "paddingVertical": 10,
+          "elevation": 0,
+          "fontSize": 14,
+          "fontWeight": 500,
+          "letterSpacing": 0.1
+        }
+      },
+      "iconSize": 18
+    },
+    "Input": {
+      "variants": {
+        "filled": {
+          "height": 56,
+          "borderRadius": 12,
+          "paddingHorizontal": 16,
+          "paddingTop": 8,
+          "borderBottomWidth": 1,
+          "labelFontSize": 12,
+          "inputFontSize": 16,
+          "helperTextFontSize": 12
+        },
+        "outlined": {
+          "height": 56,
+          "borderRadius": 12,
+          "paddingHorizontal": 16,
+          "borderWidth": 1,
+          "labelFontSize": 12,
+          "inputFontSize": 16,
+          "helperTextFontSize": 12
+        }
+      }
+    },
+    "Avatar": {
+      "sizes": {
+        "xs": 24,
+        "sm": 32,
+        "md": 40,
+        "lg": 56,
+        "xl": 72
+      }
+    },
+    "FAB": {
+      "sizes": {
+        "small": 40,
+        "medium": 56,
+        "large": 96
+      },
+      "borderRadius": 24,
+      "elevation": 0,
+      "elevationPressed": 1,
+      "useSurfaceColor": "primaryContainer"
+    }
+  },
+
+  "designPrinciples": {
+    "description": "Principios de diseño a seguir en la APK",
+    "principles": [
+      "Diseño sobrio y empresarial - NO spectacular, NO glassmorphism",
+      "Consistencia con Material Design 3",
+      "Accesibilidad: Contraste mínimo WCAG AA",
+      "Responsive: Adaptar a diferentes tamaños de pantalla",
+      "Performance: Animaciones suaves 60fps",
+      "Jerarquía visual clara mediante tamaños y pesos de tipografía",
+      "Espaciado generoso para mejor legibilidad",
+      "Uso de colores semánticos del tema (primary, secondary, error, etc.)",
+      "NUNCA hardcodear colores - siempre desde theme",
+      "Modo claro por defecto, soporte completo de modo oscuro"
+    ]
+  },
+
+  "accessibility": {
+    "description": "Estándares de accesibilidad",
+    "contrastRatios": {
+      "normalText": 4.5,
+      "largeText": 3.0,
+      "graphicalObjects": 3.0
+    },
+    "touchTargets": {
+      "minimum": 44,
+      "recommended": 48
+    },
+    "fontSizes": {
+      "minimum": 12,
+      "body": 16,
+      "recommended": 16
+    }
+  },
+
+  "googleFonts": {
+    "description": "Fuente oficial de Material Design 3",
+    "primary": {
+      "name": "Roboto Flex",
+      "url": "https://fonts.google.com/specimen/Roboto+Flex",
+      "weights": [300, 400, 500, 600, 700],
+      "package": "expo-font",
+      "variableFont": true,
+      "note": "Variable font nativo - soporta ajustes dinámicos de peso, ancho y ópticos"
+    },
+    "installation": "npx expo install expo-font",
+    "loadingStrategy": "useFonts hook de expo-font con Roboto Flex desde Google Fonts CDN"
+  }
+}
