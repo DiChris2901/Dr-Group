@@ -15,19 +15,21 @@ import {
   Surface,
   TextInput as PaperInput,
   Chip,
-  Card,
   Portal,
   Modal
 } from 'react-native-paper';
+import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useTheme } from '../../contexts/ThemeContext';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function AdminSettingsScreen({ navigation }) {
   const theme = usePaperTheme();
+  const { getPrimaryColor, getSecondaryColor } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -250,19 +252,18 @@ export default function AdminSettingsScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <Text variant="headlineSmall" style={{ fontWeight: 'bold', flex: 1 }}>Configuración</Text>
+        <Text variant="headlineLarge" style={{ color: getPrimaryColor(), flex: 1 }}>Configuración</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         
         {/* Work Schedule Section */}
-        <Text variant="labelLarge" style={{ color: theme.colors.primary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Jornada Laboral
-        </Text>
+        <OverlineText color={getPrimaryColor()}>
+          JORNADA LABORAL
+        </OverlineText>
         
-        <Card style={{ marginBottom: 24 }} mode="elevated">
-          <Card.Content>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8 }}>Días Laborales</Text>
+        <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4 }}>Días Laborales</Text>
             <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginBottom: 16 }}>
               Selecciona los días de operación de la empresa.
             </Text>
@@ -320,25 +321,18 @@ export default function AdminSettingsScreen({ navigation }) {
               left={<PaperInput.Icon icon="timer-sand" />}
               style={{ marginTop: 16 }}
             />
-          </Card.Content>
-        </Card>
+        </SobrioCard>
 
         {/* Location Section */}
-        <Text variant="labelLarge" style={{ color: theme.colors.primary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-          Geolocalización
-        </Text>
+        <OverlineText color={getPrimaryColor()}>
+          GEOLOCALIZACIÓN
+        </OverlineText>
 
-        <Card style={{ marginBottom: 24 }} mode="elevated">
-          <Card.Content>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <IconButton icon="map-marker" iconColor={theme.colors.primary} size={28} />
-              <View style={{ flex: 1 }}>
-                <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>Ubicación Oficina</Text>
-                <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
-                  Control de asistencia por GPS
-                </Text>
-              </View>
-            </View>
+        <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
+            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4 }}>Ubicación Oficina</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginBottom: 16 }}>
+              Control de asistencia por GPS
+            </Text>
 
             <PaperInput
               label="Radio Permitido (metros)"
@@ -353,14 +347,14 @@ export default function AdminSettingsScreen({ navigation }) {
             />
 
             {officeLocation ? (
-              <Surface style={[styles.locationInfo, { backgroundColor: theme.colors.surfaceVariant }]} elevation={0}>
-                <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
-                  Lat: {officeLocation.lat.toFixed(6)}
-                </Text>
-                <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
-                  Lon: {officeLocation.lon.toFixed(6)}
-                </Text>
-              </Surface>
+              <View style={{ marginBottom: 16 }}>
+                <DetailRow
+                  icon="location-outline"
+                  label="COORDENADAS GPS"
+                  value={`${officeLocation.lat.toFixed(6)}, ${officeLocation.lon.toFixed(6)}`}
+                  iconColor={getPrimaryColor()}
+                />
+              </View>
             ) : (
               <Surface style={{ padding: 16, borderRadius: 12, backgroundColor: theme.colors.errorContainer, marginBottom: 16 }} elevation={0}>
                 <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onErrorContainer }}>
@@ -385,8 +379,7 @@ export default function AdminSettingsScreen({ navigation }) {
             >
               Buscar en Mapa
             </Button>
-          </Card.Content>
-        </Card>
+        </SobrioCard>
 
         <Button 
           mode="contained" 
