@@ -914,6 +914,108 @@ marginVertical: 20,   // Screen padding
 
 ---
 
+#### **5. 💎 INTERACCIÓN SENSORIAL (EL TOQUE "PIXEL"):**
+
+Estos detalles separan una app genérica de una "App Nativa de Google".
+
+**A. ICONOGRAFÍA "SOFT" (Coherencia Geométrica):**
+```javascript
+// ❌ EVITAR (bordes filosos, inconsistente con border-radius 24px)
+import { Ionicons } from '@expo/vector-icons';
+<Ionicons name="person-outline" />  // Outline con esquinas filosas
+
+// ✅ PREFERIR (coherencia geométrica con diseño orgánico)
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+<MaterialCommunityIcons name="account" />  // Rounded/Filled
+
+// ✅ ALTERNATIVA (MaterialIcons también válido)
+import { MaterialIcons } from '@expo/vector-icons';
+<MaterialIcons name="person" />  // Filled estándar
+```
+
+**Regla:** Si la UI usa border-radius 24-48px, los iconos **NO pueden tener esquinas filosas**. Preferir variantes **Rounded** o **Filled**.
+
+---
+
+**B. HAPTICS (Feedback Táctil - "El Tacto de Google"):**
+```javascript
+// Librería: expo-haptics
+import * as Haptics from 'expo-haptics';
+
+// ✅ En botones primarios o tabs (vibración sutil)
+const handlePrimaryAction = () => {
+  Haptics.selectionAsync();  // Vibración de selección (como Pixel)
+  // ... lógica del botón
+};
+
+// ✅ En acciones importantes (impacto ligero)
+const handleImportantAction = () => {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  // ... lógica de acción importante
+};
+
+// ❌ NUNCA dejar interacciones principales sin feedback táctil
+```
+
+**Regla:** **NO abusar**. Solo en:
+- Navigation tabs (al cambiar de tab)
+- Botones primarios (acciones principales)
+- Gestos de pulsación importantes (confirmar, enviar)
+
+**NO usar en:**
+- Botones secundarios o terciarios
+- Cada elemento de una lista
+- Interacciones frecuentes (scroll, typing)
+
+**Impacto:** Esto eleva la percepción de calidad inmediatamente. Diferencia entre "buena app" y "App Nativa de Google".
+
+---
+
+**C. RIPPLES "TINTADOS" (No Grises - Efecto de Ola Material You):**
+```javascript
+// ❌ PROHIBIDO (ripple gris genérico de Android)
+<Pressable 
+  android_ripple={{ color: '#00000030' }}  // Gris por defecto
+>
+
+// ✅ OBLIGATORIO (ripple del color del contenido)
+<Pressable 
+  android_ripple={{ 
+    color: `rgba(${primaryColor}, 0.12)`  // 12% opacidad del color primary/texto
+  }}
+>
+
+// ✅ EJEMPLO CON SURFACE COLORS
+import materialTheme from '../material-theme.json';
+
+<Pressable 
+  android_ripple={{ 
+    color: materialTheme.schemes.light.primary + '1F'  // Primary con 12% opacidad (hex)
+  }}
+>
+```
+
+**Regla:** El ripple debe coincidir con:
+- Color del texto/ícono del botón (onPrimary, onSurface, etc.)
+- Color primario si es botón destacado
+- **NUNCA** gris neutro (#00000030)
+
+**Opacidad estándar:** 12% (0.12 o 1F en hex)
+
+---
+
+**¿Por qué esto es crítico?**
+
+Cuando Copilot lee estas reglas, automáticamente:
+- Sugerirá `Pressable` con `TouchableOpacity` configurado correctamente
+- Agregará llamadas a `Haptics.selectionAsync()` en botones primarios
+- Configurará `android_ripple` con colores contextuales del tema
+- Recomendará MaterialCommunityIcons/MaterialIcons en lugar de Ionicons outline
+
+**Esa diferencia técnica convierte una app React Native genérica en una "App Nativa de Google".**
+
+---
+
 ### 🛠️ COMPONENTES DE REFERENCIA (Ya Implementados):
 
 Antes de crear un componente nuevo, verificar si ya existe una versión Expressive:
@@ -946,6 +1048,9 @@ Antes de dar por terminada cualquier implementación de UI, validar:
 4. ✅ **Spacing:** ¿Los gaps entre secciones son ≥32px?
 5. ✅ **Surface Colors:** ¿Se importan desde material-theme.json?
 6. ✅ **Dark Mode:** ¿Funciona correctamente con surface colors dark?
+7. ✅ **Iconografía:** ¿Se usan iconos Rounded/Filled (no Ionicons outline)?
+8. ✅ **Haptics:** ¿Botones primarios y tabs tienen feedback táctil?
+9. ✅ **Ripples:** ¿Los android_ripple usan color contextual (no gris #00000030)?
 
 **Si alguna respuesta es NO, REFACTORIZAR antes de continuar.**
 
