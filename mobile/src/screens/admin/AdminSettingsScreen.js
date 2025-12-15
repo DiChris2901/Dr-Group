@@ -4,13 +4,21 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Modal
+  Platform
 } from 'react-native';
-import { Text, useTheme as usePaperTheme, IconButton, Button, ActivityIndicator } from 'react-native-paper';
+import { 
+  Text, 
+  useTheme as usePaperTheme, 
+  IconButton, 
+  Button, 
+  ActivityIndicator,
+  Surface,
+  TextInput as PaperInput,
+  Chip,
+  Card,
+  Portal,
+  Modal
+} from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -18,15 +26,8 @@ import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
-// Custom Hooks & Components
-import { useTheme } from '../../contexts/ThemeContext';
-import SobrioCard from '../../components/SobrioCard';
-import OverlineText from '../../components/OverlineText';
-
 export default function AdminSettingsScreen({ navigation }) {
-  const paperTheme = usePaperTheme();
-  const { getPrimaryColor } = useTheme();
-  const primaryColor = getPrimaryColor();
+  const theme = usePaperTheme();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -238,30 +239,31 @@ export default function AdminSettingsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={primaryColor} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Header */}
       <View style={styles.header}>
         <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
         <Text variant="headlineSmall" style={{ fontWeight: 'bold', flex: 1 }}>Configuración</Text>
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.content}>
-          
-          <OverlineText style={{ marginBottom: 12 }}>Jornada Laboral</OverlineText>
-          
-          <SobrioCard style={{ marginBottom: 24 }}>
+      <ScrollView contentContainerStyle={styles.content}>
+        
+        {/* Work Schedule Section */}
+        <Text variant="labelLarge" style={{ color: theme.colors.primary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+          Jornada Laboral
+        </Text>
+        
+        <Card style={{ marginBottom: 24 }} mode="elevated">
+          <Card.Content>
             <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8 }}>Días Laborales</Text>
-            <Text variant="bodySmall" style={{ color: paperTheme.colors.secondary, marginBottom: 16 }}>
+            <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginBottom: 16 }}>
               Selecciona los días de operación de la empresa.
             </Text>
             
@@ -269,109 +271,108 @@ export default function AdminSettingsScreen({ navigation }) {
               {daysOfWeek.map((day) => {
                 const isSelected = workDays.includes(day.id);
                 return (
-                  <TouchableOpacity
+                  <Chip
                     key={day.id}
-                    style={[
-                      styles.dayButton,
-                      { 
-                        backgroundColor: isSelected ? primaryColor : paperTheme.colors.surfaceVariant,
-                        borderColor: isSelected ? primaryColor : paperTheme.colors.outline 
-                      }
-                    ]}
+                    selected={isSelected}
                     onPress={() => toggleDay(day.id)}
+                    mode={isSelected ? 'flat' : 'outlined'}
+                    style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    <Text style={{ 
-                      color: isSelected ? 'white' : paperTheme.colors.onSurfaceVariant,
-                      fontWeight: 'bold'
-                    }}>
-                      {day.label}
-                    </Text>
-                  </TouchableOpacity>
+                    {day.label}
+                  </Chip>
                 );
               })}
             </View>
 
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text variant="labelMedium" style={{ marginBottom: 4 }}>Entrada</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: paperTheme.colors.outline }]}
+                <PaperInput
+                  label="Hora Entrada"
                   value={workStartTime}
                   onChangeText={setWorkStartTime}
                   placeholder="08:00"
                   maxLength={5}
+                  mode="outlined"
+                  left={<PaperInput.Icon icon="clock-start" />}
                 />
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text variant="labelMedium" style={{ marginBottom: 4 }}>Salida</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: paperTheme.colors.outline }]}
+                <PaperInput
+                  label="Hora Salida"
                   value={workEndTime}
                   onChangeText={setWorkEndTime}
                   placeholder="18:00"
                   maxLength={5}
+                  mode="outlined"
+                  left={<PaperInput.Icon icon="clock-end" />}
                 />
               </View>
             </View>
 
-            <View style={{ marginTop: 16 }}>
-              <Text variant="labelMedium" style={{ marginBottom: 4 }}>Tiempo de Gracia (min)</Text>
-              <TextInput
-                style={[styles.input, { borderColor: paperTheme.colors.outline }]}
-                value={gracePeriod}
-                onChangeText={setGracePeriod}
-                placeholder="15"
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-          </SobrioCard>
+            <PaperInput
+              label="Tiempo de Gracia (minutos)"
+              value={gracePeriod}
+              onChangeText={setGracePeriod}
+              placeholder="15"
+              keyboardType="numeric"
+              maxLength={2}
+              mode="outlined"
+              left={<PaperInput.Icon icon="timer-sand" />}
+              style={{ marginTop: 16 }}
+            />
+          </Card.Content>
+        </Card>
 
-          <OverlineText style={{ marginBottom: 12 }}>Geolocalización</OverlineText>
+        {/* Location Section */}
+        <Text variant="labelLarge" style={{ color: theme.colors.primary, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
+          Geolocalización
+        </Text>
 
-          <SobrioCard style={{ marginBottom: 24 }}>
+        <Card style={{ marginBottom: 24 }} mode="elevated">
+          <Card.Content>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <Ionicons name="location" size={24} color={primaryColor} style={{ marginRight: 12 }} />
-              <View>
+              <IconButton icon="map-marker" iconColor={theme.colors.primary} size={28} />
+              <View style={{ flex: 1 }}>
                 <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>Ubicación Oficina</Text>
-                <Text variant="bodySmall" style={{ color: paperTheme.colors.secondary }}>
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
                   Control de asistencia por GPS
                 </Text>
               </View>
             </View>
 
-            <View style={{ marginBottom: 16 }}>
-              <Text variant="labelMedium" style={{ marginBottom: 4 }}>Radio Permitido (metros)</Text>
-              <TextInput
-                style={[styles.input, { borderColor: paperTheme.colors.outline }]}
-                value={locationRadius}
-                onChangeText={setLocationRadius}
-                placeholder="100"
+            <PaperInput
+              label="Radio Permitido (metros)"
+              value={locationRadius}
+              onChangeText={setLocationRadius}
+              placeholder="100"
                 keyboardType="numeric"
-                maxLength={4}
-              />
-            </View>
+              maxLength={4}
+              mode="outlined"
+              left={<PaperInput.Icon icon="ruler" />}
+              style={{ marginBottom: 16 }}
+            />
 
             {officeLocation ? (
-              <View style={[styles.locationInfo, { backgroundColor: paperTheme.colors.surfaceVariant }]}>
+              <Surface style={[styles.locationInfo, { backgroundColor: theme.colors.surfaceVariant }]} elevation={0}>
                 <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
                   Lat: {officeLocation.lat.toFixed(6)}
                 </Text>
                 <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
                   Lon: {officeLocation.lon.toFixed(6)}
                 </Text>
-              </View>
+              </Surface>
             ) : (
-              <Text style={{ textAlign: 'center', color: paperTheme.colors.error, marginBottom: 16 }}>
-                ⚠️ No hay ubicación registrada
-              </Text>
+              <Surface style={{ padding: 16, borderRadius: 12, backgroundColor: theme.colors.errorContainer, marginBottom: 16 }} elevation={0}>
+                <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onErrorContainer }}>
+                  ⚠️ No hay ubicación registrada
+                </Text>
+              </Surface>
             )}
 
             <Button 
               mode="outlined" 
               onPress={captureLocation} 
-              style={{ marginBottom: 12, borderColor: primaryColor }}
-              textColor={primaryColor}
+              style={{ marginBottom: 12 }}
               icon="crosshairs-gps"
             >
               Capturar Ubicación Actual
@@ -380,84 +381,89 @@ export default function AdminSettingsScreen({ navigation }) {
             <Button 
               mode="contained" 
               onPress={openMapPicker} 
-              style={{ backgroundColor: primaryColor }}
               icon="map-marker"
             >
               Buscar en Mapa
             </Button>
-          </SobrioCard>
+          </Card.Content>
+        </Card>
 
-          <Button 
-            mode="contained" 
-            onPress={handleSave} 
-            loading={saving}
-            style={{ backgroundColor: primaryColor, paddingVertical: 6 }}
-          >
-            Guardar Cambios
-          </Button>
+        <Button 
+          mode="contained" 
+          onPress={handleSave} 
+          loading={saving}
+          disabled={saving}
+          icon="content-save"
+          style={{ marginBottom: 32 }}
+        >
+          Guardar Cambios
+        </Button>
 
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </ScrollView>
 
       {/* Map Modal */}
-      <Modal
-        visible={mapVisible}
-        animationType="slide"
-        onRequestClose={() => setMapVisible(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
-          <View style={styles.mapHeader}>
-            <IconButton icon="close" onPress={() => setMapVisible(false)} />
-            <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Seleccionar Ubicación</Text>
-          </View>
-          
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={[styles.searchInput, { borderColor: paperTheme.colors.outline }]}
-              placeholder="Buscar dirección..."
-              value={searchAddress}
-              onChangeText={setSearchAddress}
-              onSubmitEditing={handleSearchAddress}
-            />
-            <IconButton 
-              icon="magnify" 
-              mode="contained" 
-              containerColor={primaryColor} 
-              iconColor="white" 
-              onPress={handleSearchAddress} 
-            />
-          </View>
-
-          {tempLocation && (
-            <MapView
-              style={{ flex: 1 }}
-              region={{
-                latitude: tempLocation.latitude,
-                longitude: tempLocation.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-              onPress={(e) => setTempLocation(e.nativeEvent.coordinate)}
-            >
-              <Marker
-                coordinate={tempLocation}
-                draggable
-                onDragEnd={(e) => setTempLocation(e.nativeEvent.coordinate)}
+      <Portal>
+        <Modal
+          visible={mapVisible}
+          onDismiss={() => setMapVisible(false)}
+          contentContainerStyle={{ flex: 1, backgroundColor: theme.colors.background }}
+        >
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.mapHeader}>
+              <IconButton icon="close" onPress={() => setMapVisible(false)} />
+              <Text variant="titleLarge" style={{ fontWeight: 'bold', flex: 1 }}>Seleccionar Ubicación</Text>
+            </View>
+            
+            <View style={styles.searchContainer}>
+              <PaperInput
+                placeholder="Buscar dirección..."
+                value={searchAddress}
+                onChangeText={setSearchAddress}
+                onSubmitEditing={handleSearchAddress}
+                mode="outlined"
+                style={{ flex: 1, marginRight: 8 }}
+                left={<PaperInput.Icon icon="magnify" />}
               />
-            </MapView>
-          )}
+              <IconButton 
+                icon="arrow-right" 
+                mode="contained" 
+                containerColor={theme.colors.primary} 
+                iconColor="white" 
+                onPress={handleSearchAddress} 
+              />
+            </View>
 
-          <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#eee' }}>
-            <Button 
-              mode="contained" 
-              onPress={confirmMapLocation}
-              style={{ backgroundColor: primaryColor }}
-            >
-              Confirmar Ubicación
-            </Button>
-          </View>
-        </SafeAreaView>
-      </Modal>
+            {tempLocation && (
+              <MapView
+                style={{ flex: 1 }}
+                region={{
+                  latitude: tempLocation.latitude,
+                  longitude: tempLocation.longitude,
+                  latitudeDelta: 0.005,
+                  longitudeDelta: 0.005,
+                }}
+                onPress={(e) => setTempLocation(e.nativeEvent.coordinate)}
+              >
+                <Marker
+                  coordinate={tempLocation}
+                  draggable
+                  onDragEnd={(e) => setTempLocation(e.nativeEvent.coordinate)}
+                />
+              </MapView>
+            )}
+
+            <View style={{ padding: 20, backgroundColor: theme.colors.surface }}>
+              <Button 
+                mode="contained" 
+                onPress={confirmMapLocation}
+                icon="check"
+              >
+                Confirmar Ubicación
+              </Button>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      </Portal>
     </SafeAreaView>
   );
 }
@@ -469,8 +475,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   content: {
     padding: 20,
@@ -478,27 +484,12 @@ const styles = StyleSheet.create({
   },
   daysContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  dayButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
+    flexWrap: 'wrap',
+    marginBottom: 16,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 16,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: 'white',
+    marginTop: 16,
   },
   locationInfo: {
     padding: 16,
@@ -509,32 +500,12 @@ const styles = StyleSheet.create({
   mapHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   searchContainer: {
     flexDirection: 'row',
     padding: 16,
     alignItems: 'center',
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  searchInput: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    height: 48,
-    borderWidth: 1,
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });
