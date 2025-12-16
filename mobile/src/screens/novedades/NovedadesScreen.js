@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,8 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
-  RefreshControl
+  RefreshControl,
+  Pressable
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 import { 
   Text, 
   Surface, 
@@ -38,11 +41,26 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   const { user, userProfile } = useAuth();
   const theme = useTheme();
   
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      surfaceVariant: scheme.surfaceVariant
+    };
+  }, [theme.dark]);
+  
   const dynamicStyles = {
     container: { backgroundColor: theme.colors.background },
-    surface: { backgroundColor: theme.colors.surface },
-    text: { color: theme.colors.onSurface },
-    textSecondary: { color: theme.colors.onSurfaceVariant }
+    surface: { backgroundColor: surfaceColors.surfaceContainerLow },
+    text: { color: surfaceColors.onSurface },
+    textSecondary: { color: surfaceColors.onSurfaceVariant }
   };
   
   const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
@@ -294,7 +312,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   };
 
   const renderHistorialItem = ({ item }) => (
-    <Card style={[styles.card, { backgroundColor: theme.colors.surface }]} mode="elevated">
+    <Card style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} mode="elevated">
       <Card.Title
         title={tiposNovedad.find(t => t.id === item.type)?.label || item.type}
         subtitle={format(item.date.toDate(), "d 'de' MMMM, yyyy - h:mm a", { locale: es })}
@@ -461,16 +479,25 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
               </>
             )}
 
-            <Button 
-              mode="contained" 
-              onPress={handleSubmit} 
-              loading={loading}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                handleSubmit();
+              }}
+              android_ripple={{ color: surfaceColors.onPrimary + '1F' }}
+              style={({ pressed }) => [
+                styles.submitButton,
+                { 
+                  backgroundColor: surfaceColors.primary,
+                  transform: [{ scale: pressed ? 0.98 : 1 }]
+                }
+              ]}
               disabled={loading}
-              style={styles.submitButton}
-              contentStyle={{ height: 50 }}
             >
-              {editingId ? 'Actualizar Reporte' : 'Enviar Reporte'}
-            </Button>
+              <Text style={{ color: surfaceColors.onPrimary, fontWeight: '600', fontSize: 16 }}>
+                {loading ? 'Enviando...' : (editingId ? 'Actualizar Reporte' : 'Enviar Reporte')}
+              </Text>
+            </Pressable>
             
             {editingId && (
                <Button onPress={cancelEdit} style={{ marginTop: 10 }}>Cancelar Edición</Button>
@@ -522,17 +549,19 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   sectionTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: 'bold',
+    marginTop: 24, // Spacing generoso
+    marginBottom: 12,
+    fontWeight: '600',
+    letterSpacing: -0.3, // Tight letter spacing
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   chip: {
     marginBottom: 4,
+    borderRadius: 20, // Orgánico
   },
   input: {
     backgroundColor: 'transparent',
@@ -545,21 +574,26 @@ const styles = StyleSheet.create({
   filePreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 20, // Orgánico
     marginBottom: 24,
   },
   submitButton: {
-    marginTop: 8,
-    borderRadius: 12,
+    marginTop: 16,
+    borderRadius: 24, // Material You Expressive
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 0, // Tonal elevation
   },
   listContent: {
     padding: 20,
     paddingBottom: 100,
   },
   card: {
-    marginBottom: 16,
-    borderRadius: 16,
+    marginBottom: 20, // Spacing generoso
+    borderRadius: 24, // Material You Expressive
+    elevation: 0, // Tonal elevation
   },
   attachmentBadge: {
     flexDirection: 'row',
@@ -569,7 +603,7 @@ const styles = StyleSheet.create({
   responseBox: {
     marginTop: 12,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 16,
   },
   emptyState: {
     alignItems: 'center',
@@ -579,9 +613,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 8,
+    padding: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 20,
     marginBottom: 16,
   }
 });
