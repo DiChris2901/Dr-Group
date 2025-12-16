@@ -351,100 +351,247 @@ export default function AsistenciasScreen({ navigation }) {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={[styles.modalOverlay, dynamicStyles.modalOverlay]}>
-          <Surface style={[styles.modalContent, dynamicStyles.modalSurface]} elevation={4}>
+          <Surface style={[styles.modalContent, dynamicStyles.modalSurface]} elevation={0}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Detalle de Asistencia</Text>
+              <Text variant="titleLarge" style={{ fontWeight: 'bold', letterSpacing: -0.25 }}>Detalle de Asistencia</Text>
               <IconButton icon="close" onPress={() => setModalVisible(false)} />
             </View>
             
             {selectedAsistencia && (
               <ScrollView contentContainerStyle={styles.modalBody}>
-                <SobrioCard variant="outlined" style={{ marginBottom: 16 }}>
-                  <View style={{ marginBottom: 12 }}>
-                    <DetailRow 
-                      icon="person" 
-                      label="Usuario" 
-                      value={usersMap[selectedAsistencia.uid]?.name || 'Usuario'} 
-                      iconColor={theme.colors.primary}
-                    />
+                {/* Usuario Card */}
+                <View 
+                  style={[
+                    styles.expressiveDetailCard, 
+                    { 
+                      backgroundColor: surfaceColors.surfaceContainerLow,
+                      borderRadius: 20,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: surfaceColors.primary + '20',
+                      marginBottom: 12
+                    }
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {usersMap[selectedAsistencia.uid]?.photoURL ? (
+                      <Avatar.Image 
+                        size={48} 
+                        source={{ uri: usersMap[selectedAsistencia.uid].photoURL }} 
+                        style={{ marginRight: 16 }} 
+                      />
+                    ) : (
+                      <Avatar.Text 
+                        size={48} 
+                        label={(usersMap[selectedAsistencia.uid]?.name || 'U').charAt(0)} 
+                        style={{ 
+                          marginRight: 16, 
+                          backgroundColor: surfaceColors.primaryContainer 
+                        }} 
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600', marginBottom: 4 }}>
+                        USUARIO
+                      </Text>
+                      <Text variant="titleLarge" style={{ color: surfaceColors.onSurface, fontWeight: '600', letterSpacing: -0.25 }}>
+                        {usersMap[selectedAsistencia.uid]?.name || 'Usuario'}
+                      </Text>
+                    </View>
                   </View>
-                  <DetailRow 
-                    icon="calendar" 
-                    label="Fecha" 
-                    value={format(parseISO(selectedAsistencia.fecha + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })} 
-                    iconColor={theme.colors.primary}
-                  />
-                </SobrioCard>
+                </View>
+
+                {/* Fecha Card */}
+                <View 
+                  style={[
+                    styles.expressiveDetailCard, 
+                    { 
+                      backgroundColor: surfaceColors.surfaceContainerLow,
+                      borderRadius: 20,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: surfaceColors.primary + '20'
+                    }
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ 
+                      width: 48, 
+                      height: 48, 
+                      borderRadius: 24, 
+                      backgroundColor: surfaceColors.primaryContainer, 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      marginRight: 16
+                    }}>
+                      <MaterialCommunityIcons name="calendar" size={24} color={surfaceColors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600', marginBottom: 4 }}>
+                        FECHA
+                      </Text>
+                      <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600', letterSpacing: -0.25 }}>
+                        {format(parseISO(selectedAsistencia.fecha + 'T12:00:00'), "EEEE d 'de' MMMM, yyyy", { locale: es })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
 
                 {/* Ubicación y Modalidad - SOLO ADMIN */}
                 {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && selectedAsistencia.entrada?.ubicacion && (
-                  <SobrioCard variant="outlined" style={{ marginBottom: 16 }}>
-                    <OverlineText style={{ marginBottom: 12 }}>INFORMACIÓN DE CONEXIÓN</OverlineText>
+                  <View style={{ marginTop: 20 }}>
+                    <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: '600', marginBottom: 16 }}>
+                      INFORMACIÓN DE CONEXIÓN
+                    </Text>
                     
                     {/* Modalidad */}
-                    <View style={{ marginBottom: 12 }}>
-                      <DetailRow 
-                        icon="wifi" 
-                        label="Modalidad" 
-                        value={selectedAsistencia.entrada.ubicacion.tipo || 'Remoto'} 
-                        iconColor={selectedAsistencia.entrada.ubicacion.tipo === 'Oficina' ? theme.colors.primary : theme.colors.warning}
-                        highlight={selectedAsistencia.entrada.ubicacion.tipo === 'Oficina'}
-                        highlightColor={theme.colors.primary}
-                      />
+                    <View 
+                      style={[
+                        styles.expressiveDetailCard, 
+                        { 
+                          backgroundColor: surfaceColors.surfaceContainerLow,
+                          borderRadius: 20,
+                          padding: 16,
+                          borderWidth: 1,
+                          borderColor: (selectedAsistencia.entrada.ubicacion.tipo === 'Oficina' ? surfaceColors.primary : surfaceColors.tertiary) + '30',
+                          marginBottom: 12
+                        }
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ 
+                          width: 48, 
+                          height: 48, 
+                          borderRadius: 24, 
+                          backgroundColor: selectedAsistencia.entrada.ubicacion.tipo === 'Oficina' ? surfaceColors.primaryContainer : surfaceColors.tertiaryContainer, 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          marginRight: 16
+                        }}>
+                          <MaterialCommunityIcons 
+                            name="wifi" 
+                            size={24} 
+                            color={selectedAsistencia.entrada.ubicacion.tipo === 'Oficina' ? surfaceColors.primary : surfaceColors.tertiary} 
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600', marginBottom: 4 }}>
+                            MODALIDAD
+                          </Text>
+                          <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600', letterSpacing: -0.25 }}>
+                            {selectedAsistencia.entrada.ubicacion.tipo || 'Remoto'}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
 
                     {/* Ubicación GPS */}
                     {selectedAsistencia.entrada.ubicacion.lat && selectedAsistencia.entrada.ubicacion.lon && (
-                      <TouchableOpacity
+                      <Pressable
                         onPress={() => {
+                          Haptics.selectionAsync();
                           const lat = selectedAsistencia.entrada.ubicacion.lat;
                           const lon = selectedAsistencia.entrada.ubicacion.lon;
                           const url = `https://www.google.com/maps?q=${lat},${lon}`;
                           Linking.openURL(url);
                         }}
+                        android_ripple={{ color: surfaceColors.primary + '1F' }}
+                        style={[
+                          styles.expressiveDetailCard, 
+                          { 
+                            backgroundColor: surfaceColors.surfaceContainerLow,
+                            borderRadius: 20,
+                            padding: 16,
+                            borderWidth: 1,
+                            borderColor: surfaceColors.tertiary + '30',
+                            marginBottom: 12
+                          }
+                        ]}
                       >
-                        <DetailRow 
-                          icon="location" 
-                          label="Ver Ubicación" 
-                          value={`${selectedAsistencia.entrada.ubicacion.lat.toFixed(6)}, ${selectedAsistencia.entrada.ubicacion.lon.toFixed(6)}`}
-                          iconColor={theme.colors.info}
-                        />
-                      </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <View style={{ 
+                            width: 48, 
+                            height: 48, 
+                            borderRadius: 24, 
+                            backgroundColor: surfaceColors.tertiaryContainer, 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            marginRight: 16
+                          }}>
+                            <MaterialCommunityIcons name="map-marker" size={24} color={surfaceColors.tertiary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600', marginBottom: 4 }}>
+                              VER UBICACIÓN
+                            </Text>
+                            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurface, fontWeight: '500' }} numberOfLines={1}>
+                              {`${selectedAsistencia.entrada.ubicacion.lat.toFixed(6)}, ${selectedAsistencia.entrada.ubicacion.lon.toFixed(6)}`}
+                            </Text>
+                          </View>
+                          <MaterialCommunityIcons name="chevron-right" size={24} color={surfaceColors.onSurfaceVariant} />
+                        </View>
+                      </Pressable>
                     )}
 
                     {/* Dispositivo */}
                     {selectedAsistencia.entrada.dispositivo && (
-                      <View style={{ marginTop: 12 }}>
-                        <DetailRow 
-                          icon="phone-portrait" 
-                          label="Dispositivo" 
-                          value={selectedAsistencia.entrada.dispositivo} 
-                          iconColor={theme.colors.secondary}
-                        />
+                      <View 
+                        style={[
+                          styles.expressiveDetailCard, 
+                          { 
+                            backgroundColor: surfaceColors.surfaceContainerLow,
+                            borderRadius: 20,
+                            padding: 16,
+                            borderWidth: 1,
+                            borderColor: surfaceColors.secondary + '30'
+                          }
+                        ]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <View style={{ 
+                            width: 48, 
+                            height: 48, 
+                            borderRadius: 24, 
+                            backgroundColor: surfaceColors.secondaryContainer, 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            marginRight: 16
+                          }}>
+                            <MaterialCommunityIcons name="cellphone" size={24} color={surfaceColors.secondary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600', marginBottom: 4 }}>
+                              DISPOSITIVO
+                            </Text>
+                            <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600', letterSpacing: -0.25 }}>
+                              {selectedAsistencia.entrada.dispositivo}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                     )}
-                  </SobrioCard>
+                  </View>
                 )}
 
                 <View style={styles.rowContainer}>
                   {/* Entry */}
-                  <View style={[styles.timeCard, { backgroundColor: theme.colors.secondaryContainer + '30', marginRight: 8 }]}>
+                  <View style={[styles.timeCard, { backgroundColor: surfaceColors.surfaceContainerLow, marginRight: 8, borderWidth: 1, borderColor: surfaceColors.secondary + '30' }]}>
                     <View style={styles.timeCardHeader}>
-                      <MaterialCommunityIcons name="login" size={20} color={theme.colors.secondary} />
-                      <Text variant="labelMedium" style={{ color: theme.colors.secondary, marginLeft: 8, fontWeight: 'bold' }}>ENTRADA</Text>
+                      <MaterialCommunityIcons name="login" size={24} color={surfaceColors.secondary} />
+                      <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginLeft: 8, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' }}>ENTRADA</Text>
                     </View>
-                    <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginTop: 4, color: theme.colors.onSurface }}>
+                    <Text variant="headlineSmall" style={{ fontWeight: '600', marginTop: 8, color: surfaceColors.onSurface, letterSpacing: -0.25 }}>
                       {selectedAsistencia.entrada?.hora ? format(selectedAsistencia.entrada.hora.toDate(), 'h:mm a') : '--:--'}
                     </Text>
                   </View>
 
                   {/* Exit */}
-                  <View style={[styles.timeCard, { backgroundColor: theme.colors.tertiaryContainer + '30', marginLeft: 8 }]}>
+                  <View style={[styles.timeCard, { backgroundColor: surfaceColors.surfaceContainerLow, marginLeft: 8, borderWidth: 1, borderColor: surfaceColors.tertiary + '30' }]}>
                     <View style={styles.timeCardHeader}>
-                      <MaterialCommunityIcons name="logout" size={20} color={theme.colors.tertiary} />
-                      <Text variant="labelMedium" style={{ color: theme.colors.tertiary, marginLeft: 8, fontWeight: 'bold' }}>SALIDA</Text>
+                      <MaterialCommunityIcons name="logout" size={24} color={surfaceColors.tertiary} />
+                      <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginLeft: 8, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' }}>SALIDA</Text>
                     </View>
-                    <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginTop: 4, color: theme.colors.onSurface }}>
+                    <Text variant="headlineSmall" style={{ fontWeight: '600', marginTop: 8, color: surfaceColors.onSurface, letterSpacing: -0.25 }}>
                       {selectedAsistencia.salida?.hora ? format(selectedAsistencia.salida.hora.toDate(), 'h:mm a') : '--:--'}
                     </Text>
                   </View>
@@ -452,16 +599,32 @@ export default function AsistenciasScreen({ navigation }) {
 
                 {/* Breaks */}
                 {selectedAsistencia.breaks && selectedAsistencia.breaks.length > 0 && (
-                  <View style={{ marginTop: 16 }}>
-                    <OverlineText style={{ marginBottom: 12 }}>Breaks</OverlineText>
+                  <View style={{ marginTop: 20 }}>
+                    <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: '600', marginBottom: 16 }}>Breaks</Text>
                     {selectedAsistencia.breaks.map((b, i) => (
-                      <View key={i} style={{ marginBottom: 12 }}>
-                        <DetailRow 
-                          icon="cafe" 
-                          label={`Break ${i + 1}`}
-                          value={`${b.inicio ? format(b.inicio.toDate(), 'h:mm a') : '--'} - ${b.fin ? format(b.fin.toDate(), 'h:mm a') : 'En curso'}`}
-                          iconColor={theme.colors.tertiary}
-                        />
+                      <View 
+                        key={i} 
+                        style={[
+                          styles.expressiveDetailCard, 
+                          { 
+                            backgroundColor: surfaceColors.surfaceContainerLow,
+                            padding: 16,
+                            marginBottom: 12,
+                            borderRadius: 20,
+                            borderWidth: 1,
+                            borderColor: surfaceColors.tertiary + '20'
+                          }
+                        ]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <MaterialCommunityIcons name="coffee" size={20} color={surfaceColors.tertiary} />
+                            <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginLeft: 8, fontWeight: '600' }}>Break {i + 1}</Text>
+                          </View>
+                          <Text variant="bodyMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                            {`${b.inicio ? format(b.inicio.toDate(), 'h:mm a') : '--'} - ${b.fin ? format(b.fin.toDate(), 'h:mm a') : 'En curso'}`}
+                          </Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -469,24 +632,40 @@ export default function AsistenciasScreen({ navigation }) {
 
                 {/* Lunch */}
                 {selectedAsistencia.almuerzo && (
-                  <View style={{ marginTop: 16 }}>
-                    <OverlineText style={{ marginBottom: 8 }}>Almuerzo</OverlineText>
-                    <DetailRow 
-                      icon="restaurant" 
-                      label="Hora de Almuerzo"
-                      value={`${selectedAsistencia.almuerzo.inicio ? format(selectedAsistencia.almuerzo.inicio.toDate(), 'h:mm a') : '--'} - ${selectedAsistencia.almuerzo.fin ? format(selectedAsistencia.almuerzo.fin.toDate(), 'h:mm a') : 'En curso'}`}
-                      iconColor={theme.colors.tertiary}
-                    />
+                  <View style={{ marginTop: 20 }}>
+                    <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: '600', marginBottom: 16 }}>Almuerzo</Text>
+                    <View 
+                      style={[
+                        styles.expressiveDetailCard, 
+                        { 
+                          backgroundColor: surfaceColors.surfaceContainerLow,
+                          padding: 16,
+                          borderRadius: 20,
+                          borderWidth: 1,
+                          borderColor: surfaceColors.tertiary + '20'
+                        }
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <MaterialCommunityIcons name="food" size={20} color={surfaceColors.tertiary} />
+                          <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginLeft: 8, fontWeight: '600' }}>Hora de Almuerzo</Text>
+                        </View>
+                        <Text variant="bodyMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                          {`${selectedAsistencia.almuerzo.inicio ? format(selectedAsistencia.almuerzo.inicio.toDate(), 'h:mm a') : '--'} - ${selectedAsistencia.almuerzo.fin ? format(selectedAsistencia.almuerzo.fin.toDate(), 'h:mm a') : 'En curso'}`}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 )}
 
-                <Divider style={{ marginVertical: 20 }} />
+                <Divider style={{ marginVertical: 20, backgroundColor: surfaceColors.surfaceVariant }} />
 
-                <View style={[styles.totalRow, { backgroundColor: theme.colors.primaryContainer + '30' }]}>
-                  <MaterialCommunityIcons name="timer" size={28} color={theme.colors.primary} />
+                <View style={[styles.totalRow, { backgroundColor: surfaceColors.primaryContainer, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: surfaceColors.primary + '30' }]}>
+                  <MaterialCommunityIcons name="timer" size={40} color={surfaceColors.primary} />
                   <View style={styles.detailTextContainer}>
-                    <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>TIEMPO TOTAL</Text>
-                    <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+                    <Text variant="labelLarge" style={{ color: surfaceColors.onSurfaceVariant, letterSpacing: 0.8, fontWeight: '600', textTransform: 'uppercase' }}>TIEMPO TOTAL</Text>
+                    <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.primary, marginTop: 4, letterSpacing: -0.5 }}>
                       {selectedAsistencia.horasTrabajadas || '--:--:--'}
                     </Text>
                   </View>
@@ -591,8 +770,7 @@ const styles = StyleSheet.create({
   totalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,  // ✅ Orgánico
+    elevation: 0,
   },
   detailTextContainer: {
     marginLeft: 16,
@@ -601,12 +779,20 @@ const styles = StyleSheet.create({
   timeCard: {
     flex: 1,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,  // ✅ Orgánico (16→20)
     justifyContent: 'center',
+    elevation: 0,
   },
   timeCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  // ✅ Expressive Detail Card (border radius 24px, padding 20px)
+  expressiveDetailCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 0,
   },
 });
