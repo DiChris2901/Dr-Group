@@ -293,17 +293,16 @@ export default function AsistenciasScreen({ navigation }) {
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text 
-          variant="headlineMedium" 
+          variant="headlineLarge" 
           style={{ 
-            fontWeight: '500', 
+            fontWeight: '600', 
             color: surfaceColors.onSurface,
-            letterSpacing: -0.25,  // ✅ Tight spacing
-            // ✅ Width Axis 110% se aplicará con Roboto Flex
+            letterSpacing: -0.5,  // ✅ Expresivo
           }}
         >
           Historial
         </Text>
-        <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+        <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
           Registro de Asistencias
         </Text>
       </View>

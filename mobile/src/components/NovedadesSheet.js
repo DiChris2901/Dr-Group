@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Button, TextInput, Chip, useTheme, IconButton, ActivityIndicator } from 'react-native-paper';
+import React, { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native';
+import { Text, TextInput, useTheme, ActivityIndicator } from 'react-native-paper';
+import * as Haptics from 'expo-haptics';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import materialTheme from '../../material-theme.json';
 import * as DocumentPicker from 'expo-document-picker';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -11,6 +14,24 @@ import NotificationService from '../services/NotificationService';
 export default function NovedadesSheet({ onClose, onSuccess }) {
   const { user, userProfile } = useAuth();
   const theme = useTheme();
+  
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      surfaceVariant: scheme.surfaceVariant,
+      background: scheme.background
+    };
+  }, [theme.dark]);
   
   const [type, setType] = useState('llegada_tarde');
   const [description, setDescription] = useState('');
@@ -85,26 +106,63 @@ export default function NovedadesSheet({ onClose, onSuccess }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+    <View style={[styles.container, { backgroundColor: surfaceColors.background }]}>
       <View style={styles.header}>
-        <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Reportar Novedad</Text>
-        <IconButton icon="close" onPress={onClose} />
+        <Text variant="headlineMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>Reportar Novedad</Text>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onClose();
+          }}
+          android_ripple={{ color: surfaceColors.onSurface + '1F', borderless: true }}
+          style={({ pressed }) => [
+            {
+              padding: 8,
+              borderRadius: 20,
+              transform: [{ scale: pressed ? 0.9 : 1 }]
+            }
+          ]}
+        >
+          <MaterialCommunityIcons name="close" size={24} color={surfaceColors.onSurface} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text variant="titleMedium" style={{ marginBottom: 12 }}>Tipo de Novedad</Text>
+        <Text variant="titleMedium" style={{ marginBottom: 12, color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', fontSize: 12, fontWeight: '600', letterSpacing: 0.8 }}>Tipo de Novedad</Text>
         <View style={styles.chipContainer}>
           {tiposNovedad.map((t) => (
-            <Chip
+            <Pressable
               key={t.id}
-              selected={type === t.id}
-              onPress={() => setType(t.id)}
-              showSelectedOverlay
-              style={styles.chip}
-              icon={t.icon}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setType(t.id);
+              }}
+              android_ripple={{ color: surfaceColors.primary + '1F' }}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 20,
+                  backgroundColor: type === t.id ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
+                  borderWidth: type === t.id ? 0 : 1,
+                  borderColor: surfaceColors.surfaceVariant,
+                  marginBottom: 8,
+                  transform: [{ scale: pressed ? 0.97 : 1 }]
+                }
+              ]}
             >
-              {t.label}
-            </Chip>
+              <MaterialCommunityIcons 
+                name={t.icon} 
+                size={18} 
+                color={type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={{ color: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface, fontWeight: '500' }}>
+                {t.label}
+              </Text>
+            </Pressable>
           ))}
         </View>
 
@@ -116,26 +174,68 @@ export default function NovedadesSheet({ onClose, onSuccess }) {
           multiline
           numberOfLines={4}
           style={styles.input}
+          outlineStyle={{ borderRadius: 20 }}
+          theme={{ roundness: 20 }}
         />
 
-        <Button 
-          mode="outlined" 
-          onPress={pickDocument} 
-          icon={attachment ? "check" : "paperclip"}
-          style={styles.button}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            pickDocument();
+          }}
+          android_ripple={{ color: surfaceColors.primary + '1F' }}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 14,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: surfaceColors.primary,
+              marginBottom: 12,
+              transform: [{ scale: pressed ? 0.98 : 1 }]
+            }
+          ]}
         >
-          {attachment ? `Adjunto: ${attachment.name}` : 'Adjuntar Soporte (Opcional)'}
-        </Button>
+          <MaterialCommunityIcons 
+            name={attachment ? "check" : "paperclip"} 
+            size={20} 
+            color={surfaceColors.primary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ color: surfaceColors.primary, fontWeight: '500', fontSize: 15 }}>
+            {attachment ? `Adjunto: ${attachment.name}` : 'Adjuntar Soporte (Opcional)'}
+          </Text>
+        </Pressable>
 
-        <Button 
-          mode="contained" 
-          onPress={handleSubmit} 
-          loading={loading}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleSubmit();
+          }}
+          android_ripple={{ color: surfaceColors.onPrimary + '1F' }}
           disabled={loading}
-          style={[styles.button, { marginTop: 24 }]}
+          style={({ pressed }) => [
+            {
+              padding: 16,
+              borderRadius: 24,
+              backgroundColor: loading ? surfaceColors.surfaceVariant : surfaceColors.primary,
+              alignItems: 'center',
+              marginTop: 24,
+              marginBottom: 12,
+              transform: [{ scale: pressed && !loading ? 0.98 : 1 }]
+            }
+          ]}
         >
-          Enviar Reporte
-        </Button>
+          {loading ? (
+            <ActivityIndicator color={surfaceColors.onSurfaceVariant} />
+          ) : (
+            <Text style={{ color: surfaceColors.onPrimary, fontWeight: '600', fontSize: 16 }}>
+              Enviar Reporte
+            </Text>
+          )}
+        </Pressable>
       </ScrollView>
     </View>
   );

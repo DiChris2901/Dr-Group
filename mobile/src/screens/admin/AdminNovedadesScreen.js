@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,19 +7,20 @@ import {
   RefreshControl,
   Animated,
   Linking,
-  Dimensions
+  Dimensions,
+  Pressable
 } from 'react-native';
 import { 
   Text, 
   useTheme as usePaperTheme, 
   Avatar, 
-  IconButton, 
-  Chip,
   Searchbar,
   Portal,
-  Modal,
-  Button
+  Modal
 } from 'react-native-paper';
+import * as Haptics from 'expo-haptics';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import materialTheme from '../../../material-theme.json';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -39,6 +40,29 @@ export default function AdminNovedadesScreen({ navigation }) {
   const paperTheme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
   const primaryColor = getPrimaryColor();
+
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = paperTheme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      surfaceVariant: scheme.surfaceVariant,
+      background: scheme.background,
+      error: scheme.error
+    };
+  }, [paperTheme.dark]);
 
   const [novedades, setNovedades] = useState([]);
   const [filteredNovedades, setFilteredNovedades] = useState([]);
@@ -120,9 +144,17 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.rightActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: paperTheme.colors.error, transform: [{ translateX: trans }] }]}>
-          <IconButton icon="close" iconColor="white" onPress={() => handleStatusChange(item.id, 'rejected')} />
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Rechazar</Text>
+        <Animated.View style={[styles.actionButton, { backgroundColor: surfaceColors.errorContainer, transform: [{ translateX: trans }] }]}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              handleStatusChange(item.id, 'rejected');
+            }}
+            style={{ alignItems: 'center' }}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={surfaceColors.onErrorContainer} />
+            <Text style={{ color: surfaceColors.onErrorContainer, fontWeight: '600', marginTop: 4 }}>Rechazar</Text>
+          </Pressable>
         </Animated.View>
       </View>
     );
@@ -137,9 +169,17 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.leftActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: primaryColor, transform: [{ translateX: trans }] }]}>
-          <IconButton icon="check" iconColor="white" onPress={() => handleStatusChange(item.id, 'approved')} />
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Aprobar</Text>
+        <Animated.View style={[styles.actionButton, { backgroundColor: surfaceColors.primaryContainer, transform: [{ translateX: trans }] }]}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              handleStatusChange(item.id, 'approved');
+            }}
+            style={{ alignItems: 'center' }}
+          >
+            <MaterialCommunityIcons name="check" size={24} color={surfaceColors.onPrimaryContainer} />
+            <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', marginTop: 4 }}>Aprobar</Text>
+          </Pressable>
         </Animated.View>
       </View>
     );
@@ -159,31 +199,41 @@ export default function AdminNovedadesScreen({ navigation }) {
           <Avatar.Text 
             size={40} 
             label={item.userName ? item.userName.substring(0, 2).toUpperCase() : 'NA'} 
-            style={{ backgroundColor: primaryColor + '20' }}
-            color={primaryColor}
+            style={{ backgroundColor: surfaceColors.primaryContainer }}
+            color={surfaceColors.onPrimaryContainer}
           />
           <View style={styles.headerText}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{item.userName || 'Usuario'}</Text>
-            <Text variant="bodySmall" style={{ color: paperTheme.colors.secondary }}>
+            <Text variant="titleMedium" style={{ fontWeight: '600' }}>{item.userName || 'Usuario'}</Text>
+            <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
               {item.date?.toDate ? format(item.date.toDate(), "d MMM, h:mm a", { locale: es }) : 'Fecha inválida'}
             </Text>
           </View>
-          <Chip 
-            icon={item.status === 'pending' ? 'clock' : item.status === 'approved' ? 'check' : 'close'} 
-            style={{ backgroundColor: item.status === 'pending' ? paperTheme.colors.tertiaryContainer : item.status === 'approved' ? '#E8F5E9' : '#FFEBEE' }}
-            textStyle={{ color: item.status === 'pending' ? paperTheme.colors.onTertiaryContainer : item.status === 'approved' ? '#2E7D32' : '#C62828', fontSize: 10 }}
-            compact
-          >
-            {item.status === 'pending' ? 'Pendiente' : item.status === 'approved' ? 'Aprobado' : 'Rechazado'}
-          </Chip>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 4,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            backgroundColor: item.status === 'pending' ? surfaceColors.tertiaryContainer : item.status === 'approved' ? surfaceColors.primaryContainer : surfaceColors.errorContainer
+          }}>
+            <MaterialCommunityIcons 
+              name={item.status === 'pending' ? 'clock' : item.status === 'approved' ? 'check' : 'close'}
+              size={14}
+              color={item.status === 'pending' ? surfaceColors.onTertiaryContainer : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={{ color: item.status === 'pending' ? surfaceColors.onTertiaryContainer : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer, fontSize: 11, fontWeight: '500' }}>
+              {item.status === 'pending' ? 'Pendiente' : item.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+            </Text>
+          </View>
         </View>
         
         <View style={{ marginTop: 12 }}>
-            <OverlineText color={paperTheme.colors.secondary} style={{ marginBottom: 4 }}>
+            <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 4 }}>
                 {item.type?.replace('_', ' ')}
             </OverlineText>
             {item.description ? (
-                <Text numberOfLines={2} style={{ color: paperTheme.colors.onSurfaceVariant }}>
+                <Text numberOfLines={2} style={{ color: surfaceColors.onSurfaceVariant }}>
                     {item.description}
                 </Text>
             ) : null}
@@ -194,47 +244,97 @@ export default function AdminNovedadesScreen({ navigation }) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
         
         {/* Header */}
         <View style={styles.header}>
-          <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: primaryColor }}>
+          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
             Novedades
+          </Text>
+          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+            Gestionar reportes de empleados
           </Text>
         </View>
 
         {/* Filter Chips */}
         <View style={styles.filterChips}>
-          <Chip 
-            selected={filterStatus === 'pending'} 
-            onPress={() => setFilterStatus('pending')}
-            style={{ marginRight: 8 }}
-            showSelectedOverlay
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setFilterStatus('pending');
+            }}
+            android_ripple={{ color: surfaceColors.primary + '1F' }}
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 20,
+                backgroundColor: filterStatus === 'pending' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
+                borderWidth: filterStatus === 'pending' ? 0 : 1,
+                borderColor: surfaceColors.surfaceVariant,
+                marginRight: 8,
+                transform: [{ scale: pressed ? 0.97 : 1 }]
+              }
+            ]}
           >
-            Pendientes
-          </Chip>
-          <Chip 
-            selected={filterStatus === 'all'} 
-            onPress={() => setFilterStatus('all')}
-            showSelectedOverlay
+            <MaterialCommunityIcons 
+              name="clock-alert" 
+              size={18} 
+              color={filterStatus === 'pending' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={{ color: filterStatus === 'pending' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface, fontWeight: '500' }}>
+              Pendientes
+            </Text>
+          </Pressable>
+          
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setFilterStatus('all');
+            }}
+            android_ripple={{ color: surfaceColors.primary + '1F' }}
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 20,
+                backgroundColor: filterStatus === 'all' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
+                borderWidth: filterStatus === 'all' ? 0 : 1,
+                borderColor: surfaceColors.surfaceVariant,
+                transform: [{ scale: pressed ? 0.97 : 1 }]
+              }
+            ]}
           >
-            Historial
-          </Chip>
+            <MaterialCommunityIcons 
+              name="history" 
+              size={18} 
+              color={filterStatus === 'all' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={{ color: filterStatus === 'all' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface, fontWeight: '500' }}>
+              Historial
+            </Text>
+          </Pressable>
         </View>
 
         <Searchbar
           placeholder="Buscar empleado..."
           onChangeText={setSearchQuery}
           value={searchQuery}
-          style={styles.searchBar}
+          style={[styles.searchBar, { backgroundColor: surfaceColors.surfaceContainer, borderRadius: 20 }]}
           elevation={0}
         />
 
         {filteredNovedades.length === 0 && !loading ? (
           <View style={styles.emptyState}>
-            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: primaryColor + '20' }} color={primaryColor} />
-            <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: 'bold' }}>¡Todo al día!</Text>
-            <Text variant="bodyMedium" style={{ color: paperTheme.colors.secondary }}>No hay novedades pendientes.</Text>
+            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: surfaceColors.primaryContainer }} color={surfaceColors.onPrimaryContainer} />
+            <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>¡Todo al día!</Text>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant }}>No hay novedades pendientes.</Text>
           </View>
         ) : (
           <FlatList
@@ -248,10 +348,10 @@ export default function AdminNovedadesScreen({ navigation }) {
 
         {/* Detail Modal */}
         <Portal>
-          <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: paperTheme.colors.background }]}>
+          <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: surfaceColors.surfaceContainerHigh }]}>
             {selectedNovedad && (
               <View>
-                <OverlineText color={primaryColor} style={{ marginBottom: 16, fontSize: 16 }}>
+                <OverlineText color={surfaceColors.primary} style={{ marginBottom: 16, fontSize: 16 }}>
                   Detalle de Novedad
                 </OverlineText>
                 
@@ -259,7 +359,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                   icon="person"
                   label="Empleado"
                   value={selectedNovedad.userName}
-                  iconColor={primaryColor}
+                  iconColor={surfaceColors.primary}
                 />
                 
                 <View style={{ height: 12 }} />
@@ -268,7 +368,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                   icon="alert-circle"
                   label="Tipo"
                   value={selectedNovedad.type?.replace('_', ' ').toUpperCase()}
-                  iconColor={paperTheme.colors.secondary}
+                  iconColor={surfaceColors.onSurfaceVariant}
                 />
 
                 <View style={{ height: 12 }} />
@@ -277,38 +377,85 @@ export default function AdminNovedadesScreen({ navigation }) {
                   icon="document-text"
                   label="Descripción"
                   value={selectedNovedad.description || 'Sin descripción'}
-                  iconColor={paperTheme.colors.tertiary}
+                  iconColor={surfaceColors.onSurfaceVariant}
                 />
 
                 {selectedNovedad.attachmentUrl && (
-                  <Button 
-                    mode="outlined" 
-                    icon="paperclip" 
-                    onPress={() => Linking.openURL(selectedNovedad.attachmentUrl)}
-                    style={{ marginTop: 24, borderColor: primaryColor }}
-                    textColor={primaryColor}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      Linking.openURL(selectedNovedad.attachmentUrl);
+                    }}
+                    android_ripple={{ color: surfaceColors.primary + '1F' }}
+                    style={({ pressed }) => [
+                      {
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 14,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: surfaceColors.primary,
+                        marginTop: 24,
+                        transform: [{ scale: pressed ? 0.98 : 1 }]
+                      }
+                    ]}
                   >
-                    Ver Adjunto
-                  </Button>
+                    <MaterialCommunityIcons name="paperclip" size={20} color={surfaceColors.primary} style={{ marginRight: 8 }} />
+                    <Text style={{ color: surfaceColors.primary, fontWeight: '500', fontSize: 15 }}>
+                      Ver Adjunto
+                    </Text>
+                  </Pressable>
                 )}
 
                 <View style={styles.modalActions}>
-                  <Button 
-                    mode="contained" 
-                    buttonColor={paperTheme.colors.error} 
-                    onPress={() => { handleStatusChange(selectedNovedad.id, 'rejected'); setModalVisible(false); }}
-                    style={{ flex: 1, marginRight: 8 }}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      handleStatusChange(selectedNovedad.id, 'rejected');
+                      setModalVisible(false);
+                    }}
+                    android_ripple={{ color: surfaceColors.onErrorContainer + '1F' }}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        marginRight: 8,
+                        padding: 16,
+                        borderRadius: 24,
+                        backgroundColor: surfaceColors.errorContainer,
+                        alignItems: 'center',
+                        transform: [{ scale: pressed ? 0.98 : 1 }]
+                      }
+                    ]}
                   >
-                    Rechazar
-                  </Button>
-                  <Button 
-                    mode="contained" 
-                    buttonColor={primaryColor} 
-                    onPress={() => { handleStatusChange(selectedNovedad.id, 'approved'); setModalVisible(false); }}
-                    style={{ flex: 1, marginLeft: 8 }}
+                    <Text style={{ color: surfaceColors.onErrorContainer, fontWeight: '600', fontSize: 16 }}>
+                      Rechazar
+                    </Text>
+                  </Pressable>
+                  
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      handleStatusChange(selectedNovedad.id, 'approved');
+                      setModalVisible(false);
+                    }}
+                    android_ripple={{ color: surfaceColors.onPrimaryContainer + '1F' }}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        marginLeft: 8,
+                        padding: 16,
+                        borderRadius: 24,
+                        backgroundColor: surfaceColors.primaryContainer,
+                        alignItems: 'center',
+                        transform: [{ scale: pressed ? 0.98 : 1 }]
+                      }
+                    ]}
                   >
-                    Aprobar
-                  </Button>
+                    <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', fontSize: 16 }}>
+                      Aprobar
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             )}
@@ -335,8 +482,6 @@ const styles = StyleSheet.create({
   searchBar: {
     marginHorizontal: 24,
     marginBottom: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
   },
   listContent: {
     paddingHorizontal: 24,

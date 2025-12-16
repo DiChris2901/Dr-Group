@@ -186,6 +186,12 @@
 			"command": "npm run dev",
 			"isBackground": true,
 			"group": "build"
+		},
+		{
+			"label": "Expo Dev Server Mobile",
+			"type": "shell",
+			"command": "cd mobile && npx expo start --clear",
+			"isBackground": true
 		}
 	]
 }

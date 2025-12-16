@@ -1,10 +1,116 @@
 # 📋 Especificaciones de Diseño - DR Group Mobile App
 
-## 🌟 Material You Expressive (Google Design Award Winner Style)
+## 🌟 Material You Expressive v3.0.0 - Visual Design Only
 
-**Versión:** 3.0.0  
+**Versión:** 3.0.0 Visual  
 **Última Actualización:** 15 de diciembre de 2025  
-**Filosofía:** Transformar diseño sobrio empresarial a expresivo y Google-level
+**Filosofía:** Material You Expressive visual puro (sin animaciones avanzadas)  
+**Checkpoint Base:** `257e12e` (Baseline limpio después de revertir Reanimated 3)
+
+---
+
+## ⚠️ ESTADO ACTUAL DEL REDISEÑO (Diciembre 15, 2025)
+
+### 🔄 Cambio de Estrategia (Crítico)
+
+**Fase 1 Reanimated 3 → REVERTIDA** (problemas Worklets en Expo Go)
+- ❌ Animaciones 60/120fps con Reanimated 3
+- ❌ Shared Values y worklets en UI Thread
+- ❌ Error: "Body is unusable: Body has already been read"
+
+**Nueva Estrategia → Material You Expressive Visual Puro:**
+- ✅ Diseño visual completo (border radius, surface colors, typography)
+- ✅ Haptics para feedback táctil (Expo Haptics)
+- ✅ Pressable con ripples tintados
+- ✅ Surface colors para profundidad (sin sombras)
+- ⏸️ Animaciones avanzadas pospuestas (requiere desarrollo build)
+
+---
+
+## 📊 PROGRESO DE TRANSFORMACIÓN
+
+### ✅ **COMPLETADO (100%)**
+
+#### **1. Pantallas Principales:**
+- ✅ **AsistenciasScreen** (Asistencias laborales)
+  - Header: headlineLarge, weight 600, -0.5 spacing
+  - Cards: border radius 24px, surfaceContainerLow
+  - Modal detalle: surfaceContainerHigh elevation
+  - Buttons: Pressable + haptics + border radius 24px
+  - Status badges: Surface colors contextuales
+
+- ✅ **ReportesScreen** (Reportes de asistencias)
+  - Header estandarizado (headlineLarge)
+  - Color: onSurface consistente
+  - Subtitle: bodyLarge onSurfaceVariant
+
+#### **2. Módulo Novedades (3 archivos):**
+
+- ✅ **NovedadesScreen** (Pantalla completa empleados - 2 tabs)
+  - Location: `mobile/src/screens/novedades/NovedadesScreen.js`
+  - Commit: `91d037f` + correcciones adicionales
+  - **Transformaciones:**
+    - Header: headlineLarge + subtitle bodyLarge
+    - Chips tipo novedad: Pressable + haptics selectionAsync + border radius 20px
+    - TextInput: outlineStyle border radius 20px
+    - Botones Cámara/Archivo: Pressable + haptics + border radius 20px
+    - File preview: secondaryContainer + Pressable close
+    - Edit Banner: tertiaryContainer + Pressable close
+    - Botón Cancelar: Pressable + haptics + error color
+    - Empty State: surfaceVariant
+    - SegmentedButtons: haptics onChange
+    - Submit button: Pressable + border radius 24px + haptics
+    - Historial cards: Pressable + surface colors + haptics
+  - **Surface colors:** 16 colores completos (background, tertiary, containers)
+  - **Estado:** ✅ Transformación 100%
+
+- ✅ **NovedadesSheet** (Bottom Sheet modal rápido)
+  - Location: `mobile/src/components/NovedadesSheet.js`
+  - Usado en: DashboardScreen (botón flotante)
+  - **Transformaciones:**
+    - Header: headlineMedium weight 600, -0.5 spacing
+    - Close button: Pressable + haptics + ripple tintado
+    - Chips: Pressable personalizados + border radius 20px
+    - TextInput: border radius 20px orgánico
+    - Botón adjuntar: Pressable + haptics + outline
+    - Submit button: Pressable + border radius 24px + haptics
+  - **Surface colors:** 10 colores dinámicos
+  - **Estado:** ✅ Transformación 100%
+
+- ✅ **AdminNovedadesScreen** (Gestión administrador)
+  - Location: `mobile/src/screens/admin/AdminNovedadesScreen.js`
+  - Usado en: Navegación admin
+  - **Transformaciones:**
+    - Header: headlineLarge + subtitle descriptivo
+    - Filter chips: Pressable + haptics + border radius 20px + iconos
+    - Searchbar: border radius 20px + surfaceContainer
+    - Card avatars: primaryContainer surface color
+    - Status badges: Surface colors (tertiaryContainer, primaryContainer, errorContainer)
+    - Typography: fontWeight '600' consistente
+    - Swipe actions: Pressable + haptics impactAsync Medium
+    - Modal: surfaceContainerHigh + Pressable buttons
+    - Empty State: primaryContainer + surface colors
+    - DetailRow: iconColor surface colors
+  - **Correcciones:** 10 problemas identificados y corregidos
+  - **Estado:** ✅ Transformación 100%
+
+### ⏸️ **PENDIENTE**
+
+#### **Pantallas sin transformar:**
+- ⏸️ **DashboardScreen** (Pantalla principal) - ALTA PRIORIDAD
+- ⏸️ **LoginScreen** (Autenticación) - MEDIA PRIORIDAD
+- ⏸️ **CalendarioScreen** (No analizado)
+- ⏸️ **NotificationsScreen** (No analizado)
+- ⏸️ **AdminSettingsScreen** (No analizado)
+
+#### **Funcionalidades adicionales:**
+- ⏸️ Navigation animations (requiere Reanimated)
+- ⏸️ Shared element transitions (requiere Reanimated)
+- ⏸️ Skeleton loaders animados (requiere Reanimated)
+
+---
+
+## 🎨 Filosofía de Diseño Material You Expressive v3.0.0
 
 ---
 

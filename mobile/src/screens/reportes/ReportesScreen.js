@@ -290,7 +290,7 @@ export default function ReportesScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.primary, letterSpacing: -0.5 }}>
+          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
             Estadísticas
           </Text>
           <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
