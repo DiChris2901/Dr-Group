@@ -430,7 +430,7 @@ export default function AsistenciasScreen({ navigation }) {
                   {/* Entry */}
                   <View style={[styles.timeCard, { backgroundColor: theme.colors.secondaryContainer + '30', marginRight: 8 }]}>
                     <View style={styles.timeCardHeader}>
-                      <Ionicons name="log-in" size={20} color={theme.colors.secondary} />
+                      <MaterialCommunityIcons name="login" size={20} color={theme.colors.secondary} />
                       <Text variant="labelMedium" style={{ color: theme.colors.secondary, marginLeft: 8, fontWeight: 'bold' }}>ENTRADA</Text>
                     </View>
                     <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginTop: 4, color: theme.colors.onSurface }}>
@@ -441,7 +441,7 @@ export default function AsistenciasScreen({ navigation }) {
                   {/* Exit */}
                   <View style={[styles.timeCard, { backgroundColor: theme.colors.tertiaryContainer + '30', marginLeft: 8 }]}>
                     <View style={styles.timeCardHeader}>
-                      <Ionicons name="log-out" size={20} color={theme.colors.tertiary} />
+                      <MaterialCommunityIcons name="logout" size={20} color={theme.colors.tertiary} />
                       <Text variant="labelMedium" style={{ color: theme.colors.tertiary, marginLeft: 8, fontWeight: 'bold' }}>SALIDA</Text>
                     </View>
                     <Text variant="headlineSmall" style={{ fontWeight: 'bold', marginTop: 4, color: theme.colors.onSurface }}>
@@ -483,7 +483,7 @@ export default function AsistenciasScreen({ navigation }) {
                 <Divider style={{ marginVertical: 20 }} />
 
                 <View style={[styles.totalRow, { backgroundColor: theme.colors.primaryContainer + '30' }]}>
-                  <Ionicons name="timer" size={28} color={theme.colors.primary} />
+                  <MaterialCommunityIcons name="timer" size={28} color={theme.colors.primary} />
                   <View style={styles.detailTextContainer}>
                     <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>TIEMPO TOTAL</Text>
                     <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
