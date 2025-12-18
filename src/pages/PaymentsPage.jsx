@@ -2732,7 +2732,7 @@ useEffect(() => {
               {/* Header de la tabla - Estilo Commitments */}
               <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 0.9fr 1.8fr 0.5fr',
+                gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 1.8fr 0.5fr',
                 gap: 2,
                 p: 2.5,
                 backgroundColor: 'background.paper',
@@ -2752,7 +2752,6 @@ useEffect(() => {
                   'BENEFICIARIO',
                   'MONTO',
                   'FECHA',
-                  'REFERENCIA',
                   'COMENTARIOS',
                   'ACCIONES'
                 ].map((column) => (
@@ -2804,7 +2803,7 @@ useEffect(() => {
                   >
                     <Box sx={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 0.9fr 1.8fr 0.5fr',
+                      gridTemplateColumns: '1fr 1.5fr 1.8fr 1.5fr 1.2fr 1fr 1.8fr 0.5fr',
                       gap: 2,
                       p: 2.5,
                       borderBottom: index === paginatedPayments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
@@ -2924,19 +2923,6 @@ useEffect(() => {
                         lineHeight: 1.3
                       }}>
                         {formatPaymentDate(payment.date)}
-                      </Typography>
-                    </Box>
-
-                    {/* Referencia */}
-                    <Box>
-                      <Typography variant="body2" sx={{ 
-                        fontFamily: 'monospace', 
-                        color: 'text.secondary',
-                        fontSize: '0.75rem',
-                        fontWeight: 400,
-                        lineHeight: 1.3
-                      }}>
-                        {payment.reference || '-'}
                       </Typography>
                     </Box>
 
