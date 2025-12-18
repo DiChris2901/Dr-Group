@@ -164,43 +164,17 @@ export default function AdminNovedadesScreen({ navigation }) {
                 const docData = docs[0];
                 const docId = docData.id;
 
-                // ✅ Lógica de "Gap" (Interrupción):
-                // Calcular el tiempo desde que cerró (salida) hasta ahora (reapertura)
-                // y registrarlo como un break para que NO cuente como tiempo trabajado.
-                // Así el contador "continúa" desde donde quedó (ej. 15 min) en lugar de sumar el tiempo muerto.
-                let updatedBreaks = docData.breaks || [];
+                // ❌ Lógica de "Gap" ELIMINADA a petición del usuario.
+                // Al reabrir, se asume que el tiempo transcurrido SÍ fue trabajado.
+                // Simplemente borramos la salida y dejamos que el contador siga corriendo.
                 
-                if (docData.salida && docData.salida.hora) {
-                    const salidaTimestamp = docData.salida.hora;
-                    const nowTimestamp = Timestamp.now();
-                    
-                    // Calcular duración del gap
-                    const salidaDate = salidaTimestamp.toDate();
-                    const nowDate = nowTimestamp.toDate();
-                    const diffMs = nowDate - salidaDate;
-                    
-                    if (diffMs > 0) {
-                        const horas = Math.floor(diffMs / 1000 / 60 / 60);
-                        const minutos = Math.floor((diffMs / 1000 / 60) % 60);
-                        const segundos = Math.floor((diffMs / 1000) % 60);
-                        const duracionHMS = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
-                        
-                        updatedBreaks.push({
-                            inicio: salidaTimestamp,
-                            fin: nowTimestamp,
-                            duracion: duracionHMS,
-                            tipo: 'reapertura_gap' // Marca especial para identificarlo
-                        });
-                    }
-                }
-
                 await updateDoc(doc(db, 'asistencias', docId), {
                     salida: null,
                     horasTrabajadas: null,
-                    estadoActual: 'trabajando',
-                    breaks: updatedBreaks
+                    estadoActual: 'trabajando'
+                    // No tocamos los breaks
                 });
-                Alert.alert('Reapertura Exitosa', 'La jornada ha sido reabierta. El tiempo inactivo se registró como pausa automática.');
+                Alert.alert('Reapertura Exitosa', 'La jornada ha sido reabierta. El tiempo transcurrido contará como trabajado.');
             } else {
                 throw new Error('No se encontró registro de asistencia para esta fecha');
             }
