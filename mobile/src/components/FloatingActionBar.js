@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Surface, useTheme, Icon } from 'react-native-paper';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Icon, Surface, Text, useTheme } from 'react-native-paper';
 
 export default function FloatingActionBar({ 
   status = 'off', // off, working, break, lunch

@@ -1,34 +1,29 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  RefreshControl,
-  AppState,
-  Dimensions
-} from 'react-native';
-import { 
-  Text as PaperText, 
-  Surface, 
-  FAB, 
-  Portal, 
-  Modal, 
-  useTheme as usePaperTheme, 
-  Avatar, 
-  Chip,
-  Button,
-  IconButton
-} from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    Alert,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    View
+} from 'react-native';
+import {
+    Avatar,
+    Button,
+    IconButton,
+    Modal,
+    Text as PaperText,
+    Portal,
+    Surface,
+    useTheme as usePaperTheme
+} from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../contexts/AuthContext';
-import { useNotifications } from '../../contexts/NotificationsContext';
-import { useTheme } from '../../contexts/ThemeContext';
-import RingChart from '../../components/RingChart';
 import FloatingActionBar from '../../components/FloatingActionBar';
 import NovedadesSheet from '../../components/NovedadesSheet';
-import NovedadesScreen from '../novedades/NovedadesScreen'; // We will reuse logic but adapt UI later if needed
+import RingChart from '../../components/RingChart';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 

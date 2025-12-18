@@ -22,7 +22,8 @@ import {
   SegmentedButtons, 
   ActivityIndicator,
   Divider,
-  Badge
+  Badge,
+  Chip
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
