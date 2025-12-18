@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme, Avatar } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
@@ -29,6 +31,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const theme = useTheme(); // Material 3 Theme
   const { lastUserPhoto } = useAppTheme(); // Legacy context for photo
+  const [dynamicAvatar, setDynamicAvatar] = useState(null);
   
   // Animaciones
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -60,6 +63,46 @@ export default function LoginScreen() {
       }),
     ]).start();
   }, []);
+
+  // ✅ Efecto para buscar avatar dinámico al escribir email
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      // Validaciones básicas para no saturar
+      if (!email || !email.includes('@') || email.length < 6) {
+        setDynamicAvatar(null);
+        return;
+      }
+
+      try {
+        // Buscar usuario por email
+        const q = query(
+          collection(db, 'users'), 
+          where('email', '==', email.toLowerCase().trim())
+        );
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+          if (userData.photoURL) {
+            setDynamicAvatar(userData.photoURL);
+            // Feedback táctil sutil al encontrar usuario
+            Haptics.selectionAsync();
+          } else {
+            setDynamicAvatar(null);
+          }
+        } else {
+          setDynamicAvatar(null);
+        }
+      } catch (error) {
+        console.log('Error fetching dynamic avatar:', error);
+        // Fallar silenciosamente (puede ser por permisos si no está logueado)
+      }
+    };
+
+    // Debounce de 800ms para esperar a que termine de escribir
+    const timeoutId = setTimeout(fetchAvatar, 800);
+    return () => clearTimeout(timeoutId);
+  }, [email]);
 
   const handleBiometricLogin = async () => {
     try {
@@ -146,10 +189,10 @@ export default function LoginScreen() {
           {/* Header Section */}
           <Animated.View style={[styles.headerContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.logoWrapper}>
-              {lastUserPhoto ? (
+              {dynamicAvatar || lastUserPhoto ? (
                 <Avatar.Image 
                   size={100} 
-                  source={{ uri: lastUserPhoto }} 
+                  source={{ uri: dynamicAvatar || lastUserPhoto }} 
                   style={{ backgroundColor: theme.colors.primaryContainer }}
                 />
               ) : (
