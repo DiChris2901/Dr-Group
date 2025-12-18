@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ref, onValue, set, increment } from 'firebase/database';
-import { database } from '../config/firebase';
+import { database, auth } from '../config/firebase';
 
 /**
  * Hook para gestionar contadores de mensajes no leídos con RTDB
@@ -65,6 +65,10 @@ export const useUnreadCount = (userId) => {
       const total = Object.values(data).reduce((sum, count) => sum + (count || 0), 0);
       setTotalUnread(total);
     }, (error) => {
+      // Ignorar errores de permisos si el usuario se está deslogueando
+      if ((error.message?.includes('permission_denied') || error.code === 'PERMISSION_DENIED') && !auth.currentUser) {
+        return;
+      }
       console.error('❌ Error escuchando contadores:', error);
     });
 

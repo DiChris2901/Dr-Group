@@ -66,7 +66,8 @@ import {
   CloudUpload as CloudUploadIcon,
   AttachFile as AttachFileIcon,
   InsertDriveFile as FileIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  ContentCopy as ContentCopyIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -91,6 +92,7 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { 
   ref, 
   uploadBytes, 
@@ -139,6 +141,10 @@ const UserManagementPage = () => {
   // Estados para empresas y archivos
   const [companies, setCompanies] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  
+  // 🔐 Estado para mostrar credenciales tras creación
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState(null);
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -572,16 +578,23 @@ const UserManagementPage = () => {
           console.log('📧 Email:', formData.email.toLowerCase());
           console.log('👤 Usuario actual:', currentUser?.email);
           
-          // Guardar credenciales del admin para restaurar después
-          const adminEmail = currentUser.email;
-          const adminPassword = prompt('Para crear el usuario, ingresa tu contraseña de administrador:');
-          if (!adminPassword) {
-            throw new Error('Se requiere la contraseña del administrador para crear usuarios');
-          }
+          // 1. Inicializar app secundaria para no perder sesión del admin
+          const firebaseConfig = {
+            apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+            authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+            projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+            storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+            messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+            appId: import.meta.env.VITE_FIREBASE_APP_ID,
+          };
           
-          // 1. Crear usuario en Firebase Authentication
+          // Usamos un nombre único para la app secundaria
+          const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+          const secondaryAuth = getAuth(secondaryApp);
+
+          // 2. Crear usuario en Firebase Authentication (usando app secundaria)
           const userCredential = await createUserWithEmailAndPassword(
-            auth, 
+            secondaryAuth, 
             formData.email.toLowerCase(), 
             formData.temporalPassword || 'DRGroup2025!'
           );
@@ -616,20 +629,19 @@ const UserManagementPage = () => {
           await setDoc(doc(db, 'users', userCredential.user.uid), simpleUserData);
           console.log('✅ Usuario guardado en Firestore con ID:', userCredential.user.uid);
           
-          // 4. Enviar email de reset para que configure su propia contraseña
+          // 5. Enviar email de reset (usando auth secundaria)
           try {
-            await sendPasswordResetEmail(auth, formData.email.toLowerCase());
+            await sendPasswordResetEmail(secondaryAuth, formData.email.toLowerCase());
             console.log('📧 Email de reset enviado para configurar contraseña');
           } catch (emailError) {
             console.warn('⚠️ No se pudo enviar email de reset:', emailError.message);
           }
           
-          // 5. Restaurar sesión del administrador
-          console.log('🔄 Restaurando sesión del administrador...');
-          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          console.log('✅ Sesión del administrador restaurada');
+          // 6. Limpiar app secundaria
+          await signOut(secondaryAuth);
+          deleteApp(secondaryApp).catch(console.error);
           
-          // 6. Mostrar resultado exitoso
+          // 7. Mostrar resultado exitoso
           console.log('� === USUARIO CREADO COMPLETAMENTE ===');
           console.log(`📧 Email: ${formData.email.toLowerCase()}`);
           console.log(`🔑 Password temporal: ${formData.temporalPassword || 'DRGroup2025!'}`);
@@ -637,6 +649,13 @@ const UserManagementPage = () => {
           console.log(`🆔 UID: ${userCredential.user.uid}`);
           console.log('✅ El usuario puede iniciar sesión inmediatamente');
           console.log('==========================================');
+          
+          // ✅ Guardar credenciales para mostrar en modal
+          setCreatedCredentials({
+            email: formData.email.toLowerCase(),
+            password: formData.temporalPassword || 'DRGroup2025!',
+            displayName: formData.displayName
+          });
           
         } catch (authError) {
           console.error('❌ Error creando usuario:', authError);
@@ -652,6 +671,20 @@ const UserManagementPage = () => {
       }
 
       await loadUsers();
+      
+      // Si se creó un usuario nuevo, mostrar modal de credenciales
+      if (!editingUser && createdCredentials) {
+        setShowCredentialsModal(true);
+      } else if (!editingUser) {
+        // Fallback por si el estado no se actualizó a tiempo
+        setCreatedCredentials({
+          email: formData.email.toLowerCase(),
+          password: formData.temporalPassword || 'DRGroup2025!',
+          displayName: formData.displayName
+        });
+        setShowCredentialsModal(true);
+      }
+      
       handleCloseModal();
       setHasUnsavedChanges(false);
       
@@ -2322,6 +2355,141 @@ const UserManagementPage = () => {
         onClose={handleCloseNotificationsModal}
         user={selectedUserForNotifications}
       />
+
+      {/* 🔐 Modal de Credenciales Creadas - Diseño Sobrio */}
+      <Dialog
+        open={showCredentialsModal}
+        onClose={() => setShowCredentialsModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{ 
+          p: 3,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Box sx={{ 
+            p: 1, 
+            borderRadius: 1, 
+            bgcolor: alpha(theme.palette.success.main, 0.1),
+            color: theme.palette.success.main,
+            display: 'flex'
+          }}>
+            <CheckCircleIcon />
+          </Box>
+          <Box>
+            <Typography variant="overline" sx={{ fontWeight: 700, color: theme.palette.text.secondary, lineHeight: 1 }}>
+              REGISTRO EXITOSO
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+              Credenciales de Acceso
+            </Typography>
+          </Box>
+        </Box>
+
+        <DialogContent sx={{ p: 3 }}>
+          <Alert severity="info" variant="outlined" sx={{ mb: 3, borderRadius: 1 }}>
+            Comparte estas credenciales con el usuario. Deberá cambiar su contraseña al iniciar sesión por primera vez.
+          </Alert>
+
+          <Paper variant="outlined" sx={{ 
+            p: 0, 
+            borderRadius: 1, 
+            borderColor: alpha(theme.palette.divider, 0.2),
+            overflow: 'hidden'
+          }}>
+            <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>
+                USUARIO / EMAIL
+              </Typography>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mt={0.5}>
+                <Typography variant="body1" fontWeight="500">
+                  {createdCredentials?.email}
+                </Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials?.email);
+                    addNotification({ type: 'success', message: 'Email copiado' });
+                  }}
+                  sx={{ 
+                    borderRadius: 1,
+                    color: theme.palette.primary.main,
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                  }}
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+
+            <Box sx={{ p: 2, bgcolor: alpha(theme.palette.action.hover, 0.02) }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ letterSpacing: 0.5 }}>
+                CONTRASEÑA TEMPORAL
+              </Typography>
+              <Box 
+                display="flex" 
+                alignItems="center" 
+                justifyContent="space-between" 
+                mt={1}
+                sx={{ 
+                  bgcolor: theme.palette.background.paper, 
+                  p: 1.5, 
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                }}
+              >
+                <Typography variant="h6" fontFamily="monospace" fontWeight="bold" color="text.primary" sx={{ letterSpacing: 1 }}>
+                  {createdCredentials?.password}
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<ContentCopyIcon fontSize="small" />}
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials?.password);
+                    addNotification({ type: 'success', message: 'Contraseña copiada' });
+                  }}
+                  sx={{ 
+                    textTransform: 'none',
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}
+                >
+                  Copiar
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button 
+            fullWidth 
+            variant="contained" 
+            onClick={() => setShowCredentialsModal(false)}
+            sx={{ 
+              py: 1.5, 
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: 'none',
+              '&:hover': { boxShadow: 'none' }
+            }}
+          >
+            Entendido, cerrar ventana
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

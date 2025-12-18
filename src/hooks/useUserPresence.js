@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ref, onValue, set, onDisconnect, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { doc, updateDoc, serverTimestamp as firestoreServerTimestamp } from 'firebase/firestore';
-import { database, db } from '../config/firebase';
+import { database, db, auth } from '../config/firebase';
 
 /**
  * Hook para gestionar el estado de presencia (online/offline) del usuario
@@ -79,8 +79,17 @@ export const useUserPresence = (userId) => {
     return () => {
       unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // Marcar offline al desmontar
-      set(userStatusRef, offlineState).catch(console.error);
+      
+      // Marcar offline al desmontar solo si seguimos autenticados
+      // Si no hay auth.currentUser, la escritura fallará por reglas de seguridad
+      if (auth.currentUser) {
+        set(userStatusRef, offlineState).catch(error => {
+          // Ignorar errores de permisos durante el logout
+          if (!error.message?.includes('PERMISSION_DENIED')) {
+            console.error('Error setting offline status:', error);
+          }
+        });
+      }
     };
   }, [userId]);
 };
