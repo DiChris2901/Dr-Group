@@ -23,15 +23,16 @@ import {
   Divider
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { format, startOfMonth, parseISO } from 'date-fns';
+import { format, startOfMonth, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
+import { SegmentedButtons } from 'react-native-paper';
 
 const { width, height } = Dimensions.get('window');
 
@@ -59,6 +60,7 @@ export default function AsistenciasScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [usersMap, setUsersMap] = useState({});
+  const [filterType, setFilterType] = useState('week'); // 'week' | 'month' | 'last_month' | 'recent'
   
   // Modal State
   const [selectedAsistencia, setSelectedAsistencia] = useState(null);
@@ -91,7 +93,7 @@ export default function AsistenciasScreen({ navigation }) {
     if (userProfile) {
       cargarAsistencias();
     }
-  }, [userProfile]);
+  }, [userProfile, filterType]);
 
   const cargarUsuarios = async () => {
     try {
@@ -123,15 +125,69 @@ export default function AsistenciasScreen({ navigation }) {
           setLoading(false);
           return;
         }
-        q = query(
-          collection(db, 'asistencias'),
-          where('uid', '==', targetUid)
-        );
+        
+        // Base query
+        let constraints = [where('uid', '==', targetUid)];
+        
+        const now = new Date();
+        
+        if (filterType === 'week') {
+          const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else if (filterType === 'month') {
+          const start = format(startOfMonth(now), 'yyyy-MM-dd');
+          const end = format(endOfMonth(now), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else if (filterType === 'last_month') {
+          const lastMonth = subMonths(now, 1);
+          const start = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
+          const end = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else {
+          // 'recent' or default
+          constraints.push(orderBy('fecha', 'desc'));
+          constraints.push(limit(50));
+        }
+
+        q = query(collection(db, 'asistencias'), ...constraints);
       } else {
-        q = query(
-          collection(db, 'asistencias'),
-          orderBy('fecha', 'desc')
-        );
+        // Admin query
+        let constraints = [];
+        
+        const now = new Date();
+        
+        if (filterType === 'week') {
+          const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else if (filterType === 'month') {
+          const start = format(startOfMonth(now), 'yyyy-MM-dd');
+          const end = format(endOfMonth(now), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else if (filterType === 'last_month') {
+          const lastMonth = subMonths(now, 1);
+          const start = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
+          const end = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
+          constraints.push(where('fecha', '>=', start));
+          constraints.push(where('fecha', '<=', end));
+          constraints.push(orderBy('fecha', 'desc'));
+        } else {
+          constraints.push(orderBy('fecha', 'desc'));
+          constraints.push(limit(50));
+        }
+        
+        q = query(collection(db, 'asistencias'), ...constraints);
       }
 
       const querySnapshot = await getDocs(q);
@@ -210,9 +266,10 @@ export default function AsistenciasScreen({ navigation }) {
           styles.expressiveCard,
           {
             backgroundColor: pressed 
-              ? surfaceColors.surfaceContainer  // ✅ Pressed state con surface color
+              ? surfaceColors.surfaceContainer
               : surfaceColors.surfaceContainerLow,
-            marginBottom: 20,  // ✅ Espaciado generoso (12→20)
+            marginBottom: 16, // ✅ Espaciado ajustado
+            borderColor: surfaceColors.outlineVariant, // ✅ Borde sutil
           }
         ]}
       >
@@ -305,6 +362,40 @@ export default function AsistenciasScreen({ navigation }) {
         <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
           Registro de Asistencias
         </Text>
+      </View>
+
+      <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
+        {[
+          { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
+          { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
+          { value: 'last_month', label: 'Mes Pasado', icon: 'calendar-arrow-left' },
+          { value: 'recent', label: 'Recientes', icon: 'history' },
+        ].map((option) => {
+          const isSelected = filterType === option.value;
+          return (
+            <Chip
+              key={option.value}
+              selected={isSelected}
+              showSelectedOverlay
+              onPress={() => setFilterType(option.value)}
+              icon={option.icon}
+              style={{
+                backgroundColor: isSelected ? surfaceColors.secondaryContainer : surfaceColors.surfaceContainerLow,
+                borderWidth: 1,
+                borderColor: isSelected ? 'transparent' : surfaceColors.outlineVariant,
+                width: '48%', // ✅ Forzar 2 columnas exactas
+              }}
+              textStyle={{
+                color: isSelected ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant,
+                fontWeight: isSelected ? '700' : '400',
+                textAlign: 'center',
+                flex: 1
+              }}
+            >
+              {option.label}
+            </Chip>
+          );
+        })}
       </View>
 
       <Animated.View style={[
@@ -697,11 +788,13 @@ const styles = StyleSheet.create({
     padding: 20,  // ✅ Espaciado generoso (16→20)
     paddingBottom: 100,
   },
-  // ✅ Expressive Card (border radius 24px, elevation 0)
+  // ✅ Expressive Card (border radius 16px, elevation 0)
   expressiveCard: {
-    borderRadius: 24,  // ✅ Orgánico (16→24)
-    padding: 20,  // ✅ Generoso (16→20)
-    elevation: 0,  // ✅ Tonal elevation
+    borderRadius: 16,  // ✅ Orgánico (24→16 para consistencia)
+    padding: 20,
+    elevation: 0,
+    borderWidth: 1, // ✅ Borde sutil
+    borderColor: 'transparent', // Se sobreescribe dinámicamente
   },
   cardHeader: {
     flexDirection: 'row',

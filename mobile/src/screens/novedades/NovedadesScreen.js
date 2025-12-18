@@ -90,6 +90,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   const tiposNovedad = [
     { id: 'llegada_tarde', label: 'Llegada Tarde', icon: 'clock-alert-outline' },
     { id: 'olvido_salida', label: 'Olvido de Salida', icon: 'exit-run' },
+    { id: 'solicitud_reapertura', label: 'Solicitud de Reapertura', icon: 'lock-open-variant-outline' },
     { id: 'urgencia_medica', label: 'Urgencia Médica', icon: 'hospital-box-outline' },
     { id: 'calamidad', label: 'Calamidad', icon: 'alert-circle-outline' },
     { id: 'otro', label: 'Otro', icon: 'pencil-outline' },
@@ -522,32 +523,52 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
                   android_ripple={{ color: surfaceColors.primary + '1F' }}
                   style={({ pressed }) => [
                     {
-                      flexDirection: 'row',
+                      flexDirection: 'row', // Horizontal layout para aspecto "chip grande"
                       alignItems: 'center',
-                      paddingVertical: 8,
-                      paddingHorizontal: 16,
-                      borderRadius: 20,
-                      marginBottom: 4,
-                      backgroundColor: type === t.id ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
+                      justifyContent: 'flex-start',
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      borderRadius: 16, // Radio más cerrado para altura baja
+                      backgroundColor: type === t.id ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
                       borderWidth: type === t.id ? 0 : 1,
-                      borderColor: surfaceColors.surfaceVariant,
-                      transform: [{ scale: pressed ? 0.97 : 1 }]
+                      borderColor: type === t.id ? 'transparent' : surfaceColors.outlineVariant,
+                      transform: [{ scale: pressed ? 0.98 : 1 }],
+                      width: '48%', // 2 columnas
+                      height: 64, // Altura muy reducida (angosta)
+                      marginBottom: 0
                     }
                   ]}
                 >
-                  <MaterialCommunityIcons 
-                    name={t.icon} 
-                    size={18} 
-                    color={type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface} 
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text style={{ 
-                    color: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
-                    fontWeight: '500',
-                    fontSize: 14
+                  <View style={{ 
+                    width: 32, 
+                    height: 32, 
+                    borderRadius: 16, 
+                    backgroundColor: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.surfaceContainerHigh,
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    marginRight: 10
                   }}>
+                    <MaterialCommunityIcons 
+                      name={t.icon} 
+                      size={18} 
+                      color={type === t.id ? surfaceColors.primaryContainer : surfaceColors.onSurfaceVariant} 
+                    />
+                  </View>
+                  
+                  <Text style={{ 
+                    flex: 1,
+                    color: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
+                    fontWeight: type === t.id ? '700' : '500',
+                    fontSize: 12,
+                    letterSpacing: 0.1,
+                    lineHeight: 16
+                  }} numberOfLines={2}>
                     {t.label}
                   </Text>
+
+                  {type === t.id && (
+                    <MaterialCommunityIcons name="check-circle" size={16} color={surfaceColors.onPrimaryContainer} style={{ marginLeft: 4 }} />
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -557,10 +578,10 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
               mode="outlined"
               placeholder="Describe detalladamente lo sucedido..."
               multiline
-              numberOfLines={4}
+              numberOfLines={6}
               value={description}
               onChangeText={setDescription}
-              style={styles.input}
+              style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
               outlineStyle={{ borderRadius: 20 }}
               theme={{ 
                 roundness: 20,

@@ -163,7 +163,17 @@ export default function LoginScreen() {
               )}
             </View>
             
-            <Text variant="displaySmall" style={[styles.title, { color: theme.colors.primary }]}>
+            <Text 
+              variant="displaySmall" 
+              style={[
+                styles.title, 
+                { 
+                  color: theme.colors.primary,
+                  fontFamily: 'Roboto-Flex',
+                  fontVariationSettings: "'wdth' 110"
+                }
+              ]}
+            >
               Bienvenido
             </Text>
             <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.secondary }]}>
@@ -188,9 +198,10 @@ export default function LoginScreen() {
               mode="outlined"
               keyboardType="email-address"
               autoCapitalize="none"
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surfaceContainerHighest }]}
               left={<TextInput.Icon icon="email" />}
-              outlineStyle={{ borderRadius: 16 }}
+              outlineStyle={{ borderRadius: 24, borderWidth: 0 }}
+              textColor={theme.colors.onSurface}
             />
 
             <TextInput
@@ -199,7 +210,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               mode="outlined"
               secureTextEntry={secureTextEntry}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.colors.surfaceContainerHighest }]}
               left={<TextInput.Icon icon="lock" />}
               right={
                 <TextInput.Icon 
@@ -207,12 +218,16 @@ export default function LoginScreen() {
                   onPress={() => setSecureTextEntry(!secureTextEntry)} 
                 />
               }
-              outlineStyle={{ borderRadius: 16 }}
+              outlineStyle={{ borderRadius: 24, borderWidth: 0 }}
+              textColor={theme.colors.onSurface}
             />
 
             <Button
               mode="contained"
-              onPress={handleLogin}
+              onPress={() => {
+                Haptics.selectionAsync();
+                handleLogin();
+              }}
               loading={loading}
               disabled={loading}
               style={styles.button}
@@ -235,8 +250,14 @@ export default function LoginScreen() {
               </Button>
             )}
 
-            <Surface style={[styles.infoBox, { backgroundColor: theme.colors.secondaryContainer }]} elevation={0}>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer }}>
+            <Surface 
+              style={[
+                styles.infoBox, 
+                { backgroundColor: theme.colors.secondaryContainer }
+              ]} 
+              elevation={0}
+            >
+              <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center' }}>
                 ⏱️ Al iniciar sesión se registrará tu hora de entrada automáticamente.
               </Text>
             </Surface>
@@ -266,14 +287,10 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    // Removed shadows for cleaner look
   },
   title: {
-    fontWeight: 'bold',
+    // fontWeight removed in favor of fontVariationSettings
     marginBottom: 8,
   },
   subtitle: {
@@ -284,12 +301,12 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
-    backgroundColor: '#fff',
+    // backgroundColor handled dynamically
   },
   button: {
     marginTop: 8,
     borderRadius: 100, // Pill shape
-    elevation: 4,
+    elevation: 0, // Flat button (color provides hierarchy)
   },
   buttonContent: {
     height: 56,
@@ -306,8 +323,8 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     marginTop: 32,
-    padding: 16,
-    borderRadius: 16,
+    padding: 20, // More breathing room
+    borderRadius: 24, // Organic shape
     alignItems: 'center',
   },
 });

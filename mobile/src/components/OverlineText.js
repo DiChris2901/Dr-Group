@@ -32,6 +32,7 @@ export default function OverlineText({
 
 const styles = StyleSheet.create({
   overline: {
+    fontFamily: 'Roboto-Flex', // 🎨 Material 3 Typography
     fontSize: 13, // 🎨 Material 3 Label Large (↑ de 12px)
     fontWeight: '700', // 🎨 Material 3 bold emphasis (↑ de 600)
     letterSpacing: 1.2, // 🎨 Material 3 expressive spacing (↑ de 0.8)

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
 
 /**
@@ -10,7 +10,7 @@ import { useTheme } from 'react-native-paper';
  * - Spacing generoso: 16px padding (antes 12px)
  * - Icon sizing estándar: 24px (Material 3)
  * - Typography scale: Material 3 standards
- * - Border radius: 12px (Medium)
+ * - Border radius: 16px (Large)
  * - Gap entre elementos: 16px consistente
  */
 export default function DetailRow({ 
@@ -38,7 +38,7 @@ export default function DetailRow({
     ]}>
       {icon && (
         <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={24} color={highlight ? highlightColor : iconColor} />
+          <MaterialCommunityIcons name={icon} size={24} color={highlight ? highlightColor : iconColor} />
         </View>
       )}
       <View style={styles.content}>
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16, // 🎨 Material 3 spacing (mantiene 16px, ya era correcto)
     padding: 16, // 🎨 Material 3 generous spacing (↑ de 12px)
-    borderRadius: 12, // 🎨 Material 3 Medium (↑ de 8px)
+    borderRadius: 16, // 🎨 Material 3 Large (Organic)
     borderWidth: 1,
   },
   iconContainer: {

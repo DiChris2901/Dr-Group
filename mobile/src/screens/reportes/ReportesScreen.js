@@ -11,7 +11,7 @@ import {
 import { 
   Text, 
   Surface, 
-  SegmentedButtons, 
+  SegmentedButtons, // ✅ Revertido a SegmentedButtons
   Card, 
   Avatar, 
   useTheme, 
@@ -21,7 +21,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 import { collection, query, getDocs, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -254,31 +254,59 @@ export default function ReportesScreen() {
     cargarDatos();
   };
 
-  const StatCard = ({ title, value, subtitle, icon, color }) => (
-    <Pressable
-      onPress={() => Haptics.selectionAsync()}
-      android_ripple={{ color: surfaceColors.primary + '1F' }}
-      style={({ pressed }) => [
-        styles.statCard,
-        {
-          backgroundColor: pressed 
-            ? surfaceColors.surfaceContainer
-            : surfaceColors.surfaceContainerLow,
-          borderWidth: 1,
-          borderColor: color + '20'
-        }
-      ]}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
-        <MaterialCommunityIcons name={icon} size={28} color={color} />
-      </View>
-      <View style={styles.statContent}>
-        <Text variant="headlineMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>{value}</Text>
-        <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, fontWeight: '500', marginTop: 4 }}>{title}</Text>
-        {subtitle && <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 2 }}>{subtitle}</Text>}
-      </View>
-    </Pressable>
-  );
+  const StatCard = ({ title, value, subtitle, icon, color, style, isHero = false }) => {
+    // Detectar si es layout horizontal para ajustar espaciado
+    const isRow = style?.flexDirection === 'row' || (typeof style === 'object' && style.flexDirection === 'row');
+
+    return (
+      <Pressable
+        onPress={() => Haptics.selectionAsync()}
+        android_ripple={{ color: surfaceColors.primary + '1F' }}
+        style={({ pressed }) => [
+          styles.statCard,
+          {
+            backgroundColor: pressed 
+              ? surfaceColors.surfaceContainer
+              : surfaceColors.surfaceContainerLow,
+            borderWidth: 1,
+            borderColor: surfaceColors.outlineVariant, // ✅ Borde sutil como en Novedades
+            borderRadius: 16, // ✅ Radio 16px como en Novedades
+          },
+          style
+        ]}
+      >
+        <View style={[
+          styles.iconContainer, 
+          { 
+            backgroundColor: color + '15',
+            width: isHero ? 48 : 40,
+            height: isHero ? 48 : 40,
+            borderRadius: isHero ? 24 : 20,
+            marginBottom: isRow ? 0 : 8
+          }
+        ]}>
+          <MaterialCommunityIcons name={icon} size={isHero ? 24 : 20} color={color} />
+        </View>
+        <View style={styles.statContent}>
+          <Text 
+            variant={isHero ? "headlineSmall" : "titleLarge"}
+            style={{ 
+              fontWeight: '600', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              fontVariationSettings: "'wdth' 110",
+              lineHeight: isHero ? 32 : 28
+            }}
+          >
+            {value}
+          </Text>
+          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, fontWeight: '500', marginTop: 0 }}>{title}</Text>
+          {subtitle && <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 10, marginTop: 0 }}>{subtitle}</Text>}
+        </View>
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
@@ -290,7 +318,7 @@ export default function ReportesScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
+          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5, fontFamily: 'Roboto-Flex', fontVariationSettings: "'wdth' 110" }}>
             Estadísticas
           </Text>
           <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
@@ -298,16 +326,20 @@ export default function ReportesScreen() {
           </Text>
         </View>
 
-        {/* Filters */}
+        {/* Filters (SegmentedButtons como en Novedades) */}
         <View style={styles.filterContainer}>
           <SegmentedButtons
             value={rangoSeleccionado}
-            onValueChange={setRangoSeleccionado}
+            onValueChange={(value) => {
+              Haptics.selectionAsync();
+              setRangoSeleccionado(value);
+            }}
             buttons={[
               { value: 'semana', label: 'Semana', icon: 'calendar-week' },
               { value: 'mes', label: 'Mes', icon: 'calendar-month' },
               { value: 'anio', label: 'Año', icon: 'calendar-today' },
             ]}
+            style={{ marginBottom: 8 }}
           />
         </View>
 
@@ -315,58 +347,26 @@ export default function ReportesScreen() {
           <ActivityIndicator style={{ marginTop: 50 }} size="large" />
         ) : (
           <>
-            {/* Chart */}
-            <View style={[styles.chartCard, { backgroundColor: surfaceColors.surfaceContainerLow, borderWidth: 1, borderColor: surfaceColors.primary + '20' }]}>
-              <View style={{ padding: 20 }}>
-                <Text variant="titleLarge" style={{ marginBottom: 20, fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.25 }}>
-                  Horas Trabajadas
-                </Text>
-                <BarChart
-                  data={{
-                    labels: stats.chartLabels,
-                    datasets: [{ data: stats.chartData }]
-                  }}
-                  width={width - 80}
-                  height={220}
-                  yAxisLabel=""
-                  yAxisSuffix="h"
-                  chartConfig={{
-                    backgroundColor: surfaceColors.surfaceContainerLow,
-                    backgroundGradientFrom: surfaceColors.surfaceContainerLow,
-                    backgroundGradientTo: surfaceColors.surfaceContainerLow,
-                    decimalPlaces: 1,
-                    color: (opacity = 1) => `rgba(${parseInt(surfaceColors.primary.slice(1,3), 16)}, ${parseInt(surfaceColors.primary.slice(3,5), 16)}, ${parseInt(surfaceColors.primary.slice(5,7), 16)}, ${opacity})`,
-                    labelColor: (opacity = 1) => surfaceColors.onSurfaceVariant,
-                    barPercentage: 0.7,
-                    propsForBackgroundLines: {
-                      strokeDasharray: '', // solid lines
-                      stroke: surfaceColors.surfaceVariant
-                    }
-                  }}
-                  style={{
-                    borderRadius: 20,
-                    paddingRight: 40
-                  }}
-                  showValuesOnTopOfBars
-                />
-              </View>
-            </View>
+            {/* 1. Hero Card: Total Horas (KPI Principal) */}
+            <StatCard 
+              title="Total Horas Trabajadas" 
+              value={stats.totalHoras} 
+              subtitle="Acumulado del periodo"
+              icon="clock-check-outline" 
+              color={surfaceColors.primary}
+              style={{ width: '100%', marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 20 }}
+              isHero={true}
+            />
 
-            {/* Stats Grid */}
+            {/* 2. Grid Secundario: Días y Promedio */}
             <View style={styles.statsGrid}>
-              <StatCard 
-                title="Total Horas" 
-                value={stats.totalHoras} 
-                subtitle="Acumulado"
-                icon="clock" 
-                color={surfaceColors.primary} 
-              />
               <StatCard 
                 title="Días" 
                 value={stats.diasTrabajados} 
                 subtitle="Trabajados"
                 icon="calendar-check" 
                 color={surfaceColors.secondary} 
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
               />
               <StatCard 
                 title="Promedio" 
@@ -374,14 +374,70 @@ export default function ReportesScreen() {
                 subtitle="Diario"
                 icon="chart-line" 
                 color={surfaceColors.tertiary} 
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
               />
-              <StatCard 
-                title="Puntualidad" 
-                value={`${stats.puntualidad}%`} 
-                subtitle="Llegadas a tiempo"
-                icon="star" 
-                color={stats.puntualidad > 90 ? surfaceColors.primary : surfaceColors.error} 
-              />
+            </View>
+
+            {/* 3. Puntualidad (Full Width Highlight) */}
+            <StatCard 
+              title="Puntualidad" 
+              value={`${stats.puntualidad}%`} 
+              subtitle={stats.puntualidad > 90 ? "¡Excelente desempeño!" : "Necesita atención"}
+              icon="star" 
+              color={stats.puntualidad > 90 ? surfaceColors.primary : surfaceColors.error} 
+              style={{ width: '100%', marginTop: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 20 }}
+            />
+
+            {/* 4. Chart (Detalle al final) */}
+            <View style={[styles.chartCard, { backgroundColor: surfaceColors.surfaceContainerLow, borderWidth: 1, borderColor: surfaceColors.outlineVariant }]}>
+              <View style={{ padding: 20 }}>
+                <Text variant="titleLarge" style={{ marginBottom: 20, fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.25, fontFamily: 'Roboto-Flex', fontVariationSettings: "'wdth' 110" }}>
+                  Tendencia de Horas
+                </Text>
+                <LineChart
+                  data={{
+                    labels: stats.chartLabels,
+                    datasets: [{ 
+                      data: stats.chartData,
+                      color: (opacity = 1) => surfaceColors.primary,
+                      strokeWidth: 3
+                    }]
+                  }}
+                  width={width - 80}
+                  height={240}
+                  yAxisLabel=""
+                  yAxisSuffix="h"
+                  fromZero={true}
+                  chartConfig={{
+                    backgroundColor: surfaceColors.surfaceContainerLow,
+                    backgroundGradientFrom: surfaceColors.surfaceContainerLow,
+                    backgroundGradientTo: surfaceColors.surfaceContainerLow,
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => surfaceColors.primary,
+                    labelColor: (opacity = 1) => surfaceColors.onSurfaceVariant,
+                    propsForDots: {
+                      r: "5",
+                      strokeWidth: "2",
+                      stroke: surfaceColors.surfaceContainerLow
+                    },
+                    propsForBackgroundLines: {
+                      strokeDasharray: '4',
+                      stroke: surfaceColors.onSurface + '1F',
+                      strokeWidth: 1
+                    },
+                    propsForLabels: {
+                      fontFamily: 'Roboto-Flex',
+                      fontSize: 10
+                    }
+                  }}
+                  bezier
+                  style={{
+                    borderRadius: 20,
+                    paddingRight: 40,
+                    marginLeft: -10
+                  }}
+                />
+              </View>
             </View>
           </>
         )}
@@ -406,7 +462,7 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     marginBottom: 24,
-    borderRadius: 24,  // ✅ Orgánico
+    borderRadius: 16,  // ✅ Orgánico (16px como Novedades)
     elevation: 0,  // ✅ Tonal Elevation
     overflow: 'hidden',
   },
@@ -416,17 +472,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   statCard: {
-    width: (width - 40 - 16) / 2,  // ✅ Ajustado para padding 20
-    padding: 20,  // ✅ Espaciado generoso (16→20)
-    borderRadius: 24,  // ✅ Orgánico (20→24)
+    width: (width - 40 - 16) / 2,
+    padding: 12,
+    borderRadius: 16, // ✅ Orgánico (16px como Novedades)
     alignItems: 'flex-start',
-    elevation: 0,  // ✅ Tonal Elevation
+    elevation: 0,
   },
   iconContainer: {
-    width: 56,  // ✅ Tamaño fijo para consistencia
-    height: 56,
-    borderRadius: 28,  // ✅ Círculo perfecto
-    marginBottom: 16,  // ✅ Espaciado generoso (12→16)
+    width: 40,  // ⬇️ Reducido de 48 a 40
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 8,  // ⬇️ Reducido de 12 a 8
     alignItems: 'center',
     justifyContent: 'center',
   },

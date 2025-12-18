@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import materialTheme from '../../../material-theme.json';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, updateDoc, doc, onSnapshot, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -73,25 +73,34 @@ export default function AdminNovedadesScreen({ navigation }) {
   const [selectedNovedad, setSelectedNovedad] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const fetchNovedades = async () => {
-    try {
-      const q = query(collection(db, 'novedades'), orderBy('date', 'desc'));
-      const snapshot = await getDocs(q);
+  // ✅ Real-time listener para actualizaciones automáticas
+  useEffect(() => {
+    setLoading(true);
+    const q = query(collection(db, 'novedades'), orderBy('date', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNovedades(data);
-      filterData(data, searchQuery, filterStatus);
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'No se pudieron cargar las novedades');
-    } finally {
+      // filterData se ejecutará automáticamente por el useEffect que depende de 'novedades'
       setLoading(false);
       setRefreshing(false);
-    }
-  };
+    }, (error) => {
+      console.error("Error escuchando novedades:", error);
+      Alert.alert('Error', 'No se pudieron cargar las novedades en tiempo real');
+      setLoading(false);
+      setRefreshing(false);
+    });
 
-  useEffect(() => {
-    fetchNovedades();
+    return () => unsubscribe();
   }, []);
+
+  // Mantener fetchNovedades solo para el pull-to-refresh manual si es necesario,
+  // aunque con onSnapshot ya no es estrictamente necesario, pero sirve para forzar reload si hay problemas de red.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // El onSnapshot se encarga, pero simulamos un delay o podríamos reconectar
+    setTimeout(() => setRefreshing(false), 1000);
+  };
 
   useEffect(() => {
     filterData(novedades, searchQuery, filterStatus);
@@ -119,19 +128,94 @@ export default function AdminNovedadesScreen({ navigation }) {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
+      const item = novedades.find(n => n.id === id);
+
       // Optimistic Update
-      setNovedades(prev => prev.map(item => 
-        item.id === id ? { ...item, status: newStatus } : item
+      setNovedades(prev => prev.map(n => 
+        n.id === id ? { ...n, status: newStatus } : n
       ));
 
       await updateDoc(doc(db, 'novedades', id), { status: newStatus });
       
+      // ✅ Lógica de Reapertura Automática
+      if (newStatus === 'approved' && item?.type === 'solicitud_reapertura') {
+        try {
+            const dateObj = item.date.toDate();
+            const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            
+            // Buscar el documento de asistencia correcto (ID autogenerado)
+            const qAsistencia = query(
+                collection(db, 'asistencias'),
+                where('uid', '==', item.uid),
+                where('fecha', '==', dateStr)
+            );
+            
+            const snapshot = await getDocs(qAsistencia);
+            
+            if (!snapshot.empty) {
+                // ✅ Ordenar en memoria para evitar errores de índice y asegurar el último registro
+                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                docs.sort((a, b) => {
+                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return timeB - timeA;
+                });
+
+                const docData = docs[0];
+                const docId = docData.id;
+
+                // ✅ Lógica de "Gap" (Interrupción):
+                // Calcular el tiempo desde que cerró (salida) hasta ahora (reapertura)
+                // y registrarlo como un break para que NO cuente como tiempo trabajado.
+                // Así el contador "continúa" desde donde quedó (ej. 15 min) en lugar de sumar el tiempo muerto.
+                let updatedBreaks = docData.breaks || [];
+                
+                if (docData.salida && docData.salida.hora) {
+                    const salidaTimestamp = docData.salida.hora;
+                    const nowTimestamp = Timestamp.now();
+                    
+                    // Calcular duración del gap
+                    const salidaDate = salidaTimestamp.toDate();
+                    const nowDate = nowTimestamp.toDate();
+                    const diffMs = nowDate - salidaDate;
+                    
+                    if (diffMs > 0) {
+                        const horas = Math.floor(diffMs / 1000 / 60 / 60);
+                        const minutos = Math.floor((diffMs / 1000 / 60) % 60);
+                        const segundos = Math.floor((diffMs / 1000) % 60);
+                        const duracionHMS = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+                        
+                        updatedBreaks.push({
+                            inicio: salidaTimestamp,
+                            fin: nowTimestamp,
+                            duracion: duracionHMS,
+                            tipo: 'reapertura_gap' // Marca especial para identificarlo
+                        });
+                    }
+                }
+
+                await updateDoc(doc(db, 'asistencias', docId), {
+                    salida: null,
+                    horasTrabajadas: null,
+                    estadoActual: 'trabajando',
+                    breaks: updatedBreaks
+                });
+                Alert.alert('Reapertura Exitosa', 'La jornada ha sido reabierta. El tiempo inactivo se registró como pausa automática.');
+            } else {
+                throw new Error('No se encontró registro de asistencia para esta fecha');
+            }
+        } catch (err) {
+            console.error("Error reabriendo jornada:", err);
+            Alert.alert('Advertencia', 'Se aprobó la novedad pero no se pudo reabrir la jornada automáticamente. Verifique si existe el registro.');
+        }
+      }
+
       if (selectedNovedad?.id === id) {
         setSelectedNovedad(prev => ({ ...prev, status: newStatus }));
       }
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar el estado');
-      fetchNovedades(); // Revert on error
+      // fetchNovedades(); // Ya no es necesario revertir manualmente, onSnapshot lo hará si falla en servidor
     }
   };
 
@@ -342,7 +426,7 @@ export default function AdminNovedadesScreen({ navigation }) {
             renderItem={renderItem}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNovedades(); }} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           />
         )}
 
@@ -356,7 +440,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                 </OverlineText>
                 
                 <DetailRow 
-                  icon="person"
+                  icon="account"
                   label="Empleado"
                   value={selectedNovedad.userName}
                   iconColor={surfaceColors.primary}
@@ -374,7 +458,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                 <View style={{ height: 12 }} />
 
                 <DetailRow 
-                  icon="document-text"
+                  icon="file-document-outline"
                   label="Descripción"
                   value={selectedNovedad.description || 'Sin descripción'}
                   iconColor={surfaceColors.onSurfaceVariant}
@@ -453,7 +537,7 @@ export default function AdminNovedadesScreen({ navigation }) {
                     ]}
                   >
                     <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', fontSize: 16 }}>
-                      Aprobar
+                      {selectedNovedad.type === 'solicitud_reapertura' ? 'Autorizar Reapertura' : 'Aprobar'}
                     </Text>
                   </Pressable>
                 </View>

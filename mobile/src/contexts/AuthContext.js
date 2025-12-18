@@ -4,7 +4,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp, query, where, getDocs, onSnapshot, getDocsFromServer } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import * as Location from 'expo-location';
 import { Platform, Alert } from 'react-native';
@@ -87,20 +87,10 @@ export const AuthProvider = ({ children }) => {
             setUserProfile({ ...userDoc.data(), uid: firebaseUser.uid });
           }
           
-          // ✅ Cargar sesión activa si existe (Persistencia)
-          const q = query(
-            collection(db, 'asistencias'), 
-            where('uid', '==', firebaseUser.uid),
-            where('estadoActual', '!=', 'finalizado')
-          );
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const sessionDoc = querySnapshot.docs[0];
-            setActiveSession({ ...sessionDoc.data(), id: sessionDoc.id });
-          }
+          // NOTA: La carga de sesión activa se maneja ahora en el useEffect de abajo con onSnapshot
+          // para soportar actualizaciones en tiempo real (ej. reapertura por admin).
         } catch (e) {
           console.log('Error cargando datos iniciales (posible offline):', e);
-          // Intentar cargar de AsyncStorage si falla Firestore
         }
       } else {
         setUser(null);
@@ -112,6 +102,66 @@ export const AuthProvider = ({ children }) => {
 
     return unsubscribe;
   }, []);
+
+  // ✅ NUEVO: Listener en tiempo real para la sesión de HOY
+  // Esto permite detectar automáticamente si un admin reabre la jornada
+  useEffect(() => {
+    if (!user) {
+      setActiveSession(null);
+      return;
+    }
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const q = query(
+      collection(db, 'asistencias'),
+      where('uid', '==', user.uid),
+      where('fecha', '==', todayStr)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        // Si existe registro de hoy, lo cargamos (sea abierto o cerrado)
+        // Esto permite que si el admin borra la 'salida', la app se entere inmediatamente
+        const docData = snapshot.docs[0].data();
+        setActiveSession({ ...docData, id: snapshot.docs[0].id });
+      } else {
+        // Si no hay registro de hoy, buscamos si hay alguna sesión ABIERTA de días anteriores
+        // (Caso borde: olvidó cerrar ayer)
+        // Nota: Esto requiere una query separada única vez, no listener constante para no complicar
+        checkPreviousOpenSession(user.uid);
+      }
+    }, (error) => {
+      console.log("Error escuchando sesión:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const checkPreviousOpenSession = async (uid) => {
+    try {
+      const q = query(
+        collection(db, 'asistencias'),
+        where('uid', '==', uid),
+        where('estadoActual', '!=', 'finalizado')
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docData = snapshot.docs[0].data();
+        // Solo si NO es de hoy (porque la de hoy ya la hubiera detectado el listener)
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (docData.fecha !== todayStr) {
+           setActiveSession({ ...docData, id: snapshot.docs[0].id });
+        }
+      } else {
+        setActiveSession(null);
+      }
+    } catch (e) {
+      console.log("Error buscando sesiones previas:", e);
+    }
+  };
 
   const signIn = async (email, password) => {
     try {
@@ -169,55 +219,159 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Ya tienes una jornada activa');
       }
 
-      // 1. Obtener ubicación con TIMEOUT de 5 segundos
+      // ✅ CANDADO DE JORNADA ÚNICA (Evitar múltiples registros por día)
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      // Consultar si ya existe un registro para hoy
+      const qToday = query(
+        collection(db, 'asistencias'),
+        where('uid', '==', user.uid),
+        where('fecha', '==', todayStr)
+      );
+      
+      // ✅ Intentar obtener desde el servidor para asegurar estado actualizado (Reaperturas)
+      let snapshotToday;
+      try {
+        snapshotToday = await getDocsFromServer(qToday);
+      } catch (e) {
+        console.log('⚠️ Error contactando servidor, usando caché local:', e);
+        snapshotToday = await getDocs(qToday);
+      }
+      
+      if (!snapshotToday.empty) {
+        // ✅ Ordenar por creación descendente para asegurar que tomamos la última sesión (la más reciente)
+        // Esto es crítico si existen múltiples registros por error, o para asegurar que leemos la que el admin modificó.
+        const sessions = snapshotToday.docs.map(d => ({ id: d.id, ...d.data() }));
+        sessions.sort((a, b) => {
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+
+        const existingSession = sessions[0];
+        console.log(`🔎 Verificando sesión ${existingSession.id}. Salida:`, existingSession.salida ? 'SÍ' : 'NO');
+
+        if (existingSession.salida) {
+          // La jornada ya fue cerrada.
+          // Aquí podríamos implementar la lógica de "Reapertura Autorizada" en el futuro.
+          // Por ahora, bloqueamos y pedimos contactar al admin.
+          throw new Error('Ya finalizaste tu jornada de hoy. Si fue un error, contacta a tu supervisor para que autorice una reapertura.');
+        }
+        
+        // ✅ Si existe pero NO tiene salida, es una sesión activa (ej. reapertura aprobada)
+        // En lugar de crear una nueva, retomamos la existente.
+        console.log('🔄 Retomando sesión existente (Reapertura detectada)');
+        setActiveSession({
+          ...existingSession,
+          id: existingSession.id
+        });
+        return { success: true, sessionId: existingSession.id, resumed: true };
+      }
+
+      // ✅ VALIDACIÓN DE HORARIO DE INICIO (Ventana de 5 minutos)
+      try {
+        const scheduleDoc = await getDoc(doc(db, 'settings', 'work_schedule'));
+        if (scheduleDoc.exists()) {
+          const schedule = scheduleDoc.data();
+          if (schedule.startTime) {
+            const now = new Date();
+            const [startHour, startMinute] = schedule.startTime.split(':').map(Number);
+            
+            // Crear fecha de inicio de jornada para hoy
+            const workStartDate = new Date(now);
+            workStartDate.setHours(startHour, startMinute, 0, 0);
+            
+            // Calcular ventana permitida (5 minutos antes)
+            const allowedLoginTime = new Date(workStartDate.getTime() - 5 * 60000); // Restar 5 minutos
+            
+            // Si es demasiado temprano (antes de la ventana de 5 min)
+            if (now < allowedLoginTime) {
+              const allowedTimeStr = allowedLoginTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              throw new Error(`Aún es muy temprano. Puedes iniciar jornada a partir de las ${allowedTimeStr}`);
+            }
+          }
+        }
+      } catch (scheduleError) {
+        console.warn('Error validando horario:', scheduleError);
+        // Si falla la validación (ej. offline), permitimos continuar por seguridad, 
+        // o bloqueamos si es crítico. En este caso, si es error de red, mejor no bloquear 
+        // para no impedir el trabajo, pero si es el error de "muy temprano", se relanza.
+        if (scheduleError.message.includes('Aún es muy temprano')) {
+          throw scheduleError;
+        }
+      }
+
+      // 1. Obtener ubicación con TIMEOUT de 10 segundos y FALLBACK
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          // ✅ Promise.race para timeout
-          const locationPromise = Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced, // Más rápido que High
-          });
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-          );
-          
-          const loc = await Promise.race([locationPromise, timeoutPromise]);
-          location = {
-            lat: loc.coords.latitude,
-            lon: loc.coords.longitude
-          };
+          try {
+            // Intentar obtener ubicación actual con timeout
+            const locationPromise = Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 10000)
+            );
+            
+            const loc = await Promise.race([locationPromise, timeoutPromise]);
+            location = {
+              lat: loc.coords.latitude,
+              lon: loc.coords.longitude
+            };
+          } catch (currentLocError) {
+            console.warn('Timeout obteniendo ubicación actual, intentando última conocida...');
+            // Fallback: Última ubicación conocida
+            const lastLoc = await Location.getLastKnownPositionAsync();
+            if (lastLoc) {
+               location = {
+                lat: lastLoc.coords.latitude,
+                lon: lastLoc.coords.longitude,
+                isFallback: true
+              };
+            } else {
+              throw new Error('No se pudo obtener ni ubicación actual ni última conocida');
+            }
+          }
 
           // ✅ Verificar si está en oficina
-          try {
-            const settingsDoc = await getDoc(doc(db, 'settings', 'location'));
-            if (settingsDoc.exists()) {
-              const officeLoc = settingsDoc.data();
-              const R = 6371e3; // metros
-              const φ1 = location.lat * Math.PI/180;
-              const φ2 = officeLoc.lat * Math.PI/180;
-              const Δφ = (officeLoc.lat - location.lat) * Math.PI/180;
-              const Δλ = (officeLoc.lon - location.lon) * Math.PI/180;
+          if (location) {
+            try {
+              const settingsDoc = await getDoc(doc(db, 'settings', 'location'));
+              if (settingsDoc.exists()) {
+                const officeLoc = settingsDoc.data();
+                const R = 6371e3; // metros
+                const φ1 = location.lat * Math.PI/180;
+                const φ2 = officeLoc.lat * Math.PI/180;
+                const Δφ = (officeLoc.lat - location.lat) * Math.PI/180;
+                const Δλ = (officeLoc.lon - location.lon) * Math.PI/180;
 
-              const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-              const d = R * c;
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                        Math.cos(φ1) * Math.cos(φ2) *
+                        Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const d = R * c;
 
-              location.tipo = d <= (officeLoc.radius || 100) ? 'Oficina' : 'Remoto';
-              location.distanciaOficina = Math.round(d);
-            } else {
-              location.tipo = 'Remoto (Sin Config)';
+                location.tipo = d <= (officeLoc.radius || 100) ? 'Oficina' : 'Remoto';
+                location.distanciaOficina = Math.round(d);
+              } else {
+                location.tipo = 'Remoto (Sin Config)';
+              }
+            } catch (e) {
+              console.log('Error verificando oficina:', e);
+              location.tipo = 'Remoto (Error)';
             }
-          } catch (e) {
-            console.log('Error verificando oficina:', e);
-            location.tipo = 'Remoto (Error)';
           }
         }
       } catch (locError) {
         console.warn('No se pudo obtener ubicación (timeout o error):', locError.message);
-        // ✅ Continuar sin ubicación
+        // ✅ Fallback: Asumir Remoto si no hay GPS
+        location = {
+          tipo: 'Remoto (Sin GPS)',
+          isFallback: true
+        };
       }
 
       // 2. Obtener información del dispositivo
@@ -234,7 +388,7 @@ export const AuthProvider = ({ children }) => {
 
       // 4. Registrar entrada en asistencias
       // ✅ Usar fecha LOCAL del dispositivo (lo que el usuario ve)
-      const now = new Date();
+      // Nota: 'now' ya fue declarado al inicio de la función para validaciones
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const asistenciaData = {
         uid: user.uid,
@@ -265,7 +419,10 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, sessionId: asistenciaRef.id };
     } catch (error) {
-      console.error('Error iniciando jornada:', error);
+      // Solo loguear como error si NO es el caso controlado de jornada finalizada
+      if (!error.message.includes('Ya finalizaste tu jornada')) {
+        console.error('Error iniciando jornada:', error);
+      }
       throw error;
     }
   };
@@ -473,28 +630,76 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession) return;
 
     try {
-      // ✅ Obtener ubicación con TIMEOUT de 5 segundos
+      // ✅ Obtener ubicación con TIMEOUT de 10 segundos y FALLBACK
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          // ✅ Promise.race para timeout
-          const locationPromise = Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced, // Más rápido que High
-          });
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-          );
-          
-          const loc = await Promise.race([locationPromise, timeoutPromise]);
-          location = {
-            lat: loc.coords.latitude,
-            lon: loc.coords.longitude
-          };
+          try {
+            // Intentar obtener ubicación actual con timeout
+            const locationPromise = Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 10000)
+            );
+            
+            const loc = await Promise.race([locationPromise, timeoutPromise]);
+            location = {
+              lat: loc.coords.latitude,
+              lon: loc.coords.longitude
+            };
+          } catch (currentLocError) {
+            console.warn('Timeout obteniendo ubicación actual en salida, intentando última conocida...');
+            // Fallback: Última ubicación conocida
+            const lastLoc = await Location.getLastKnownPositionAsync();
+            if (lastLoc) {
+               location = {
+                lat: lastLoc.coords.latitude,
+                lon: lastLoc.coords.longitude,
+                isFallback: true
+              };
+            } else {
+              throw new Error('No se pudo obtener ni ubicación actual ni última conocida');
+            }
+          }
+
+          // ✅ Verificar si está en oficina (Igual que en Entrada)
+          if (location) {
+            try {
+              const settingsDoc = await getDoc(doc(db, 'settings', 'location'));
+              if (settingsDoc.exists()) {
+                const officeLoc = settingsDoc.data();
+                const R = 6371e3; // metros
+                const φ1 = location.lat * Math.PI/180;
+                const φ2 = officeLoc.lat * Math.PI/180;
+                const Δφ = (officeLoc.lat - location.lat) * Math.PI/180;
+                const Δλ = (officeLoc.lon - location.lon) * Math.PI/180;
+
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                        Math.cos(φ1) * Math.cos(φ2) *
+                        Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const d = R * c;
+
+                location.tipo = d <= (officeLoc.radius || 100) ? 'Oficina' : 'Remoto';
+                location.distanciaOficina = Math.round(d);
+              } else {
+                location.tipo = 'Remoto (Sin Config)';
+              }
+            } catch (e) {
+              console.log('Error verificando oficina en salida:', e);
+              location.tipo = 'Remoto (Error)';
+            }
+          }
         }
       } catch (locError) {
         console.warn('No se pudo obtener ubicación (timeout o error):', locError.message);
-        // ✅ Continuar sin ubicación
+        // ✅ Fallback: Asumir Remoto si no hay GPS
+        location = {
+          tipo: 'Remoto (Sin GPS)',
+          isFallback: true
+        };
       }
 
       // Calcular horas trabajadas en formato HH:MM:SS

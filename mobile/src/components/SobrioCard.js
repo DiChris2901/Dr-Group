@@ -29,10 +29,9 @@ export default function SobrioCard({
     styles.card, 
     variantStyles, 
     { 
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.surfaceContainerLow || theme.colors.surface, // Tonal Elevation
       borderColor: borderColor + '26',
-      shadowColor: theme.dark ? '#000' : '#000',
-      shadowOpacity: theme.dark ? 0.3 : 0.12,
+      elevation: 0, // Flat
     }, 
     style
   ];

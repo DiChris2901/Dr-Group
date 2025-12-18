@@ -9,43 +9,42 @@ import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { checkForUpdates } from './src/services/UpdateService';
 import NotificationService from './src/services/NotificationService';
+import materialTheme from './material-theme.json';
 
-// 🎨 TEMA "PROJECT CHRONOS" - Deep Indigo Identity (Light)
+// 🎨 TEMA "MATERIAL YOU EXPRESSIVE" - Generated from material-theme.json
 const lightTheme = {
   ...MD3LightTheme,
   dark: false,
   colors: {
     ...MD3LightTheme.colors,
-    primary: '#6366F1', // Deep Indigo
-    primaryContainer: '#E0E7FF', // Indigo 100
-    secondary: '#4F46E5', // Indigo 600
-    secondaryContainer: '#EEF2FF', // Indigo 50
-    tertiary: '#EC4899', // Pink 500 (Accents)
-    background: '#F8FAFC', // Slate 50
-    surface: '#FFFFFF',
-    surfaceVariant: '#F1F5F9', // Slate 100
-    error: '#EF4444',
+    ...materialTheme.schemes.light,
+    elevation: {
+      level0: 'transparent',
+      level1: materialTheme.schemes.light.surfaceContainerLow,
+      level2: materialTheme.schemes.light.surfaceContainer,
+      level3: materialTheme.schemes.light.surfaceContainerHigh,
+      level4: materialTheme.schemes.light.surfaceContainerHighest,
+      level5: materialTheme.schemes.light.surfaceContainerHighest,
+    }
   },
-  roundness: 4, // Base roundness (multiplied by components)
 };
 
-// 🌙 TEMA OSCURO "PROJECT CHRONOS"
+// 🌙 TEMA OSCURO "MATERIAL YOU EXPRESSIVE"
 const darkTheme = {
   ...MD3DarkTheme,
   dark: true,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: '#818CF8', // Indigo 400 (más claro para contraste)
-    primaryContainer: '#3730A3', // Indigo 800
-    secondary: '#6366F1', // Indigo 500
-    secondaryContainer: '#312E81', // Indigo 900
-    tertiary: '#F472B6', // Pink 400
-    background: '#0F172A', // Slate 900
-    surface: '#1E293B', // Slate 800
-    surfaceVariant: '#334155', // Slate 700
-    error: '#F87171',
+    ...materialTheme.schemes.dark,
+    elevation: {
+      level0: 'transparent',
+      level1: materialTheme.schemes.dark.surfaceContainerLow,
+      level2: materialTheme.schemes.dark.surfaceContainer,
+      level3: materialTheme.schemes.dark.surfaceContainerHigh,
+      level4: materialTheme.schemes.dark.surfaceContainerHighest,
+      level5: materialTheme.schemes.dark.surfaceContainerHighest,
+    }
   },
-  roundness: 4,
 };
 
 function AppContent() {

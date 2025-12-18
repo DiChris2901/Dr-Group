@@ -8,6 +8,7 @@ import {
     StyleSheet,
     View
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import {
     Avatar,
     Button,
@@ -24,6 +25,7 @@ import NovedadesSheet from '../../components/NovedadesSheet';
 import RingChart from '../../components/RingChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import designSystem from '../../../design-system.json';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +50,7 @@ export default function DashboardScreen() {
   const [progress, setProgress] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [novedadesVisible, setNovedadesVisible] = useState(false);
+  const [novedadInitialType, setNovedadInitialType] = useState(null);
 
   // ✅ Memoizar función de formateo para evitar recrearla
   const formatMs = useMemo(() => (ms) => {
@@ -57,6 +60,36 @@ export default function DashboardScreen() {
     const seconds = totalSeconds % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }, []);
+
+  // ✅ Manejador seguro para iniciar jornada
+  const handleIniciarJornada = async () => {
+    try {
+      await iniciarJornada();
+    } catch (error) {
+      // Si el error es por jornada finalizada, ofrecer reapertura (sin loguear error)
+      if (error.message.includes('Ya finalizaste tu jornada')) {
+        Alert.alert(
+          'Jornada Finalizada',
+          'Ya has marcado tu salida hoy. ¿Fue un error y necesitas continuar trabajando?',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { 
+              text: 'Solicitar Reapertura', 
+              onPress: () => {
+                // Abrir modal de novedades automáticamente con tipo preseleccionado
+                setNovedadInitialType('solicitud_reapertura');
+                setNovedadesVisible(true);
+              }
+            }
+          ]
+        );
+      } else {
+        // Otros errores (ej. horario temprano, sin conexión)
+        console.log('Error al iniciar jornada:', error.message);
+        Alert.alert('No se pudo iniciar', error.message);
+      }
+    }
+  };
 
   // ✅ Timer Logic
   useEffect(() => {
@@ -146,7 +179,11 @@ export default function DashboardScreen() {
             <PaperText 
               variant="headlineLarge"
               style={{ 
-                color: theme.colors.primary
+                color: theme.colors.primary,
+                fontFamily: 'Roboto-Flex',
+                fontWeight: '500',
+                letterSpacing: -0.5,
+                fontVariationSettings: [{ axis: 'wdth', value: 110 }]
               }}
             >
               Hola, {userProfile?.displayName?.split(' ')[0] || 'Usuario'}
@@ -214,7 +251,7 @@ export default function DashboardScreen() {
 
         {/* Quick Stats Row */}
         <View style={styles.statsRow}>
-          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surfaceContainerLow }]} elevation={0}>
             <Avatar.Icon size={40} icon="clock-start" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.primary} />
             <View style={styles.statText}>
               <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Entrada</PaperText>
@@ -227,7 +264,7 @@ export default function DashboardScreen() {
             </View>
           </Surface>
 
-          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surfaceContainerLow }]} elevation={0}>
             <Avatar.Icon size={40} icon="clock-end" style={{ backgroundColor: theme.colors.errorContainer }} color={theme.colors.error} />
             <View style={styles.statText}>
               <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Salida</PaperText>
@@ -253,8 +290,12 @@ export default function DashboardScreen() {
           </View>
           <Button 
             mode="contained" 
-            onPress={() => setNovedadesVisible(true)}
-            style={{ borderRadius: 12 }}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setNovedadesVisible(true);
+            }}
+            style={{ borderRadius: 24 }}
+            contentStyle={{ paddingHorizontal: 8 }}
           >
             Reportar
           </Button>
@@ -265,7 +306,7 @@ export default function DashboardScreen() {
       {/* Floating Action Bar */}
       <FloatingActionBar
         status={activeSession?.estadoActual || 'off'}
-        onPressStart={() => iniciarJornada()}
+        onPressStart={handleIniciarJornada}
         onPressBreak={() => registrarBreak()}
         onPressLunch={() => registrarAlmuerzo()}
         onPressEnd={() => finalizarJornada()}
@@ -280,7 +321,10 @@ export default function DashboardScreen() {
       <Portal>
         <Modal
           visible={novedadesVisible}
-          onDismiss={() => setNovedadesVisible(false)}
+          onDismiss={() => {
+            setNovedadesVisible(false);
+            setNovedadInitialType(null);
+          }}
           contentContainerStyle={{ 
             position: 'absolute', 
             bottom: 0, 
@@ -288,7 +332,13 @@ export default function DashboardScreen() {
             right: 0, 
           }}
         >
-          <NovedadesSheet onClose={() => setNovedadesVisible(false)} />
+          <NovedadesSheet 
+            onClose={() => {
+              setNovedadesVisible(false);
+              setNovedadInitialType(null);
+            }} 
+            initialType={novedadInitialType}
+          />
         </Modal>
       </Portal>
 
