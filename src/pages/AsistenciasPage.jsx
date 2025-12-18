@@ -672,7 +672,7 @@ const AsistenciasPage = () => {
 
                         {/* Ubicación */}
                         <TableCell align="center">
-                          {asistencia.entrada?.ubicacion ? (
+                          {asistencia.entrada?.ubicacion && asistencia.entrada.ubicacion.lat && asistencia.entrada.ubicacion.lon ? (
                             <Tooltip title="Abrir en Google Maps">
                               <IconButton
                                 size="small"
@@ -854,26 +854,55 @@ const AsistenciasPage = () => {
 
                         {/* Salida */}
                         <TableCell align="center">
-                          <Chip
-                            icon={<ExitIcon sx={{ fontSize: 14 }} />}
-                            label={formatTime(asistencia.salida) || '-'}
-                            size="small"
-                            variant="outlined"
-                            sx={{
-                              borderColor: asistencia.salida 
-                                ? alpha(theme.palette.error.main, 0.5) 
-                                : alpha(theme.palette.divider, 0.6),
-                              color: asistencia.salida 
-                                ? theme.palette.error.main 
-                                : 'text.secondary',
-                              fontSize: '0.75rem',
-                              '& .MuiChip-icon': {
+                          <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
+                            <Chip
+                              icon={<ExitIcon sx={{ fontSize: 14 }} />}
+                              label={formatTime(asistencia.salida?.hora || asistencia.salida) || '-'}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                borderColor: asistencia.salida 
+                                  ? alpha(theme.palette.error.main, 0.5) 
+                                  : alpha(theme.palette.divider, 0.6),
                                 color: asistencia.salida 
                                   ? theme.palette.error.main 
-                                  : 'text.secondary'
-                              }
-                            }}
-                          />
+                                  : 'text.secondary',
+                                fontSize: '0.75rem',
+                                '& .MuiChip-icon': {
+                                  color: asistencia.salida 
+                                    ? theme.palette.error.main 
+                                    : 'text.secondary'
+                                }
+                              }}
+                            />
+                            {/* Modalidad Salida (Nuevo) */}
+                            {asistencia.salida?.ubicacion?.tipo ? (
+                              <Chip
+                                label={asistencia.salida.ubicacion.tipo}
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: '0.65rem',
+                                  fontWeight: 600,
+                                  backgroundColor: asistencia.salida.ubicacion.tipo === 'Oficina' 
+                                    ? alpha(theme.palette.success.main, 0.1)
+                                    : alpha(theme.palette.warning.main, 0.1),
+                                  color: asistencia.salida.ubicacion.tipo === 'Oficina'
+                                    ? theme.palette.success.main
+                                    : theme.palette.warning.main,
+                                  border: `1px solid ${
+                                    asistencia.salida.ubicacion.tipo === 'Oficina'
+                                      ? alpha(theme.palette.success.main, 0.3)
+                                      : alpha(theme.palette.warning.main, 0.3)
+                                  }`
+                                }}
+                              />
+                            ) : asistencia.salida ? (
+                              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                                Sin ubicación
+                              </Typography>
+                            ) : null}
+                          </Box>
                         </TableCell>
 
                         {/* Horas Trabajadas */}
