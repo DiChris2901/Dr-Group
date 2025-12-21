@@ -12,9 +12,12 @@ import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
+import AdminCreateAlertScreen from '../screens/admin/AdminCreateAlertScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import EditProfileScreen from '../screens/settings/EditProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -46,7 +49,10 @@ function AppNavigator({ navigation }, ref) {
             <Stack.Screen name="Novedades" component={NovedadesScreen} />
             <Stack.Screen name="AdminNovedades" component={AdminNovedadesScreen} />
             <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} />
+            <Stack.Screen name="AdminCreateAlert" component={AdminCreateAlertScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           </>
         ) : (
           // Usuario no autenticado

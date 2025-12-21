@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { useAuth } from './AuthContext';
 
 const NotificationsContext = createContext();
 
@@ -25,9 +28,69 @@ Notifications.setNotificationHandler({
 });
 
 export const NotificationsProvider = ({ children }) => {
+  const { user } = useAuth();
   const [notification, setNotification] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const notificationListener = useRef();
   const responseListener = useRef();
+  const lastNotificationIdRef = useRef(null);
+
+  // ✅ Listener de Firestore para contar no leídas y detectar nuevas
+  useEffect(() => {
+    if (!user?.uid) {
+      setUnreadCount(0);
+      return;
+    }
+
+    // Query para contar no leídas
+    const q = query(
+      collection(db, 'notifications'),
+      where('uid', '==', user.uid),
+      where('read', '==', false),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.size;
+      setUnreadCount(count);
+
+      // Detectar nuevas notificaciones para emitir alerta local
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const newNotif = change.doc.data();
+          const newNotifId = change.doc.id;
+
+          // Evitar notificar sobre la carga inicial o duplicados
+          // Usamos una referencia simple o timestamp para filtrar "viejas" si es necesario
+          // Pero docChanges 'added' se dispara en carga inicial para todos los docs existentes.
+          // Para evitar spam en carga inicial, podemos verificar si el cambio es reciente o usar un flag de "inicializado".
+          
+          // Estrategia: Solo notificar si la notificación fue creada hace menos de 10 segundos
+          // (Esto asume que la hora del dispositivo y servidor están sincronizadas razonablemente)
+          const createdAt = newNotif.createdAt?.toDate();
+          const now = new Date();
+          const isRecent = createdAt && (now - createdAt) < 10000; // 10 segundos
+
+          if (isRecent && lastNotificationIdRef.current !== newNotifId) {
+            lastNotificationIdRef.current = newNotifId;
+            
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: newNotif.title || 'Nueva Notificación',
+                body: newNotif.message || 'Tienes una nueva alerta en Dr. Group',
+                data: { url: '/notifications', id: newNotifId },
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: null, // Mostrar inmediatamente
+            });
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     // ✅ Pedir permisos para notificaciones locales
@@ -154,6 +217,7 @@ export const NotificationsProvider = ({ children }) => {
 
   const value = {
     notification,
+    unreadCount,
     scheduleNotification,
     cancelNotification,
     cancelAllNotifications

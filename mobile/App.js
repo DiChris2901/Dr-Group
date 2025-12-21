@@ -49,10 +49,32 @@ const darkTheme = {
 
 function AppContent() {
   const navigationRef = useRef(null);
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors: dynamicColors } = useTheme();
 
-  // Seleccionar tema según el estado
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  // Seleccionar tema base
+  const baseTheme = isDarkMode ? darkTheme : lightTheme;
+
+  // ✅ Construir tema dinámico (Solo Primary Color)
+  // Mantenemos la paleta original de Material Design (Secondary, Tertiary, etc.)
+  // y solo actualizamos el color primario seleccionado por el usuario.
+  const primaryColor = dynamicColors.primary;
+  
+  const theme = {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: primaryColor,
+      onPrimary: '#FFFFFF',
+      
+      // Primary Container (Derivado suave del color principal)
+      primaryContainer: primaryColor + '20', 
+      onPrimaryContainer: primaryColor,
+      
+      // Mantenemos el resto de colores originales del tema (Secondary, Tertiary, Error, etc.)
+      // para evitar el efecto "todo del mismo color" (monocromático).
+      error: dynamicColors.error,
+    }
+  };
 
   // ✅ Verificar actualizaciones OTA y solicitar permisos de notificaciones
   useEffect(() => {

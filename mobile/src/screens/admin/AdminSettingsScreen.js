@@ -4,7 +4,8 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  Pressable
 } from 'react-native';
 import { 
   Text, 
@@ -14,9 +15,9 @@ import {
   ActivityIndicator,
   Surface,
   TextInput as PaperInput,
-  Chip,
   Portal,
-  Modal
+  Modal,
+  Divider
 } from 'react-native-paper';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,7 +26,7 @@ import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
-import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 export default function AdminSettingsScreen({ navigation }) {
   const theme = usePaperTheme();
@@ -42,6 +43,7 @@ export default function AdminSettingsScreen({ navigation }) {
 
   // Location State
   const [officeLocation, setOfficeLocation] = useState(null);
+  const [officeAddress, setOfficeAddress] = useState(null);
   const [locationRadius, setLocationRadius] = useState('100');
   const [mapVisible, setMapVisible] = useState(false);
   const [tempLocation, setTempLocation] = useState(null);
@@ -61,6 +63,22 @@ export default function AdminSettingsScreen({ navigation }) {
     loadSettings();
   }, []);
 
+  const getAddressFromCoords = async (lat, lon) => {
+    try {
+      const result = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+      if (result.length > 0) {
+        const addr = result[0];
+        // Construir dirección legible
+        const street = addr.street || addr.name || '';
+        const city = addr.city || addr.subregion || '';
+        return `${street}, ${city}`.trim().replace(/^, /, '');
+      }
+    } catch (error) {
+      console.log('Error reverse geocoding:', error);
+    }
+    return null;
+  };
+
   const loadSettings = async () => {
     try {
       const scheduleDoc = await getDoc(doc(db, 'settings', 'work_schedule'));
@@ -77,6 +95,14 @@ export default function AdminSettingsScreen({ navigation }) {
         const data = locationDoc.data();
         setOfficeLocation({ lat: data.lat, lon: data.lon });
         setLocationRadius(data.radius?.toString() || '100');
+        
+        if (data.address) {
+          setOfficeAddress(data.address);
+        } else {
+          // Intentar obtener dirección si no existe
+          const addr = await getAddressFromCoords(data.lat, data.lon);
+          if (addr) setOfficeAddress(addr);
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -87,6 +113,7 @@ export default function AdminSettingsScreen({ navigation }) {
   };
 
   const toggleDay = (dayId) => {
+    Haptics.selectionAsync();
     if (workDays.includes(dayId)) {
       setWorkDays(workDays.filter(id => id !== dayId));
     } else {
@@ -155,12 +182,17 @@ export default function AdminSettingsScreen({ navigation }) {
     }
   };
 
-  const confirmMapLocation = () => {
+  const confirmMapLocation = async () => {
     if (tempLocation) {
       setOfficeLocation({
         lat: tempLocation.latitude,
         lon: tempLocation.longitude
       });
+      
+      // Obtener dirección
+      const addr = await getAddressFromCoords(tempLocation.latitude, tempLocation.longitude);
+      if (addr) setOfficeAddress(addr);
+      
       setMapVisible(false);
     }
   };
@@ -183,6 +215,11 @@ export default function AdminSettingsScreen({ navigation }) {
         lon: location.coords.longitude
       });
       
+      // Obtener dirección
+      const addr = await getAddressFromCoords(location.coords.latitude, location.coords.longitude);
+      if (addr) setOfficeAddress(addr);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('📍 Ubicación Capturada', 'Coordenadas actuales registradas. No olvides guardar los cambios.');
     } catch (error) {
       console.error('Error capturing location:', error);
@@ -225,10 +262,12 @@ export default function AdminSettingsScreen({ navigation }) {
           lat: officeLocation.lat,
           lon: officeLocation.lon,
           radius: parseInt(locationRadius) || 100,
+          address: officeAddress,
           updatedAt: new Date()
         });
       }
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('✅ Guardado', 'La configuración se ha actualizado correctamente.');
       navigation.goBack();
     } catch (error) {
@@ -252,133 +291,175 @@ export default function AdminSettingsScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <Text variant="headlineLarge" style={{ color: getPrimaryColor(), flex: 1 }}>Configuración</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, flex: 1 }}>Configuración</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         
         {/* Work Schedule Section */}
-        <OverlineText color={getPrimaryColor()}>
-          JORNADA LABORAL
-        </OverlineText>
+        <View style={styles.sectionHeader}>
+          <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>JORNADA LABORAL</Text>
+        </View>
         
         <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4 }}>Días Laborales</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginBottom: 16 }}>
-              Selecciona los días de operación de la empresa.
-            </Text>
+            <View style={{ marginBottom: 20 }}>
+              <Text variant="titleMedium" style={{ fontWeight: '600' }}>Días de Operación</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                Toca los días para activar o desactivar
+              </Text>
+            </View>
             
             <View style={styles.daysContainer}>
               {daysOfWeek.map((day) => {
                 const isSelected = workDays.includes(day.id);
                 return (
-                  <Chip
+                  <Pressable
                     key={day.id}
-                    selected={isSelected}
                     onPress={() => toggleDay(day.id)}
-                    mode={isSelected ? 'flat' : 'outlined'}
-                    style={{ marginRight: 8, marginBottom: 8 }}
+                    style={[
+                      styles.dayCircle,
+                      isSelected && { backgroundColor: theme.colors.primary },
+                      !isSelected && { borderColor: theme.colors.outline, borderWidth: 1 }
+                    ]}
                   >
-                    {day.label}
-                  </Chip>
+                    <Text 
+                      variant="labelLarge" 
+                      style={{ 
+                        color: isSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant,
+                        fontWeight: isSelected ? 'bold' : 'normal'
+                      }}
+                    >
+                      {day.label}
+                    </Text>
+                  </Pressable>
                 );
               })}
             </View>
 
+            <Divider style={{ marginVertical: 20 }} />
+
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <PaperInput
-                  label="Hora Entrada"
+                  label="Entrada"
                   value={workStartTime}
                   onChangeText={setWorkStartTime}
                   placeholder="08:00"
                   maxLength={5}
                   mode="outlined"
-                  left={<PaperInput.Icon icon="clock-start" />}
+                  dense
+                  left={<PaperInput.Icon icon="clock-start" size={20} />}
                 />
               </View>
               <View style={{ flex: 1, marginLeft: 8 }}>
                 <PaperInput
-                  label="Hora Salida"
+                  label="Salida"
                   value={workEndTime}
                   onChangeText={setWorkEndTime}
                   placeholder="18:00"
                   maxLength={5}
                   mode="outlined"
-                  left={<PaperInput.Icon icon="clock-end" />}
+                  dense
+                  left={<PaperInput.Icon icon="clock-end" size={20} />}
                 />
               </View>
             </View>
 
-            <PaperInput
-              label="Tiempo de Gracia (minutos)"
-              value={gracePeriod}
-              onChangeText={setGracePeriod}
-              placeholder="15"
-              keyboardType="numeric"
-              maxLength={2}
-              mode="outlined"
-              left={<PaperInput.Icon icon="timer-sand" />}
-              style={{ marginTop: 16 }}
-            />
+            <View style={{ marginTop: 16 }}>
+              <PaperInput
+                label="Tiempo de Gracia (min)"
+                value={gracePeriod}
+                onChangeText={setGracePeriod}
+                placeholder="15"
+                keyboardType="numeric"
+                maxLength={2}
+                mode="outlined"
+                dense
+                left={<PaperInput.Icon icon="timer-sand" size={20} />}
+              />
+            </View>
         </SobrioCard>
 
         {/* Location Section */}
-        <OverlineText color={getPrimaryColor()}>
-          GEOLOCALIZACIÓN
-        </OverlineText>
+        <View style={styles.sectionHeader}>
+          <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>GEOLOCALIZACIÓN</Text>
+        </View>
 
         <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
-            <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 4 }}>Ubicación Oficina</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.secondary, marginBottom: 16 }}>
-              Control de asistencia por GPS
-            </Text>
-
-            <PaperInput
-              label="Radio Permitido (metros)"
-              value={locationRadius}
-              onChangeText={setLocationRadius}
-              placeholder="100"
-                keyboardType="numeric"
-              maxLength={4}
-              mode="outlined"
-              left={<PaperInput.Icon icon="ruler" />}
-              style={{ marginBottom: 16 }}
-            />
-
-            {officeLocation ? (
-              <View style={{ marginBottom: 16 }}>
-                <DetailRow
-                  icon="location-outline"
-                  label="COORDENADAS GPS"
-                  value={`${officeLocation.lat.toFixed(6)}, ${officeLocation.lon.toFixed(6)}`}
-                  iconColor={getPrimaryColor()}
-                />
-              </View>
-            ) : (
-              <Surface style={{ padding: 16, borderRadius: 12, backgroundColor: theme.colors.errorContainer, marginBottom: 16 }} elevation={0}>
-                <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onErrorContainer }}>
-                  ⚠️ No hay ubicación registrada
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View>
+                <Text variant="titleMedium" style={{ fontWeight: '600' }}>Zona de Oficina</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                  Radio permitido: {locationRadius}m
                 </Text>
-              </Surface>
-            )}
+              </View>
+              <IconButton 
+                icon="pencil-outline" 
+                mode="contained-tonal" 
+                size={20}
+                onPress={() => {
+                  Alert.prompt(
+                    "Radio de Cobertura",
+                    "Ingresa el radio en metros:",
+                    [
+                      { text: "Cancelar", style: "cancel" },
+                      { text: "Guardar", onPress: text => setLocationRadius(text) }
+                    ],
+                    "plain-text",
+                    locationRadius
+                  );
+                }}
+              />
+            </View>
 
-            <Button 
-              mode="outlined" 
-              onPress={captureLocation} 
-              style={{ marginBottom: 12 }}
-              icon="crosshairs-gps"
-            >
-              Capturar Ubicación Actual
-            </Button>
+            {/* Map Widget Preview */}
+            <Surface style={styles.mapWidget} elevation={0}>
+              {officeLocation ? (
+                <View style={styles.mapPreviewContent}>
+                  <View style={styles.coordinateRow}>
+                    <IconButton icon="map-marker" size={24} iconColor={theme.colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>Ubicación Registrada</Text>
+                      {officeAddress ? (
+                        <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 2 }}>
+                          {officeAddress}
+                        </Text>
+                      ) : null}
+                      <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: theme.colors.outline }}>
+                        {officeLocation.lat.toFixed(6)}, {officeLocation.lon.toFixed(6)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.emptyMapState}>
+                  <IconButton icon="map-marker-off" size={32} iconColor={theme.colors.error} />
+                  <Text variant="bodyMedium" style={{ color: theme.colors.error }}>Sin ubicación registrada</Text>
+                </View>
+              )}
+            </Surface>
 
-            <Button 
-              mode="contained" 
-              onPress={openMapPicker} 
-              icon="map-marker"
-            >
-              Buscar en Mapa
-            </Button>
+            <View style={styles.actionButtonsRow}>
+              <Button 
+                mode="outlined" 
+                onPress={captureLocation} 
+                icon="crosshairs-gps"
+                style={{ flex: 1, marginRight: 8 }}
+                compact
+              >
+                Capturar GPS
+              </Button>
+
+              <Button 
+                mode="contained-tonal" 
+                onPress={openMapPicker} 
+                icon="map-search"
+                style={{ flex: 1, marginLeft: 8 }}
+                compact
+              >
+                Abrir Mapa
+              </Button>
+            </View>
         </SobrioCard>
 
         <Button 
@@ -477,7 +558,7 @@ const styles = StyleSheet.create({
   },
   daysContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   row: {
@@ -501,4 +582,41 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
+  sectionHeader: {
+    marginBottom: 12,
+    marginLeft: 4
+  },
+  dayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapWidget: {
+    backgroundColor: '#f0f2f5', // Light gray background
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)'
+  },
+  mapPreviewContent: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  coordinateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  emptyMapState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  }
 });

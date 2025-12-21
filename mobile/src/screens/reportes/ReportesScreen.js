@@ -54,7 +54,9 @@ export default function ReportesScreen() {
     totalHoras: 0,
     diasTrabajados: 0,
     promedioDiario: 0,
-    puntualidad: 100,
+    puntualidad: null,
+    onTimeCount: 0,
+    punctualityBaseCount: 0,
     chartData: [0, 0, 0, 0, 0, 0, 0],
     chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
   });
@@ -230,7 +232,9 @@ export default function ReportesScreen() {
         totalHoras: Math.floor(totalMinutos / 60),
         diasTrabajados: diasReales,
         promedioDiario: diasReales ? (totalMinutos / diasReales / 60).toFixed(1) : 0,
-        puntualidad: punctualityBaseCount > 0 ? Math.round((onTimeCount / punctualityBaseCount) * 100) : 100,
+        puntualidad: punctualityBaseCount > 0 ? Math.round((onTimeCount / punctualityBaseCount) * 100) : null,
+        onTimeCount,
+        punctualityBaseCount,
         chartData,
         chartLabels
       });
@@ -381,10 +385,14 @@ export default function ReportesScreen() {
             {/* 3. Puntualidad (Full Width Highlight) */}
             <StatCard 
               title="Puntualidad" 
-              value={`${stats.puntualidad}%`} 
-              subtitle={stats.puntualidad > 90 ? "¡Excelente desempeño!" : "Necesita atención"}
+              value={stats.puntualidad !== null ? `${stats.puntualidad}%` : '--'} 
+              subtitle={
+                stats.puntualidad !== null 
+                  ? `${stats.onTimeCount} de ${stats.punctualityBaseCount} llegadas a tiempo` 
+                  : "Sin registros válidos"
+              }
               icon="star" 
-              color={stats.puntualidad > 90 ? surfaceColors.primary : surfaceColors.error} 
+              color={(stats.puntualidad || 0) >= 90 ? surfaceColors.primary : surfaceColors.error} 
               style={{ width: '100%', marginTop: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 20 }}
             />
 

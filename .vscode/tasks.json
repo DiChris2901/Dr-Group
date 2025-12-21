@@ -201,6 +201,29 @@
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "Run Mobile App (Universal)",
+			"type": "shell",
+			"command": "cd mobile && npx expo start --clear",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Start Expo Mobile",
+			"type": "shell",
+			"command": "cd mobile && npx expo start --clear",
+			"isBackground": true,
+			"group": "test"
+		},
+		{
+			"label": "Start Mobile App (Background)",
+			"type": "shell",
+			"command": "cd mobile && npx expo start --clear",
+			"isBackground": true,
+			"group": "test"
 		}
 	]
 }

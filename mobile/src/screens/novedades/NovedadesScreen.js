@@ -61,7 +61,8 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
       onTertiaryContainer: scheme.onTertiaryContainer,
       error: scheme.error,
       background: scheme.background,
-      tertiary: scheme.tertiary
+      tertiary: scheme.tertiary,
+      outlineVariant: scheme.outlineVariant
     };
   }, [theme.dark]);
   
@@ -329,7 +330,9 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
         styles.card,
         { 
           backgroundColor: surfaceColors.surfaceContainerLow,
-          transform: [{ scale: pressed ? 0.98 : 1 }]
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          borderWidth: 1,
+          borderColor: surfaceColors.outlineVariant
         }
       ]}
     >

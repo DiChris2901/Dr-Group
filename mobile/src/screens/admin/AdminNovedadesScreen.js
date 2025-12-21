@@ -8,7 +8,8 @@ import {
   Animated,
   Linking,
   Dimensions,
-  Pressable
+  Pressable,
+  ScrollView // Added ScrollView import
 } from 'react-native';
 import { 
   Text, 
@@ -16,7 +17,8 @@ import {
   Avatar, 
   Searchbar,
   Portal,
-  Modal
+  Modal,
+  SegmentedButtons
 } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,7 +32,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Custom Hooks & Components
 import { useTheme } from '../../contexts/ThemeContext';
-import SobrioCard from '../../components/SobrioCard';
+import ExpressiveCard from '../../components/ExpressiveCard';
 import DetailRow from '../../components/DetailRow';
 import OverlineText from '../../components/OverlineText';
 
@@ -60,7 +62,8 @@ export default function AdminNovedadesScreen({ navigation }) {
       onTertiaryContainer: scheme.onTertiaryContainer,
       surfaceVariant: scheme.surfaceVariant,
       background: scheme.background,
-      error: scheme.error
+      error: scheme.error,
+      outlineVariant: scheme.outlineVariant
     };
   }, [paperTheme.dark]);
 
@@ -202,16 +205,26 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.rightActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: surfaceColors.errorContainer, transform: [{ translateX: trans }] }]}>
+        <Animated.View style={[
+          styles.actionButton, 
+          { 
+            backgroundColor: surfaceColors.errorContainer, 
+            transform: [{ translateX: trans }],
+            borderRadius: 100, // Pill/Circle shape
+            width: 80, // Fixed width for circle/pill
+            height: 80, // Fixed height
+            marginRight: 24, // Spacing from edge
+          }
+        ]}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               handleStatusChange(item.id, 'rejected');
             }}
-            style={{ alignItems: 'center' }}
+            style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+            android_ripple={{ color: surfaceColors.onErrorContainer + '1F', borderless: true }}
           >
-            <MaterialCommunityIcons name="close" size={24} color={surfaceColors.onErrorContainer} />
-            <Text style={{ color: surfaceColors.onErrorContainer, fontWeight: '600', marginTop: 4 }}>Rechazar</Text>
+            <MaterialCommunityIcons name="close" size={32} color={surfaceColors.onErrorContainer} />
           </Pressable>
         </Animated.View>
       </View>
@@ -227,16 +240,26 @@ export default function AdminNovedadesScreen({ navigation }) {
 
     return (
       <View style={styles.leftActionContainer}>
-        <Animated.View style={[styles.actionButton, { backgroundColor: surfaceColors.primaryContainer, transform: [{ translateX: trans }] }]}>
+        <Animated.View style={[
+          styles.actionButton, 
+          { 
+            backgroundColor: surfaceColors.primaryContainer, 
+            transform: [{ translateX: trans }],
+            borderRadius: 100, // Pill/Circle shape
+            width: 80,
+            height: 80,
+            marginLeft: 24,
+          }
+        ]}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               handleStatusChange(item.id, 'approved');
             }}
-            style={{ alignItems: 'center' }}
+            style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+            android_ripple={{ color: surfaceColors.onPrimaryContainer + '1F', borderless: true }}
           >
-            <MaterialCommunityIcons name="check" size={24} color={surfaceColors.onPrimaryContainer} />
-            <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', marginTop: 4 }}>Aprobar</Text>
+            <MaterialCommunityIcons name="check" size={32} color={surfaceColors.onPrimaryContainer} />
           </Pressable>
         </Animated.View>
       </View>
@@ -247,56 +270,81 @@ export default function AdminNovedadesScreen({ navigation }) {
     <Swipeable
       renderRightActions={(p, d) => renderRightActions(p, d, item)}
       renderLeftActions={(p, d) => renderLeftActions(p, d, item)}
+      containerStyle={{ overflow: 'visible' }} // Allow shadows/elevation to show
     >
-      <SobrioCard 
+      <ExpressiveCard 
         onPress={() => { setSelectedNovedad(item); setModalVisible(true); }}
-        borderColor={primaryColor}
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 16 }}
+        variant="outlined" // ✅ CORRECCIÓN: Forzar variante outlined para tener borde
       >
         <View style={styles.cardHeader}>
           <Avatar.Text 
-            size={40} 
+            size={48} // Larger avatar for expressive touch
             label={item.userName ? item.userName.substring(0, 2).toUpperCase() : 'NA'} 
             style={{ backgroundColor: surfaceColors.primaryContainer }}
             color={surfaceColors.onPrimaryContainer}
+            labelStyle={{ fontWeight: '600' }}
           />
           <View style={styles.headerText}>
-            <Text variant="titleMedium" style={{ fontWeight: '600' }}>{item.userName || 'Usuario'}</Text>
-            <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
+            <Text style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 18, 
+              fontWeight: '500', 
+              color: surfaceColors.onSurface,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
+            }}>
+              {item.userName || 'Usuario'}
+            </Text>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
               {item.date?.toDate ? format(item.date.toDate(), "d MMM, h:mm a", { locale: es }) : 'Fecha inválida'}
             </Text>
           </View>
+          
+          {/* Status Chip - Material 3 Assist Chip Style */}
           <View style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingVertical: 4,
+            paddingVertical: 6,
             paddingHorizontal: 12,
-            borderRadius: 16,
-            backgroundColor: item.status === 'pending' ? surfaceColors.tertiaryContainer : item.status === 'approved' ? surfaceColors.primaryContainer : surfaceColors.errorContainer
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: item.status === 'pending' ? surfaceColors.outlineVariant : 'transparent',
+            backgroundColor: item.status === 'pending' ? 'transparent' : item.status === 'approved' ? surfaceColors.primaryContainer : surfaceColors.errorContainer
           }}>
             <MaterialCommunityIcons 
-              name={item.status === 'pending' ? 'clock' : item.status === 'approved' ? 'check' : 'close'}
-              size={14}
-              color={item.status === 'pending' ? surfaceColors.onTertiaryContainer : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer}
-              style={{ marginRight: 4 }}
+              name={item.status === 'pending' ? 'clock-outline' : item.status === 'approved' ? 'check' : 'close'}
+              size={16}
+              color={item.status === 'pending' ? surfaceColors.onSurfaceVariant : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer}
+              style={{ marginRight: 6 }}
             />
-            <Text style={{ color: item.status === 'pending' ? surfaceColors.onTertiaryContainer : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer, fontSize: 11, fontWeight: '500' }}>
+            <Text style={{ 
+              color: item.status === 'pending' ? surfaceColors.onSurfaceVariant : item.status === 'approved' ? surfaceColors.onPrimaryContainer : surfaceColors.onErrorContainer, 
+              fontSize: 12, 
+              fontWeight: '600' 
+            }}>
               {item.status === 'pending' ? 'Pendiente' : item.status === 'approved' ? 'Aprobado' : 'Rechazado'}
             </Text>
           </View>
         </View>
         
-        <View style={{ marginTop: 12 }}>
-            <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 4 }}>
+        <View style={{ marginTop: 16 }}>
+            <OverlineText color={surfaceColors.primary} style={{ marginBottom: 6 }}>
                 {item.type?.replace('_', ' ')}
             </OverlineText>
             {item.description ? (
-                <Text numberOfLines={2} style={{ color: surfaceColors.onSurfaceVariant }}>
+                <Text 
+                  numberOfLines={2} 
+                  style={{ 
+                    color: surfaceColors.onSurfaceVariant, 
+                    fontSize: 15, 
+                    lineHeight: 22 
+                  }}
+                >
                     {item.description}
                 </Text>
             ) : null}
         </View>
-      </SobrioCard>
+      </ExpressiveCard>
     </Swipeable>
   );
 
@@ -306,93 +354,88 @@ export default function AdminNovedadesScreen({ navigation }) {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 36, // Display Small
+            lineHeight: 44,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
+          }}>
             Novedades
           </Text>
-          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, fontSize: 16 }}>
             Gestionar reportes de empleados
           </Text>
         </View>
 
-        {/* Filter Chips */}
-        <View style={styles.filterChips}>
-          <Pressable
-            onPress={() => {
+        {/* Filter Chips - SegmentedButtons */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+          <SegmentedButtons
+            value={filterStatus}
+            onValueChange={(value) => {
               Haptics.selectionAsync();
-              setFilterStatus('pending');
+              setFilterStatus(value);
             }}
-            android_ripple={{ color: surfaceColors.primary + '1F' }}
-            style={({ pressed }) => [
-              {
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 20,
-                backgroundColor: filterStatus === 'pending' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
-                borderWidth: filterStatus === 'pending' ? 0 : 1,
-                borderColor: surfaceColors.surfaceVariant,
-                marginRight: 8,
-                transform: [{ scale: pressed ? 0.97 : 1 }]
-              }
+            buttons={[
+              { value: 'pending', label: 'Pendientes', icon: 'clock-outline' },
+              { value: 'all', label: 'Historial', icon: 'history' },
             ]}
-          >
-            <MaterialCommunityIcons 
-              name="clock-alert" 
-              size={18} 
-              color={filterStatus === 'pending' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={{ color: filterStatus === 'pending' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface, fontWeight: '500' }}>
-              Pendientes
-            </Text>
-          </Pressable>
-          
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              setFilterStatus('all');
-            }}
-            android_ripple={{ color: surfaceColors.primary + '1F' }}
-            style={({ pressed }) => [
-              {
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 20,
-                backgroundColor: filterStatus === 'all' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainer,
-                borderWidth: filterStatus === 'all' ? 0 : 1,
-                borderColor: surfaceColors.surfaceVariant,
-                transform: [{ scale: pressed ? 0.97 : 1 }]
-              }
-            ]}
-          >
-            <MaterialCommunityIcons 
-              name="history" 
-              size={18} 
-              color={filterStatus === 'all' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={{ color: filterStatus === 'all' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface, fontWeight: '500' }}>
-              Historial
-            </Text>
-          </Pressable>
+          />
         </View>
 
         <Searchbar
           placeholder="Buscar empleado..."
           onChangeText={setSearchQuery}
           value={searchQuery}
-          style={[styles.searchBar, { backgroundColor: surfaceColors.surfaceContainer, borderRadius: 20 }]}
+          style={[
+            styles.searchBar, 
+            { 
+              backgroundColor: surfaceColors.surfaceContainerHigh, 
+              borderRadius: 100, // Full Pill
+              height: 56, // Standard M3 height
+            }
+          ]}
+          inputStyle={{ 
+            minHeight: 0, // Fix for some Android versions
+            alignSelf: 'center' 
+          }}
+          iconColor={surfaceColors.onSurfaceVariant}
+          placeholderTextColor={surfaceColors.onSurfaceVariant}
           elevation={0}
         />
 
         {filteredNovedades.length === 0 && !loading ? (
           <View style={styles.emptyState}>
-            <Avatar.Icon size={80} icon="check-all" style={{ backgroundColor: surfaceColors.primaryContainer }} color={surfaceColors.onPrimaryContainer} />
-            <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>¡Todo al día!</Text>
-            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant }}>No hay novedades pendientes.</Text>
+            <View style={{
+              width: 160,
+              height: 160,
+              borderRadius: 80,
+              backgroundColor: surfaceColors.surfaceContainerHigh,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24
+            }}>
+              <MaterialCommunityIcons 
+                name="check-decagram" 
+                size={80} 
+                color={surfaceColors.primary} 
+              />
+            </View>
+            <Text style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 24, 
+              fontWeight: '400', 
+              color: surfaceColors.onSurface,
+              textAlign: 'center',
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
+              ¡Todo al día!
+            </Text>
+            <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
+              No hay novedades pendientes por revisar.
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -534,12 +577,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   filterChips: {
-    flexDirection: 'row',
-    marginTop: 16,
+    // Removed flex styles that caused stretching
   },
   searchBar: {
     marginHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 24, // Increased spacing
   },
   listContent: {
     paddingHorizontal: 24,
@@ -554,23 +596,21 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   rightActionContainer: {
-    width: 100,
-    marginBottom: 12,
+    width: 120, // Increased width for better swipe feel
+    marginBottom: 16,
     justifyContent: 'center',
     alignItems: 'flex-end',
   },
   leftActionContainer: {
-    width: 100,
-    marginBottom: 12,
+    width: 120,
+    marginBottom: 16,
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   actionButton: {
-    width: 100,
-    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 28, // Match SobrioCard radius
+    elevation: 0, // No shadow, just color
   },
   emptyState: {
     flex: 1,

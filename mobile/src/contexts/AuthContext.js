@@ -808,7 +808,15 @@ export const AuthProvider = ({ children }) => {
     registrarAlmuerzo,
     finalizarAlmuerzo,
     finalizarJornada,
-    hasPermission
+    hasPermission,
+    reloadUserProfile: async () => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile({ ...userDoc.data(), uid: user.uid });
+        }
+      }
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

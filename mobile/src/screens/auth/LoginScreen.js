@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme, Avatar } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
+import { AppLogo } from '../../components';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -189,20 +190,14 @@ export default function LoginScreen() {
           {/* Header Section */}
           <Animated.View style={[styles.headerContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.logoWrapper}>
-              {dynamicAvatar || lastUserPhoto ? (
+              {dynamicAvatar ? (
                 <Avatar.Image 
                   size={100} 
-                  source={{ uri: dynamicAvatar || lastUserPhoto }} 
+                  source={{ uri: dynamicAvatar }} 
                   style={{ backgroundColor: theme.colors.primaryContainer }}
                 />
               ) : (
-                <Avatar.Text 
-                  size={100} 
-                  label="DR" 
-                  style={{ backgroundColor: theme.colors.primary }}
-                  color={theme.colors.onPrimary}
-                  labelStyle={{ fontSize: 40, fontWeight: 'bold' }}
-                />
+                <AppLogo size={120} />
               )}
             </View>
             

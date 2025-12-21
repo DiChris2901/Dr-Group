@@ -46,14 +46,15 @@ import {
   Settings,
   PriorityHigh,
   Visibility,
-  VisibilityOff
+  VisibilityOff,
+  Person
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAlertsCenter } from '../hooks/useAlertsCenter';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 
 // Componente de tarjeta de alerta
-const AlertCard = ({ alert, onDismiss, onToggleStatus, delay = 0 }) => {
+const AlertCard = ({ alert, onDismiss, onToggleStatus, onClick, delay = 0 }) => {
   const theme = useTheme();
   
   const getSeverityConfig = () => {
@@ -99,8 +100,10 @@ const AlertCard = ({ alert, onDismiss, onToggleStatus, delay = 0 }) => {
       transition={{ duration: 0.4, delay }}
     >
       <Card
+        onClick={() => onClick && onClick(alert)}
         sx={{
           mb: 2,
+          cursor: 'pointer',
           background: theme.palette.mode === 'dark' 
             ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
             : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
@@ -315,6 +318,8 @@ const AlertsCenterPage = () => {
   const [currentTab, setCurrentTab] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [newAlertDialog, setNewAlertDialog] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
   const [alertsEnabled, setAlertsEnabled] = useState(true);
   
   const [alerts, setAlerts] = useState([
@@ -327,7 +332,8 @@ const AlertsCenterPage = () => {
       priority: 'high',
       category: 'Pagos',
       timestamp: 'Hace 2 horas',
-      type: 'payment'
+      type: 'payment',
+      sender: 'Sistema Financiero'
     },
     {
       id: 2,
@@ -338,7 +344,8 @@ const AlertsCenterPage = () => {
       priority: 'medium',
       category: 'Vencimientos',
       timestamp: 'Hace 4 horas',
-      type: 'commitment'
+      type: 'commitment',
+      sender: 'Gestor de Compromisos'
     },
     {
       id: 3,
@@ -349,7 +356,8 @@ const AlertsCenterPage = () => {
       priority: 'low',
       category: 'Sistema',
       timestamp: 'Hace 1 día',
-      type: 'company'
+      type: 'company',
+      sender: 'Admin Principal'
     },
     {
       id: 4,
@@ -360,7 +368,8 @@ const AlertsCenterPage = () => {
       priority: 'medium',
       category: 'Sistema',
       timestamp: 'Hace 6 horas',
-      type: 'system'
+      type: 'system',
+      sender: 'Monitor de Sistema'
     },
     {
       id: 5,
@@ -371,7 +380,8 @@ const AlertsCenterPage = () => {
       priority: 'low',
       category: 'Reportes',
       timestamp: 'Hace 2 días',
-      type: 'report'
+      type: 'report',
+      sender: 'Sistema de Reportes'
     }
   ]);
 
@@ -392,6 +402,11 @@ const AlertsCenterPage = () => {
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
+  };
+
+  const handleAlertClick = (alert) => {
+    setSelectedAlert(alert);
+    setDetailDialogOpen(true);
   };
 
   const filteredAlerts = alerts.filter(alert => {
@@ -517,6 +532,7 @@ const AlertsCenterPage = () => {
               alert={alert}
               onDismiss={handleDismissAlert}
               onToggleStatus={handleToggleAlertStatus}
+              onClick={handleAlertClick}
               delay={index * 0.1}
             />
           ))
@@ -533,6 +549,145 @@ const AlertsCenterPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Dialog de Detalle de Alerta */}
+      <Dialog 
+        open={detailDialogOpen} 
+        onClose={() => setDetailDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            background: theme.palette.mode === 'dark' 
+              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
+              : 'linear-gradient(135deg, #ffffff, #f8f9fa)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
+          }
+        }}
+      >
+        {selectedAlert && (
+          <>
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h5" fontWeight="bold">
+                  {selectedAlert.title}
+                </Typography>
+                <Chip 
+                  label={selectedAlert.severity === 'critical' ? 'Crítico' : 
+                         selectedAlert.severity === 'warning' ? 'Advertencia' : 
+                         selectedAlert.severity === 'info' ? 'Info' : 'Éxito'} 
+                  size="small" 
+                  color={selectedAlert.severity === 'critical' ? 'error' : 
+                         selectedAlert.severity === 'warning' ? 'warning' : 
+                         selectedAlert.severity === 'info' ? 'info' : 'success'}
+                  variant="outlined"
+                />
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Descripción
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedAlert.description}
+                  </Typography>
+                </Box>
+                
+                <Divider />
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Categoría
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Chip label={selectedAlert.category} size="small" />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Prioridad
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      {selectedAlert.priority === 'high' && <PriorityHigh color="error" fontSize="small" />}
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedAlert.priority === 'high' ? 'Alta' : 
+                         selectedAlert.priority === 'medium' ? 'Media' : 'Baja'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Fecha
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Schedule fontSize="small" color="action" />
+                      <Typography variant="body2">
+                        {selectedAlert.timestamp}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Estado
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      {selectedAlert.status === 'active' ? 
+                        <Visibility color="primary" fontSize="small" /> : 
+                        <VisibilityOff color="action" fontSize="small" />
+                      }
+                      <Typography variant="body2">
+                        {selectedAlert.status === 'active' ? 'Activa' : 'Resuelta'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  
+                  {/* Campo Enviado por */}
+                  <Grid item xs={12}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: 2, 
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}>
+                      <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 32, height: 32 }}>
+                        <Person fontSize="small" />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Enviado por
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {selectedAlert.sender || 'Sistema Automático'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setDetailDialogOpen(false)}>Cerrar</Button>
+              <Button 
+                variant="contained" 
+                color={selectedAlert.status === 'active' ? 'primary' : 'inherit'}
+                onClick={() => {
+                  handleToggleAlertStatus(selectedAlert.id);
+                  setDetailDialogOpen(false);
+                }}
+              >
+                {selectedAlert.status === 'active' ? 'Marcar como Resuelta' : 'Reactivar Alerta'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
 
       {/* Dialog para nueva alerta */}
       <Dialog open={newAlertDialog} onClose={() => setNewAlertDialog(false)} maxWidth="sm" fullWidth>

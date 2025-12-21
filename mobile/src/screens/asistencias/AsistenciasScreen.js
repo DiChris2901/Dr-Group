@@ -350,21 +350,23 @@ export default function AsistenciasScreen({ navigation }) {
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text 
-          variant="headlineLarge" 
+          variant="displaySmall" 
           style={{ 
-            fontWeight: '600', 
+            fontWeight: '400', 
             color: surfaceColors.onSurface,
-            letterSpacing: -0.5,  // ✅ Expresivo
+            letterSpacing: -0.5,
+            fontFamily: 'Roboto-Flex',
+            marginBottom: 4
           }}
         >
           Historial
         </Text>
-        <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+        <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
           Registro de Asistencias
         </Text>
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         {[
           { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
           { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
@@ -377,19 +379,24 @@ export default function AsistenciasScreen({ navigation }) {
               key={option.value}
               selected={isSelected}
               showSelectedOverlay
-              onPress={() => setFilterType(option.value)}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setFilterType(option.value);
+              }}
               icon={option.icon}
+              mode={isSelected ? 'flat' : 'outlined'}
               style={{
-                backgroundColor: isSelected ? surfaceColors.secondaryContainer : surfaceColors.surfaceContainerLow,
-                borderWidth: 1,
-                borderColor: isSelected ? 'transparent' : surfaceColors.outlineVariant,
-                width: '48%', // ✅ Forzar 2 columnas exactas
+                backgroundColor: isSelected ? surfaceColors.secondaryContainer : 'transparent',
+                borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                borderRadius: 16,
+                width: '48%',
               }}
               textStyle={{
                 color: isSelected ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant,
-                fontWeight: isSelected ? '700' : '400',
+                fontWeight: isSelected ? '600' : '400',
                 textAlign: 'center',
-                flex: 1
+                flex: 1,
+                marginRight: 4
               }}
             >
               {option.label}
@@ -403,14 +410,15 @@ export default function AsistenciasScreen({ navigation }) {
         {
           backgroundColor: theme.colors.background,
           opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
+          transform: [{ translateY: slideAnim }],
+          flex: 1, // Asegurar que ocupe el espacio restante
         }
       ]}>
         <FlatList
           data={asistencias}
           renderItem={({ item, index }) => <AsistenciaItem item={item} index={index} />}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Espacio extra al final
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -422,10 +430,28 @@ export default function AsistenciasScreen({ navigation }) {
           }
           ListEmptyComponent={
             !loading && (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="clock-outline" size={64} color={surfaceColors.outline} />
-                <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 20, textAlign: 'center' }}>
-                  No hay registros disponibles
+              <View style={{ 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: 40,
+                marginTop: 40
+              }}>
+                <View style={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 24
+                }}>
+                  <MaterialCommunityIcons name="clock-time-eight-outline" size={64} color={surfaceColors.primary} />
+                </View>
+                <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
+                  Sin registros
+                </Text>
+                <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center' }}>
+                  No hay asistencias para el filtro seleccionado
                 </Text>
               </View>
             )
@@ -785,12 +811,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   listContent: {
-    padding: 20,  // ✅ Espaciado generoso (16→20)
+    padding: 20,  // ✅ Espaciado generoso
     paddingBottom: 100,
   },
-  // ✅ Expressive Card (border radius 16px, elevation 0)
+  // ✅ Expressive Card (border radius 24px, elevation 0)
   expressiveCard: {
-    borderRadius: 16,  // ✅ Orgánico (24→16 para consistencia)
+    borderRadius: 24,  // ✅ Orgánico (Material You Standard)
     padding: 20,
     elevation: 0,
     borderWidth: 1, // ✅ Borde sutil
@@ -824,12 +850,6 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 80,
-    paddingHorizontal: 40,
   },
   // Modal Styles (Expressive)
   modalOverlay: {

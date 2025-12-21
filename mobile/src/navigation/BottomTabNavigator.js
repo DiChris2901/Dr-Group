@@ -5,9 +5,11 @@ import { CommonActions } from '@react-navigation/native';
 import { BottomNavigation, useTheme as usePaperTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import AdminDashboardScreen from '../screens/dashboard/AdminDashboardScreen';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
 import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
@@ -19,6 +21,7 @@ const Tab = createBottomTabNavigator();
 export default function BottomTabNavigator() {
   const theme = usePaperTheme();
   const { userProfile } = useAuth();
+  const { triggerHaptic } = useTheme();
   
   const userRole = userProfile?.role || 'USER';
   const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
@@ -33,6 +36,8 @@ export default function BottomTabNavigator() {
           navigationState={state}
           safeAreaInsets={insets}
           onTabPress={({ route, preventDefault }) => {
+            triggerHaptic('selection'); // ✅ Vibración al cambiar de pestaña
+            
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -74,14 +79,18 @@ export default function BottomTabNavigator() {
         />
       )}
     >
-      {/* 1. INICIO (Jornada) */}
+      {/* 1. INICIO (Jornada vs Torre de Control) */}
       <Tab.Screen 
         name="Dashboard" 
-        component={DashboardScreen}
+        component={isAdmin ? AdminDashboardScreen : DashboardScreen}
         options={{
-          tabBarLabel: 'Mi Jornada',
+          tabBarLabel: isAdmin ? 'Control' : 'Mi Jornada',
           tabBarIcon: ({ focused, color }) => (
-            <MaterialCommunityIcons name={focused ? "timer" : "timer-outline"} size={24} color={color} />
+            <MaterialCommunityIcons 
+              name={isAdmin ? (focused ? "view-dashboard" : "view-dashboard-outline") : (focused ? "timer" : "timer-outline")} 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />

@@ -3,8 +3,10 @@
 
 // Componentes base
 export { default as SobrioCard } from './SobrioCard';
+export { default as ExpressiveCard } from './ExpressiveCard';
 export { default as DetailRow } from './DetailRow';
 export { default as OverlineText } from './OverlineText';
+export { default as AppLogo } from './AppLogo';
 
 // Estados compartidos (Material 3 Expressive)
 export { default as EmptyState } from './shared/EmptyState';

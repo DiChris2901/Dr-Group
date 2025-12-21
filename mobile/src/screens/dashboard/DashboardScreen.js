@@ -1,5 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
-import { useEffect, useMemo, useState } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     Alert,
     Dimensions,
@@ -14,10 +14,13 @@ import {
     Button,
     IconButton,
     Modal,
+    Menu,
+    Divider,
     Text as PaperText,
     Portal,
     Surface,
-    useTheme as usePaperTheme
+    useTheme as usePaperTheme,
+    Badge
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FloatingActionBar from '../../components/FloatingActionBar';
@@ -25,6 +28,7 @@ import NovedadesSheet from '../../components/NovedadesSheet';
 import RingChart from '../../components/RingChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import designSystem from '../../../design-system.json';
 
 const { width } = Dimensions.get('window');
@@ -32,7 +36,8 @@ const { width } = Dimensions.get('window');
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const theme = usePaperTheme();
-  const { isDarkMode, toggleDarkMode } = useTheme();
+  const { isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
+  const { unreadCount } = useNotifications();
   const { 
     user, 
     userProfile, 
@@ -198,29 +203,68 @@ export default function DashboardScreen() {
               {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
             </PaperText>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+        </View>
+
+        {/* Action Buttons Row */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, paddingHorizontal: 0 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View>
+              <IconButton 
+                icon="bell-outline" 
+                mode="contained-tonal"
+                size={24}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('Notifications');
+                }} 
+              />
+              {unreadCount > 0 && (
+                <Badge
+                  visible={unreadCount > 0}
+                  size={16}
+                  style={{ position: 'absolute', top: 4, right: 4 }}
+                >
+                  {unreadCount}
+                </Badge>
+              )}
+            </View>
             <IconButton 
               icon={isDarkMode ? "white-balance-sunny" : "moon-waning-crescent"} 
               mode="contained-tonal"
-              onPress={toggleDarkMode} 
+              size={24}
+              onPress={() => {
+                triggerHaptic('selection');
+                toggleDarkMode();
+              }} 
             />
             <IconButton 
-              icon="bell-outline" 
+              icon="cog-outline" 
               mode="contained-tonal"
-              onPress={() => navigation.navigate('Notifications')} 
+              size={24}
+              onPress={() => {
+                triggerHaptic('selection');
+                navigation.navigate('Settings');
+              }} 
             />
             {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
               <IconButton 
-                icon="cog-outline" 
+                icon="shield-account-outline" 
                 mode="contained-tonal"
-                onPress={() => navigation.navigate('AdminSettings')} 
+                size={24}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('AdminSettings');
+                }} 
               />
             )}
             <IconButton 
               icon="logout" 
-              mode="contained-tonal"
+              mode="outlined"
               iconColor={theme.colors.error}
+              size={24}
+              style={{ borderColor: theme.colors.error }}
               onPress={() => {
+                triggerHaptic('warning');
                 Alert.alert(
                   "Cerrar Sesión",
                   "¿Estás seguro que deseas salir?",
@@ -232,7 +276,7 @@ export default function DashboardScreen() {
               }} 
             />
           </View>
-        </View>
+        </ScrollView>
 
         {/* Ring Chart Section */}
         <View style={styles.chartContainer}>
@@ -281,25 +325,30 @@ export default function DashboardScreen() {
         {/* Novedades Button */}
         <Surface style={[styles.actionCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={0}>
           <View style={styles.actionContent}>
-            <PaperText variant="titleMedium" style={{ fontWeight: 'bold', color: theme.colors.onSecondaryContainer }}>
-              ¿Alguna Novedad?
+            <PaperText variant="titleMedium" style={{ fontWeight: 'bold', color: theme.colors.onSecondaryContainer, fontSize: 16 }}>
+              ¿Novedades?
             </PaperText>
-            <PaperText variant="bodyMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-              Reporta llegadas tarde, permisos o incapacidades.
+            <PaperText variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, opacity: 0.8 }}>
+              Reportar permisos/incapacidad
             </PaperText>
           </View>
           <Button 
             mode="contained" 
+            compact
             onPress={() => {
-              Haptics.selectionAsync();
+              triggerHaptic('selection');
               setNovedadesVisible(true);
             }}
             style={{ borderRadius: 24 }}
-            contentStyle={{ paddingHorizontal: 8 }}
+            contentStyle={{ paddingHorizontal: 4, height: 36 }}
+            labelStyle={{ fontSize: 13 }}
           >
             Reportar
           </Button>
         </Surface>
+
+        {/* Spacer for Floating Action Bar */}
+        <View style={{ height: 180 }} />
 
       </ScrollView>
 
@@ -352,7 +401,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
-    paddingBottom: 100,
+    paddingBottom: 160, // ✅ Aumentado para evitar solapamiento con botón flotante
   },
   header: {
     flexDirection: 'row',
@@ -382,12 +431,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionCard: {
-    padding: 24,
+    padding: 16, // Reducido de 24
     borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: 12,
   },
   actionContent: {
     flex: 1,
