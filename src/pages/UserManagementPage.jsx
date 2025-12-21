@@ -1305,7 +1305,17 @@ const UserManagementPage = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="textSecondary">
-                        {user.lastLogin ? new Date(user.lastLogin.toDate()).toLocaleDateString() : 'Nunca'}
+                        {user.lastLogin ? (
+                          new Date(user.lastLogin.toDate ? user.lastLogin.toDate() : user.lastLogin).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })
+                        ) : (
+                          <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                            Nunca
+                          </Typography>
+                        )}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

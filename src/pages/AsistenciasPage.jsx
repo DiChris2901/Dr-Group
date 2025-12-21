@@ -125,7 +125,10 @@ const AsistenciasPage = () => {
               almuerzoInicio: toDate(data.almuerzo?.inicio),
               almuerzoFin: toDate(data.almuerzo?.fin),
               almuerzoDuracion: data.almuerzo?.duracion || null,
-              salida: toDate(data.salida?.hora),
+              salida: data.salida ? {
+                hora: toDate(data.salida.hora),
+                ubicacion: data.salida.ubicacion || null // ✅ Preservar ubicación con tipo (Remoto/Oficina)
+              } : null,
               estadoActual: data.estadoActual,
               horasTrabajadas: data.horasTrabajadas || null,
               createdAt: toDate(data.createdAt),
@@ -186,9 +189,9 @@ const AsistenciasPage = () => {
       let horasTrabajadas = asistencia.horasTrabajadas;
       
       // 🔄 SIEMPRE recalcular desde timestamps si existen entrada y salida
-      if (asistencia.entrada?.hora && asistencia.salida) {
+      if (asistencia.entrada?.hora && asistencia.salida?.hora) {
         // Tiempo total: salida - entrada
-        const diffMs = asistencia.salida.getTime() - asistencia.entrada.hora.getTime();
+        const diffMs = asistencia.salida.hora.getTime() - asistencia.entrada.hora.getTime();
         
         // Calcular tiempo de descansos (breaks + almuerzo) en milisegundos
         let tiempoDescansoMs = 0;
@@ -857,19 +860,19 @@ const AsistenciasPage = () => {
                           <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
                             <Chip
                               icon={<ExitIcon sx={{ fontSize: 14 }} />}
-                              label={formatTime(asistencia.salida?.hora || asistencia.salida) || '-'}
+                              label={formatTime(asistencia.salida?.hora) || '-'}
                               size="small"
                               variant="outlined"
                               sx={{
-                                borderColor: asistencia.salida 
+                                borderColor: asistencia.salida?.hora 
                                   ? alpha(theme.palette.error.main, 0.5) 
                                   : alpha(theme.palette.divider, 0.6),
-                                color: asistencia.salida 
+                                color: asistencia.salida?.hora 
                                   ? theme.palette.error.main 
                                   : 'text.secondary',
                                 fontSize: '0.75rem',
                                 '& .MuiChip-icon': {
-                                  color: asistencia.salida 
+                                  color: asistencia.salida?.hora 
                                     ? theme.palette.error.main 
                                     : 'text.secondary'
                                 }
@@ -897,7 +900,7 @@ const AsistenciasPage = () => {
                                   }`
                                 }}
                               />
-                            ) : asistencia.salida ? (
+                            ) : asistencia.salida?.hora ? (
                               <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
                                 Sin ubicación
                               </Typography>

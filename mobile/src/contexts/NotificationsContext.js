@@ -39,7 +39,7 @@ export const NotificationsProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCount(0);
-      return;
+      return () => {}; // ✅ Cleanup vacío cuando no hay usuario
     }
 
     // Query para contar no leídas
@@ -50,7 +50,9 @@ export const NotificationsProvider = ({ children }) => {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
       const count = snapshot.size;
       setUnreadCount(count);
 
@@ -87,6 +89,10 @@ export const NotificationsProvider = ({ children }) => {
           }
         }
       });
+    },
+    (error) => {
+      // ✅ Manejo de errores silencioso para evitar spam en consola
+      console.log('⚠️ Error en listener de notificaciones (esperado al cerrar sesión):', error.code);
     });
 
     return () => unsubscribe();

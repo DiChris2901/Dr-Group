@@ -15,7 +15,7 @@ import { SobrioCard, DetailRow, OverlineText } from '../../components';
 export default function AdminDashboardScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor, isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
-  const { userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,14 +57,17 @@ export default function AdminDashboardScreen({ navigation }) {
     finished: 0,
     absent: 0
   });
-  
   const [activeEmployees, setActiveEmployees] = useState([]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user?.uid) {
+      fetchData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
+    if (!user?.uid) return; // ✅ Protección adicional
+    
     setLoading(true);
     try {
       // 1. Get Total Employees
@@ -79,7 +82,9 @@ export default function AdminDashboardScreen({ navigation }) {
       const today = format(new Date(), 'yyyy-MM-dd');
       const attendanceQuery = query(collection(db, 'asistencias'), where('fecha', '==', today));
       
-      const unsubscribe = onSnapshot(attendanceQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(
+        attendanceQuery, 
+        (snapshot) => {
         const attendanceMap = {};
         snapshot.docs.forEach(doc => {
             attendanceMap[doc.data().uid] = { ...doc.data(), id: doc.id };
@@ -133,7 +138,12 @@ export default function AdminDashboardScreen({ navigation }) {
         
         setAllEmployees(processedList);
         setLoading(false);
-      });
+      },
+      (error) => {
+        console.log("⚠️ Error en listener de asistencias (esperado al cerrar sesión):", error.code);
+        setLoading(false);
+      }
+      );
 
       return () => unsubscribe();
     } catch (error) {

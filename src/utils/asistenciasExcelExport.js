@@ -111,7 +111,7 @@ const mapItem = (item) => {
     break1: item.breaks && item.breaks[0] ? formatTime(item.breaks[0]) : null,
     break2: item.breaks && item.breaks[1] ? formatTime(item.breaks[1]) : null,
     almuerzo: formatTime(item.almuerzo),
-    salida: formatTime(item.salida),
+    salida: formatTime(item.salida?.hora || item.salida),
     horasTrabajadas: item.horasTrabajadas || ''
   };
 };

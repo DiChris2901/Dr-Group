@@ -124,6 +124,32 @@ service cloud.firestore {
       allow delete: if request.auth != null 
                     && resource.data.userId == request.auth.uid;
     }
+
+    // Notificaciones generales del sistema
+    match /notifications/{notificationId} {
+      // ✅ SIMPLIFICADO: Permitir lectura a usuarios autenticados
+      // (El frontend filtra por uid/userId)
+      allow read: if request.auth != null;
+      
+      // Permitir crear a cualquier usuario autenticado
+      allow create: if request.auth != null;
+      
+      // Permitir actualizar a usuarios autenticados (para marcar como leída)
+      allow update: if request.auth != null;
+      
+      // Permitir eliminar a usuarios autenticados
+      allow delete: if request.auth != null;
+    }
+    
+    // Versiones de la app (públicas para verificación de actualizaciones)
+    match /appVersions/{platform} {
+      // ✅ Lectura pública (necesario para verificar actualizaciones sin login)
+      allow read: if true;
+      
+      // ✅ Solo administradores pueden actualizar versiones
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPER_ADMIN'];
+    }
     
     // Regla por defecto para cualquier otra colección: Solo usuarios autenticados
     match /{document=**} {

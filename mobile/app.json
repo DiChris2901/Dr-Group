@@ -30,7 +30,10 @@
         "NOTIFICATIONS",
         "VIBRATE",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "USE_FINGERPRINT",
+        "REQUEST_INSTALL_PACKAGES",
+        "INTERNET",
+        "WRITE_EXTERNAL_STORAGE"
       ],
       "edgeToEdgeEnabled": true,
       "useNextNotificationsApi": true

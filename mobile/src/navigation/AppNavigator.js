@@ -24,7 +24,8 @@ const Stack = createNativeStackNavigator();
 function AppNavigator({ navigation }, ref) {
   const { user, userProfile, loading } = useAuth();
 
-  if (loading) {
+  // ✅ Esperar a que tanto user como userProfile estén cargados
+  if (loading || (user && !userProfile)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#667eea" />

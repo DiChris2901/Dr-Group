@@ -1737,8 +1737,351 @@ tree mobile/src /F
 # Instalar nueva dependencia
 Set-Location mobile; npx expo install [paquete]
 
-# Build APK (requiere EAS)
-Set-Location mobile; eas build --platform android
+# Build APK completo (requiere EAS)
+Set-Location mobile; eas build --platform android --profile production
+
+# Publicar actualización OTA (solo código JS/assets)
+Set-Location mobile; eas update --branch production --message "Descripción"
+```
+
+---
+
+## 🔄 **PROTOCOLO DE DEPLOYMENT: OTA vs APK COMPLETO**
+
+### **⚠️ DECISIÓN CRÍTICA: ¿Actualización OTA o Nuevo APK?**
+
+**ANTES de compilar/publicar, SIEMPRE ejecutar este checklist:**
+
+#### **✅ USAR ACTUALIZACIÓN OTA (Instantánea) SI:**
+- ✅ Solo cambios en código JavaScript/TypeScript
+- ✅ Solo cambios en componentes React Native
+- ✅ Solo cambios en estilos (StyleSheet)
+- ✅ Solo cambios en lógica de negocio
+- ✅ Solo cambios en assets (imágenes, fuentes ya declaradas)
+- ✅ Solo cambios en Firebase (queries, listeners, lógica)
+- ✅ Correcciones de bugs visuales o de lógica
+- ✅ Ajustes de UX sin nuevas librerías nativas
+
+**Ventajas OTA:**
+- ⚡ Publicación instantánea (1-2 minutos)
+- 🚀 Usuarios reciben actualización sin descargar APK
+- 🔄 Rollback inmediato si hay problemas
+- 💾 Solo se descargan los cambios (KB, no MB)
+- 📱 Se aplica automáticamente al siguiente inicio de la app
+
+**Comando OTA:**
+```powershell
+Set-Location mobile; eas update --branch production --message "Fix: Corrección cálculo horas trabajadas"
+```
+
+---
+
+#### **🏗️ USAR APK COMPLETO (Build Completo) SI:**
+- ❌ Cambios en `app.json` (permisos, configuraciones)
+- ❌ Agregaste/eliminaste permisos de Android
+- ❌ Instalaste nueva librería con código nativo (react-native-*)
+- ❌ Cambiaste `bundleIdentifier` o `package` name
+- ❌ Actualizaste versión de Expo SDK (expo upgrade)
+- ❌ Modificaste plugins nativos en `app.json`
+- ❌ Cambiaste configuración de notificaciones push
+- ❌ Agregaste nuevos assets que requieren compilación nativa
+- ❌ Cambiaste `runtimeVersion` policy
+- ❌ Modificaste código nativo (android/, ios/ folders si existen)
+
+**Razones APK Completo:**
+- 🔧 Código nativo requiere recompilación
+- 📦 Permisos Android requieren reinstalación
+- 🛠️ Plugins nativos requieren rebuild
+- 🏗️ Configuraciones nativas no se pueden actualizar por OTA
+
+**Comando APK Completo:**
+```powershell
+# PASO 1: Consultar última versión en EAS Build
+# (Ver protocolo de versionado automático abajo)
+
+# PASO 2: Incrementar versión automáticamente en app.json
+# Cambiar: "version": "1.0.0" → "1.1.0" (automático)
+
+# PASO 3: Build APK de producción
+Set-Location mobile; eas build --platform android --profile production
+
+# PASO 4: Esperar ~10-15 minutos para build en la nube
+# PASO 5: ¡Listo! La app consulta EAS Build automáticamente
+```
+
+---
+
+### **🔢 PROTOCOLO DE VERSIONADO AUTOMÁTICO**
+
+**ANTES de compilar APK, SIEMPRE ejecutar este protocolo:**
+
+#### **PASO 1: Consultar última versión en EAS Build**
+```powershell
+# Consultar API de EAS Build para última versión
+$response = Invoke-RestMethod -Uri "https://api.expo.dev/v2/projects/169f6749-ebbd-4386-9359-b60f7afe299d/builds?platform=android&status=finished&limit=1" -Method Get
+
+# Obtener versión actual en EAS
+$easVersion = $response[0].appVersion
+Write-Host "📱 Última versión en EAS Build: $easVersion"
+
+# Leer versión actual local
+$appJson = Get-Content "mobile/app.json" -Raw | ConvertFrom-Json
+$currentVersion = $appJson.expo.version
+Write-Host "💻 Versión local actual: $currentVersion"
+```
+
+#### **PASO 2: Incrementar versión automáticamente**
+```powershell
+# Función para incrementar versión (1.0.0 → 1.1.0)
+function Get-NextVersion {
+    param([string]$version)
+    $parts = $version.Split('.')
+    $major = [int]$parts[0]
+    $minor = [int]$parts[1]
+    $patch = [int]$parts[2]
+    
+    # Incrementar minor (cambio estándar)
+    $minor++
+    
+    return "$major.$minor.$patch"
+}
+
+$newVersion = Get-NextVersion -version $easVersion
+Write-Host "🚀 Nueva versión a compilar: $newVersion"
+```
+
+#### **PASO 3: Actualizar app.json automáticamente**
+```powershell
+# Actualizar versión en app.json
+$appJson.expo.version = $newVersion
+$appJson | ConvertTo-Json -Depth 10 | Set-Content "mobile/app.json"
+
+Write-Host "✅ app.json actualizado a versión $newVersion"
+```
+
+#### **PASO 4: Confirmar con el usuario**
+```
+🎯 VERSIONADO AUTOMÁTICO COMPLETADO
+
+📱 Última versión en EAS: 1.0.0
+🚀 Nueva versión local: 1.1.0
+
+✅ app.json actualizado
+📦 Listo para compilar
+
+¿Deseas proceder con el build?
+Comando: Set-Location mobile; eas build --platform android --profile production
+```
+
+---
+
+### **🤖 COMPORTAMIENTO OBLIGATORIO DEL ASISTENTE**
+
+**Cuando el usuario pida "compilar la app" o "hacer build":**
+
+1. **DETENER** - No compilar inmediatamente
+2. **CONSULTAR** - Ejecutar protocolo de versionado automático
+3. **INFORMAR** - Mostrar versiones (actual EAS → nueva local)
+4. **CONFIRMAR** - Esperar aprobación del usuario
+5. **COMPILAR** - Ejecutar build con nueva versión
+
+**NUNCA compilar sin verificar y actualizar versión primero.**
+
+---
+
+### **📋 SCRIPT COMPLETO DE VERSIONADO**
+
+Puedes crear este script en `mobile/auto-version.ps1`:
+
+```powershell
+# auto-version.ps1 - Versionado automático antes de compilar
+
+Write-Host "🔍 Consultando última versión en EAS Build..." -ForegroundColor Cyan
+
+# Consultar EAS Build API
+$response = Invoke-RestMethod -Uri "https://api.expo.dev/v2/projects/169f6749-ebbd-4386-9359-b60f7afe299d/builds?platform=android&status=finished&limit=1" -Method Get
+
+if ($response.Count -eq 0) {
+    Write-Host "⚠️ No se encontraron builds en EAS. Usando versión local." -ForegroundColor Yellow
+    exit
+}
+
+$easVersion = $response[0].appVersion
+Write-Host "📱 Última versión en EAS Build: $easVersion" -ForegroundColor Green
+
+# Leer app.json
+$appJsonPath = "app.json"
+$appJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
+$currentVersion = $appJson.expo.version
+
+# Incrementar versión
+$parts = $easVersion.Split('.')
+$major = [int]$parts[0]
+$minor = [int]$parts[1]
+$patch = [int]$parts[2]
+$minor++
+$newVersion = "$major.$minor.$patch"
+
+Write-Host "🚀 Nueva versión: $newVersion" -ForegroundColor Magenta
+
+# Actualizar app.json
+$appJson.expo.version = $newVersion
+$appJson | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath
+
+Write-Host "✅ app.json actualizado exitosamente" -ForegroundColor Green
+Write-Host ""
+Write-Host "📦 Listo para compilar con:" -ForegroundColor Cyan
+Write-Host "   eas build --platform android --profile production" -ForegroundColor White
+```
+
+**Uso:**
+```powershell
+Set-Location mobile
+.\auto-version.ps1
+eas build --platform android --profile production
+```
+
+---
+
+### **🎯 CHECKLIST DE EVALUACIÓN AUTOMÁTICA**
+
+**Al recibir petición de "compilar la app" o "actualizar la app", ejecutar:**
+
+#### **PASO 1: Análizar Cambios Recientes**
+```powershell
+# Ver qué archivos se modificaron
+git status
+git diff
+```
+
+#### **PASO 2: Evaluar Tipo de Cambios**
+
+**Preguntas clave:**
+1. ¿Se modificó `app.json`? → **APK Completo**
+2. ¿Se instaló librería nueva con `npx expo install`? → Verificar si es nativa
+3. ¿Se modificó lista de permisos en `android.permissions`? → **APK Completo**
+4. ¿Solo se editaron archivos `.js`, `.jsx` en `src/`? → **OTA**
+5. ¿Se modificó `eas.json` o `runtimeVersion`? → **APK Completo**
+
+#### **PASO 3: Informar al Usuario**
+
+**Si es OTA (Caso más común):**
+```
+✅ Los cambios realizados son compatibles con actualización OTA.
+
+📱 Tipo de cambios: Solo código JavaScript/React Native
+⚡ Tiempo de publicación: 1-2 minutos
+🚀 Distribución: Automática (usuarios reciben al abrir la app)
+🔄 Rollback: Inmediato si hay problemas
+
+¿Deseas publicar la actualización OTA ahora?
+Comando: Set-Location mobile; eas update --branch production --message "[descripción]"
+```
+
+**Si es APK Completo (Caso especial):**
+```
+⚠️ Los cambios realizados requieren compilación de APK completo.
+
+🏗️ Razón: [Especificar razón: permisos/librería nativa/app.json/etc.]
+⏱️ Tiempo de build: ~10-15 minutos
+📦 Distribución: Manual (usuarios deben descargar e instalar APK)
+📋 Pasos necesarios:
+   1. Incrementar versión en app.json (actual: X.X.X → nueva: X.X.X)
+   2. Ejecutar build en EAS
+   3. Descargar APK generado
+   4. Distribuir a usuarios
+
+¿Deseas proceder con el build completo?
+Comando: Set-Location mobile; eas build --platform android --profile production
+```
+
+---
+
+### **📝 EJEMPLOS DE DECISIONES**
+
+#### **Ejemplo 1: Corrección de Bug en Cálculo de Horas**
+```javascript
+// AuthContext.js - Línea 194
+// Cambio: if (asistencia.entrada?.hora && asistencia.salida) {
+// A:      if (asistencia.entrada?.hora && asistencia.salida?.hora) {
+```
+**Decisión:** ✅ **OTA** - Solo cambio en lógica JavaScript
+
+---
+
+#### **Ejemplo 2: Agregar Permiso de Cámara**
+```json
+// app.json
+"permissions": [
+  "ACCESS_FINE_LOCATION",
+  "CAMERA"  // ← NUEVO
+]
+```
+**Decisión:** ❌ **APK Completo** - Permisos requieren reinstalación
+
+---
+
+#### **Ejemplo 3: Nuevo Componente Visual**
+```javascript
+// Crear: src/components/NuevoCard.js
+// Solo usa: View, Text, StyleSheet (React Native core)
+```
+**Decisión:** ✅ **OTA** - Solo código React Native sin nativos
+
+---
+
+#### **Ejemplo 4: Instalar React Native Maps**
+```powershell
+Set-Location mobile; npx expo install react-native-maps
+```
+**Decisión:** ❌ **APK Completo** - Librería con código nativo
+
+---
+
+### **🛡️ REGLAS DE ORO PARA OTA**
+
+1. **SIEMPRE verificar compatibilidad** antes de publicar OTA
+2. **NUNCA publicar OTA si hay cambios en app.json**
+3. **SIEMPRE probar en desarrollo antes de publicar a producción**
+4. **NUNCA mezclar OTA con cambios nativos** (causará errores)
+5. **SIEMPRE usar mensajes descriptivos** en `--message`
+
+---
+
+### **🚨 SEÑALES DE ALERTA - REQUIERE APK COMPLETO**
+
+Si detectas cualquiera de estos, **DETENER OTA** y compilar APK:
+- ❌ Error: "Incompatible runtime version"
+- ❌ Error: "Native module not found"
+- ❌ Error: "Permission denied" en funcionalidad nueva
+- ❌ App crashea inmediatamente después de OTA
+- ❌ Funcionalidad nativa no responde
+
+**Solución:** Hacer rollback de OTA y compilar APK completo
+
+```powershell
+# Rollback de OTA
+Set-Location mobile; eas update --branch production --message "Rollback"
+
+# Build APK completo
+Set-Location mobile; eas build --platform android --profile production
+```
+
+---
+
+### **💡 TIPS DE PRODUCTIVIDAD**
+
+**Para desarrollo ágil:**
+1. **Hacer OTA frecuentes** para bugs pequeños y mejoras de UX
+2. **Reservar APK completo** para features con dependencias nativas
+3. **Probar OTA en canal preview** antes de producción
+4. **Mantener historial de OTAs** para rollback rápido
+
+**Flujo recomendado:**
+```
+Cambio pequeño → OTA preview → Probar → OTA production
+Cambio grande → OTA preview → Probar → Si falla, hacer APK completo
+Cambio nativo → APK completo directamente (no OTA)
 ```
 
 ### **📋 REFERENCIA RÁPIDA - DIFERENCIAS APK vs DASHBOARD WEB**

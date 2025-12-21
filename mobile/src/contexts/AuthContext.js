@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!user) {
       setActiveSession(null);
-      return;
+      return () => {}; // ✅ Cleanup vacío cuando no hay usuario
     }
 
     const now = new Date();
@@ -120,14 +120,16 @@ export const AuthProvider = ({ children }) => {
       where('fecha', '==', todayStr)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        // Si existe registro de hoy, lo cargamos (sea abierto o cerrado)
-        // Esto permite que si el admin borra la 'salida', la app se entere inmediatamente
-        const docData = snapshot.docs[0].data();
-        setActiveSession({ ...docData, id: snapshot.docs[0].id });
-      } else {
-        // Si no hay registro de hoy, buscamos si hay alguna sesión ABIERTA de días anteriores
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
+        if (!snapshot.empty) {
+          // Si existe registro de hoy, lo cargamos (sea abierto o cerrado)
+          // Esto permite que si el admin borra la 'salida', la app se entere inmediatamente
+          const docData = snapshot.docs[0].data();
+          setActiveSession({ ...docData, id: snapshot.docs[0].id });
+        } else {
+          // Si no hay registro de hoy, buscamos si hay alguna sesión ABIERTA de días anteriores
         // (Caso borde: olvidó cerrar ayer)
         // Nota: Esto requiere una query separada única vez, no listener constante para no complicar
         checkPreviousOpenSession(user.uid);

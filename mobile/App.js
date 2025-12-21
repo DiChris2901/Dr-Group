@@ -7,7 +7,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { checkForUpdates } from './src/services/UpdateService';
+import { checkForAllUpdates } from './src/services/UpdateService';
 import NotificationService from './src/services/NotificationService';
 import materialTheme from './material-theme.json';
 
@@ -76,9 +76,9 @@ function AppContent() {
     }
   };
 
-  // ✅ Verificar actualizaciones OTA y solicitar permisos de notificaciones
+  // ✅ Verificar TODAS las actualizaciones (OTA + APK) y solicitar permisos de notificaciones
   useEffect(() => {
-    checkForUpdates();
+    checkForAllUpdates();
     NotificationService.requestPermissions();
   }, []);
 

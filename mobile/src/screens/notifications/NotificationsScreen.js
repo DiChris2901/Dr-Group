@@ -23,7 +23,11 @@ export default function NotificationsScreen({ navigation }) {
   const [limitCount, setLimitCount] = useState(20);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      setNotifications([]);
+      setLoading(false);
+      return () => {}; // ✅ Cleanup vacío cuando no hay usuario
+    }
 
     setLoading(true);
     
@@ -45,17 +49,21 @@ export default function NotificationsScreen({ navigation }) {
 
     const q = query(collection(db, 'notifications'), ...constraints);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setNotifications(notifs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching notifications:", error);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
+        const notifs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setNotifications(notifs);
+        setLoading(false);
+      }, 
+      (error) => {
+        console.log("⚠️ Error en listener de notificaciones (esperado al cerrar sesión):", error.code);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [user, filter, limitCount]);

@@ -120,6 +120,18 @@ export const AuthProvider = ({ children }) => {
         // No bloquear el login si falla el registro del historial
       }
 
+      // ✅ Actualizar lastLogin en el documento del usuario
+      try {
+        const userDocRef = doc(db, 'users', result.user.uid);
+        await updateDoc(userDocRef, {
+          lastLogin: new Date(),
+          updatedAt: new Date()
+        });
+        console.log('✅ Última fecha de acceso actualizada');
+      } catch (updateError) {
+        console.warn('⚠️ Error actualizando lastLogin:', updateError.message);
+      }
+
       // 🆕 Crear sesión activa
       try {
         // Primero, marcar otras sesiones como no actuales
