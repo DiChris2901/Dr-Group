@@ -35,8 +35,7 @@
         "INTERNET",
         "WRITE_EXTERNAL_STORAGE"
       ],
-      "edgeToEdgeEnabled": true,
-      "useNextNotificationsApi": true
+      "edgeToEdgeEnabled": true
     },
     "updates": {
       "url": "https://u.expo.dev/169f6749-ebbd-4386-9359-b60f7afe299d",

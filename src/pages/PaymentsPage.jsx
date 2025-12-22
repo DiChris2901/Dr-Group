@@ -527,8 +527,31 @@ const PaymentsPage = () => {
     );
   };
 
-  // Usar solo datos reales de Firebase
-  const payments = firebasePayments;
+  // Enriquecer pagos con datos actualizados de compromisos
+  const payments = React.useMemo(() => {
+    if (!firebasePayments || !firebaseCommitments) return firebasePayments;
+    
+    return firebasePayments.map(payment => {
+      // Si el pago tiene un compromiso asociado, actualizar datos del compromiso
+      if (payment.commitmentId && firebaseCommitments.length > 0) {
+        const relatedCommitment = firebaseCommitments.find(c => c.id === payment.commitmentId);
+        
+        if (relatedCommitment) {
+          // Actualizar beneficiario/proveedor desde el compromiso actualizado
+          return {
+            ...payment,
+            beneficiary: relatedCommitment.beneficiary || relatedCommitment.provider || payment.beneficiary,
+            provider: relatedCommitment.provider || relatedCommitment.beneficiary || payment.provider,
+            concept: relatedCommitment.concept || payment.concept,
+            companyName: relatedCommitment.companyName || payment.companyName
+          };
+        }
+      }
+      
+      // Si no hay compromiso asociado, devolver el pago sin cambios
+      return payment;
+    });
+  }, [firebasePayments, firebaseCommitments]);
 
   const getStatusColor = (status) => {
     const statusLower = status?.toLowerCase();

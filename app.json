@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "893dd4a5-ecf3-4f70-ae7b-a1e36c990133"
+      }
+    },
+    "android": {
+      "package": "com.diegoruedag.drgroupdashboard"
+    }
+  }
+}
