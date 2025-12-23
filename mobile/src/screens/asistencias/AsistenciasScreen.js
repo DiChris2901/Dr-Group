@@ -37,7 +37,7 @@ import { SegmentedButtons } from 'react-native-paper';
 const { width, height } = Dimensions.get('window');
 
 export default function AsistenciasScreen({ navigation }) {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, activeSession } = useAuth();
   const theme = useTheme();
   
   // 🎨 Material You Expressive: Surface colors para profundidad (no sombras)
@@ -93,7 +93,7 @@ export default function AsistenciasScreen({ navigation }) {
     if (userProfile) {
       cargarAsistencias();
     }
-  }, [userProfile, filterType]);
+  }, [userProfile, filterType, activeSession]);
 
   const cargarUsuarios = async () => {
     try {

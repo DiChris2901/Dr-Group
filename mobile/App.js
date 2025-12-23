@@ -89,10 +89,28 @@ function AppContent() {
       console.log('🔔 Usuario tocó notificación:', data);
 
       // Navegar según el tipo de notificación
-      if (data.screen === 'Dashboard') {
-        navigationRef.current?.navigate('Dashboard');
+      if (navigationRef.current) {
+        // Si es una notificación de estado (Jornada, Break, Almuerzo) -> Dashboard
+        if (['trabajando', 'break', 'almuerzo'].includes(data.estado)) {
+          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
+        }
+        // Si es meta cumplida -> Dashboard
+        else if (data.type === 'work_goal_reached') {
+          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
+        }
+        // Si es break largo -> Dashboard
+        else if (data.type === 'long_break') {
+          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
+        }
+        // Si es novedad -> Novedades
+        else if (data.type === 'novedad_approved' || data.type === 'novedad_rejected') {
+          navigationRef.current.navigate('Novedades');
+        }
+        // Default -> Dashboard
+        else {
+          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
+        }
       }
-      // Agregar más navegaciones según sea necesario
     });
 
     return () => subscription.remove();

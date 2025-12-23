@@ -1286,7 +1286,20 @@ npx expo start
 Set-Location mobile; npx expo start
 ```
 
-### **📋 COMANDOS COMUNES DE LA APP MÓVIL:**
+### **�️ FLUJO DE TRABAJO: EXPO GO & PRODUCCIÓN**
+
+**IMPORTANTE:** Usamos Expo Go para desarrollo rápido y EAS Build para producción.
+
+#### **MODO 1: EXPO GO (Desarrollo Rápido / UI / JS)**
+- **Uso:** Cambios visuales, lógica de negocio simple, nuevas pantallas.
+- **Ventaja:** Feedback instantáneo, no requiere compilar.
+- **Comando:** `Set-Location mobile; npx expo start` (Escanear QR con Expo Go).
+
+#### **MODO 2: PRODUCCIÓN (OTA vs APK)**
+- **OTA (`eas update`):** Para cambios de JS/Assets en producción (se sube a Expo Go/Usuarios).
+- **APK (`eas build`):** Para cambios nativos o de configuración (Android Studio).
+
+### **�📋 COMANDOS COMUNES DE LA APP MÓVIL:**
 
 #### **1. Iniciar servidor de desarrollo:**
 ```powershell
@@ -1748,6 +1761,21 @@ Set-Location mobile; eas update --branch production --message "Descripción"
 
 ## 🔄 **PROTOCOLO DE DEPLOYMENT: OTA vs APK COMPLETO**
 
+### 🧠 CONCEPTO CLAVE: GIT vs EXPO CLOUD
+
+**¡CRÍTICO! Entender la diferencia para no fallar en el deployment:**
+
+| Acción | Comando | ¿Qué hace? | ¿Actualiza al usuario? |
+|--------|---------|------------|------------------------|
+| **Guardar Código** | `git push` | Sube código a GitHub (Backup) | ❌ **NO** |
+| **Publicar App** | `eas update` | Sube JS a Expo Cloud (Release) | ✅ **SÍ (Instantáneo)** |
+| **Crear Instalador** | `eas build` | Crea nuevo APK (Nativo) | ✅ **SÍ (Requiere descarga)** |
+
+**CONCLUSIÓN:**
+- El Dashboard Web se despliega desde Git (vía Firebase).
+- La App Móvil se despliega desde tu PC a Expo Cloud (vía `eas update`).
+- **Git NO actualiza la App Móvil.** Solo `eas update` lo hace.
+
 ### **⚠️ DECISIÓN CRÍTICA: ¿Actualización OTA o Nuevo APK?**
 
 **ANTES de compilar/publicar, SIEMPRE ejecutar este checklist:**
@@ -1768,9 +1796,16 @@ Set-Location mobile; eas update --branch production --message "Descripción"
 - 🔄 Rollback inmediato si hay problemas
 - 💾 Solo se descargan los cambios (KB, no MB)
 - 📱 Se aplica automáticamente al siguiente inicio de la app
+- 🛠️ **Funciona en APKs compilados con Android Studio** (siempre que sea Release)
 
 **Comando OTA:**
 ```powershell
+# 1. PRIMERO: Guardar en Git (Buenas prácticas)
+git add .
+git commit -m "Mensaje"
+git push
+
+# 2. SEGUNDO: Enviar a los celulares (El deploy real)
 Set-Location mobile; eas update --branch production --message "Fix: Corrección cálculo horas trabajadas"
 ```
 

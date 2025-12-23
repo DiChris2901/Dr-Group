@@ -85,6 +85,22 @@ export const AuthProvider = ({ children }) => {
           if (userDoc.exists()) {
             // ✅ Incluir UID en el perfil para evitar errores
             setUserProfile({ ...userDoc.data(), uid: firebaseUser.uid });
+
+            // ✅ Registrar Push Token (Solo si hay internet)
+            if (isConnected) {
+              NotificationService.registerForPushNotificationsAsync().then(async (token) => {
+                if (token) {
+                  await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                    pushToken: token,
+                    lastLogin: Timestamp.now(),
+                    deviceInfo: {
+                      os: Platform.OS,
+                      version: Platform.Version
+                    }
+                  });
+                }
+              }).catch(e => console.log('Error token push:', e));
+            }
           }
           
           // NOTA: La carga de sesión activa se maneja ahora en el useEffect de abajo con onSnapshot
@@ -418,6 +434,9 @@ export const AuthProvider = ({ children }) => {
 
       // ✅ Programar notificación cuando complete 9 horas
       await NotificationService.notifyWorkDayComplete(9);
+      
+      // ✅ Mostrar notificación persistente de estado
+      await NotificationService.updateStateNotification('trabajando', now);
 
       return { success: true, sessionId: asistenciaRef.id };
     } catch (error) {
@@ -472,6 +491,9 @@ export const AuthProvider = ({ children }) => {
 
       // ✅ Programar notificación si el break es muy largo (15 min)
       await NotificationService.notifyLongBreak(15);
+      
+      // ✅ Actualizar notificación persistente
+      await NotificationService.updateStateNotification('break', new Date());
     } catch (error) {
       console.error('Error registrando break:', error);
       throw error;
@@ -520,6 +542,9 @@ export const AuthProvider = ({ children }) => {
         });
       }
 
+      // ✅ Actualizar notificación persistente
+      await NotificationService.updateStateNotification('trabajando', new Date());
+
       setActiveSession({
         ...activeSession,
         breaks: updatedBreaks,
@@ -561,6 +586,9 @@ export const AuthProvider = ({ children }) => {
           data: updateData
         });
       }
+
+      // ✅ Actualizar notificación persistente
+      await NotificationService.updateStateNotification('almuerzo', new Date());
 
       setActiveSession({
         ...activeSession,
@@ -622,6 +650,9 @@ export const AuthProvider = ({ children }) => {
         },
         estadoActual: 'trabajando'
       });
+      
+      // ✅ Actualizar notificación persistente
+      await NotificationService.updateStateNotification('trabajando', new Date());
     } catch (error) {
       console.error('Error finalizando almuerzo:', error);
       throw error;
@@ -764,6 +795,12 @@ export const AuthProvider = ({ children }) => {
         ...updateData,
         estadoActual: 'finalizado'
       });
+      
+      // ✅ Limpiar notificación persistente
+      await NotificationService.clearStateNotification();
+      
+      // ✅ Cancelar todas las notificaciones programadas (meta cumplida, etc)
+      await NotificationService.cancelAllNotifications();
     } catch (error) {
       console.error('Error finalizando jornada:', error);
       throw error;

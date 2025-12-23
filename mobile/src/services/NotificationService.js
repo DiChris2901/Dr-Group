@@ -1,5 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
 // Configuración global de cómo se muestran las notificaciones
 Notifications.setNotificationHandler({
@@ -12,7 +14,58 @@ Notifications.setNotificationHandler({
 
 class NotificationService {
   /**
-   * Solicita permisos de notificaciones al usuario
+   * Solicita permisos y obtiene el Expo Push Token
+   * @returns {Promise<string|null>} El token o null si falló
+   */
+  async registerForPushNotificationsAsync() {
+    let token;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#004A98',
+      });
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        console.warn('❌ Permiso de notificaciones denegado');
+        return null;
+      }
+
+      try {
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (!projectId) {
+          console.error('❌ Project ID no encontrado en app.json');
+        }
+
+        token = (await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })).data;
+        
+        console.log('✅ Expo Push Token:', token);
+      } catch (e) {
+        console.error('❌ Error obteniendo push token:', e);
+      }
+    } else {
+      console.log('⚠️ Push Notifications no funcionan en simulador');
+    }
+
+    return token;
+  }
+
+  /**
+   * Solicita permisos de notificaciones al usuario (Legacy)
    * @returns {Promise<boolean>} true si se otorgaron permisos
    */
   async requestPermissions() {
@@ -94,6 +147,69 @@ class NotificationService {
       await Notifications.cancelAllScheduledNotificationsAsync();
     } catch (error) {
       console.error('Error canceling all notifications:', error);
+    }
+  }
+
+  /**
+   * Muestra una notificación persistente del estado actual
+   * @param {string} estado - 'trabajando' | 'break' | 'almuerzo'
+   * @param {Date} horaInicio - Hora de inicio del estado
+   */
+  async updateStateNotification(estado, horaInicio) {
+    // 1. Cancelar notificación anterior si existe
+    if (this.persistentNotificationId) {
+      await this.cancelNotification(this.persistentNotificationId);
+      this.persistentNotificationId = null;
+    }
+
+    // 2. Definir contenido según estado
+    let title = '';
+    let body = '';
+    const horaStr = horaInicio ? new Date(horaInicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+    switch (estado) {
+      case 'trabajando':
+        title = '🏢 Jornada Activa';
+        body = `Iniciada a las ${horaStr} - Toca para abrir`;
+        break;
+      case 'break':
+        title = '☕ En Break';
+        body = `Descanso iniciado a las ${horaStr}`;
+        break;
+      case 'almuerzo':
+        title = '🍽️ En Almuerzo';
+        body = `Almuerzo iniciado a las ${horaStr}`;
+        break;
+      default:
+        return; // Si es 'finalizado' u otro, no mostramos nada
+    }
+
+    // 3. Mostrar nueva notificación persistente
+    try {
+      this.persistentNotificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sticky: true, // Android: No se puede borrar con swipe
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          autoDismiss: false, // Android: No se borra al tocarla
+          sound: false, // Silenciosa para no molestar al actualizar
+          data: { estado }, // ✅ Datos para navegación
+        },
+        trigger: null, // Mostrar inmediatamente
+      });
+    } catch (error) {
+      console.error('Error updating state notification:', error);
+    }
+  }
+
+  /**
+   * Cancela la notificación persistente actual
+   */
+  async clearStateNotification() {
+    if (this.persistentNotificationId) {
+      await this.cancelNotification(this.persistentNotificationId);
+      this.persistentNotificationId = null;
     }
   }
 

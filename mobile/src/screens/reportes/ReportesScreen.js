@@ -31,7 +31,7 @@ import { es } from 'date-fns/locale';
 const { width } = Dimensions.get('window');
 
 export default function ReportesScreen() {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, activeSession } = useAuth();
   const theme = useTheme();
   
   // ✅ Surface colors dinámicos (Material You Expressive)
@@ -245,7 +245,7 @@ export default function ReportesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [rangoSeleccionado, userProfile, user]);
+  }, [rangoSeleccionado, userProfile, user, activeSession]);
 
   useEffect(() => {
     if (userProfile) {

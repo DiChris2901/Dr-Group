@@ -18,6 +18,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme as useAppTheme } from '../../contexts/ThemeContext'; // Renamed to avoid conflict
+import Constants from 'expo-constants';
 
 const { height } = Dimensions.get('window');
 
@@ -299,6 +300,10 @@ export default function LoginScreen() {
                 ⏱️ Al iniciar sesión se registrará tu hora de entrada automáticamente.
               </Text>
             </Surface>
+
+            <Text style={{ textAlign: 'center', marginTop: 24, opacity: 0.5, fontSize: 12, color: theme.colors.onSurface }}>
+              v{Constants.expoConfig?.version ?? '1.0.0'}
+            </Text>
 
           </Animated.View>
         </View>
