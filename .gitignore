@@ -79,3 +79,6 @@ coverage/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Prevenir duplicación recursiva
+Dr-Group/
