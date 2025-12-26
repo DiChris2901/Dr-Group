@@ -69,6 +69,9 @@ import AlertsCenterPage from './pages/AlertsCenterPage';
 // Módulo de Asistencias
 import AsistenciasPage from './pages/AsistenciasPage';
 
+// Módulo de Recursos Humanos
+import RecursosHumanosPage from './pages/RecursosHumanosPage';
+
 // Página de acceso denegado
 import UnauthorizedPage from './pages/UnauthorizedPage';
 
@@ -392,6 +395,16 @@ const DashboardLayout = () => {
           <ProtectedRoute requiredPermission="asistencias">
             <MainLayout title="Control de Asistencias" breadcrumbs={['Administración', 'Asistencias']}>
               <AsistenciasPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/recursos-humanos" 
+        element={
+          <ProtectedRoute requiredPermission="rrhh">
+            <MainLayout title="Recursos Humanos" breadcrumbs={['RRHH']}>
+              <RecursosHumanosPage />
             </MainLayout>
           </ProtectedRoute>
         }

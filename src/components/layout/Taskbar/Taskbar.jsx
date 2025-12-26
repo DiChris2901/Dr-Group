@@ -20,6 +20,7 @@ import {
   AttachMoney as FacturacionIcon,
   People as PeopleIcon,
   Person as PersonIcon,
+  Group as GroupIcon,
   Assignment as AssignmentIcon,
   Notifications as NotificationsIcon,
   AddBox as AddBoxIcon,
@@ -208,6 +209,7 @@ const Taskbar = React.memo(() => {
         { label: 'Usuarios', path: '/users', icon: PeopleIcon, permission: 'usuarios' },
         { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
         { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
+        { label: 'Recursos Humanos', path: '/recursos-humanos', icon: GroupIcon, permission: 'rrhh' },
         { label: 'Auditoría del Sistema', path: '/admin/activity-logs', icon: ReportsIcon, permission: 'auditoria' },
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }
       ]

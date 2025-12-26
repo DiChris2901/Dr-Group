@@ -10,6 +10,7 @@ import {
     DeleteSweep,
     ExpandLess,
     ExpandMore,
+    Group,
     MeetingRoom,
     Notifications,
     People,
@@ -236,6 +237,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       path: '/asistencias',
       color: '#ff9800',
       permission: 'asistencias'
+    },
+    {
+      title: 'Recursos Humanos',
+      icon: Group,
+      path: '/recursos-humanos',
+      color: '#00bcd4',
+      permission: 'rrhh'
     },
     {
       title: 'Auditoría del Sistema',
