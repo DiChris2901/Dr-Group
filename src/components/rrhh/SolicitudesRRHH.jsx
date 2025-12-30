@@ -490,7 +490,8 @@ const SolicitudesRRHH = ({
         </DialogTitle>
         <Divider />
         <DialogContent sx={{ p: 3, pt: 5 }}>
-          <Grid container spacing={2}>
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={3}>
             {/* Tipo de Solicitud */}
             <Grid item xs={12}>
               <FormControl fullWidth>
@@ -547,7 +548,7 @@ const SolicitudesRRHH = ({
                   {empleados.map((emp) => (
                     <MenuItem key={emp.id} value={emp.id}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar sx={{ width: 24, height: 24 }}>
+                        <Avatar sx={{ width: 32, height: 32 }}>
                           <PersonIcon sx={{ fontSize: 16 }} />
                         </Avatar>
                         {emp.nombre}
@@ -585,7 +586,11 @@ const SolicitudesRRHH = ({
               <Alert
                 severity="info"
                 icon={<InfoIcon />}
-                sx={{ borderRadius: 1 }}
+                sx={{ 
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.info.main, 0.08),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                }}
               >
                 <Typography variant="body2">
                   <strong>Días solicitados:</strong> {formSolicitud.dias} día{formSolicitud.dias !== 1 ? 's' : ''}
@@ -605,11 +610,12 @@ const SolicitudesRRHH = ({
                 placeholder="Describe el motivo de la solicitud..."
               />
             </Grid>
-          </Grid>
+            </Grid>
+          </Box>
         </DialogContent>
         <Divider />
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={handleCloseModal} color="inherit">
+        <DialogActions sx={{ p: 3, gap: 1.5 }}>
+          <Button onClick={handleCloseModal} variant="outlined" color="secondary">
             Cancelar
           </Button>
           <Button
