@@ -5,6 +5,7 @@ import {
     Assessment,
     Assignment,
     AttachMoney,
+    Badge,
     Business,
     Dashboard,
     DeleteSweep,
@@ -213,6 +214,17 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         { title: 'Por Período', icon: Assignment, path: '/reports/period', permission: 'reportes.por_periodo' },
         { title: 'Por Concepto', icon: Receipt, path: '/reports/concept', permission: 'reportes.por_concepto' }
       ]
+    },
+    {
+      title: 'RRHH',
+      icon: Badge,
+      color: '#00bcd4',
+      permission: 'rrhh',
+      submenu: [
+        { title: 'Gestión RRHH', icon: Badge, path: '/recursos-humanos', permission: 'rrhh.gestion' },
+        { title: 'Empleados', icon: Person, path: '/empleados', permission: 'rrhh.empleados' },
+        { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'rrhh.asistencias' }
+      ]
     }
   ];
 
@@ -223,27 +235,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       path: '/users',
       color: primaryColor,
       permission: 'usuarios'
-    },
-    {
-      title: 'Empleados',
-      icon: Person,
-      path: '/empleados',
-      color: '#4caf50',
-      permission: 'empleados'
-    },
-    {
-      title: 'Asistencias',
-      icon: AccessTime,
-      path: '/asistencias',
-      color: '#ff9800',
-      permission: 'asistencias'
-    },
-    {
-      title: 'Recursos Humanos',
-      icon: Group,
-      path: '/recursos-humanos',
-      color: '#00bcd4',
-      permission: 'rrhh'
     },
     {
       title: 'Auditoría del Sistema',

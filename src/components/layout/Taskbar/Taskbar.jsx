@@ -20,6 +20,7 @@ import {
   AttachMoney as FacturacionIcon,
   People as PeopleIcon,
   Person as PersonIcon,
+  Badge as BadgeIcon,
   Group as GroupIcon,
   Assignment as AssignmentIcon,
   Notifications as NotificationsIcon,
@@ -200,6 +201,18 @@ const Taskbar = React.memo(() => {
       ]
     },
     {
+      id: 'rrhh',
+      icon: BadgeIcon,
+      label: 'RRHH',
+      color: '#00bcd4',
+      permission: 'rrhh',
+      submenu: [
+        { label: 'Gestión RRHH', path: '/recursos-humanos', icon: BadgeIcon, permission: 'rrhh.gestion' },
+        { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'rrhh.empleados' },
+        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'rrhh.asistencias' }
+      ]
+    },
+    {
       id: 'admin',
       icon: AdminIcon,
       label: 'Administración',
@@ -207,9 +220,6 @@ const Taskbar = React.memo(() => {
       permission: 'administracion',
       submenu: [
         { label: 'Usuarios', path: '/users', icon: PeopleIcon, permission: 'usuarios' },
-        { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
-        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
-        { label: 'Recursos Humanos', path: '/recursos-humanos', icon: GroupIcon, permission: 'rrhh' },
         { label: 'Auditoría del Sistema', path: '/admin/activity-logs', icon: ReportsIcon, permission: 'auditoria' },
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }
       ]
