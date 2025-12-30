@@ -71,6 +71,7 @@ import AsistenciasPage from './pages/AsistenciasPage';
 
 // Módulo de Recursos Humanos
 import RecursosHumanosPage from './pages/RecursosHumanosPage';
+import SolicitudesPage from './pages/SolicitudesPage';
 
 // Página de acceso denegado
 import UnauthorizedPage from './pages/UnauthorizedPage';
@@ -403,8 +404,18 @@ const DashboardLayout = () => {
         path="/recursos-humanos" 
         element={
           <ProtectedRoute requiredPermission="rrhh">
-            <MainLayout title="Recursos Humanos" breadcrumbs={['RRHH']}>
+            <MainLayout title="Talento Humano" breadcrumbs={['RRHH', 'Talento Humano']}>
               <RecursosHumanosPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/solicitudes" 
+        element={
+          <ProtectedRoute requiredPermission="solicitudes">
+            <MainLayout title="Solicitudes" breadcrumbs={['RRHH', 'Solicitudes']}>
+              <SolicitudesPage />
             </MainLayout>
           </ProtectedRoute>
         }

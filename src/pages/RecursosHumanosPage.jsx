@@ -20,6 +20,7 @@ import {
   NavigateNext as NavigateNextIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +34,7 @@ import LiquidacionesRRHH from '../components/rrhh/LiquidacionesRRHH';
 
 const RecursosHumanosPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { hasPermission } = usePermissions();
   const { showToast } = useToast();
@@ -45,26 +47,54 @@ const RecursosHumanosPage = () => {
   const [solicitudes, setSolicitudes] = useState([]);
   const [liquidaciones, setLiquidaciones] = useState([]);
   
-  // Validar permisos
-  const canViewRRHH = hasPermission('rrhh') || hasPermission('rrhh.gestion');
-  const canViewEmpleados = hasPermission('rrhh.empleados');
-  const canViewAsistencias = hasPermission('rrhh.asistencias');
+  // Validar permisos granulares
+  const hasFullRRHH = hasPermission('rrhh'); // Acceso completo
+  const canViewDashboard = hasFullRRHH || hasPermission('rrhh.dashboard');
+  const canViewSolicitudes = hasPermission('solicitudes');
+  const canViewLiquidaciones = hasFullRRHH || hasPermission('rrhh.liquidaciones');
+  const canViewReportes = hasFullRRHH || hasPermission('rrhh.reportes');
+  const canViewRRHH = hasFullRRHH || canViewDashboard || canViewSolicitudes || canViewLiquidaciones || canViewReportes;
+  const canViewEmpleados = hasFullRRHH || hasPermission('rrhh.empleados');
+  const canViewAsistencias = hasFullRRHH || hasPermission('rrhh.asistencias');
 
-  // ✅ LISTENER: Obtener empleados en tiempo real
+  // ✅ LISTENER: Obtener empleados en tiempo real desde Firestore
   useEffect(() => {
-    if (!canViewEmpleados) return;
+    // Si el usuario puede ver RRHH, puede ver empleados
+    if (!canViewRRHH) {
+      console.log('❌ RRHH: Sin permisos para cargar empleados');
+      return;
+    }
 
-    const q = query(collection(db, 'empleados'), orderBy('nombre', 'asc'));
+    console.log('🔍 RRHH: Iniciando listener de empleados...');
+    // Sin orderBy para evitar problemas con campos faltantes
+    const q = query(collection(db, 'empleados'));
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const empleadosData = [];
       snapshot.forEach((doc) => {
-        empleadosData.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        empleadosData.push({ 
+          id: doc.id, 
+          ...data,
+          // Normalizar nombre para compatibilidad
+          nombre: data.nombre || data.nombreCompleto || data.apellidos || 'Sin nombre'
+        });
       });
       setEmpleados(empleadosData);
+      console.log('📊 RRHH: Empleados cargados desde Firestore:', empleadosData.length);
+      if (empleadosData.length > 0) {
+        console.log('👥 Empleados:', empleadosData.map(e => e.nombre).join(', '));
+      }
+    }, (error) => {
+      console.error('❌ Error al cargar empleados:', error);
+      showToast('Error al cargar empleados: ' + error.message, 'error');
     });
 
-    return () => unsubscribe();
-  }, [canViewEmpleados]);
+    return () => {
+      console.log('🔚 RRHH: Desconectando listener de empleados');
+      unsubscribe();
+    };
+  }, [canViewRRHH]);
 
   // ✅ LISTENER: Obtener asistencias del día actual
   useEffect(() => {
@@ -184,6 +214,22 @@ const RecursosHumanosPage = () => {
     };
   }, [asistencias, solicitudes, liquidaciones]);
 
+  // ✅ REDIRECCIÓN AUTOMÁTICA: Si solo tiene 1 permiso, redirige directamente
+  useEffect(() => {
+    const availableModules = [
+      canViewDashboard && 'dashboard',
+      canViewSolicitudes && 'solicitudes',
+      canViewLiquidaciones && 'liquidaciones',
+      canViewReportes && 'reportes'
+    ].filter(Boolean);
+    
+    // Si solo tiene acceso a 1 módulo, redirigir automáticamente
+    if (availableModules.length === 1 && !activeModule) {
+      console.log(`🎯 RRHH: Acceso único a ${availableModules[0]}, redirigiendo automáticamente...`);
+      setActiveModule(availableModules[0]);
+    }
+  }, [canViewDashboard, canViewSolicitudes, canViewLiquidaciones, canViewReportes, activeModule]);
+
   // ✅ VALIDACIÓN DE PERMISOS
   if (!canViewRRHH) {
     return (
@@ -207,7 +253,7 @@ const RecursosHumanosPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* HEADER CON GRADIENTE SOBRIO */}
+      {/* HEADER SOBRIO CON GRADIENTE DINÁMICO */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -216,6 +262,7 @@ const RecursosHumanosPage = () => {
         <Paper
           elevation={0}
           sx={{
+            mb: 3,
             background: theme.palette.mode === 'dark'
               ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
               : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
@@ -224,7 +271,6 @@ const RecursosHumanosPage = () => {
             boxShadow: theme.palette.mode === 'dark'
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
-            mb: 3,
             position: 'relative'
           }}
         >
@@ -258,34 +304,31 @@ const RecursosHumanosPage = () => {
                 </Typography>
               </Box>
 
-              {/* BADGE TOTAL EMPLEADOS */}
+              {/* BADGE TOTAL EMPLEADOS - Clickeable para ir a página de empleados */}
               <Chip
                 icon={<GroupIcon />}
-                label={`${empleados.length} Empleados`}
+                label={loading ? 'Cargando...' : `${empleados.length} Empleado${empleados.length !== 1 ? 's' : ''}`}
+                onClick={() => navigate('/empleados')}
                 sx={{
-                  bgcolor: 'rgba(255,255,255,0.2)',
+                  bgcolor: 'rgba(255,255,255,0.25)',
                   color: 'white',
                   fontWeight: 600,
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255,255,255,0.3)'
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  '& .MuiChip-icon': {
+                    color: 'white'
+                  },
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.35)',
+                    borderColor: 'rgba(255,255,255,0.6)',
+                    transform: 'scale(1.05)'
+                  }
                 }}
               />
             </Box>
           </Box>
-          
-          {/* Decoración sutil */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: -50,
-              right: -50,
-              width: 200,
-              height: 200,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.08)',
-              zIndex: 0
-            }}
-          />
+
         </Paper>
       </motion.div>
 
@@ -355,54 +398,62 @@ const RecursosHumanosPage = () => {
             transition={{ duration: 0.3 }}
           >
             <Grid container spacing={3}>
-              {/* CARD 1: DASHBOARD */}
-              <Grid item xs={12} md={6}>
-                <ModuleCard
-                  title="Dashboard"
-                  description="Panel de Control"
-                  icon={DashboardIcon}
-                  stats={moduleStats.dashboard}
-                  onClick={() => setActiveModule('dashboard')}
-                  color="primary"
-                />
-              </Grid>
+              {/* CARD 1: DASHBOARD - Solo si tiene permiso */}
+              {canViewDashboard && (
+                <Grid item xs={12} md={6}>
+                  <ModuleCard
+                    title="Dashboard"
+                    description="Panel de Control"
+                    icon={DashboardIcon}
+                    stats={moduleStats.dashboard}
+                    onClick={() => setActiveModule('dashboard')}
+                    color="primary"
+                  />
+                </Grid>
+              )}
 
-              {/* CARD 2: SOLICITUDES */}
-              <Grid item xs={12} md={6}>
-                <ModuleCard
-                  title="Solicitudes"
-                  description="Vacaciones & Permisos"
-                  icon={AssignmentIcon}
-                  stats={moduleStats.solicitudes}
-                  onClick={() => setActiveModule('solicitudes')}
-                  color="secondary"
-                />
-              </Grid>
+              {/* CARD 2: SOLICITUDES - Solo si tiene permiso */}
+              {canViewSolicitudes && (
+                <Grid item xs={12} md={6}>
+                  <ModuleCard
+                    title="Solicitudes"
+                    description="Vacaciones & Permisos"
+                    icon={AssignmentIcon}
+                    stats={moduleStats.solicitudes}
+                    onClick={() => setActiveModule('solicitudes')}
+                    color="secondary"
+                  />
+                </Grid>
+              )}
 
-              {/* CARD 3: LIQUIDACIONES */}
-              <Grid item xs={12} md={6}>
-                <ModuleCard
-                  title="Liquidaciones"
-                  description="Nómina & Pagos"
-                  icon={AccountBalanceIcon}
-                  stats={moduleStats.liquidaciones}
-                  onClick={() => setActiveModule('liquidaciones')}
-                  color="success"
-                />
-              </Grid>
+              {/* CARD 3: LIQUIDACIONES - Solo si tiene permiso */}
+              {canViewLiquidaciones && (
+                <Grid item xs={12} md={6}>
+                  <ModuleCard
+                    title="Liquidaciones"
+                    description="Nómina & Pagos"
+                    icon={AccountBalanceIcon}
+                    stats={moduleStats.liquidaciones}
+                    onClick={() => setActiveModule('liquidaciones')}
+                    color="success"
+                  />
+                </Grid>
+              )}
 
-              {/* CARD 4: REPORTES (Disabled) */}
-              <Grid item xs={12} md={6}>
-                <ModuleCard
-                  title="Reportes"
-                  description="Análisis & Gráficos"
-                  icon={AssessmentIcon}
-                  stats={moduleStats.reportes}
-                  onClick={() => setActiveModule('reportes')}
-                  color="info"
-                  disabled
-                />
-              </Grid>
+              {/* CARD 4: REPORTES - Solo si tiene permiso */}
+              {canViewReportes && (
+                <Grid item xs={12} md={6}>
+                  <ModuleCard
+                    title="Reportes"
+                    description="Análisis & Gráficos"
+                    icon={AssessmentIcon}
+                    stats={moduleStats.reportes}
+                    onClick={() => setActiveModule('reportes')}
+                    color="info"
+                    disabled
+                  />
+                </Grid>
+              )}
             </Grid>
           </motion.div>
         ) : (

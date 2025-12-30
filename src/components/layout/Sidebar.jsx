@@ -9,6 +9,7 @@ import {
     Business,
     Dashboard,
     DeleteSweep,
+    Description,
     ExpandLess,
     ExpandMore,
     Group,
@@ -218,12 +219,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
     {
       title: 'RRHH',
       icon: Badge,
-      color: '#00bcd4',
-      permission: 'rrhh',
+      color: '#ff9800',
+      permission: 'talento_humano',
       submenu: [
-        { title: 'Gestión RRHH', icon: Badge, path: '/recursos-humanos', permission: 'rrhh.gestion' },
-        { title: 'Empleados', icon: Person, path: '/empleados', permission: 'rrhh.empleados' },
-        { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'rrhh.asistencias' }
+        { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh' },
+        { title: 'Empleados', icon: Person, path: '/empleados', permission: 'empleados' },
+        { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'asistencias' },
+        { title: 'Solicitudes', icon: Description, path: '/solicitudes', permission: 'solicitudes' }
       ]
     }
   ];

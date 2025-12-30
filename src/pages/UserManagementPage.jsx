@@ -58,13 +58,15 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   Notifications as NotificationsIcon,
-  Dashboard,
+  Dashboard as DashboardIcon,
   AccountBalance,
   Receipt,
   TrendingUp,
   Assessment,
   AttachMoney,
-  AccessTime,
+  AccessTime as AccessTimeIcon,
+  People as PeopleIcon,
+  Description,
   CloudUpload as CloudUploadIcon,
   AttachFile as AttachFileIcon,
   InsertDriveFile as FileIcon,
@@ -241,7 +243,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.gestion', 'rrhh.empleados', 'rrhh.asistencias', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'usuarios', 'auditoria', 'storage'];
         
         // Convertir permissions de objeto a array si es necesario
         let userPermissions = user.permissions || [];
@@ -400,9 +402,12 @@ const UserManagementPage = () => {
         'reportes.por_periodo',
         'reportes.por_concepto',
         'rrhh',
-        'rrhh.gestion',
-        'rrhh.empleados',
-        'rrhh.asistencias',
+        'rrhh.dashboard',
+        'rrhh.liquidaciones',
+        'rrhh.reportes',
+        'empleados',
+        'asistencias',
+        'solicitudes',
         'usuarios',
         'auditoria',
         'storage'
@@ -531,7 +536,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.gestion', 'rrhh.empleados', 'rrhh.asistencias', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1316,9 +1321,9 @@ const UserManagementPage = () => {
                             year: 'numeric'
                           })
                         ) : (
-                          <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                          <Box component="span" sx={{ fontStyle: 'italic', color: 'text.disabled' }}>
                             Nunca
-                          </Typography>
+                          </Box>
                         )}
                       </Typography>
                     </TableCell>
@@ -1763,7 +1768,7 @@ const UserManagementPage = () => {
                 {(() => {
                   // Array completo de permisos
                         const allPermissions = [
-                      { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
+                      { key: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, color: theme.palette.primary.main },
                       { 
                         key: 'compromisos', 
                         label: 'Compromisos', 
@@ -1840,14 +1845,15 @@ const UserManagementPage = () => {
                         ]
                       },
                       { 
-                        key: 'rrhh', 
+                        key: 'talento_humano', 
                         label: 'RRHH', 
                         icon: <BadgeIcon />, 
-                        color: '#00bcd4',
+                        color: '#ff9800',
                         subPermissions: [
-                          { key: 'rrhh.gestion', label: 'Gestión RRHH' },
-                          { key: 'rrhh.empleados', label: 'Empleados' },
-                          { key: 'rrhh.asistencias', label: 'Asistencias' }
+                          { key: 'rrhh', label: 'Talento Humano' },
+                          { key: 'empleados', label: 'Empleados' },
+                          { key: 'asistencias', label: 'Asistencias' },
+                          { key: 'solicitudes', label: 'Solicitudes' }
                         ]
                       },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
@@ -2040,9 +2046,24 @@ const UserManagementPage = () => {
                                       if (formData.permissions.includes(subPerm.key)) {
                                         // Desactivar sub-permiso
                                         newPermissions = formData.permissions.filter(p => p !== subPerm.key);
+                                        
+                                        // Si se desactiva 'rrhh', también desactivar todos los módulos rrhh.*
+                                        if (subPerm.key === 'rrhh') {
+                                          newPermissions = newPermissions.filter(p => !p.startsWith('rrhh.'));
+                                        }
                                       } else {
                                         // Activar sub-permiso
                                         newPermissions = [...formData.permissions, subPerm.key];
+                                        
+                                        // Si se activa 'rrhh', también activar todos los módulos rrhh.*
+                                        if (subPerm.key === 'rrhh') {
+                                          const rrhhModules = ['rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'];
+                                          rrhhModules.forEach(module => {
+                                            if (!newPermissions.includes(module)) {
+                                              newPermissions.push(module);
+                                            }
+                                          });
+                                        }
                                         
                                         // Verificar si todos los sub-permisos están activos
                                         const allSubPermsActive = permission.subPermissions.every(sp => 
