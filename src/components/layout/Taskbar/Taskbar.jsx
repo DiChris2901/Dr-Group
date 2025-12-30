@@ -340,6 +340,32 @@ const Taskbar = React.memo(() => {
     handleMenuClose();
   }, [navigate]);
 
+  // Filtrado de menú con búsqueda interna
+  const filteredMenuItems = useMemo(() => {
+    if (!menuSearchQuery.trim()) return filteredTaskbarItems;
+    
+    const query = menuSearchQuery.toLowerCase();
+    return filteredTaskbarItems.map(category => {
+      if (!category.submenu) return category;
+      
+      const filteredSubmenu = category.submenu.filter(item => 
+        item.label.toLowerCase().includes(query) ||
+        category.label.toLowerCase().includes(query)
+      );
+      
+      return { ...category, submenu: filteredSubmenu };
+    }).filter(category => 
+      !category.submenu || category.submenu.length > 0 ||
+      category.label.toLowerCase().includes(query)
+    );
+  }, [filteredTaskbarItems, menuSearchQuery]);
+
+  // Contador de páginas por categoría
+  const getCategoryCount = useCallback((category) => {
+    if (!category.submenu) return 0;
+    return filterSubmenu(category.submenu, category.permission).length;
+  }, [filterSubmenu]);
+
   // ✅ OPTIMIZACIÓN: Cachear función isActive con useCallback
   const isActive = useCallback((item) => {
     if (item.path) {
@@ -985,31 +1011,77 @@ const Taskbar = React.memo(() => {
           }
         }}
       >
-        {/* Header */}
+        {/* Header con Búsqueda Interna */}
         <Box sx={{ 
           p: 2, 
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
           bgcolor: alpha(theme.palette.primary.main, 0.03)
         }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Menú de Navegación
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Todas tus páginas disponibles
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Menú de Navegación
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {filteredTaskbarItems.length} categorías disponibles
+              </Typography>
+            </Box>
+            <TextField
+              value={menuSearchQuery}
+              onChange={(e) => setMenuSearchQuery(e.target.value)}
+              placeholder="Buscar en menú..."
+              size="small"
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                  bgcolor: theme.palette.background.paper,
+                  fontSize: '0.8rem',
+                  transition: 'all 0.2s ease',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: alpha(theme.palette.divider, 0.3)
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: alpha(theme.palette.primary.main, 0.5)
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.primary.main
+                  }
+                },
+                '& input': {
+                  py: 0.75,
+                  px: 1.5
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: theme.palette.text.secondary, fontSize: 18 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: menuSearchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setMenuSearchQuery('')}>
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Box>
         </Box>
 
         {/* Layout de Dos Columnas */}
         <Box sx={{ display: 'flex', height: 'calc(100% - 80px)' }}>
-          {/* Columna Izquierda - Categorías */}
+          {/* Columna Izquierda - Categorías con Contadores */}
           <Box sx={{ 
-            width: 200,
+            width: 220,
             borderRight: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
             bgcolor: alpha(theme.palette.background.paper, 0.5),
             overflow: 'auto'
           }}>
             <List sx={{ py: 1 }}>
-              {filteredTaskbarItems.map((category) => (
+              {filteredMenuItems.map((category) => (
                 <ListItem key={category.id} disablePadding>
                   <ListItemButton
                     selected={selectedCategory === category.id}
@@ -1047,6 +1119,31 @@ const Taskbar = React.memo(() => {
                         color: selectedCategory === category.id ? category.color : 'text.primary'
                       }}
                     />
+                    {/* Contador de páginas */}
+                    {category.submenu && (
+                      <Box
+                        sx={{
+                          minWidth: 24,
+                          height: 20,
+                          borderRadius: 1,
+                          bgcolor: selectedCategory === category.id 
+                            ? alpha(category.color, 0.2) 
+                            : alpha(theme.palette.divider, 0.1),
+                          color: selectedCategory === category.id 
+                            ? category.color 
+                            : theme.palette.text.secondary,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          px: 0.75,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {getCategoryCount(category)}
+                      </Box>
+                    )}
                   </ListItemButton>
                 </ListItem>
               ))}
@@ -1062,57 +1159,100 @@ const Taskbar = React.memo(() => {
             <List sx={{ py: 0 }}>
               {(() => {
                 // Encontrar la categoría seleccionada
-                const selectedItem = filteredTaskbarItems.find(item => item.id === selectedCategory);
+                const selectedItem = filteredMenuItems.find(item => item.id === selectedCategory);
                 
                 if (!selectedItem) return null;
 
                 // Si tiene submenu, mostrar los subitems
                 if (selectedItem.submenu) {
-                  return selectedItem.submenu.map((subItem) => (
-                    <ListItem key={subItem.path} disablePadding sx={{ mb: 0.5 }}>
-                      <ListItemButton 
-                        onClick={() => handleNavigateFromSearch(subItem.path)}
-                        sx={{
-                          py: 1.5,
-                          px: 2,
-                          borderRadius: 1,
-                          transition: 'all 0.2s ease',
-                          border: `1px solid transparent`,
-                          '&:hover': {
-                            bgcolor: alpha(selectedItem.color, 0.08),
-                            border: `1px solid ${alpha(selectedItem.color, 0.2)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                          }
-                        }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 40 }}>
-                          <subItem.icon sx={{ fontSize: 20, color: selectedItem.color }} />
-                        </ListItemIcon>
-                        <ListItemText 
-                          primary={subItem.label}
-                          primaryTypographyProps={{ fontSize: '0.875rem' }}
-                        />
-                        {/* Estrella de Favorito */}
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleToggleFavorite({ path: subItem.path, permission: subItem.permission }, e)}
-                          sx={{ 
-                            ml: 1,
+                  return selectedItem.submenu.map((subItem) => {
+                    const isCurrentPage = location.pathname === subItem.path;
+                    
+                    return (
+                      <ListItem key={subItem.path} disablePadding sx={{ mb: 0.5 }}>
+                        <ListItemButton 
+                          onClick={() => handleNavigateFromSearch(subItem.path)}
+                          selected={isCurrentPage}
+                          sx={{
+                            py: 1.5,
+                            px: 2,
+                            borderRadius: 1,
                             transition: 'all 0.2s ease',
+                            border: isCurrentPage 
+                              ? `2px solid ${selectedItem.color}`
+                              : `1px solid transparent`,
+                            bgcolor: isCurrentPage 
+                              ? alpha(selectedItem.color, 0.12) 
+                              : 'transparent',
+                            '&.Mui-selected': {
+                              bgcolor: alpha(selectedItem.color, 0.12),
+                              '&:hover': {
+                                bgcolor: alpha(selectedItem.color, 0.15)
+                              }
+                            },
                             '&:hover': {
-                              bgcolor: alpha(theme.palette.warning.main, 0.1)
+                              bgcolor: alpha(selectedItem.color, 0.08),
+                              border: `1px solid ${alpha(selectedItem.color, 0.2)}`,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                             }
                           }}
                         >
-                          {isFavorite(subItem.path) ? (
-                            <Star sx={{ fontSize: 18, color: theme.palette.warning.main }} />
-                          ) : (
-                            <StarBorder sx={{ fontSize: 18, color: theme.palette.text.secondary }} />
+                          <ListItemIcon sx={{ minWidth: 40 }}>
+                            <subItem.icon sx={{ 
+                              fontSize: 20, 
+                              color: isCurrentPage ? selectedItem.color : 'text.secondary',
+                              transition: 'all 0.2s ease'
+                            }} />
+                          </ListItemIcon>
+                          <ListItemText 
+                            primary={subItem.label}
+                            primaryTypographyProps={{ 
+                              fontSize: '0.875rem',
+                              fontWeight: isCurrentPage ? 600 : 400,
+                              color: isCurrentPage ? selectedItem.color : 'text.primary'
+                            }}
+                          />
+                          {/* Indicador "Estás aquí" */}
+                          {isCurrentPage && (
+                            <Box
+                              sx={{
+                                px: 1,
+                                py: 0.25,
+                                borderRadius: 0.5,
+                                bgcolor: alpha(selectedItem.color, 0.2),
+                                color: selectedItem.color,
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                                mr: 1
+                              }}
+                            >
+                              Aquí
+                            </Box>
                           )}
-                        </IconButton>
-                      </ListItemButton>
-                    </ListItem>
-                  ));
+                          {/* Estrella de Favorito */}
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleToggleFavorite({ path: subItem.path, permission: subItem.permission }, e)}
+                            sx={{ 
+                              ml: 0.5,
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.warning.main, 0.1)
+                              }
+                            }}
+                          >
+                            {isFavorite(subItem.path) ? (
+                              <Star sx={{ fontSize: 18, color: theme.palette.warning.main }} />
+                            ) : (
+                              <StarBorder sx={{ fontSize: 18, color: theme.palette.text.secondary }} />
+                            )}
+                          </IconButton>
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  });
                 } else {
                   // Si no tiene submenu, mostrar un mensaje o la página directa
                   return (
