@@ -239,10 +239,11 @@ const SolicitudesRRHH = ({
           startIcon={<AddIcon />}
           onClick={handleNuevaSolicitud}
           sx={{
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            backgroundColor: theme.palette.primary.main,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             '&:hover': {
-              boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+              backgroundColor: theme.palette.primary.dark,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
             }
           }}
         >
@@ -449,27 +450,46 @@ const SolicitudesRRHH = ({
       <Dialog
         open={openSolicitudModal}
         onClose={handleCloseModal}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
         <DialogTitle sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-          color: 'white',
-          fontWeight: 700
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark'
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AssignmentIcon />
-            Nueva Solicitud
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              <AddIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+                Nueva Solicitud
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Registrar vacaciones, permisos o incapacidades
+              </Typography>
+            </Box>
           </Box>
         </DialogTitle>
         <Divider />
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3, pt: 5 }}>
           <Grid container spacing={2}>
             {/* Tipo de Solicitud */}
             <Grid item xs={12}>
@@ -597,8 +617,13 @@ const SolicitudesRRHH = ({
             onClick={handleCrearSolicitud}
             startIcon={<CheckIcon />}
             sx={{
-              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              backgroundColor: theme.palette.success.main,
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              '&:hover': {
+                backgroundColor: theme.palette.success.dark,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+              }
             }}
           >
             Crear Solicitud

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Container, CircularProgress } from '@mui/material';
+import { Box, Typography, Container, CircularProgress, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -94,27 +94,59 @@ const SolicitudesPage = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
-      <Box
+      <Paper
+        elevation={0}
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-          borderRadius: 2,
-          p: 3,
-          mb: 4,
-          color: 'white'
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 4
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Description sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Solicitudes
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Gestión de vacaciones, permisos, incapacidades y compensatorios
-            </Typography>
-          </Box>
+        <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              fontWeight: 600,
+              fontSize: '0.7rem',
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2,
+              display: 'block',
+              mb: 0.5
+            }}
+          >
+            RRHH • SOLICITUDES
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 0.5
+            }}
+          >
+            <Description sx={{ fontSize: 32 }} />
+            Solicitudes
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.9)',
+              maxWidth: 600
+            }}
+          >
+            Gestión de vacaciones, permisos, incapacidades y compensatorios
+          </Typography>
         </Box>
-      </Box>
+      </Paper>
 
       {/* Componente de solicitudes */}
       <SolicitudesRRHH 
