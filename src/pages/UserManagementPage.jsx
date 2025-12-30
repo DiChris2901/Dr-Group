@@ -243,7 +243,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
         
         // Convertir permissions de objeto a array si es necesario
         let userPermissions = user.permissions || [];
@@ -1845,7 +1845,7 @@ const UserManagementPage = () => {
                         ]
                       },
                       { 
-                        key: 'talento_humano', 
+                        key: 'rrhh_group', 
                         label: 'RRHH', 
                         icon: <BadgeIcon />, 
                         color: '#ff9800',
@@ -1865,12 +1865,34 @@ const UserManagementPage = () => {
                 })().map((permission) => (
                   <Grid item xs={12} sm={6} md={4} key={permission.key}>
                         <Card sx={{
-                          border: formData.permissions.includes(permission.key) 
-                            ? `2px solid ${permission.color}` 
-                            : `1px solid ${theme.palette.divider}`,
-                          background: formData.permissions.includes(permission.key)
-                            ? alpha(permission.color, 0.05)
-                            : theme.palette.background.paper,
+                          border: (() => {
+                            if (permission.subPermissions) {
+                              const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              return (hasParent || allChildrenActive)
+                                ? `2px solid ${permission.color}` 
+                                : `1px solid ${theme.palette.divider}`;
+                            }
+                            return formData.permissions.includes(permission.key) 
+                              ? `2px solid ${permission.color}` 
+                              : `1px solid ${theme.palette.divider}`;
+                          })(),
+                          background: (() => {
+                            if (permission.subPermissions) {
+                              const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              return (hasParent || allChildrenActive)
+                                ? alpha(permission.color, 0.05)
+                                : theme.palette.background.paper;
+                            }
+                            return formData.permissions.includes(permission.key)
+                              ? alpha(permission.color, 0.05)
+                              : theme.palette.background.paper;
+                          })(),
                           cursor: permission.subPermissions ? 'default' : 'pointer',
                           transition: 'all 0.2s ease',
                           width: '100%',
@@ -1914,9 +1936,18 @@ const UserManagementPage = () => {
                             >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: '40px' }}>
                                 <Box sx={{ 
-                                  color: formData.permissions.includes(permission.key) 
-                                    ? permission.color 
-                                    : 'text.secondary',
+                                  color: (() => {
+                                    if (permission.subPermissions) {
+                                      const hasParent = formData.permissions.includes(permission.key);
+                                      const allChildrenActive = permission.subPermissions.every(sp => 
+                                        formData.permissions.includes(sp.key)
+                                      );
+                                      return (hasParent || allChildrenActive) ? permission.color : 'text.secondary';
+                                    }
+                                    return formData.permissions.includes(permission.key) 
+                                      ? permission.color 
+                                      : 'text.secondary';
+                                  })(),
                                   transition: 'color 0.2s ease',
                                   flexShrink: 0
                                 }}>
@@ -1924,10 +1955,28 @@ const UserManagementPage = () => {
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
                                   <Typography variant="body2" sx={{ 
-                                    fontWeight: formData.permissions.includes(permission.key) ? 600 : 400,
-                                    color: formData.permissions.includes(permission.key) 
-                                      ? 'text.primary' 
-                                      : 'text.secondary',
+                                    fontWeight: (() => {
+                                      if (permission.subPermissions) {
+                                        const hasParent = formData.permissions.includes(permission.key);
+                                        const allChildrenActive = permission.subPermissions.every(sp => 
+                                          formData.permissions.includes(sp.key)
+                                        );
+                                        return (hasParent || allChildrenActive) ? 600 : 400;
+                                      }
+                                      return formData.permissions.includes(permission.key) ? 600 : 400;
+                                    })(),
+                                    color: (() => {
+                                      if (permission.subPermissions) {
+                                        const hasParent = formData.permissions.includes(permission.key);
+                                        const allChildrenActive = permission.subPermissions.every(sp => 
+                                          formData.permissions.includes(sp.key)
+                                        );
+                                        return (hasParent || allChildrenActive) ? 'text.primary' : 'text.secondary';
+                                      }
+                                      return formData.permissions.includes(permission.key) 
+                                        ? 'text.primary' 
+                                        : 'text.secondary';
+                                    })(),
                                     whiteSpace: 'nowrap'
                                   }}>
                                     {permission.label}
@@ -1992,7 +2041,18 @@ const UserManagementPage = () => {
                                 placement="top"
                               >
                                 <Switch
-                                  checked={formData.permissions.includes(permission.key)}
+                                  checked={(() => {
+                                    // Para grupos con sub-permisos, verificar si el padre está activo O si todos los hijos están activos
+                                    if (permission.subPermissions) {
+                                      const hasParent = formData.permissions.includes(permission.key);
+                                      const allChildrenActive = permission.subPermissions.every(sp => 
+                                        formData.permissions.includes(sp.key)
+                                      );
+                                      return hasParent || allChildrenActive;
+                                    }
+                                    // Para permisos individuales, verificación normal
+                                    return formData.permissions.includes(permission.key);
+                                  })()}
                                   size="small"
                                   onClick={(e) => permission.subPermissions && e.stopPropagation()}
                                   sx={{
@@ -2013,20 +2073,41 @@ const UserManagementPage = () => {
                                 mt: 2, 
                                 pl: 2, 
                                 borderLeft: `2px solid ${alpha(permission.color, 0.3)}`,
-                                opacity: formData.permissions.includes(permission.key) ? 0.6 : 1,
-                                pointerEvents: formData.permissions.includes(permission.key) ? 'none' : 'auto'
+                                opacity: (() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  return (hasParent || allChildrenActive) ? 0.6 : 1;
+                                })(),
+                                pointerEvents: (() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  return (hasParent || allChildrenActive) ? 'none' : 'auto';
+                                })()
                               }}>
-                                {formData.permissions.includes(permission.key) ? (
-                                  // Cuando el padre está activo - mostrar mensaje
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
-                                    <CheckCircleIcon sx={{ fontSize: 16, color: permission.color }} />
-                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                                      Acceso completo a todas las páginas de {permission.label}
-                                    </Typography>
-                                  </Box>
-                                ) : (
-                                  // Cuando el padre está inactivo - sub-permisos editables
-                                  <>
+                                {(() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  
+                                  if (hasParent || allChildrenActive) {
+                                    // Cuando el padre está activo O todos los hijos están activos - mostrar mensaje
+                                    return (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                                        <CheckCircleIcon sx={{ fontSize: 16, color: permission.color }} />
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                                          Acceso completo a todas las páginas de {permission.label}
+                                        </Typography>
+                                      </Box>
+                                    );
+                                  } else {
+                                    // Cuando el padre está inactivo - sub-permisos editables
+                                    return (
+                                      <>
                                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
                                       Seleccionar páginas específicas:
                                     </Typography>
@@ -2106,8 +2187,10 @@ const UserManagementPage = () => {
                                     </Tooltip>
                                   </Box>
                                 ))}
-                                  </>
-                                )}
+                                    </>
+                                  );
+                                }
+                              })()}
                               </Box>
                             )}
                           </CardContent>

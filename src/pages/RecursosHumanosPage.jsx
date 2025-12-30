@@ -475,7 +475,7 @@ const RecursosHumanosPage = () => {
               }}
             >
               <Box sx={{ p: 3 }}>
-                {activeModule === 'dashboard' && (
+                {activeModule === 'dashboard' && canViewDashboard && (
                   <DashboardRRHH 
                     empleados={empleados} 
                     asistencias={asistencias} 
@@ -483,7 +483,7 @@ const RecursosHumanosPage = () => {
                   />
                 )}
 
-                {activeModule === 'solicitudes' && (
+                {activeModule === 'solicitudes' && canViewSolicitudes && (
                   <SolicitudesRRHH 
                     solicitudes={solicitudes}
                     empleados={empleados}
@@ -492,7 +492,7 @@ const RecursosHumanosPage = () => {
                   />
                 )}
 
-                {activeModule === 'liquidaciones' && (
+                {activeModule === 'liquidaciones' && canViewLiquidaciones && (
                   <LiquidacionesRRHH 
                     liquidaciones={liquidaciones}
                     empleados={empleados}
@@ -501,7 +501,7 @@ const RecursosHumanosPage = () => {
                   />
                 )}
 
-                {activeModule === 'reportes' && (
+                {activeModule === 'reportes' && canViewReportes && (
                   <Box sx={{ textAlign: 'center', py: 8 }}>
                     <AssessmentIcon sx={{ fontSize: 80, color: theme.palette.info.main, mb: 2 }} />
                     <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
@@ -509,6 +509,23 @@ const RecursosHumanosPage = () => {
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
                       Próximamente: Análisis avanzado, gráficos y exportación de reportes ejecutivos
+                    </Typography>
+                  </Box>
+                )}
+                
+                {/* Mensaje si intenta acceder sin permisos */}
+                {activeModule && (
+                  (activeModule === 'dashboard' && !canViewDashboard) ||
+                  (activeModule === 'solicitudes' && !canViewSolicitudes) ||
+                  (activeModule === 'liquidaciones' && !canViewLiquidaciones) ||
+                  (activeModule === 'reportes' && !canViewReportes)
+                ) && (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography variant="h6" color="error.main" sx={{ mb: 1 }}>
+                      No tienes permisos para acceder a este módulo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Contacta al administrador para solicitar acceso
                     </Typography>
                   </Box>
                 )}
