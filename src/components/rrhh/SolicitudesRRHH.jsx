@@ -38,10 +38,10 @@ import {
   Close as CloseIcon,
   Person as PersonIcon,
   Assignment as AssignmentIcon,
-  BeachAccess as VacacionesIcon,
-  LocalHospital as IncapacidadIcon,
-  EventAvailable as PermisoIcon,
-  SwapHoriz as CompensatorioIcon,
+  FlightTakeoff as VacacionesIcon,
+  MedicalServices as IncapacidadIcon,
+  WatchLater as PermisoIcon,
+  Celebration as CompensatorioIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -192,14 +192,20 @@ const SolicitudesRRHH = ({
     setOpenSolicitudModal(false);
   };
 
-  // Helper: Ícono según tipo
+  // Helper: Ícono según tipo con colores vibrantes
   const getTipoIcon = (tipo) => {
+    const iconStyles = { fontSize: 20 };
     switch (tipo) {
-      case 'vacaciones': return <VacacionesIcon />;
-      case 'permiso': return <PermisoIcon />;
-      case 'incapacidad': return <IncapacidadIcon />;
-      case 'compensatorio': return <CompensatorioIcon />;
-      default: return <AssignmentIcon />;
+      case 'vacaciones': 
+        return <VacacionesIcon sx={{ ...iconStyles, color: '#00bcd4' }} />;
+      case 'permiso': 
+        return <PermisoIcon sx={{ ...iconStyles, color: '#ff9800' }} />;
+      case 'incapacidad': 
+        return <IncapacidadIcon sx={{ ...iconStyles, color: '#f44336' }} />;
+      case 'compensatorio': 
+        return <CompensatorioIcon sx={{ ...iconStyles, color: '#9c27b0' }} />;
+      default: 
+        return <AssignmentIcon sx={iconStyles} />;
     }
   };
 
@@ -503,25 +509,25 @@ const SolicitudesRRHH = ({
                 >
                   <MenuItem value="vacaciones">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <VacacionesIcon fontSize="small" />
+                      <VacacionesIcon fontSize="small" sx={{ color: '#00bcd4' }} />
                       Vacaciones
                     </Box>
                   </MenuItem>
                   <MenuItem value="permiso">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PermisoIcon fontSize="small" />
+                      <PermisoIcon fontSize="small" sx={{ color: '#ff9800' }} />
                       Permiso
                     </Box>
                   </MenuItem>
                   <MenuItem value="incapacidad">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IncapacidadIcon fontSize="small" />
+                      <IncapacidadIcon fontSize="small" sx={{ color: '#f44336' }} />
                       Incapacidad
                     </Box>
                   </MenuItem>
                   <MenuItem value="compensatorio">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CompensatorioIcon fontSize="small" />
+                      <CompensatorioIcon fontSize="small" sx={{ color: '#9c27b0' }} />
                       Día Compensatorio
                     </Box>
                   </MenuItem>
