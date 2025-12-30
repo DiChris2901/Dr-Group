@@ -180,8 +180,8 @@ Tu objetivo es ser el programador más confiable y sistemático, donde cada lín
 - **VISORES PDF**: USAR como referencia `docs/MODAL_PDF_VIEWER_DESIGN.md`
 - **DISEÑO SOBRIO**: Para páginas admin, aplicar `docs/DISENO_SOBRIO_NOTAS.md`
 - **EXPORTACIÓN EXCEL**: OBLIGATORIO seguir `docs/EXCEL_EXPORT_DESIGN_SYSTEM.md` - Formato Python profesional únicamente
-- **SPECTACULAR**: Solo dashboard y páginas principales
-- **PROHIBIDO**: glassmorphism, backdrop-filter, colores hardcodeados
+- **DISEÑO SOBRIO**: Aplicar en todo el dashboard y páginas
+- **PROHIBIDO**: glassmorphism, backdrop-filter, colores hardcodeados, efectos dramáticos
 
 ### 🔥 REGLAS DE CÓDIGO NO NEGOCIABLES:
 - **HOOKS ÚNICAMENTE**: Jamás class components
@@ -604,7 +604,7 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 
 ## Stack Tecnológico
 - **Frontend**: React 18 + Vite
-- **UI Library**: Material-UI (MUI) v5 con tema original spectacular
+- **UI Library**: Material-UI (MUI) v5 con diseño sobrio empresarial
 - **Backend**: Firebase (Firestore + Storage + Authentication)
 - **Animaciones**: Framer Motion con efectos visuales avanzados
 - **Routing**: React Router DOM
@@ -634,9 +634,9 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 - `src/hooks/` - Custom hooks especializados
 - `src/context/` - Context providers (Auth, Theme, Settings, etc.)
 - `src/utils/` - Utilidades y helpers
-- `src/theme/` - Configuración de tema spectacular original
+- `src/theme/` - Configuración de tema MUI
 
-## 🎨 SISTEMAS DE DISEÑO - SPECTACULAR & SOBRIO
+## 🎨 SISTEMA DE DISEÑO SOBRIO
 
 ### 📋 DOCUMENTOS DE REFERENCIA OBLIGATORIOS
 - **`docs/DISENO_SOBRIO_NOTAS.md`** - Sistema minimalista empresarial
@@ -651,60 +651,54 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 - **Los únicos docs permitidos** son los de diseño/arquitectura/patrones listados arriba
 - **Explicar cambios en el chat** con resúmenes concisos, no en documentos
 
-### 🎨 SISTEMA DE DISEÑO ORIGINAL SPECTACULAR
+### 🎨 DISEÑO SOBRIO - REGLAS ESTRICTAS
 
-### Gradientes y Efectos Visuales
+### Bordes y Formas
 ```jsx
-// ✅ Usar gradientes spectacular originales
-background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
+// ✅ Border radius sobrio
+borderRadius: 1  // 8px - Inputs, botones
+borderRadius: 2  // 16px - Cards, containers
 
-// ✅ Efectos shimmer permitidos
-animation: 'shimmer 3s infinite'
-// ❌ NO usar efectos glassmorphism ni backdrop-filter
+// ✅ Bordes sutiles
+border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
 ```
 
-### Tipografía
+### Sombras Minimalistas
 ```jsx
-// ✅ Pesos permitidos (sin restricciones)
-fontWeight: 300  // Light
+// ✅ Sombras sobrias únicamente
+boxShadow: '0 2px 8px rgba(0,0,0,0.06)'   // Normal
+boxShadow: '0 2px 12px rgba(0,0,0,0.08)'  // Hover
+
+// ❌ NO usar sombras dramáticas
+```
+
+### Transiciones Suaves
+```jsx
+// ✅ Transiciones simples
+transition: 'all 0.2s ease'
+
+// ❌ NO usar cubic-bezier complejos ni animaciones dramáticas
+```
+
+### Tipografía Empresarial
+```jsx
+// ✅ Pesos equilibrados
 fontWeight: 400  // Regular
 fontWeight: 500  // Medium
-fontWeight: 600  // Semi-bold
-fontWeight: 700  // Bold - PERMITIDO
-fontWeight: 800  // Extra-bold - PERMITIDO
-fontWeight: 900  // Black - PERMITIDO
-```
+fontWeight: 600  // Headers importantes
 
-### Animaciones
-```jsx
-// ✅ Efectos spectacular completos
-transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-initial: { opacity: 0, y: 20, scale: 0.95 }
-animate: { opacity: 1, y: 0, scale: 1 }
-whileHover={{ scale: 1.05, y: -4 }}
-animate={{ rotate: [0, 10, -10, 0] }}
-animation: 'shimmer 3s infinite'
-```
-
-### Sombras
-```jsx
-// ✅ Spectacular sin glassmorphism
-boxShadow: '0 4px 20px rgba(0,0,0,0.12)'         // Soft
-boxShadow: '0 8px 25px rgba(0,0,0,0.15)'         // Hover
-boxShadow: '0 12px 40px rgba(0,0,0,0.20)'        // Deep
+// ❌ EVITAR pesos extremos (700-900) excepto en casos muy específicos
 ```
 
 ## Patrones de Desarrollo
 1. **Componentes Funcionales**: Usar siempre hooks en lugar de class components
-2. **Material-UI Spectacular**: Usar sistema de temas spectacular original (src/theme/premiumTheme.js)
+2. **Material-UI Sobrio**: Usar sistema de diseño sobrio empresarial (docs/DISENO_SOBRIO_NOTAS.md)
 3. **Firebase**: Implementar Real-time listeners para datos dinámicos
 4. **Autenticación**: Solo correos autorizados, sin registro público
 5. **Roles y Permisos**: Implementar sistema granular de permisos por empresa
 6. **Responsive**: Diseño mobile-first con breakpoints de MUI
-7. **Animaciones Spectacular**: Efectos shimmer, gradientes y micro-interacciones
-8. **Tema Spectacular**: Soporte para modo claro/oscuro con efectos visuales premium
+7. **Animaciones Sobrias**: Transiciones simples (0.2s ease), sin efectos dramáticos
+8. **Tema Consistente**: Soporte para modo claro/oscuro con diseño minimalista
 
 ## Funcionalidades Principales
 - Autenticación con Firebase Auth (solo correos autorizados)
@@ -721,11 +715,11 @@ boxShadow: '0 12px 40px rgba(0,0,0,0.20)'        // Deep
 - Sistema de notas y comentarios colaborativos
 - Perfil de usuario con configuraciones personalizadas
 
-## Buenas Prácticas Original Spectacular Design (Sin Glassmorphism)
-- **Seguir DESIGN_SYSTEM.md** al pie de la letra
+## Buenas Prácticas Diseño Sobrio Empresarial
+- **Seguir docs/DISENO_SOBRIO_NOTAS.md** estrictamente
 - **Usar theme.palette** en lugar de colores hardcodeados
-- **Efectos visuales spectacular**: Shimmer y gradientes permitidos (NO glassmorphism)
-- **Mantener elegancia empresarial**: Diseño corporativo spectacular y profesional
+- **Efectos minimalistas**: Sombras sutiles, transiciones simples
+- **Mantener elegancia empresarial**: Diseño limpio, profesional y minimalista
 - Implementar loading states y error boundaries elegantes
 - Validación de formularios con react-hook-form si es necesario
 - Optimización de imágenes y archivos
@@ -1139,7 +1133,7 @@ APROBADO PARA IMPLEMENTACIÓN
 | Aspecto | Dashboard Web (src/) | APP Móvil (mobile/) |
 |---------|----------------------|---------------------|
 | **Rol** | Arquitecto Senior | **Lead Designer Google** |
-| **Diseño** | Spectacular + Sobrio | **Material You Expressive** |
+| **Diseño** | Sobrio Empresarial | **Material You Expressive** |
 | **Border Radius** | 8-16px (profesional) | **24-48px (orgánico)** |
 | **Sombras** | Permitidas (no glassmorphism) | **Prohibidas (Tonal Elevation)** |
 | **Tipografía** | Roboto standard | **Roboto Flex + Width Axis 110%** |
@@ -1201,7 +1195,7 @@ Listo para implementar con calidad "Google Design Award Winner".
 
 ---
 
-**RECORDATORIO CRÍTICO:** Este prompt SOLO aplica para `mobile/`. El dashboard web (src/) mantiene su identidad Spectacular + Sobrio empresarial con el rol de Arquitecto Senior.
+**RECORDATORIO CRÍTICO:** Este prompt SOLO aplica para `mobile/`. El dashboard web (src/) mantiene su identidad de Diseño Sobrio Empresarial con el rol de Arquitecto Senior.
 
 ---
 

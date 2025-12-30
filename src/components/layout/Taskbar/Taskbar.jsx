@@ -7,7 +7,16 @@ import {
   Avatar,
   alpha,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Popover,
+  TextField,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -28,7 +37,10 @@ import {
   Timeline as TimelineIcon,
   DeleteSweep as DeleteSweepIcon,
   AdminPanelSettings as AdminIcon,
-  AccessTime
+  AccessTime,
+  Search as SearchIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -36,28 +48,8 @@ import { useSettings } from '../../../context/SettingsContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import TaskbarMenu from './TaskbarMenu';
 
-// Animaciones para Taskbar - Spectacular Style
-const taskbarAnimations = `
-  @keyframes taskbar-pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.8;
-      transform: scale(1.15);
-    }
-  }
-  
-  @keyframes taskbar-shimmer {
-    0% {
-      left: -100%;
-    }
-    100% {
-      left: 100%;
-    }
-  }
-`;
+// Estilos Taskbar - Diseño Sobrio
+const taskbarAnimations = ``;
 
 // ✅ OPTIMIZACIÓN: Memoizar componente para evitar re-renders innecesarios
 const Taskbar = React.memo(() => {
@@ -71,6 +63,9 @@ const Taskbar = React.memo(() => {
   const [openMenu, setOpenMenu] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [searchAnchorEl, setSearchAnchorEl] = useState(null);
+  const [menuInicioAnchorEl, setMenuInicioAnchorEl] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Actualizar la hora cada segundo
   useEffect(() => {
@@ -234,6 +229,31 @@ const Taskbar = React.memo(() => {
     return taskbarItems.filter(shouldShowMenuItem);
   }, [taskbarItems, shouldShowMenuItem]);
 
+  // 🎯 SISTEMA INTELIGENTE: Decidir comportamiento del Taskbar
+  const showMenuInicio = filteredTaskbarItems.length > 6;
+  const taskbarVisibleItems = useMemo(() => {
+    if (showMenuInicio) {
+      // Usuarios con muchos permisos: mostrar solo primeros 4
+      return filteredTaskbarItems.slice(0, 4);
+    }
+    // Usuarios con pocos permisos: mostrar todos
+    return filteredTaskbarItems;
+  }, [filteredTaskbarItems, showMenuInicio]);
+
+  // Filtrar items para búsqueda
+  const searchFilteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return filteredTaskbarItems;
+    
+    const query = searchQuery.toLowerCase();
+    return filteredTaskbarItems.filter(item => {
+      if (item.label.toLowerCase().includes(query)) return true;
+      if (item.submenu) {
+        return item.submenu.some(sub => sub.label.toLowerCase().includes(query));
+      }
+      return false;
+    });
+  }, [filteredTaskbarItems, searchQuery]);
+
   // ✅ OPTIMIZACIÓN: Cachear función de filtrado de submenús
   const filterSubmenu = useMemo(() => {
     return (submenu, parentPermission) => {
@@ -247,6 +267,30 @@ const Taskbar = React.memo(() => {
   }, [hasSubmenuPermission]);
 
   // ===== FIN SISTEMA DE PERMISOS =====
+
+  // Handlers para búsqueda y menú
+  const handleSearchOpen = (event) => {
+    setSearchAnchorEl(event.currentTarget);
+  };
+
+  const handleSearchClose = () => {
+    setSearchAnchorEl(null);
+    setSearchQuery('');
+  };
+
+  const handleMenuInicioOpen = (event) => {
+    setMenuInicioAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuInicioClose = () => {
+    setMenuInicioAnchorEl(null);
+  };
+
+  const handleNavigateFromSearch = (path) => {
+    navigate(path);
+    handleSearchClose();
+    handleMenuInicioClose();
+  };
 
   const handleItemClick = (item, event) => {
     if (item.submenu) {
@@ -304,17 +348,61 @@ const Taskbar = React.memo(() => {
           alignItems: 'center',
           justifyContent: 'center',
           px: isMobile ? 2 : 3,
-          transition: theme.transitions.create(['box-shadow', 'transform', 'left', 'right', 'border'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.shorter,
-          }),
+          transition: 'all 0.2s ease',
           '&:hover': {
-            boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 12px ${alpha(theme.palette.common.black, 0.12)}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
-            transform: 'translateY(-2px)',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
           }
         }}
       >
+        {/* Left Section - Menú Inicio + Búsqueda */}
+        <Box sx={{ 
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mr: 2
+        }}>
+          {/* Botón Menú Inicio (solo si > 6 permisos) */}
+          {showMenuInicio && (
+            <Tooltip title="Menú">
+              <IconButton
+                onClick={handleMenuInicioOpen}
+                sx={{
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                  }
+                }}
+              >
+                <MenuIcon sx={{ color: theme.palette.primary.main }} />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Botón de Búsqueda (siempre visible) */}
+          <Tooltip title="Buscar páginas">
+            <IconButton
+              onClick={handleSearchOpen}
+              sx={{
+                bgcolor: alpha(theme.palette.background.paper, 0.6),
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                }
+              }}
+            >
+              <SearchIcon sx={{ color: theme.palette.text.secondary }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
         {/* Center Section - Main Modules */}
         <Box sx={{ 
           display: 'flex', 
@@ -343,175 +431,8 @@ const Taskbar = React.memo(() => {
           maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
           WebkitMaskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
         }}>
-          {filteredTaskbarItems.map((item, index) => (
+          {taskbarVisibleItems.map((item, index) => (
             <React.Fragment key={item.id}>
-              {/* Etiquetas de Categoría */}
-              {index === 0 && !isMobile && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.primary.main, 0.06),
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                  mr: 2
-                }}>
-                  <Box sx={{
-                    width: 3,
-                    height: 12,
-                    bgcolor: theme.palette.primary.main,
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.primary.main,
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Inicio
-                  </Typography>
-                </Box>
-              )}
-              {index === 1 && !isMobile && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.secondary.main, 0.06),
-                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
-                  mr: 2
-                }}>
-                  <Box sx={{
-                    width: 3,
-                    height: 12,
-                    bgcolor: theme.palette.secondary.main,
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.secondary.main,
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Operaciones
-                  </Typography>
-                </Box>
-              )}
-              {item.id === 'gestion' && !isMobile && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.secondary.main, 0.06),
-                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
-                  mr: 2
-                }}>
-                  <Box sx={{
-                    width: 3,
-                    height: 12,
-                    bgcolor: theme.palette.secondary.main,
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.secondary.main,
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Gestión
-                  </Typography>
-                </Box>
-              )}
-              {item.id === 'reports' && !isMobile && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.primary.main, 0.06),
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                  mr: 2
-                }}>
-                  <Box sx={{
-                    width: 3,
-                    height: 12,
-                    bgcolor: theme.palette.primary.main,
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.primary.main,
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Reportes
-                  </Typography>
-                </Box>
-              )}
-              {item.id === 'admin' && !isMobile && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: alpha('#9c27b0', 0.06),
-                  border: `1px solid ${alpha('#9c27b0', 0.15)}`,
-                  mr: 2
-                }}>
-                  <Box sx={{
-                    width: 3,
-                    height: 12,
-                    bgcolor: '#9c27b0',
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: '#9c27b0',
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Admin
-                  </Typography>
-                </Box>
-              )}
-
               {/* Contenedor minimalista de ícono + label */}
               <Box
                 onClick={(e) => handleItemClick(item, e)}
@@ -522,30 +443,27 @@ const Taskbar = React.memo(() => {
                   gap: 0.75,
                   cursor: 'pointer',
                   padding: isMobile ? '8px 10px' : '10px 12px',
-                  borderRadius: 2.5,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderRadius: 1,
+                  transition: 'all 0.2s ease',
                   position: 'relative',
                   border: isActive(item) 
-                    ? `2px solid ${alpha(item.color, 0.3)}`
-                    : '2px solid transparent',
+                    ? `1px solid ${alpha(item.color, 0.3)}`
+                    : '1px solid transparent',
                   bgcolor: isActive(item)
                     ? alpha(item.color, 0.08)
                     : 'transparent',
+                  boxShadow: isActive(item) ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
                   '&:hover': {
-                    background: `linear-gradient(135deg, ${alpha(item.color, 0.06)} 0%, ${alpha(item.color, 0.12)} 100%)`,
-                    border: `2px solid ${alpha(item.color, 0.2)}`,
-                    boxShadow: `0 6px 16px ${alpha(item.color, 0.2)}`,
+                    bgcolor: alpha(item.color, 0.08),
+                    border: `1px solid ${alpha(item.color, 0.2)}`,
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
                     '& .taskbar-icon': {
                       color: item.color,
-                      transform: 'scale(1.1)',
                     },
                     '& .taskbar-label': {
                       color: item.color,
-                      fontWeight: 700,
+                      fontWeight: 600,
                     }
-                  },
-                  '&:active': {
-                    transform: 'scale(0.98)',
                   }
                 }}
               >
@@ -596,12 +514,12 @@ const Taskbar = React.memo(() => {
                       position: 'absolute',
                       bottom: -2,
                       left: '50%',
-                      transform: 'translateX(-50%)',
+                      marginLeft: '-35%',
                       width: '70%',
                       height: 3,
                       borderRadius: '3px 3px 0 0',
                       bgcolor: item.color,
-                      boxShadow: `0 -2px 8px ${alpha(item.color, 0.5)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                     }}
                   />
                 )}
@@ -614,24 +532,7 @@ const Taskbar = React.memo(() => {
                     width: '1px',
                     height: isMobile ? 40 : 48,
                     mx: isMobile ? 1 : 1.5,
-                    position: 'relative',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      inset: 0,
-                      background: `linear-gradient(180deg, transparent 0%, ${alpha(theme.palette.primary.main, 0.3)} 50%, transparent 100%)`,
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      width: 4,
-                      height: 4,
-                      borderRadius: '50%',
-                      bgcolor: alpha(theme.palette.primary.main, 0.4),
-                    }
+                    bgcolor: alpha(theme.palette.divider, 0.2),
                   }}
                 />
               )}
@@ -655,34 +556,31 @@ const Taskbar = React.memo(() => {
               alignItems: 'flex-end',
               px: 2.5,
               py: 1.5,
-              borderRadius: 2.5,
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 100%)`,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.background.paper, 0.6),
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'all 0.2s ease',
               '&:hover': {
-                transform: 'scale(1.02)',
-                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
               }
             }}>
               <Typography variant="caption" sx={{ 
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: '0.9rem',
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: theme.palette.primary.main,
                 lineHeight: 1.3,
-                letterSpacing: 0.5
+                letterSpacing: 0.3
               }}>
                 {formatTime(currentTime)}
               </Typography>
               <Typography variant="caption" sx={{ 
                 fontSize: '0.7rem',
                 color: theme.palette.text.secondary,
-                fontWeight: 600,
+                fontWeight: 500,
                 textTransform: 'capitalize',
-                letterSpacing: 0.3
+                letterSpacing: 0.2
               }}>
                 {formatDate(currentTime)}
               </Typography>
@@ -696,28 +594,22 @@ const Taskbar = React.memo(() => {
                 gap: 1.5,
                 px: 2.5,
                 py: 1.5,
-                borderRadius: 2.5,
-                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 100%)`,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
+                borderRadius: 1,
+                bgcolor: alpha(theme.palette.background.paper, 0.6),
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: 'all 0.2s ease',
                 '&:hover': {
-                  transform: 'scale(1.02)',
-                  boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-                  '& .user-avatar': {
-                    transform: 'scale(1.1)',
-                  }
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
                 }
               }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                   <Typography variant="caption" sx={{ 
-                    fontWeight: 700,
+                    fontWeight: 600,
                     fontSize: '0.85rem',
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
+                    color: theme.palette.primary.main,
                     lineHeight: 1.3
                   }}>
                     {userProfile?.name?.split(' ')[0] || 'Usuario'}
@@ -729,15 +621,13 @@ const Taskbar = React.memo(() => {
                         height: 7,
                         borderRadius: '50%',
                         bgcolor: theme.palette.success.main,
-                        boxShadow: `0 0 8px ${theme.palette.success.main}, 0 0 16px ${alpha(theme.palette.success.main, 0.5)}`,
-                        animation: 'taskbar-pulse 2s infinite'
                       }}
                     />
                     <Typography variant="caption" sx={{ 
                       fontSize: '0.7rem',
                       color: theme.palette.success.main,
-                      fontWeight: 700,
-                      letterSpacing: 0.5
+                      fontWeight: 500,
+                      letterSpacing: 0.3
                     }}>
                       ONLINE
                     </Typography>
@@ -752,9 +642,9 @@ const Taskbar = React.memo(() => {
                   sx={{
                     width: 48,
                     height: 48,
-                    border: `3px solid ${theme.palette.primary.main}`,
-                    boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.15)}, 0 4px 12px ${alpha(theme.palette.common.black, 0.2)}`,
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    border: `2px solid ${theme.palette.primary.main}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   {!userProfile?.photoURL && (userProfile?.name?.charAt(0) || 'U')}
@@ -771,16 +661,231 @@ const Taskbar = React.memo(() => {
         anchorEl={anchorEl}
         onClose={handleMenuClose}
         items={useMemo(() => {
-          const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
+          const currentItem = taskbarVisibleItems.find(item => item.id === openMenu);
           if (!currentItem || !currentItem.submenu) return [];
           return filterSubmenu(currentItem.submenu, currentItem.permission);
-        }, [openMenu, filteredTaskbarItems, filterSubmenu])}
+        }, [openMenu, taskbarVisibleItems, filterSubmenu])}
         categoryColor={useMemo(() => {
-          const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
+          const currentItem = taskbarVisibleItems.find(item => item.id === openMenu);
           return currentItem?.color || theme.palette.primary.main;
-        }, [openMenu, filteredTaskbarItems, theme.palette.primary.main])}
+        }, [openMenu, taskbarVisibleItems, theme.palette.primary.main])}
         onItemClick={handleMenuItemClick}
       />
+
+      {/* Popover de Búsqueda */}
+      <Popover
+        open={Boolean(searchAnchorEl)}
+        anchorEl={searchAnchorEl}
+        onClose={handleSearchClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            width: 400,
+            maxHeight: 500,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          }
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <TextField
+            fullWidth
+            autoFocus
+            size="small"
+            placeholder="Buscar página..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 20, color: alpha(theme.palette.text.secondary, 0.5) }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <CloseIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: alpha(theme.palette.background.paper, 0.6),
+                borderRadius: 1,
+                '& fieldset': {
+                  borderColor: alpha(theme.palette.divider, 0.2),
+                },
+                '&:hover fieldset': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: alpha(theme.palette.primary.main, 0.5),
+                },
+              }
+            }}
+          />
+        </Box>
+        
+        <List sx={{ maxHeight: 400, overflow: 'auto' }}>
+          {searchFilteredItems.length === 0 ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color="text.secondary">
+                No se encontraron resultados
+              </Typography>
+            </Box>
+          ) : (
+            searchFilteredItems.map((item) => (
+              <React.Fragment key={item.id}>
+                {item.submenu ? (
+                  item.submenu.map((subItem) => (
+                    <ListItem key={subItem.path} disablePadding>
+                      <ListItemButton onClick={() => handleNavigateFromSearch(subItem.path)}>
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          <subItem.icon sx={{ fontSize: 20, color: item.color }} />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary={subItem.label}
+                          secondary={item.label}
+                          primaryTypographyProps={{ fontSize: '0.875rem' }}
+                          secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))
+                ) : (
+                  <ListItem disablePadding>
+                    <ListItemButton onClick={() => handleNavigateFromSearch(item.path)}>
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <item.icon sx={{ fontSize: 20, color: item.color }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={item.label}
+                        primaryTypographyProps={{ fontSize: '0.875rem' }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                )}
+              </React.Fragment>
+            ))
+          )}
+        </List>
+      </Popover>
+
+      {/* Popover de Menú Inicio */}
+      <Popover
+        open={Boolean(menuInicioAnchorEl)}
+        anchorEl={menuInicioAnchorEl}
+        onClose={handleMenuInicioClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            width: 350,
+            maxHeight: 600,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          }
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+            Menú de Navegación
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Todas tus páginas disponibles
+          </Typography>
+        </Box>
+
+        <Divider />
+
+        <List sx={{ maxHeight: 500, overflow: 'auto', py: 1 }}>
+          {filteredTaskbarItems.map((item, index) => (
+            <React.Fragment key={item.id}>
+              {/* Categorías */}
+              {index === 0 && (
+                <ListItem sx={{ pt: 1, pb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                    Inicio
+                  </Typography>
+                </ListItem>
+              )}
+              {index === 1 && (
+                <ListItem sx={{ pt: 1, pb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                    Operaciones
+                  </Typography>
+                </ListItem>
+              )}
+              {item.label === 'Gestión Empresarial' && (
+                <ListItem sx={{ pt: 1, pb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                    Gestión
+                  </Typography>
+                </ListItem>
+              )}
+              {item.label === 'Reportes' && (
+                <ListItem sx={{ pt: 1, pb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                    Reportes
+                  </Typography>
+                </ListItem>
+              )}
+              {item.label === 'Administración' && (
+                <ListItem sx={{ pt: 1, pb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>
+                    Admin
+                  </Typography>
+                </ListItem>
+              )}
+
+              {/* Item principal */}
+              {item.submenu ? (
+                item.submenu.map((subItem) => (
+                  <ListItem key={subItem.path} disablePadding sx={{ pl: 2 }}>
+                    <ListItemButton onClick={() => handleNavigateFromSearch(subItem.path)}>
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        <subItem.icon sx={{ fontSize: 20, color: item.color }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={subItem.label}
+                        primaryTypographyProps={{ fontSize: '0.875rem' }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem disablePadding sx={{ pl: 2 }}>
+                  <ListItemButton onClick={() => handleNavigateFromSearch(item.path)}>
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      <item.icon sx={{ fontSize: 20, color: item.color }} />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.label}
+                      primaryTypographyProps={{ fontSize: '0.875rem' }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              )}
+            </React.Fragment>
+          ))}
+        </List>
+      </Popover>
     </>
   );
 }); // Fin de React.memo

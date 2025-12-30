@@ -7,6 +7,7 @@ import {
     AttachMoney,
     Badge,
     Business,
+    Clear,
     Dashboard,
     DeleteSweep,
     Description,
@@ -18,6 +19,7 @@ import {
     People,
     Person,
     Receipt,
+    Search,
     Timeline,
     TrendingUp
 } from '@mui/icons-material';
@@ -27,11 +29,14 @@ import {
     Collapse,
     Divider,
     Drawer,
+    IconButton,
+    InputAdornment,
     List,
     ListItem,
     ListItemButton,
     ListItemIcon,
     ListItemText,
+    TextField,
     Tooltip,
     Typography,
     alpha
@@ -76,6 +81,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   
   const [openSubmenu, setOpenSubmenu] = useState({});
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategory, setExpandedCategory] = useState(null);
 
   // Configuración del tema
   const isDarkMode = theme.palette.mode === 'dark';
@@ -117,10 +124,43 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   };
 
   const handleSubmenuToggle = (title) => {
-    setOpenSubmenu(prev => ({
-      ...prev,
-      [title]: !prev[title]
-    }));
+    // Auto-colapsar: Si se abre una categoría, cierra las demás
+    setExpandedCategory(prev => prev === title ? null : title);
+  };
+
+  // Función para filtrar páginas según búsqueda
+  const filterPages = (items) => {
+    if (!searchQuery.trim()) return items;
+    
+    const query = searchQuery.toLowerCase();
+    return items.filter(item => {
+      // Buscar en el título principal
+      if (item.title.toLowerCase().includes(query)) return true;
+      
+      // Buscar en sub-items
+      if (item.submenu) {
+        return item.submenu.some(sub => sub.title.toLowerCase().includes(query));
+      }
+      
+      return false;
+    }).map(item => {
+      // Si tiene submenu, filtrar también los sub-items
+      if (item.submenu) {
+        return {
+          ...item,
+          submenu: item.submenu.filter(sub => 
+            sub.title.toLowerCase().includes(query) || 
+            item.title.toLowerCase().includes(query)
+          )
+        };
+      }
+      return item;
+    });
+  };
+
+  // Limpiar búsqueda
+  const clearSearch = () => {
+    setSearchQuery('');
   };
 
   // Verificar si una ruta está activa
@@ -263,8 +303,28 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   } = usePermissions();
 
   // Filtrar elementos del menú según permisos (usa shouldShowMenuItem del hook)
-  const filteredMenuItems = menuItems.filter(shouldShowMenuItem);
-  const filteredAdminMenuItems = adminMenuItems.filter(shouldShowMenuItem);
+  const permissionFilteredMenuItems = menuItems.filter(shouldShowMenuItem);
+  const permissionFilteredAdminMenuItems = adminMenuItems.filter(shouldShowMenuItem);
+  
+  // Aplicar filtro de búsqueda
+  const filteredMenuItems = filterPages(permissionFilteredMenuItems);
+  const filteredAdminMenuItems = filterPages(permissionFilteredAdminMenuItems);
+
+  // Auto-expandir categoría basándose en la ruta actual
+  React.useEffect(() => {
+    // Solo auto-expandir si no hay búsqueda activa
+    if (searchQuery.trim()) return;
+    
+    const currentCategory = menuItems.find(item => {
+      if (item.path && isActiveRoute(item.path)) return true;
+      if (item.submenu && hasActiveSubmenu(item.submenu)) return true;
+      return false;
+    });
+    
+    if (currentCategory && currentCategory.title !== expandedCategory) {
+      setExpandedCategory(currentCategory.title);
+    }
+  }, [location.pathname, searchQuery]);
 
   const sidebarContent = (
     <>
@@ -366,12 +426,108 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           }
         }
       }}>
-        <List sx={{ pt: isCompactMode ? 1 : 2 }}>
-          {filteredMenuItems.map((item, index) => (
+        {/* Barra de Búsqueda */}
+        {!isCompactMode && (
+          <Box sx={{ px: 2, pt: 1, pb: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Buscar página..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ 
+                      fontSize: 18,
+                      color: alpha(theme.palette.text.secondary, 0.5)
+                    }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={clearSearch}
+                      sx={{ 
+                        p: 0.5,
+                        '&:hover': {
+                          bgcolor: alpha(theme.palette.error.main, 0.08),
+                        }
+                      }}
+                    >
+                      <Clear sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: alpha(theme.palette.background.paper, 0.6),
+                  borderRadius: 1,
+                  fontSize: '0.875rem',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'all 0.2s ease',
+                  '& fieldset': {
+                    borderColor: alpha(theme.palette.divider, 0.2),
+                  },
+                  '&:hover': {
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                    },
+                  },
+                  '&.Mui-focused': {
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.primary.main, 0.5),
+                    },
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  py: 1,
+                  fontSize: '0.875rem',
+                  fontWeight: 400,
+                  '&::placeholder': {
+                    opacity: 0.5,
+                  }
+                },
+              }}
+            />
+          </Box>
+        )}
+        
+        <List sx={{ pt: isCompactMode ? 1 : 0 }}>
+          {filteredMenuItems.map((item, index) => {
+            // Determinar si debe mostrar etiqueta de categoría
+            const showCategoryLabel = !isCompactMode && (() => {
+              // Solo mostrar si no hay búsqueda activa
+              if (searchQuery.trim()) return null;
+              
+              // Primera categoría: INICIO (Dashboard)
+              if (index === 0 && item.title === 'Dashboard') {
+                return 'Inicio';
+              }
+              // Segunda categoría: OPERACIONES (Compromisos, Pagos, Ingresos)
+              if (index > 0 && item.title === 'Compromisos' && filteredMenuItems[index - 1]?.title === 'Dashboard') {
+                return 'Operaciones';
+              }
+              // Tercera categoría: GESTIÓN (Gestión Empresarial, Liquidaciones, Facturación)
+              if (item.title === 'Gestión Empresarial') {
+                return 'Gestión';
+              }
+              // Cuarta categoría: REPORTES
+              if (item.title === 'Reportes') {
+                return 'Reportes';
+              }
+              return null;
+            })();
+            
+            return (
             <React.Fragment key={item.title}>
               {/* Etiquetas de Categoría */}
-              {index === 0 && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              {showCategoryLabel && (
+                <Box sx={{ px: 3, pt: index === 0 ? 1 : 2.5, pb: index === 0 ? 1 : 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{
                     width: 20,
                     height: 2,
@@ -391,82 +547,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                       userSelect: 'none'
                     }}
                   >
-                    Inicio
-                  </Typography>
-                </Box>
-              )}
-              {index === 1 && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{
-                    width: 20,
-                    height: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.4),
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.mode === 'dark' 
-                        ? alpha(theme.palette.text.primary, 0.6)
-                        : alpha(theme.palette.text.secondary, 0.8),
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Operaciones
-                  </Typography>
-                </Box>
-              )}
-              {item.title === 'Gestión Empresarial' && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{
-                    width: 20,
-                    height: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.4),
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.mode === 'dark' 
-                        ? alpha(theme.palette.text.primary, 0.6)
-                        : alpha(theme.palette.text.secondary, 0.8),
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Gestión
-                  </Typography>
-                </Box>
-              )}
-              {item.title === 'Reportes' && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{
-                    width: 20,
-                    height: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.4),
-                    borderRadius: 1
-                  }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: 1.2,
-                      color: theme.palette.mode === 'dark' 
-                        ? alpha(theme.palette.text.primary, 0.6)
-                        : alpha(theme.palette.text.secondary, 0.8),
-                      textTransform: 'uppercase',
-                      userSelect: 'none'
-                    }}
-                  >
-                    Reportes
+                    {showCategoryLabel}
                   </Typography>
                 </Box>
               )}
@@ -628,7 +709,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                         />
                       )}
                       {item.submenu && settings?.sidebar?.showLabels !== false && (
-                        openSubmenu[item.title] ? <ExpandLess /> : <ExpandMore />
+                        expandedCategory === item.title ? <ExpandLess /> : <ExpandMore />
                       )}
                       {/* Indicador activo para modo expandido */}
                       {settings?.sidebar?.showActiveIndicator !== false && (isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)) && (
@@ -651,7 +732,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
 
                 {/* Submenu */}
                 {item.submenu && (!isCompactMode || isHoverExpanded) && (
-                  <Collapse in={openSubmenu[item.title]} timeout={400} unmountOnExit>
+                  <Collapse in={expandedCategory === item.title || searchQuery.trim() !== ''} timeout={400} unmountOnExit>
                     <List component="div" disablePadding sx={{ 
                       bgcolor: alpha(theme.palette.primary.main, 0.02),
                       borderRadius: 2,
@@ -733,23 +814,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   </Collapse>
                 )}
               </motion.div>
-
-              {/* Dividers para agrupación */}
-              {settings?.sidebar?.grouping !== false && (index === 0 || index === 3) && (
-                <Divider sx={{ 
-                  mx: 2, 
-                  my: 2,
-                  background: `linear-gradient(90deg, 
-                    transparent 0%, 
-                    ${alpha(theme.palette.primary.main, 0.2)} 50%, 
-                    transparent 100%
-                  )`,
-                  height: '1px',
-                  border: 'none'
-                }} />
-              )}
             </React.Fragment>
-          ))}
+          );
+          })}
 
           {/* Menú de Administrador */}
           {userProfile?.role === 'ADMIN' && (
