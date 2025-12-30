@@ -1896,6 +1896,9 @@ const UserManagementPage = () => {
                           cursor: permission.subPermissions ? 'default' : 'pointer',
                           transition: 'all 0.2s ease',
                           width: '100%',
+                          minHeight: permission.subPermissions ? 140 : 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
                           '&:hover': {
                             boxShadow: `0 2px 8px ${alpha(permission.color, 0.15)}`
                           }
@@ -1908,7 +1911,10 @@ const UserManagementPage = () => {
                         } : undefined}
                         >
                           <CardContent sx={{ 
-                            p: 1.5, 
+                            p: 1.5,
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
                             '&:last-child': { pb: 1.5 }
                           }}>
                             {/* Permiso Principal */}
@@ -1921,14 +1927,21 @@ const UserManagementPage = () => {
                             onClick={permission.subPermissions ? (e) => {
                               e.stopPropagation();
                               const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              
                               let newPermissions;
-                              if (hasParent) {
-                                // Remover permiso padre y todos los hijos
+                              if (hasParent || allChildrenActive) {
+                                // Desactivar: Remover permiso padre y todos los sub-permisos
+                                const subPermKeys = permission.subPermissions.map(sp => sp.key);
                                 newPermissions = formData.permissions.filter(p => 
-                                  p !== permission.key && !p.startsWith(`${permission.key}.`)
+                                  p !== permission.key && 
+                                  !p.startsWith(`${permission.key}.`) &&
+                                  !subPermKeys.includes(p)
                                 );
                               } else {
-                                // Agregar permiso padre (da acceso a todo)
+                                // Activar: Agregar permiso padre
                                 newPermissions = [...formData.permissions.filter(p => !p.startsWith(`${permission.key}.`)), permission.key];
                               }
                               updateFormData({ permissions: newPermissions });
