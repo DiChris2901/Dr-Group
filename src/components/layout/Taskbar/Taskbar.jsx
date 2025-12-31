@@ -66,12 +66,41 @@ const Taskbar = React.memo(() => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [menuInicioAnchorEl, setMenuInicioAnchorEl] = useState(null);
+  const [menuInicioAnchorPos, setMenuInicioAnchorPos] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResultsAnchorEl, setSearchResultsAnchorEl] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('dashboard'); // Primera categoría por defecto
+  const [menuSearchQuery, setMenuSearchQuery] = useState(''); // Búsqueda interna del Menú Inicio
+  const [recentPages, setRecentPages] = useState(() => {
+    // Cargar páginas recientes desde localStorage
+    try {
+      const stored = localStorage.getItem('taskbar_recent_pages');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Hook de favoritos
   const { favorites, toggleFavorite, isFavorite, loading: favoritesLoading } = useFavorites(isMobile ? 2 : 4);
+
+  // Función para registrar página visitada
+  const registerPageVisit = useCallback((path, label, categoryLabel, categoryColor) => {
+    setRecentPages(prev => {
+      const newRecent = [
+        { path, label, categoryLabel, categoryColor, timestamp: Date.now() },
+        ...prev.filter(p => p.path !== path)
+      ].slice(0, 5); // Mantener solo 5 más recientes
+      
+      try {
+        localStorage.setItem('taskbar_recent_pages', JSON.stringify(newRecent));
+      } catch (e) {
+        console.error('Error guardando páginas recientes:', e);
+      }
+      
+      return newRecent;
+    });
+  }, []);
 
   // Actualizar la hora cada segundo
   useEffect(() => {
@@ -236,11 +265,25 @@ const Taskbar = React.memo(() => {
   }, [taskbarItems, shouldShowMenuItem]);
 
   // Auto-seleccionar primera categoría disponible solo cuando se abre el menú
+  // Detectar categoría actual basada en la página donde está el usuario
   useEffect(() => {
-    if (menuInicioAnchorEl && filteredTaskbarItems.length > 0 && !selectedCategory) {
-      setSelectedCategory(filteredTaskbarItems[0].id);
+    if (menuInicioAnchorEl && filteredTaskbarItems.length > 0) {
+      // Buscar la categoría que contiene la página actual
+      const currentCategory = filteredTaskbarItems.find(category => {
+        if (category.path === location.pathname) return true;
+        if (category.submenu) {
+          return category.submenu.some(sub => sub.path === location.pathname);
+        }
+        return false;
+      });
+      
+      if (currentCategory) {
+        setSelectedCategory(currentCategory.id);
+      } else if (!selectedCategory) {
+        setSelectedCategory(filteredTaskbarItems[0].id);
+      }
     }
-  }, [menuInicioAnchorEl, filteredTaskbarItems, selectedCategory]);
+  }, [menuInicioAnchorEl, filteredTaskbarItems, location.pathname, selectedCategory]);
 
   // 🎯 SISTEMA INTELIGENTE: Decidir comportamiento del Taskbar
   const showMenuInicio = filteredTaskbarItems.length > 6;
@@ -301,14 +344,21 @@ const Taskbar = React.memo(() => {
   };
 
   const handleMenuInicioOpen = (event) => {
-    setMenuInicioAnchorEl(event.currentTarget);
+    const anchorEl = event.currentTarget;
+    setMenuInicioAnchorEl(anchorEl);
+    setMenuInicioAnchorPos(computeMenuInicioAnchorPos(anchorEl));
   };
 
   const handleMenuInicioClose = () => {
     setMenuInicioAnchorEl(null);
+    setMenuInicioAnchorPos(null);
   };
 
-  const handleNavigateFromSearch = (path) => {
+  const handleNavigateFromSearch = (path, label, categoryLabel, categoryColor) => {
+    // Registrar visita a página reciente
+    if (label && categoryLabel) {
+      registerPageVisit(path, label, categoryLabel, categoryColor);
+    }
     navigate(path);
     setSearchQuery('');
     setSearchResultsAnchorEl(null);
@@ -376,6 +426,53 @@ const Taskbar = React.memo(() => {
     }
     return false;
   }, [location.pathname]);
+
+  // Constantes de layout (deben coincidir con el taskbar)
+  const TASKBAR_BOTTOM_PX = 16;
+  const TASKBAR_HEIGHT_PX = isMobile ? 64 : 80;
+  const MENU_WIDTH_PX = 650;
+  const MENU_HEIGHT_PX = 500;
+  const MENU_GAP_PX = 12; // separación entre menú y taskbar
+  const VIEWPORT_PADDING_PX = 16;
+
+  const computeMenuInicioAnchorPos = useCallback((anchorEl) => {
+    if (!anchorEl) return null;
+
+    const rect = anchorEl.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Top del taskbar en el viewport (fixed)
+    const taskbarTop = viewportHeight - TASKBAR_BOTTOM_PX - TASKBAR_HEIGHT_PX;
+    // El menú debe quedar completamente arriba del taskbar
+    const desiredTop = taskbarTop - MENU_GAP_PX - MENU_HEIGHT_PX;
+    
+    // Alinear el menú con el borde izquierdo de la taskbar
+    const taskbarLeft = !isMobile && showSidebar && sidebarPosition === 'left' 
+      ? currentSidebarWidth + 16 
+      : 16;
+    const desiredLeft = taskbarLeft;
+
+    const top = Math.max(VIEWPORT_PADDING_PX, desiredTop);
+    const left = Math.min(
+      Math.max(VIEWPORT_PADDING_PX, desiredLeft),
+      Math.max(VIEWPORT_PADDING_PX, viewportWidth - MENU_WIDTH_PX - VIEWPORT_PADDING_PX)
+    );
+
+    return { top, left };
+  }, [TASKBAR_HEIGHT_PX, isMobile, showSidebar, sidebarPosition, currentSidebarWidth]);
+
+  useEffect(() => {
+    if (!menuInicioAnchorEl) return;
+
+    const update = () => {
+      setMenuInicioAnchorPos(computeMenuInicioAnchorPos(menuInicioAnchorEl));
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [menuInicioAnchorEl, computeMenuInicioAnchorPos]);
 
   return (
     <>
@@ -529,20 +626,16 @@ const Taskbar = React.memo(() => {
           justifyContent: 'center',
           flex: 1,
           overflow: 'hidden',
-          mx: 2,
+          mx: 1,
         }}>
           <Box sx={{
             display: 'flex', 
-            gap: isMobile ? 1.5 : 2, // ✅ Espaciado generoso
+            gap: isMobile ? 1.5 : 2,
             alignItems: 'center',
             justifyContent: 'center',
             overflowX: 'auto',
             overflowY: 'hidden',
             maxWidth: '100%',
-            px: 1.5,
-            py: 1,
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.04), // ✅ Background sutil
             '&::-webkit-scrollbar': {
               height: '4px'
             },
@@ -550,10 +643,10 @@ const Taskbar = React.memo(() => {
               background: 'transparent'
             },
             '&::-webkit-scrollbar-thumb': {
-              background: alpha(theme.palette.primary.main, 0.2),
+              background: alpha(theme.palette.divider, 0.3),
               borderRadius: '10px',
               '&:hover': {
-                background: alpha(theme.palette.primary.main, 0.4)
+                background: alpha(theme.palette.divider, 0.5)
               }
             },
           }}>
@@ -989,67 +1082,105 @@ const Taskbar = React.memo(() => {
 
       {/* Popover de Menú Inicio - Diseño de Dos Columnas */}
       <Popover
-        open={Boolean(menuInicioAnchorEl)}
-        anchorEl={menuInicioAnchorEl}
+        open={Boolean(menuInicioAnchorEl && menuInicioAnchorPos)}
+        anchorReference="anchorPosition"
+        anchorPosition={menuInicioAnchorPos || { top: 0, left: 0 }}
         onClose={handleMenuInicioClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        PaperProps={{
-          sx: {
-            width: 650,
-            height: 500,
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            overflow: 'hidden'
+        disableAutoFocus
+        disableEnforceFocus
+        slotProps={{
+          paper: {
+            sx: {
+              width: 650,
+              height: 500,
+              borderRadius: 2,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              overflow: 'hidden'
+            }
           }
         }}
       >
-        {/* Header con Búsqueda Interna */}
+        {/* Header con Búsqueda Interna - Diseño Mejorado */}
         <Box sx={{ 
-          p: 2, 
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-          bgcolor: alpha(theme.palette.primary.main, 0.03)
+          p: 2.5,
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Menú de Navegación
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {filteredTaskbarItems.length} categorías disponibles
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+            {/* Sección de Título */}
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1.5,
+                  bgcolor: alpha('#ffffff', 0.15),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <MenuIcon sx={{ fontSize: 20, color: 'white' }} />
+                </Box>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    color: 'white',
+                    letterSpacing: -0.5
+                  }}
+                >
+                  Menú de Navegación
+                </Typography>
+              </Box>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: '0.75rem',
+                  ml: 5.5,
+                  display: 'block'
+                }}
+              >
+                {filteredTaskbarItems.length} categorías • Acceso rápido a todas tus páginas
               </Typography>
             </Box>
+            
+            {/* Campo de Búsqueda */}
             <TextField
               value={menuSearchQuery}
               onChange={(e) => setMenuSearchQuery(e.target.value)}
               placeholder="Buscar en menú..."
               size="small"
               sx={{
-                width: 200,
+                width: 240,
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
+                  borderRadius: 1.5,
                   bgcolor: theme.palette.background.paper,
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                   transition: 'all 0.2s ease',
+                  boxShadow: `0 2px 4px ${alpha(theme.palette.common.black, 0.04)}`,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: alpha(theme.palette.divider, 0.3)
+                    borderColor: alpha(theme.palette.divider, 0.2)
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: alpha(theme.palette.primary.main, 0.5)
+                    borderColor: alpha(theme.palette.primary.main, 0.4)
                   },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: theme.palette.primary.main
+                  '&.Mui-focused': {
+                    boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.primary.main,
+                      borderWidth: 2
+                    }
                   }
                 },
                 '& input': {
-                  py: 0.75,
+                  py: 1,
                   px: 1.5
                 }
               }}
@@ -1072,15 +1203,17 @@ const Taskbar = React.memo(() => {
         </Box>
 
         {/* Layout de Dos Columnas */}
-        <Box sx={{ display: 'flex', height: 'calc(100% - 80px)' }}>
+        <Box sx={{ display: 'flex', height: 'calc(500px - 96px)', maxHeight: 'calc(500px - 96px)' }}>
           {/* Columna Izquierda - Categorías con Contadores */}
           <Box sx={{ 
             width: 220,
             borderRight: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
             bgcolor: alpha(theme.palette.background.paper, 0.5),
-            overflow: 'auto'
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            p: 1.5
           }}>
-            <List sx={{ py: 1 }}>
+            <List sx={{ py: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
               {filteredMenuItems.map((category) => (
                 <ListItem key={category.id} disablePadding>
                   <ListItemButton
@@ -1089,25 +1222,34 @@ const Taskbar = React.memo(() => {
                     sx={{
                       py: 1.5,
                       px: 2,
-                      borderRadius: 1,
-                      mx: 1,
+                      borderRadius: 1.5,
                       transition: 'all 0.2s ease',
+                      border: `1px solid ${alpha(category.color, selectedCategory === category.id ? 0.4 : 0.15)}`,
+                      bgcolor: selectedCategory === category.id 
+                        ? alpha(category.color, 0.12) 
+                        : alpha(theme.palette.background.paper, 0.6),
+                      boxShadow: selectedCategory === category.id 
+                        ? `0 2px 8px ${alpha(category.color, 0.2)}` 
+                        : '0 1px 3px rgba(0,0,0,0.08)',
                       '&.Mui-selected': {
                         bgcolor: alpha(category.color, 0.12),
-                        border: `1px solid ${alpha(category.color, 0.3)}`,
                         '&:hover': {
                           bgcolor: alpha(category.color, 0.15),
                         }
                       },
                       '&:hover': {
                         bgcolor: alpha(category.color, 0.08),
+                        border: `1px solid ${alpha(category.color, 0.3)}`,
+                        boxShadow: `0 2px 8px ${alpha(category.color, 0.15)}`,
+                        transform: 'translateY(-1px)'
                       }
                     }}
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
                       <category.icon sx={{ 
                         fontSize: 20, 
-                        color: selectedCategory === category.id ? category.color : 'text.secondary',
+                        color: category.color,
+                        opacity: selectedCategory === category.id ? 1 : 0.7,
                         transition: 'all 0.2s ease'
                       }} />
                     </ListItemIcon>
@@ -1116,7 +1258,7 @@ const Taskbar = React.memo(() => {
                       primaryTypographyProps={{ 
                         fontSize: '0.875rem',
                         fontWeight: selectedCategory === category.id ? 600 : 500,
-                        color: selectedCategory === category.id ? category.color : 'text.primary'
+                        color: category.color
                       }}
                     />
                     {/* Contador de páginas */}
@@ -1156,6 +1298,107 @@ const Taskbar = React.memo(() => {
             overflow: 'auto',
             p: 2
           }}>
+            {/* Breadcrumb Visual */}
+            {selectedCategory && (() => {
+              const category = filteredMenuItems.find(cat => cat.id === selectedCategory);
+              if (!category) return null;
+              
+              return (
+                <Box sx={{ 
+                  mb: 2, 
+                  pb: 1.5, 
+                  borderBottom: `2px solid ${alpha(category.color, 0.2)}`
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <category.icon sx={{ fontSize: 20, color: category.color }} />
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontWeight: 600, 
+                        fontSize: '1rem',
+                        color: category.color 
+                      }}
+                    >
+                      {category.label}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 3.5 }}>
+                    {getCategoryCount(category)} páginas disponibles
+                  </Typography>
+                </Box>
+              );
+            })()}
+
+            {/* Páginas Recientes */}
+            {recentPages.length > 0 && (
+              <Box sx={{ mb: 2, pb: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                <Typography 
+                  variant="overline" 
+                  sx={{ 
+                    fontWeight: 700, 
+                    fontSize: '0.7rem',
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1
+                  }}
+                >
+                  📌 Páginas Recientes
+                </Typography>
+                <List sx={{ py: 0 }}>
+                  {recentPages.slice(0, 3).map((page) => {
+                    const isCurrentPage = location.pathname === page.path;
+                    
+                    return (
+                      <ListItem key={page.path} disablePadding sx={{ mb: 0.5 }}>
+                        <ListItemButton
+                          onClick={() => handleNavigateFromSearch(page.path, page.label, page.categoryLabel, page.categoryColor)}
+                          selected={isCurrentPage}
+                          sx={{
+                            py: 1,
+                            px: 1.5,
+                            borderRadius: 1,
+                            transition: 'all 0.2s ease',
+                            border: `1px solid ${alpha(page.categoryColor || theme.palette.divider, 0.15)}`,
+                            bgcolor: isCurrentPage 
+                              ? alpha(page.categoryColor || theme.palette.primary.main, 0.08) 
+                              : 'transparent',
+                            '&:hover': {
+                              bgcolor: alpha(page.categoryColor || theme.palette.primary.main, 0.08),
+                              border: `1px solid ${alpha(page.categoryColor || theme.palette.primary.main, 0.3)}`,
+                            }
+                          }}
+                        >
+                          <ListItemText 
+                            primary={page.label}
+                            secondary={page.categoryLabel}
+                            primaryTypographyProps={{ 
+                              fontSize: '0.8rem',
+                              fontWeight: isCurrentPage ? 600 : 400
+                            }}
+                            secondaryTypographyProps={{ 
+                              fontSize: '0.65rem',
+                              color: page.categoryColor || 'text.secondary'
+                            }}
+                          />
+                          {isCurrentPage && (
+                            <Box
+                              sx={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                bgcolor: page.categoryColor || theme.palette.primary.main,
+                                ml: 1
+                              }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Box>
+            )}
+
             <List sx={{ py: 0 }}>
               {(() => {
                 // Encontrar la categoría seleccionada
@@ -1171,7 +1414,12 @@ const Taskbar = React.memo(() => {
                     return (
                       <ListItem key={subItem.path} disablePadding sx={{ mb: 0.5 }}>
                         <ListItemButton 
-                          onClick={() => handleNavigateFromSearch(subItem.path)}
+                          onClick={() => handleNavigateFromSearch(
+                            subItem.path, 
+                            subItem.label, 
+                            selectedItem.label, 
+                            selectedItem.color
+                          )}
                           selected={isCurrentPage}
                           sx={{
                             py: 1.5,
@@ -1200,7 +1448,8 @@ const Taskbar = React.memo(() => {
                           <ListItemIcon sx={{ minWidth: 40 }}>
                             <subItem.icon sx={{ 
                               fontSize: 20, 
-                              color: isCurrentPage ? selectedItem.color : 'text.secondary',
+                              color: selectedItem.color,
+                              opacity: isCurrentPage ? 1 : 0.7,
                               transition: 'all 0.2s ease'
                             }} />
                           </ListItemIcon>
@@ -1209,7 +1458,7 @@ const Taskbar = React.memo(() => {
                             primaryTypographyProps={{ 
                               fontSize: '0.875rem',
                               fontWeight: isCurrentPage ? 600 : 400,
-                              color: isCurrentPage ? selectedItem.color : 'text.primary'
+                              color: 'text.primary'
                             }}
                           />
                           {/* Indicador "Estás aquí" */}
