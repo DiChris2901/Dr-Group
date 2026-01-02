@@ -50,11 +50,19 @@ const SidebarCustomizer = ({ settings, updateSettings }) => {
                     checked={settings.sidebar?.compactMode || false}
                     onChange={(e) => {
                       const newCompactMode = e.target.checked;
-                      // Actualizar tanto en sidebar como en theme para compatibilidad
-                      updateSettings('sidebar', { compactMode: newCompactMode });
-                      updateSettings('theme', { 
-                        ...settings.theme, 
-                        compactMode: newCompactMode 
+                      console.log('🔄 [SidebarCustomizer] Cambiando modo compacto a:', newCompactMode);
+                      
+                      // ✅ Actualizar ambas configuraciones en una sola llamada
+                      updateSettings({
+                        ...settings,
+                        sidebar: { 
+                          ...settings.sidebar,
+                          compactMode: newCompactMode 
+                        },
+                        theme: { 
+                          ...settings.theme, 
+                          compactMode: newCompactMode 
+                        }
                       });
                     }}
                   />

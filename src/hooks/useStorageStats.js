@@ -166,7 +166,7 @@ export const useStorageStats = () => {
           const folderRef = ref(storage, folderName);
           const result = await listAll(folderRef);
           
-          console.log(`📁 [StorageStats] Procesando carpeta: ${folderName}`);
+          console.log(`📁 [StorageStats] Procesando carpeta: ${folderName} (${result.items.length} archivos)`);
           
           // Procesar archivos en la carpeta
           for (const itemRef of result.items) {
@@ -180,7 +180,8 @@ export const useStorageStats = () => {
                 fileCount++;
               }
             } catch (metadataError) {
-              console.warn(`Error getting metadata for file ${itemRef.name} in folder ${folderName}:`, metadataError);
+              console.warn(`⚠️ Error obteniendo metadata de ${itemRef.name}:`, metadataError.message);
+              // Continuar sin bloquear
             }
           }
 
@@ -208,7 +209,11 @@ export const useStorageStats = () => {
           }
           
         } catch (folderError) {
-          console.warn(`Error accessing folder ${folderName}:`, folderError);
+          console.warn(`⚠️ Error accediendo a carpeta ${folderName}:`, folderError.code || folderError.message);
+          // Si es error de permisos (403), informar pero continuar
+          if (folderError.code === 'storage/unauthorized') {
+            console.log(`ℹ️ Sin permisos para listar ${folderName}, omitiendo...`);
+          }
           // Continúa con la siguiente carpeta sin fallar
         }
       }

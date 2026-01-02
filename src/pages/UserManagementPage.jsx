@@ -549,7 +549,8 @@ const UserManagementPage = () => {
       
       const userData = {
         email: formData.email.toLowerCase(),
-        displayName: formData.displayName,
+        displayName: formData.displayName,  // Fallback para compatibilidad
+        name: formData.displayName,         // ✅ Campo principal (según instrucciones)
         phone: formData.phone,
         role: formData.role,
         permissions: permissionsObject,
@@ -565,6 +566,8 @@ const UserManagementPage = () => {
           createdBy: currentUser.uid 
         })
       };
+      
+      console.log('👤 [UserManagement] Guardando usuario con name:', userData.name);
 
       if (editingUser) {
         // Actualizar usuario existente
@@ -613,8 +616,8 @@ const UserManagementPage = () => {
           // 2. Preparar datos simplificados para Firestore
           const simpleUserData = {
             email: formData.email.toLowerCase(),
-            displayName: formData.displayName,
-            name: formData.displayName,
+            displayName: formData.displayName,  // Fallback para compatibilidad
+            name: formData.displayName,         // ✅ Campo principal (según instrucciones del proyecto)
             phone: formData.phone || '',
             role: formData.role,
             permissions: formData.permissions,
@@ -630,6 +633,8 @@ const UserManagementPage = () => {
             createdBy: currentUser.uid,
             notes: formData.notes || 'Usuario creado desde panel de administración'
           };
+          
+          console.log('👤 [DEBUG] Guardando usuario con name:', simpleUserData.name);
           
           // 3. Crear documento en Firestore usando el UID de Auth como ID
           console.log('� Creando documento en Firestore con UID:', userCredential.user.uid);

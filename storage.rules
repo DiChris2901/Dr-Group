@@ -2,8 +2,9 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     // Permitir acceso solo a usuarios autenticados
+    // ✅ IMPORTANTE: 'list' permite listAll() y estadísticas de storage
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write, list: if request.auth != null;
     }
     
     // Logos públicos (necesarios para pantalla de login)
@@ -19,7 +20,7 @@ service firebase.storage {
     
     // Carpeta específica para comprobantes - ADMINISTRADORES pueden ver todos los archivos
     match /receipts/{userId}/{fileName} {
-      allow read, write: if request.auth != null && 
+      allow read, write, list: if request.auth != null && 
         (request.auth.uid == userId || 
          request.auth.token.email in [
            'admin@drgroup.com', 
@@ -30,14 +31,27 @@ service firebase.storage {
     
     // Carpeta para fotos de perfil - lectura pública, escritura solo del propietario
     match /profile-photos/{userId}/{fileName} {
-      allow read: if request.auth != null;
+      allow read, list: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Carpeta para documentos de empresas - acceso basado en permisos
     match /company-documents/{companyId}/{fileName} {
-      allow read, write: if request.auth != null;
+      allow read, write, list: if request.auth != null;
       // TODO: Implementar verificación de permisos por empresa
+    }
+    
+    // ✅ Reglas para carpetas adicionales (liquidaciones, payments, commitments)
+    match /liquidaciones/{allPaths=**} {
+      allow read, write, list: if request.auth != null;
+    }
+    
+    match /payments/{allPaths=**} {
+      allow read, write, list: if request.auth != null;
+    }
+    
+    match /commitments/{allPaths=**} {
+      allow read, write, list: if request.auth != null;
     }
   }
 }

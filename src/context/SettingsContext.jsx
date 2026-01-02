@@ -666,6 +666,7 @@ const SettingsProvider = ({ children }) => {
       // Si el primer argumento es un objeto completo (sin segundo argumento)
       if (typeof categoryOrNewSettings === 'object' && !updates) {
         newSettings = categoryOrNewSettings;
+        console.log('🔄 [SettingsContext] Actualizando settings completos:', newSettings);
       } else {
         // Formato antiguo: (category, updates)
         newSettings = {
@@ -675,7 +676,13 @@ const SettingsProvider = ({ children }) => {
             ...updates
           }
         };
+        console.log(`🔄 [SettingsContext] Actualizando categoría ${categoryOrNewSettings}:`, updates);
       }
+
+      console.log('📊 [SettingsContext] Estado final a guardar:', {
+        'sidebar.compactMode': newSettings?.sidebar?.compactMode,
+        'theme.compactMode': newSettings?.theme?.compactMode
+      });
 
       // Actualizar estado local inmediatamente
       setSettings(newSettings);

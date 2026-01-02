@@ -43,7 +43,7 @@ import {
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -91,8 +91,18 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
   const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
 
-  // Modo compacto basado en configuración
-  const isCompactMode = settings?.sidebar?.compactMode || settings?.sidebar?.width <= 80;
+  // ✅ Modo compacto basado en configuración (usar ?? para manejar false correctamente)
+  const isCompactMode = settings?.sidebar?.compactMode ?? (settings?.sidebar?.width <= 80);
+
+  // 🐛 DEBUG: Monitorear cambios en modo compacto
+  useEffect(() => {
+    console.log('📐 [Sidebar] Settings actualizados:', {
+      compactMode: settings?.sidebar?.compactMode,
+      width: settings?.sidebar?.width,
+      isCompactMode: isCompactMode,
+      drawerWidth: isCompactMode && !isHoverExpanded ? 80 : (settings?.sidebar?.width || 280)
+    });
+  }, [settings?.sidebar?.compactMode, settings?.sidebar?.width, isCompactMode, isHoverExpanded]);
 
   // Ancho dinámico del sidebar
   const drawerWidth = isCompactMode && !isHoverExpanded ? 80 : (settings?.sidebar?.width || 280);
