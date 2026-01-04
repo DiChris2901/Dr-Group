@@ -152,7 +152,7 @@ export const ChatProvider = ({ children }) => {
       return;
     }
 
-    console.log('🔥 Iniciando listener de presencia (RTDB)...');
+    // Iniciando listener de presencia RTDB
     
     const statusRef = ref(database, '/status');
     const unsubscribe = onValue(statusRef, (snapshot) => {
@@ -187,7 +187,7 @@ export const ChatProvider = ({ children }) => {
     });
 
     return () => {
-      console.log('🔚 Desconectando listener de presencia RTDB');
+      // Desconectando listener de presencia RTDB
       unsubscribe();
     };
   }, [currentUser?.uid]);

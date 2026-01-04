@@ -27,7 +27,6 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 let app;
 try {
   app = initializeApp(firebaseConfig);
-  console.log('✅ Firebase app initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Firebase:', error);
   throw error;
@@ -37,7 +36,6 @@ try {
 let auth;
 try {
   auth = getAuth(app);
-  console.log('✅ Firebase Auth initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Firebase Auth:', error);
   throw error;
@@ -47,9 +45,8 @@ try {
 let db;
 try {
   db = getFirestore(app);
-  console.log('✅ Firestore initialized successfully');
   
-  // ✅ Habilitar persistencia IndexedDB (cache automático de Firebase)
+  // Habilitar persistencia IndexedDB (cache automático de Firebase)
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
       console.warn('⚠️ Persistencia no disponible: múltiples pestañas abiertas');
@@ -57,7 +54,6 @@ try {
       console.warn('⚠️ Persistencia no soportada en este navegador');
     }
   });
-  console.log('✅ IndexedDB persistence enabled');
 } catch (error) {
   console.error('🚨 Error initializing Firestore:', error);
   throw error;
@@ -67,7 +63,6 @@ try {
 let storage;
 try {
   storage = getStorage(app);
-  console.log('✅ Firebase Storage initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Firebase Storage:', error);
   throw error;
@@ -80,11 +75,8 @@ try {
   
   // Conectar al emulador en desarrollo
   if (import.meta.env.DEV) {
-    console.log('🔧 Conectando Functions al emulador local...');
     connectFunctionsEmulator(functions, 'localhost', 5001);
   }
-  
-  console.log('✅ Firebase Functions initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Firebase Functions:', error);
   throw error;
@@ -94,7 +86,6 @@ try {
 let database;
 try {
   database = getDatabase(app);
-  console.log('✅ Firebase Realtime Database initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Realtime Database:', error);
   console.warn('⚠️ La aplicación funcionará sin el sistema de presencia');

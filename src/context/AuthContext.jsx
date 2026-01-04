@@ -79,8 +79,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🟢 Activar sistema de presencia para el usuario actual
-  console.log('🔍 AuthProvider: currentUser?.uid =', currentUser?.uid);
+  // Activar sistema de presencia para el usuario actual
   useUserPresence(currentUser?.uid);
 
   // Función para iniciar sesión
@@ -414,14 +413,11 @@ export const AuthProvider = ({ children }) => {
   // Cargar perfil del usuario desde Firestore
   const loadUserProfile = async (user) => {
     try {
-      console.log('🔍 Cargando perfil para usuario:', user.uid, user.email);
-      
       // Primero intentar buscar por UID
       let userDocRef = doc(db, 'users', user.uid);
       let userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
-        console.log('✅ Perfil encontrado por UID:', userDoc.data());
         setUserProfile({
           uid: user.uid,
           email: user.email,
@@ -431,7 +427,6 @@ export const AuthProvider = ({ children }) => {
       }
       
       // Si no se encuentra por UID, buscar por email
-      console.log('🔍 No encontrado por UID, buscando por email...');
       const userByEmail = await getUserByEmail(user.email);
       
       if (userByEmail) {

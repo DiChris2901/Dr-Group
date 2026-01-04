@@ -117,8 +117,7 @@ export const useNotificationSystem = () => {
   // El hook ya no genera datos automáticamente al cargar
   useEffect(() => {
     // Solo inicializar el sistema, sin datos dummy
-    console.log('Sistema de notificaciones inicializado');
-  }, []);
+      }, []);
 
   return {
     generateCommitmentNotifications,

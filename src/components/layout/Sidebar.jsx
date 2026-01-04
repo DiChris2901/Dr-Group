@@ -14,6 +14,8 @@ import {
     ExpandLess,
     ExpandMore,
     Group,
+    History,
+    Keyboard,
     MeetingRoom,
     Notifications,
     People,
@@ -83,9 +85,82 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [recentPages, setRecentPages] = useState([]);
+  const searchInputRef = React.useRef(null);
 
   // Configuración del tema
   const isDarkMode = theme.palette.mode === 'dark';
+
+  // ⌨️ Cargar historial reciente desde localStorage
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('sidebar_recent_pages');
+    if (savedHistory) {
+      try {
+        setRecentPages(JSON.parse(savedHistory));
+      } catch (error) {
+        console.error('Error loading recent pages:', error);
+      }
+    }
+  }, []);
+
+  // 📍 Guardar página visitada en historial
+  useEffect(() => {
+    const currentPath = location.pathname;
+    
+    // Buscar información de la página actual (sin guardar el ícono)
+    const findPageInfo = (items) => {
+      for (const item of items) {
+        if (item.path === currentPath) {
+          return { title: item.title, path: item.path, color: item.color };
+        }
+        if (item.submenu) {
+          const subItem = item.submenu.find(sub => sub.path === currentPath);
+          if (subItem) {
+            return { 
+              title: subItem.title, 
+              path: subItem.path, 
+              color: item.color 
+            };
+          }
+        }
+      }
+      return null;
+    };
+
+    const pageInfo = findPageInfo([...menuItems, ...adminMenuItems]);
+    
+    if (pageInfo && currentPath !== '/dashboard') {
+      setRecentPages(prev => {
+        // Evitar duplicados
+        const filtered = prev.filter(p => p.path !== currentPath);
+        // Agregar al inicio y limitar a 3
+        const updated = [pageInfo, ...filtered].slice(0, 3);
+        // Guardar en localStorage (sin íconos)
+        localStorage.setItem('sidebar_recent_pages', JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [location.pathname]);
+
+  // ⌨️ Atajo de teclado Ctrl + B para buscar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isCtrlB = (e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B');
+      
+      if (isCtrlB) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.select();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
 
   // Obtener colores del tema actual
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
@@ -94,14 +169,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   // ✅ Modo compacto basado en configuración (usar ?? para manejar false correctamente)
   const isCompactMode = settings?.sidebar?.compactMode ?? (settings?.sidebar?.width <= 80);
 
-  // 🐛 DEBUG: Monitorear cambios en modo compacto
+  // Monitorear cambios en modo compacto
   useEffect(() => {
-    console.log('📐 [Sidebar] Settings actualizados:', {
-      compactMode: settings?.sidebar?.compactMode,
-      width: settings?.sidebar?.width,
-      isCompactMode: isCompactMode,
-      drawerWidth: isCompactMode && !isHoverExpanded ? 80 : (settings?.sidebar?.width || 280)
-    });
+    // Solo para debugging si es necesario
   }, [settings?.sidebar?.compactMode, settings?.sidebar?.width, isCompactMode, isHoverExpanded]);
 
   // Ancho dinámico del sidebar
@@ -436,15 +506,113 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           }
         }
       }}>
+        {/* 📚 Historial Reciente */}
+        {!isCompactMode && recentPages.length > 0 && !searchQuery && (
+          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1, 
+              mb: 1.5,
+              px: 1
+            }}>
+              <History sx={{ 
+                fontSize: 14, 
+                color: alpha(theme.palette.text.secondary, 0.6) 
+              }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: 1.2,
+                  color: alpha(theme.palette.text.secondary, 0.7),
+                  textTransform: 'uppercase',
+                }}
+              >
+                Recientes
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              {recentPages.map((page, index) => {
+                // Buscar el ícono dinámicamente desde menuItems/adminMenuItems
+                const getIconForPath = (path) => {
+                  const allItems = [...menuItems, ...adminMenuItems];
+                  for (const item of allItems) {
+                    if (item.path === path) return item.icon;
+                    if (item.submenu) {
+                      const subItem = item.submenu.find(sub => sub.path === path);
+                      if (subItem) return subItem.icon || item.icon;
+                    }
+                  }
+                  return Dashboard; // Fallback
+                };
+                
+                const PageIcon = getIconForPath(page.path);
+                
+                return (
+                  <motion.div
+                    key={page.path}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                  >
+                    <ListItemButton
+                      onClick={() => handleNavigation(page.path)}
+                      sx={{
+                        borderRadius: 1.5,
+                        py: 0.75,
+                        px: 1.5,
+                        minHeight: 36,
+                        bgcolor: isActiveRoute(page.path) 
+                          ? alpha(page.color || primaryColor, 0.12) 
+                          : 'transparent',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: alpha(page.color || primaryColor, 0.12),
+                          borderColor: alpha(page.color || primaryColor, 0.3),
+                          transform: 'translateX(4px)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32 }}>
+                        <PageIcon sx={{ 
+                          fontSize: '1.1rem',
+                          color: isActiveRoute(page.path) 
+                            ? (page.color || primaryColor)
+                            : alpha(theme.palette.text.secondary, 0.6)
+                        }} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={page.title}
+                        primaryTypographyProps={{
+                          fontSize: '0.8rem',
+                          fontWeight: isActiveRoute(page.path) ? 600 : 500,
+                          color: isActiveRoute(page.path)
+                            ? 'text.primary'
+                            : alpha(theme.palette.text.secondary, 0.9)
+                        }}
+                      />
+                    </ListItemButton>
+                  </motion.div>
+                );
+              })}
+            </Box>
+            <Divider sx={{ mt: 2, mb: 1 }} />
+          </Box>
+        )}
+
         {/* Barra de Búsqueda */}
         {!isCompactMode && (
-          <Box sx={{ px: 2, pt: 1, pb: 2 }}>
+          <Box sx={{ px: 2, pt: recentPages.length > 0 && !searchQuery ? 0 : 1, pb: 2 }}>
             <TextField
               fullWidth
               size="small"
               placeholder="Buscar página..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              inputRef={searchInputRef}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -454,20 +622,40 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                     }} />
                   </InputAdornment>
                 ),
-                endAdornment: searchQuery && (
+                endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={clearSearch}
-                      sx={{ 
-                        p: 0.5,
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.error.main, 0.08),
-                        }
-                      }}
-                    >
-                      <Clear sx={{ fontSize: 16 }} />
-                    </IconButton>
+                    {searchQuery ? (
+                      <IconButton
+                        size="small"
+                        onClick={clearSearch}
+                        sx={{ 
+                          p: 0.5,
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.error.main, 0.08),
+                          }
+                        }}
+                      >
+                        <Clear sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    ) : (
+                      <Chip
+                        icon={<Keyboard sx={{ fontSize: 12 }} />}
+                        label="Ctrl+B"
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.65rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          color: alpha(theme.palette.text.secondary, 0.7),
+                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                          '& .MuiChip-icon': {
+                            fontSize: 12,
+                            ml: 0.5
+                          }
+                        }}
+                      />
+                    )}
                   </InputAdornment>
                 ),
               }}

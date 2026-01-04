@@ -1,20 +1,20 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * 🚀 HOOK OPTIMIZADO: Dashboard Stats
+ * ?? HOOK OPTIMIZADO: Dashboard Stats
  * 
  * ANTES: 
- * - Leía TODOS los compromisos + TODOS los pagos en cada carga
+ * - Le�a TODOS los compromisos + TODOS los pagos en cada carga
  * - 10,000 registros = 20,000 reads = $0.72/load = $21.60/mes
  * 
  * AHORA:
  * - Lee 1 SOLO documento 'system_stats/dashboard'
- * - Actualizado automáticamente por Cloud Functions en cada cambio
- * - 1 read = $0.000036/load = $0.001/mes = 99.995% de ahorro 💰
+ * - Actualizado autom�ticamente por Cloud Functions en cada cambio
+ * - 1 read = $0.000036/load = $0.001/mes = 99.995% de ahorro ??
  */
 export const useDashboardStats = () => {
   const { currentUser } = useAuth();
@@ -35,34 +35,34 @@ export const useDashboardStats = () => {
     lastUpdated: null
   });
 
-  // ✅ FUNCIÓN PARA FORZAR RECÁLCULO DE CONTADORES
+  // ? FUNCI�N PARA FORZAR REC�LCULO DE CONTADORES
   const refreshStats = useCallback(async () => {
     try {
-      console.log('🚀 [refreshStats] Iniciando recálculo...');
+      console.log('?? [refreshStats] Iniciando rec�lculo...');
       setStats(prev => ({ ...prev, loading: true }));
 
       const functions = getFunctions();
-      console.log('🔧 [refreshStats] getFunctions() ejecutado');
+      console.log('?? [refreshStats] getFunctions() ejecutado');
       
       const forceRecalculateStats = httpsCallable(functions, 'forceRecalculateStats');
-      console.log('📞 [refreshStats] Llamando a forceRecalculateStats...');
+      console.log('?? [refreshStats] Llamando a forceRecalculateStats...');
       
       const result = await forceRecalculateStats();
       
-      console.log('✅ [refreshStats] ÉXITO! Respuesta:', result.data);
-      console.log('📊 [refreshStats] Stats calculados:', result.data.stats);
-      console.log('💾 [refreshStats] Documento system_stats/dashboard creado en Firestore');
-      console.log('⏳ [refreshStats] El listener de onSnapshot detectará los cambios en 2-3 segundos...');
+      console.log('? [refreshStats] �XITO! Respuesta:', result.data);
+      console.log('?? [refreshStats] Stats calculados:', result.data.stats);
+      console.log('?? [refreshStats] Documento system_stats/dashboard creado en Firestore');
+      console.log('? [refreshStats] El listener de onSnapshot detectar� los cambios en 2-3 segundos...');
       
-      // Forzar recarga después de 3 segundos para ver el cambio
+      // Forzar recarga despu�s de 3 segundos para ver el cambio
       setTimeout(() => {
-        console.log('🔄 [refreshStats] Timeout completado, el listener debería haber actualizado los stats');
+        console.log('?? [refreshStats] Timeout completado, el listener deber�a haber actualizado los stats');
       }, 3000);
       
     } catch (error) {
-      console.error('❌ [refreshStats] ERROR:', error);
-      console.error('❌ [refreshStats] Código de error:', error.code);
-      console.error('❌ [refreshStats] Mensaje:', error.message);
+      console.error('? [refreshStats] ERROR:', error);
+      console.error('? [refreshStats] C�digo de error:', error.code);
+      console.error('? [refreshStats] Mensaje:', error.message);
       setStats(prev => ({ 
         ...prev, 
         loading: false, 
@@ -73,7 +73,7 @@ export const useDashboardStats = () => {
   }, []);
 
   useEffect(() => {
-    // ⚠️ VALIDACIÓN: No ejecutar si no hay usuario autenticado
+    // ?? VALIDACI�N: No ejecutar si no hay usuario autenticado
     if (!currentUser) {
       setStats(prev => ({ 
         ...prev, 
@@ -83,16 +83,16 @@ export const useDashboardStats = () => {
       return;
     }
 
-    console.log('📊 Cargando estadísticas desde documento de contadores...');
+    console.log('?? Cargando estad�sticas desde documento de contadores...');
 
-    // Escuchar cambios en el documento de estadísticas
+    // Escuchar cambios en el documento de estad�sticas
     const statsUnsubscribe = onSnapshot(
       doc(db, 'system_stats', 'dashboard'),
       (docSnapshot) => {
         if (docSnapshot.exists()) {
           const data = docSnapshot.data();
           
-          console.log('✅ Stats cargadas desde system_stats/dashboard (1 lectura)');
+          console.log('? Stats cargadas desde system_stats/dashboard (1 lectura)');
           
           setStats({
             totalCommitments: data.totalCommitments || 0,
@@ -111,7 +111,7 @@ export const useDashboardStats = () => {
             lastUpdated: data.lastUpdated?.toDate?.() || null
           });
         } else {
-          console.error('❌ ERROR: system_stats/dashboard no existe');
+          console.error('? ERROR: system_stats/dashboard no existe');
           setStats(prev => ({
             ...prev,
             loading: false,
@@ -122,14 +122,14 @@ export const useDashboardStats = () => {
       (error) => {
         // Manejo de errores
         if (error.code === 'permission-denied') {
-          console.warn('⚠️ Permisos insuficientes (esperado durante logout)');
+          console.warn('?? Permisos insuficientes (esperado durante logout)');
           setStats(prev => ({
             ...prev,
             loading: false,
             error: null
           }));
         } else {
-          console.error('❌ Error cargando estadísticas:', error);
+          console.error('? Error cargando estad�sticas:', error);
           setStats(prev => ({
             ...prev,
             loading: false,
@@ -164,7 +164,7 @@ export const useDashboardStats = () => {
     lastUpdated: stats.lastUpdated,
     
     // Acciones
-    refreshStats // Función para forzar recálculo manual
+    refreshStats // Funci�n para forzar rec�lculo manual
   };
 };
 
