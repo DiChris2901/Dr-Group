@@ -377,7 +377,7 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // ✅ OPTIMIZADO: todos los pendientes del pasado + mes actual + 2 meses adelante
+      // ✅ CORREGIDO: Traer todos los compromisos y verificar pagos reales
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-11
@@ -385,10 +385,10 @@ const NewPaymentPage = () => {
       // Límite superior: inicio del mes que está 3 meses adelante
       const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
       
-      // ⚡ OPTIMIZACIÓN: Solo consultar compromisos NO pagados con índice status+dueDate
+      // Traer todos los compromisos en el rango (sin filtrar por status)
+      // porque el status puede estar desactualizado
       const commitmentsQuery = query(
         collection(db, 'commitments'),
-        where('status', 'in', ['pending', 'overdue', 'partially_paid']),
         where('dueDate', '<', startOfThreeMonthsLater),
         orderBy('dueDate', 'asc')
       );
