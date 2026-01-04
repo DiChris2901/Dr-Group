@@ -249,14 +249,60 @@ const NewPaymentPage = () => {
     loadPendingCommitments();
   }, []);
 
-  // ✅ OPTIMIZADO: Cargar datos una sola vez sin listeners en tiempo real
+  // ✅ NUEVO: Listener en tiempo real para compromisos y pagos
   useEffect(() => {
     if (!user?.uid) return;
 
-    // ⚡ Performance: Carga inicial sin listeners que recargan constantemente
-    loadPendingCommitments();
-    
-    // No hay cleanup porque no hay listeners
+    // console.log('🔄 Configurando listeners en tiempo real para compromisos y pagos...');
+
+    // Listener para compromisos (detecta cambios en estados de pago)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
+
+    const commitmentsQuery = query(
+      collection(db, 'commitments'),
+      where('dueDate', '<', startOfThreeMonthsLater),
+      orderBy('dueDate', 'asc')
+    );
+
+    const unsubscribeCommitments = onSnapshot(commitmentsQuery, (snapshot) => {
+      // console.log('🔄 Cambios detectados en compromisos, actualizando lista...');
+      // Solo recargar si la página está visible y hay cambios relevantes
+      if (!document.hidden) {
+        loadPendingCommitments();
+      }
+    }, (error) => {
+      console.error('❌ Error en listener de compromisos:', error);
+    });
+
+    // Listener para pagos (detecta eliminaciones y creaciones)
+    const paymentsQuery = query(
+      collection(db, 'payments'),
+      orderBy('createdAt', 'desc'),
+      limit(100) // Limitar para performance
+    );
+
+    const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
+      // console.log('🔄 Cambios detectados en pagos, actualizando compromisos disponibles...');
+      // Solo recargar si la página está visible y hay cambios en pagos
+      if (!document.hidden) {
+        // Delay para permitir que se procesen las actualizaciones de compromisos
+        setTimeout(() => {
+          loadPendingCommitments();
+        }, 500);
+      }
+    }, (error) => {
+      console.error('❌ Error en listener de pagos:', error);
+    });
+
+    // Cleanup listeners
+    return () => {
+      // console.log('🧹 Limpiando listeners en tiempo real...');
+      unsubscribeCommitments();
+      unsubscribePayments();
+    };
   }, [user?.uid]);
 
   // Cargar empresas con cuentas bancarias
@@ -377,68 +423,62 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // ✅ CORREGIDO: Traer todos los compromisos y verificar pagos reales
+      // ✅ NUEVA LÓGICA: todos los pendientes del pasado + mes actual + 2 meses adelante
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-11
       
+      // Sin límite inferior (para capturar todos los pendientes del pasado)
       // Límite superior: inicio del mes que está 3 meses adelante
       const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
       
-      // Traer todos los compromisos en el rango (sin filtrar por status)
-      // porque el status puede estar desactualizado
+      // console.log('📅 NUEVA LÓGICA - Filtrando compromisos: todos del pasado + actual + 2 meses adelante:', {
+      //   currentDate: now.toISOString(),
+      //   limiteSuperior: startOfThreeMonthsLater.toISOString(),
+      //   currentMonth: currentMonth + 1,   // mes actual (human-readable) 
+      //   nextMonth1: currentMonth + 2,     // primer mes adelante (human-readable)
+      //   nextMonth2: currentMonth + 3,     // segundo mes adelante (human-readable)
+      //   currentYear,
+      //   note: 'Sin límite inferior - incluye todos los pendientes del pasado'
+      // });
+      
+      // Consultar compromisos: todos del pasado + actual + 2 meses adelante
       const commitmentsQuery = query(
         collection(db, 'commitments'),
         where('dueDate', '<', startOfThreeMonthsLater),
-        orderBy('dueDate', 'asc')
+        orderBy('dueDate', 'asc') // Ordenar por fecha para mostrar primero los más antiguos
       );
       
       const snapshot = await getDocs(commitmentsQuery);
       const commitments = [];
       
-      // ⚡ OPTIMIZACIÓN: Crear mapa de pagos por compromiso sin traer TODOS los pagos
-      const commitmentIds = snapshot.docs.map(doc => doc.id);
-      const paymentsMap = new Map(); // commitmentId -> array de pagos
+      // console.log(`📊 Compromisos encontrados en rango (pasado+actual+2futuros): ${snapshot.size}`);
       
-      // Solo consultar pagos de los compromisos que traemos
-      if (commitmentIds.length > 0) {
-        // Firebase limita 'in' a 10 elementos, así que hacemos batches
-        const batches = [];
-        for (let i = 0; i < commitmentIds.length; i += 10) {
-          batches.push(commitmentIds.slice(i, i + 10));
-        }
-        
-        for (const batch of batches) {
-          const paymentsQuery = query(
-            collection(db, 'payments'),
-            where('commitmentId', 'in', batch),
-            where('is4x1000Tax', '==', false)
-          );
-          
-          const paymentsSnapshot = await getDocs(paymentsQuery);
-          
-          paymentsSnapshot.forEach((paymentDoc) => {
-            const paymentData = paymentDoc.data();
-            const commitmentId = paymentData.commitmentId;
-            
-            if (!paymentsMap.has(commitmentId)) {
-              paymentsMap.set(commitmentId, []);
-            }
-            
-            paymentsMap.get(commitmentId).push({
-              id: paymentDoc.id,
-              ...paymentData
-            });
-          });
-        }
-      }
+      // También consultar todos los pagos ACTIVOS para verificar cuáles compromisos realmente tienen pago válido
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      
+      // console.log('📊 Total de pagos en base de datos:', paymentsSnapshot.size);
       
       snapshot.forEach((doc) => {
         const data = doc.data();
         const commitmentId = doc.id;
         
-        // ⚡ OPTIMIZADO: Obtener pagos del mapa pre-cargado
-        const commitmentPayments = paymentsMap.get(commitmentId) || [];
+        // ✅ NUEVA LÓGICA: Verificar pagos REALES para este compromiso específico
+        const commitmentPayments = [];
+        paymentsSnapshot.forEach((paymentDoc) => {
+          const paymentData = paymentDoc.data();
+          if (paymentData.commitmentId === commitmentId && !paymentData.is4x1000Tax) {
+            commitmentPayments.push({
+              id: paymentDoc.id,
+              ...paymentData
+            });
+          }
+        });
         
         // console.log(`� Compromiso "${data.concept}" (${data.companyName}):`, {
         //   id: commitmentId,
@@ -1662,28 +1702,6 @@ const NewPaymentPage = () => {
         setUploadProgress(50); // Progreso después de combinar
       }
 
-      // ⚡ OPTIMIZACIÓN: Comprimir PDF antes de subir
-      let finalFileToUpload = fileToUpload;
-      
-      if (fileToUpload.type === 'application/pdf') {
-        try {
-          setUploadProgress(60); // Progreso durante compresión
-          
-          // Comprimir PDF usando drGroupCompressor
-          finalFileToUpload = await drGroupCompressor(fileToUpload);
-          
-          const originalSizeMB = (fileToUpload.size / 1024 / 1024).toFixed(2);
-          const compressedSizeMB = (finalFileToUpload.size / 1024 / 1024).toFixed(2);
-          const reduction = (((fileToUpload.size - finalFileToUpload.size) / fileToUpload.size) * 100).toFixed(1);
-          
-          console.log(`📦 PDF comprimido: ${originalSizeMB}MB → ${compressedSizeMB}MB (${reduction}% reducción)`);
-        } catch (compressionError) {
-          console.warn('⚠️ No se pudo comprimir PDF, usando archivo original:', compressionError);
-          // Si falla la compresión, usar archivo original
-          finalFileToUpload = fileToUpload;
-        }
-      }
-
       // Crear referencia para el archivo
       const timestamp = Date.now();
       const finalFileName = `payments/${timestamp}_${fileName}`;
@@ -1691,8 +1709,8 @@ const NewPaymentPage = () => {
 
       setUploadProgress(75); // Progreso antes de subir
 
-      // Subir archivo (comprimido si es PDF)
-      const snapshot = await uploadBytes(storageRef, finalFileToUpload);
+      // Subir archivo
+      const snapshot = await uploadBytes(storageRef, fileToUpload);
       const downloadURL = await getDownloadURL(snapshot.ref);
       
       setUploadProgress(100); // Completado

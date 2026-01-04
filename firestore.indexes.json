@@ -19,20 +19,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dueDate",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "commitments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "companyId",
           "order": "ASCENDING"
         },
