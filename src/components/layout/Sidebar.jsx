@@ -22,7 +22,6 @@ import {
     Person,
     Receipt,
     Search,
-    Settings,
     Timeline,
     TrendingUp
 } from '@mui/icons-material';
@@ -353,30 +352,25 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
 
   const adminMenuItems = [
     {
-      title: 'Administración',
-      icon: Settings,
+      title: 'Usuarios',
+      icon: People,
+      path: '/users',
+      color: primaryColor,
+      permission: 'usuarios'
+    },
+    {
+      title: 'Auditoría del Sistema',
+      icon: Assessment,
+      path: '/admin/activity-logs',
       color: '#9c27b0',
-      permission: 'admin',
-      submenu: [
-        {
-          title: 'Usuarios',
-          icon: People,
-          path: '/users',
-          permission: 'usuarios'
-        },
-        {
-          title: 'Auditoría del Sistema',
-          icon: Assessment,
-          path: '/admin/activity-logs',
-          permission: 'auditoria'
-        },
-        {
-          title: 'Limpieza de Storage',
-          icon: DeleteSweep,
-          path: '/admin/orphan-files',
-          permission: 'storage'
-        }
-      ]
+      permission: 'auditoria'
+    },
+    {
+      title: 'Limpieza de Storage',
+      icon: DeleteSweep,
+      path: '/admin/orphan-files',
+      color: '#f44336',
+      permission: 'storage'
     }
   ];
 
@@ -401,9 +395,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
     // Solo auto-expandir si no hay búsqueda activa
     if (searchQuery.trim()) return;
     
-    // Buscar en menuItems y adminMenuItems
-    const allMenuItems = [...menuItems, ...adminMenuItems];
-    const currentCategory = allMenuItems.find(item => {
+    const currentCategory = menuItems.find(item => {
       if (item.path && isActiveRoute(item.path)) return true;
       if (item.submenu && hasActiveSubmenu(item.submenu)) return true;
       return false;
@@ -1084,89 +1076,208 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           );
           })}
 
-          {/* Menú de Administrador - Ahora como grupo desplegable */}
-          {userProfile?.role === 'ADMIN' && filteredAdminMenuItems.map((item, index) => {
-            return (
-            <React.Fragment key={item.title}>
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: (filteredMenuItems.length + index) * 0.1 }}
-              >
-                <ListItem disablePadding sx={{ mb: 0.5 }}>
-                  {(isCompactMode && !isHoverExpanded) ? (
-                    <Tooltip 
-                      title={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ 
-                            width: 3, 
-                            height: 16, 
-                            bgcolor: item.color,
-                            borderRadius: 1 
-                          }} />
-                          <Typography sx={{ fontWeight: 600 }}>
-                            {item.title}
-                          </Typography>
-                        </Box>
-                      }
-                      placement={anchor === 'left' ? 'right' : 'left'}
-                      arrow
-                      enterDelay={200}
-                      leaveDelay={0}
-                      componentsProps={{
-                        tooltip: {
-                          sx: {
-                            bgcolor: theme.palette.mode === 'dark' 
-                              ? alpha(theme.palette.background.paper, 0.98)
-                              : alpha(theme.palette.grey[900], 0.95),
-                            backdropFilter: 'blur(8px)',
-                            color: 'white',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            px: 2,
-                            py: 1,
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(item.color, 0.3)}`,
-                            boxShadow: `0 8px 24px ${alpha(item.color, 0.25)}`,
-                            '& .MuiTooltip-arrow': {
-                              color: theme.palette.mode === 'dark' 
-                                ? alpha(theme.palette.background.paper, 0.98)
-                                : alpha(theme.palette.grey[900], 0.95)
-                            }
-                          }
-                        }
+          {/* Menú de Administrador */}
+          {userProfile?.role === 'ADMIN' && (
+            <>
+              {settings?.sidebar?.grouping !== false && (!isCompactMode || isHoverExpanded) && (
+                <>
+                  <Divider sx={{ 
+                    my: 2, 
+                    mx: 3,
+                    background: `linear-gradient(90deg, 
+                      transparent 0%, 
+                      ${alpha(theme.palette.primary.main, 0.2)} 50%, 
+                      transparent 100%
+                    )`,
+                    height: '1px',
+                    border: 'none'
+                  }} />
+                  <Box sx={{ px: 3, pt: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{
+                      width: 20,
+                      height: 2,
+                      bgcolor: alpha(theme.palette.primary.main, 0.4),
+                      borderRadius: 1
+                    }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        letterSpacing: 1.2,
+                        color: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.text.primary, 0.6)
+                          : alpha(theme.palette.text.secondary, 0.8),
+                        textTransform: 'uppercase',
+                        userSelect: 'none'
                       }}
                     >
-                      <ListItemButton
-                        onClick={() => item.submenu ? handleSubmenuToggle(item.title) : handleNavigation(item.path)}
-                        sx={{
-                          mx: 1,
-                          borderRadius: 2,
-                          py: 1.5,
-                          minHeight: 48,
-                          justifyContent: 'center',
-                          minWidth: 48,
-                          bgcolor: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? `${primaryColor}20` : 'transparent',
-                          '&:hover': {
-                            bgcolor: `${primaryColor}20`,
-                            '& .MuiListItemIcon-root': {
-                              color: item.color
+                      Admin
+                    </Typography>
+                  </Box>
+                </>
+              )}
+
+              {filteredAdminMenuItems.map((item, index) => (
+                <motion.div
+                  key={item.title}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: (filteredMenuItems.length + index) * 0.1 }}
+                >
+                  <ListItem disablePadding sx={{ mb: 0.5 }}>
+                    {(isCompactMode && !isHoverExpanded) ? (
+                      <Tooltip 
+                        title={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ 
+                              width: 3, 
+                              height: 16, 
+                              bgcolor: item.color,
+                              borderRadius: 1 
+                            }} />
+                            <Typography sx={{ fontWeight: 600 }}>
+                              {item.title}
+                            </Typography>
+                          </Box>
+                        }
+                        placement={anchor === 'left' ? 'right' : 'left'}
+                        arrow
+                        enterDelay={200}
+                        leaveDelay={0}
+                        componentsProps={{
+                          tooltip: {
+                            sx: {
+                              bgcolor: theme.palette.mode === 'dark' 
+                                ? alpha(theme.palette.background.paper, 0.98)
+                                : alpha(theme.palette.grey[900], 0.95),
+                              backdropFilter: 'blur(8px)',
+                              color: 'white',
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                              px: 2,
+                              py: 1,
+                              borderRadius: 1,
+                              border: `1px solid ${alpha(item.color, 0.3)}`,
+                              boxShadow: `0 8px 24px ${alpha(item.color, 0.25)}`,
+                              '& .MuiTooltip-arrow': {
+                                color: theme.palette.mode === 'dark' 
+                                  ? alpha(theme.palette.background.paper, 0.98)
+                                  : alpha(theme.palette.grey[900], 0.95)
+                              }
                             }
                           }
                         }}
                       >
+                        <ListItemButton
+                          onClick={() => handleNavigation(item.path)}
+                          sx={{
+                            mx: 1,
+                            borderRadius: 2,
+                            py: 1.5,
+                            minHeight: 48,
+                            justifyContent: 'center',
+                            minWidth: 48,
+                            bgcolor: isActiveRoute(item.path) ? `${primaryColor}20` : 'transparent',
+                            '&:hover': {
+                              bgcolor: `${primaryColor}20`,
+                              '& .MuiListItemIcon-root': {
+                                color: item.color
+                              }
+                            }
+                          }}
+                        >
+                          <ListItemIcon sx={{ 
+                            minWidth: 'unset',
+                            justifyContent: 'center',
+                            display: settings?.sidebar?.showIcons !== false ? 'flex' : 'none'
+                          }}>
+                            <item.icon sx={{ 
+                              color: isActiveRoute(item.path) ? primaryColor : item.color,
+                              fontSize: '1.5rem'
+                            }} />
+                          </ListItemIcon>
+                          {/* Indicador activo */}
+                          {settings?.sidebar?.showActiveIndicator !== false && isActiveRoute(item.path) && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                [anchor]: 0,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                width: 3,
+                                height: 20,
+                                bgcolor: primaryColor,
+                                borderRadius: anchor === 'left' ? '0 2px 2px 0' : '2px 0 0 2px'
+                              }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </Tooltip>
+                    ) : (
+                      <ListItemButton
+                        onClick={() => handleNavigation(item.path)}
+                        sx={{
+                          mx: 2,
+                          borderRadius: 2,
+                          py: 1.2,
+                          minHeight: 48,
+                          justifyContent: 'flex-start',
+                          bgcolor: isActiveRoute(item.path) 
+                            ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.12)
+                            : 'transparent',
+                          boxShadow: isActiveRoute(item.path) 
+                            ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`
+                            : 'none',
+                          borderLeft: isActiveRoute(item.path) 
+                            ? `4px solid ${theme.palette.primary.main}` 
+                            : '4px solid transparent',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08),
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+                            transform: 'translateX(4px)',
+                            borderLeftColor: alpha(theme.palette.primary.main, 0.6),
+                            '& .MuiListItemIcon-root': {
+                              color: item.color,
+                              transform: 'scale(1.15) rotate(5deg)',
+                              transition: 'transform 0.2s ease'
+                            },
+                            '& .MuiListItemText-primary': {
+                              color: theme.palette.primary.main,
+                              fontWeight: 600,
+                              transition: 'color 0.2s ease'
+                            }
+                          },
+                          '&:active': {
+                            transform: 'translateX(2px) scale(0.98)'
+                          }
+                        }}
+                      >
                         <ListItemIcon sx={{ 
-                          minWidth: 'unset',
+                          minWidth: 56,
                           justifyContent: 'center',
                           display: settings?.sidebar?.showIcons !== false ? 'flex' : 'none'
                         }}>
                           <item.icon sx={{ 
-                            color: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? primaryColor : item.color,
+                            color: isActiveRoute(item.path) ? primaryColor : item.color,
                             fontSize: '1.5rem'
                           }} />
                         </ListItemIcon>
-                        {/* Indicador activo para modo compacto */}
-                        {settings?.sidebar?.showActiveIndicator !== false && (isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)) && (
+                        {settings?.sidebar?.showLabels !== false && (
+                          <ListItemText 
+                            primary={item.title}
+                            sx={{
+                              '& .MuiListItemText-primary': {
+                                fontWeight: isActiveRoute(item.path) ? 600 : 500,
+                                fontSize: '1rem',
+                                color: isActiveRoute(item.path) ? primaryColor : 'inherit'
+                              }
+                            }}
+                          />
+                        )}
+                        {/* Indicador activo */}
+                        {settings?.sidebar?.showActiveIndicator !== false && isActiveRoute(item.path) && (
                           <Box
                             sx={{
                               position: 'absolute',
@@ -1181,191 +1292,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           />
                         )}
                       </ListItemButton>
-                    </Tooltip>
-                  ) : (
-                    <ListItemButton
-                      onClick={() => item.submenu ? handleSubmenuToggle(item.title) : handleNavigation(item.path)}
-                      sx={{
-                        mx: 2,
-                        borderRadius: 2,
-                        py: 1.2,
-                        minHeight: 48,
-                        justifyContent: 'flex-start',
-                        bgcolor: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) 
-                          ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.12)
-                          : 'transparent',
-                        boxShadow: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
-                          ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`
-                          : 'none',
-                        borderLeft: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
-                          ? `4px solid ${theme.palette.primary.main}` 
-                          : '4px solid transparent',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08),
-                          boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
-                          transform: 'translateX(4px)',
-                          borderLeftColor: alpha(theme.palette.primary.main, 0.6),
-                          '& .MuiListItemIcon-root': {
-                            color: item.color,
-                            transform: 'scale(1.15) rotate(5deg)',
-                            transition: 'transform 0.2s ease'
-                          },
-                          '& .MuiListItemText-primary': {
-                            color: theme.palette.primary.main,
-                            fontWeight: 600,
-                            transition: 'color 0.2s ease'
-                          }
-                        },
-                        '&:active': {
-                          transform: 'translateX(2px) scale(0.98)'
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ 
-                        minWidth: 56,
-                        justifyContent: 'center',
-                        display: settings?.sidebar?.showIcons !== false ? 'flex' : 'none'
-                      }}>
-                        <item.icon sx={{ 
-                          color: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? primaryColor : item.color,
-                          fontSize: '1.5rem'
-                        }} />
-                      </ListItemIcon>
-                      {settings?.sidebar?.showLabels !== false && (
-                        <ListItemText 
-                          primary={item.title}
-                          sx={{
-                            '& .MuiListItemText-primary': {
-                              fontWeight: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? 600 : 500,
-                              fontSize: '1rem',
-                              color: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? primaryColor : 'inherit'
-                            }
-                          }}
-                        />
-                      )}
-                      {item.submenu && settings?.sidebar?.showLabels !== false && (
-                        expandedCategory === item.title ? <ExpandLess /> : <ExpandMore />
-                      )}
-                      {/* Indicador activo para modo expandido */}
-                      {settings?.sidebar?.showActiveIndicator !== false && (isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)) && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            [anchor]: 0,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: 3,
-                            height: 20,
-                            bgcolor: primaryColor,
-                            borderRadius: anchor === 'left' ? '0 2px 2px 0' : '2px 0 0 2px'
-                          }}
-                        />
-                      )}
-                    </ListItemButton>
-                  )}
-                </ListItem>
-
-                {/* Submenu */}
-                {item.submenu && (!isCompactMode || isHoverExpanded) && (
-                  <Collapse in={expandedCategory === item.title || searchQuery.trim() !== ''} timeout={400} unmountOnExit>
-                    <List component="div" disablePadding sx={{ 
-                      bgcolor: alpha(theme.palette.primary.main, 0.02),
-                      borderRadius: 2,
-                      mx: 2,
-                      my: 0.5,
-                      py: 0.5
-                    }}>
-                      {item.submenu.map((subItem) => (
-                        <ListItem key={subItem.title} disablePadding>
-                          <ListItemButton
-                            onClick={() => handleNavigation(subItem.path)}
-                            sx={{
-                              pl: 9,
-                              pr: 2,
-                              py: 1,
-                              minHeight: 40,
-                              borderRadius: 1.5,
-                              mx: 1,
-                              my: 0.25,
-                              bgcolor: isActiveRoute(subItem.path) 
-                                ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08)
-                                : 'transparent',
-                              borderLeft: isActiveRoute(subItem.path)
-                                ? `3px solid ${theme.palette.primary.main}`
-                                : '3px solid transparent',
-                              transition: 'all 0.2s ease',
-                              '&:hover': {
-                                bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08),
-                                borderLeftColor: alpha(theme.palette.primary.main, 0.6),
-                                transform: 'translateX(4px)',
-                                '& .MuiListItemIcon-root': {
-                                  color: subItem.icon ? item.color : primaryColor,
-                                  transform: 'scale(1.1)',
-                                },
-                                '& .MuiListItemText-primary': {
-                                  fontWeight: 600,
-                                  color: theme.palette.primary.main
-                                }
-                              }
-                            }}
-                          >
-                            <ListItemIcon sx={{ 
-                              minWidth: 40,
-                              justifyContent: 'center',
-                              display: settings?.sidebar?.showIcons !== false ? 'flex' : 'none'
-                            }}>
-                              {subItem.icon ? (
-                                <subItem.icon sx={{ 
-                                  fontSize: '1.2rem',
-                                  color: isActiveRoute(subItem.path) ? primaryColor : alpha(theme.palette.text.secondary, 0.7)
-                                }} />
-                              ) : (
-                                <Box sx={{ 
-                                  width: 6, 
-                                  height: 6, 
-                                  borderRadius: '50%', 
-                                  bgcolor: isActiveRoute(subItem.path) ? primaryColor : alpha(theme.palette.text.secondary, 0.5)
-                                }} />
-                              )}
-                            </ListItemIcon>
-                            {settings?.sidebar?.showLabels !== false && (
-                              <ListItemText 
-                                primary={subItem.title}
-                                sx={{
-                                  '& .MuiListItemText-primary': {
-                                    fontSize: '0.875rem',
-                                    fontWeight: isActiveRoute(subItem.path) ? 600 : 400,
-                                    color: isActiveRoute(subItem.path) ? primaryColor : 'inherit'
-                                  }
-                                }}
-                              />
-                            )}
-                            {/* Indicador activo para submenú */}
-                            {settings?.sidebar?.showActiveIndicator !== false && isActiveRoute(subItem.path) && (
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  [anchor]: 0,
-                                  top: '50%',
-                                  transform: 'translateY(-50%)',
-                                  width: 2,
-                                  height: 16,
-                                  bgcolor: primaryColor,
-                                  borderRadius: anchor === 'left' ? '0 1px 1px 0' : '1px 0 0 1px'
-                                }}
-                              />
-                            )}
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Collapse>
-                )}
-              </motion.div>
-            </React.Fragment>
-          );
-          })}
+                    )}
+                  </ListItem>
+                </motion.div>
+              ))}
+            </>
+          )}
         </List>
 
         {/* Footer del Sidebar */}
