@@ -60,7 +60,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
 import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
@@ -259,22 +259,57 @@ const LiquidacionesHistorialPage = () => {
         filtrosFirebase.empresa = filtrosAplicar.empresa;
       }
       
-      // ✅ Filtro por periodo mensual (siempre 1 mes)
-      if (filtrosAplicar.periodoMes) {
+      // ✅ Filtro por periodo - calcular fechas según el tipo de filtro
+      const periodoFiltro = filtrosAplicar.periodoFiltro || 'thisMonth';
+      const ahora = new Date();
+      
+      if (periodoFiltro === 'thisMonth') {
+        filtrosFirebase.startDate = startOfMonth(ahora);
+        filtrosFirebase.endDate = endOfMonth(ahora);
+      } else if (periodoFiltro === 'lastMonth') {
+        const mesAnterior = subMonths(ahora, 1);
+        filtrosFirebase.startDate = startOfMonth(mesAnterior);
+        filtrosFirebase.endDate = endOfMonth(mesAnterior);
+      } else if (periodoFiltro === 'last3Months') {
+        const hace3Meses = subMonths(ahora, 3);
+        filtrosFirebase.startDate = startOfMonth(hace3Meses);
+        filtrosFirebase.endDate = endOfMonth(ahora);
+      } else if (periodoFiltro === 'last6Months') {
+        const hace6Meses = subMonths(ahora, 6);
+        filtrosFirebase.startDate = startOfMonth(hace6Meses);
+        filtrosFirebase.endDate = endOfMonth(ahora);
+      } else if (periodoFiltro === 'thisYear') {
+        filtrosFirebase.startDate = startOfYear(ahora);
+        filtrosFirebase.endDate = endOfYear(ahora);
+      } else if (periodoFiltro === 'allTime') {
+        // NO aplicar filtro de fechas - traer TODAS las liquidaciones
+        // (No establecer startDate ni endDate)
+      } else if (periodoFiltro === 'month' && filtrosAplicar.periodoMes) {
+        // Mes específico seleccionado por el usuario
         filtrosFirebase.startDate = startOfMonth(filtrosAplicar.periodoMes);
         filtrosFirebase.endDate = endOfMonth(filtrosAplicar.periodoMes);
       }
+      
+      console.log('📅 Filtros de fecha calculados:', {
+        periodoFiltro,
+        startDate: filtrosFirebase.startDate?.toLocaleDateString?.('es-CO'),
+        endDate: filtrosFirebase.endDate?.toLocaleDateString?.('es-CO')
+      });
+      
+      // Determinar límite según el filtro
+      // Si es "Todos los meses", usar límite más alto para traer todas
+      const limitePorFiltro = periodoFiltro === 'allTime' ? 500 : 200;
       
       // Cargar liquidaciones desde Firebase CON FILTROS
       // IMPORTANTE: Solo trae de Firebase lo que coincide con los filtros
       const liquidacionesFirebase = await liquidacionPersistenceService.getAllLiquidaciones(
         filtrosFirebase,
-        200 // Límite de seguridad
+        limitePorFiltro
       );
 
-      console.log('📊 Liquidaciones cargadas desde Firebase (todas):', liquidacionesFirebase.length);
+      console.log('📊 Liquidaciones cargadas desde Firebase:', liquidacionesFirebase.length);
       
-      if (liquidacionesFirebase.length < 53) {
+      if (periodoFiltro !== 'allTime' && liquidacionesFirebase.length < 53) {
         console.warn('⚠️ PROBLEMA DETECTADO: Se esperaban al menos 53 liquidaciones pero solo se cargaron', liquidacionesFirebase.length);
         console.warn('⚠️ Verifica el límite en getAllLiquidaciones() o si hay problemas con Firebase');
       }
@@ -766,11 +801,15 @@ const LiquidacionesHistorialPage = () => {
     console.log('📅 Filtro de periodo seleccionado:', value);
     setPeriodoFiltro(value);
 
+    // Solo ajustar periodoMes para los filtros originales
     if (value === 'thisMonth') {
       setPeriodoMes(startOfMonth(new Date()));
     } else if (value === 'lastMonth') {
       setPeriodoMes(startOfMonth(subMonths(new Date(), 1)));
     }
+    // Para los demás filtros (last3Months, last6Months, thisYear, allTime, month)
+    // NO modificar periodoMes, ya que no son filtros de un solo mes
+    
     // NO recargar automáticamente - esperar a que presione "Aplicar Filtros"
   };
 
@@ -1044,8 +1083,18 @@ const LiquidacionesHistorialPage = () => {
                       periodoFiltro === 'thisMonth' 
                         ? 'Este mes' 
                         : periodoFiltro === 'lastMonth' 
-                          ? 'Mes pasado' 
-                          : periodoMes?.toLocaleDateString?.('es-CO', { month: 'long', year: 'numeric' }) || '—'
+                          ? 'Mes pasado'
+                          : periodoFiltro === 'last3Months'
+                            ? 'Últimos 3 meses'
+                            : periodoFiltro === 'last6Months'
+                              ? 'Últimos 6 meses'
+                              : periodoFiltro === 'thisYear'
+                                ? 'Todo el año'
+                                : periodoFiltro === 'allTime'
+                                  ? 'Todos los meses'
+                                  : periodoFiltro === 'month' && periodoMes
+                                    ? periodoMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())
+                                    : '—'
                     }`}
                     size="small"
                     color="secondary"

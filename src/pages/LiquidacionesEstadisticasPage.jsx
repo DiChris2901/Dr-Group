@@ -587,12 +587,11 @@ const LiquidacionesEstadisticasPage = () => {
       const mensual = {};
       const isModoEmpresaPorSala = empresaSeleccionada !== 'todas';
       
-      // Usar liquidacionesPorSala cuando hay empresa seleccionada para contar salas correctamente
-      const datosParaProcesar = isModoEmpresaPorSala && liquidacionesPorSala.length > 0 
-        ? liquidacionesPorSala 
-        : liquidaciones;
+      // ESTRATEGIA DUAL:
+      // - Producción/Impuestos/Máquinas: desde liquidaciones (consolidado empresa)
+      // - Salas: desde liquidacionesPorSala (conteo individual por sala)
       
-      datosParaProcesar.forEach((liq) => {
+      liquidaciones.forEach((liq) => {
         const ym = extraerYearMonthPeriodo(liq);
         if (!ym) return;
         const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
@@ -616,16 +615,12 @@ const LiquidacionesEstadisticasPage = () => {
         mensual[monthKey].derechosExplotacion += liq.metricas?.derechosExplotacion || 0;
         mensual[monthKey].gastosAdministracion += liq.metricas?.gastosAdministracion || 0;
 
-        // Máquinas/Salas: totales del mes (sumados por empresa). Luego se usan como promedio mensual en el rango.
+        // Máquinas: siempre desde liquidaciones (empresa consolidada)
         mensual[monthKey].maquinasTotal +=
           (liq.metricas?.totalMaquinas ?? liq.metricas?.maquinasConsolidadas ?? 0);
 
-        if (isModoEmpresaPorSala) {
-          const salaNombre = liq?.sala?.nombre;
-          if (typeof salaNombre === 'string' && salaNombre.trim()) {
-            mensual[monthKey].salasSet.add(salaNombre);
-          }
-        } else {
+        // Salas: solo si NO es modo empresa por sala
+        if (!isModoEmpresaPorSala) {
           mensual[monthKey].salasTotal += liq.metricas?.totalEstablecimientos || 0;
         }
 
@@ -639,6 +634,21 @@ const LiquidacionesEstadisticasPage = () => {
 
         mensual[monthKey].documentos += 1;
       });
+
+      // Si es modo empresa específica, contar salas desde liquidacionesPorSala
+      if (isModoEmpresaPorSala && liquidacionesPorSala.length > 0) {
+        liquidacionesPorSala.forEach((liq) => {
+          const ym = extraerYearMonthPeriodo(liq);
+          if (!ym) return;
+          const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
+          if (!mensual[monthKey]) return; // Solo procesar meses que ya existen
+          
+          const salaNombre = liq?.sala?.nombre;
+          if (typeof salaNombre === 'string' && salaNombre.trim()) {
+            mensual[monthKey].salasSet.add(salaNombre);
+          }
+        });
+      }
 
       // 2) Seleccionar últimos N meses disponibles (según pestaña)
       const monthsToShow = tipo === 'trimestral' ? 3 : tipo === 'semestral' ? 6 : 12;
@@ -882,7 +892,7 @@ const LiquidacionesEstadisticasPage = () => {
     if (!datosEstadisticos) return [];
 
     return Object.keys(datosEstadisticos)
-      .sort()
+      .sort((a, b) => b.localeCompare(a)) // Orden descendente: más reciente primero
       .map(key => {
         const data = datosEstadisticos[key];
         
