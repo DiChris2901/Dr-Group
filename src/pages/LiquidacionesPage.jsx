@@ -1589,6 +1589,22 @@ const LiquidacionesPage = () => {
     return processedRows;
   };
 
+  // Formatear fecha sin problemas de timezone (DD/MM/YYYY)
+  const formatearFechaSinTimezone = (fecha) => {
+    try {
+      if (!fecha || isNaN(fecha.getTime())) return '';
+      
+      // Usar componentes UTC para evitar problemas de zona horaria
+      const dia = String(fecha.getUTCDate()).padStart(2, '0');
+      const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+      const año = fecha.getUTCFullYear();
+      
+      return `${dia}/${mes}/${año}`;
+    } catch {
+      return '';
+    }
+  };
+
   // Calcular días del mes de una fecha
   const calcularDiasMes = (fecha) => {
     try {
@@ -1728,8 +1744,8 @@ const LiquidacionesPage = () => {
         establecimiento: item.establecimiento,
         diasTransmitidos: item.diasTransmitidos,
         diasMes: diasMes,
-        primerDia: fechaInicio && !isNaN(fechaInicio.getTime()) ? fechaInicio.toLocaleDateString() : '',
-        ultimoDia: fechaFin && !isNaN(fechaFin.getTime()) ? fechaFin.toLocaleDateString() : '',
+        primerDia: formatearFechaSinTimezone(fechaInicio),
+        ultimoDia: formatearFechaSinTimezone(fechaFin),
         periodoTexto: periodoTexto,
         tipoApuesta: item.tipoApuesta,
         produccion: item.produccion,

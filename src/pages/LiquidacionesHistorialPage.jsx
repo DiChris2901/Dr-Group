@@ -82,7 +82,7 @@ const LiquidacionesHistorialPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,7 +91,7 @@ const LiquidacionesHistorialPage = () => {
   // Filtros aplicados (los que realmente se usan para consultar Firebase)
   const [appliedFilters, setAppliedFilters] = useState({
     empresa: 'todas',
-    dateRange: 'all',
+    dateRange: 'thisMonth',
     customStartDate: null,
     customEndDate: null
   });
@@ -756,7 +756,7 @@ const LiquidacionesHistorialPage = () => {
   // Detectar si hay filtros activos (para mostrar botón de limpiar)
   const hasActiveFilters = searchTerm || 
     filterEmpresa !== 'todas' ||
-    dateRangeFilter !== 'all' ||
+    dateRangeFilter !== 'thisMonth' ||
     customStartDate !== null ||
     customEndDate !== null;
   
@@ -856,12 +856,12 @@ const LiquidacionesHistorialPage = () => {
     console.log('🧹 Limpiando filtros - tabla quedará vacía hasta aplicar filtros');
     setSearchTerm('');
     setFilterEmpresa('todas');
-    setDateRangeFilter('all');
+    setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
     const filtrosLimpios = { 
       empresa: 'todas',
-      dateRange: 'all',
+      dateRange: 'thisMonth',
       customStartDate: null,
       customEndDate: null
     };
@@ -1009,7 +1009,7 @@ const LiquidacionesHistorialPage = () => {
             </Grid>
             
             {/* Filtro por empresa */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <FormControl 
                 fullWidth
                 sx={{
@@ -1047,7 +1047,7 @@ const LiquidacionesHistorialPage = () => {
             </Grid>
 
             {/* 📅 Filtro por periodo (fechas) */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <DateRangeFilter
                 value={dateRangeFilter}
                 customStartDate={customStartDate}
@@ -1056,108 +1056,130 @@ const LiquidacionesHistorialPage = () => {
                 onCustomRangeChange={handleCustomDateRangeChange}
               />
             </Grid>
-
-            {/* Botón Aplicar Filtros */}
-            {hasUnappliedFilters && (
-              <Grid item xs={12} md={2}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-                >
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<FilterList />}
-                    onClick={aplicarFiltros}
-                    sx={{
-                      height: 56,
-                      borderRadius: 0.6,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      background: `linear-gradient(135deg, 
-                        ${theme.palette.success.main} 0%, 
-                        ${theme.palette.success.dark} 100%)`,
-                      boxShadow: `0 4px 20px ${alpha(theme.palette.success.main, 0.4)}`,
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: `0 6px 24px ${alpha(theme.palette.success.main, 0.5)}`
-                      },
-                      '&:active': {
-                        transform: 'translateY(0)'
-                      }
-                    }}
-                  >
-                    Aplicar Filtros
-                  </Button>
-                </motion.div>
-              </Grid>
-            )}
-
-            {/* Botón Limpiar Filtros */}
-            {hasActiveFilters && (
-              <Grid item xs={12} md={3}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                >
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<Close />}
-                    onClick={limpiarFiltros}
-                    sx={{
-                      height: 56,
-                      borderRadius: 0.6,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      background: `linear-gradient(135deg, 
-                        ${theme.palette.primary.main} 0%, 
-                        ${theme.palette.secondary.main} 100%)`,
-                      boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: '-100%',
-                        width: '100%',
-                        height: '100%',
-                        background: `linear-gradient(90deg, 
-                          transparent, 
-                          ${alpha(theme.palette.common.white, 0.3)}, 
-                          transparent)`,
-                        transition: 'left 0.6s ease',
-                      },
-                      '&:hover': {
-                        background: `linear-gradient(135deg, 
-                          ${theme.palette.primary.dark} 0%, 
-                          ${theme.palette.secondary.dark} 100%)`,
-                        transform: 'translateY(-2px) scale(1.02)',
-                        boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.4)}`,
-                        '&::before': {
-                          left: '100%',
-                        }
-                      },
-                      '&:active': {
-                        transform: 'translateY(0) scale(0.98)',
-                      }
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                </motion.div>
-              </Grid>
-            )}
           </Grid>
+
+          {/* Chips de filtros activos */}
+          {hasActiveFilters && filtersApplied && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Box mt={3} pt={2} borderTop={`1px solid ${alpha(theme.palette.divider, 0.1)}`}>
+                <Typography variant="body2" color="text.secondary" mb={1}>
+                  Filtros activos:
+                </Typography>
+                <Box display="flex" gap={1} flexWrap="wrap">
+                  {searchTerm && (
+                    <Chip
+                      label={`Búsqueda: "${searchTerm}"`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      onDelete={() => handleSearchChange('')}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                  {filterEmpresa !== 'todas' && (
+                    <Chip
+                      label={`Empresa: ${filterEmpresa}`}
+                      size="small"
+                      color="info"
+                      variant="outlined"
+                      onDelete={() => handleEmpresaChange('todas')}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                  {dateRangeFilter !== 'all' && (
+                    <Chip
+                      label={`Período: ${dateRangeFilter === 'custom' && customStartDate && customEndDate 
+                        ? `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`
+                        : dateRangeFilter}`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      onDelete={() => {
+                        handleDateRangeChange('all');
+                        handleCustomDateRangeChange(null, null);
+                      }}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                </Box>
+              </Box>
+            </motion.div>
+          )}
+
+          {/* ✅ BOTONES DE ACCIÓN PARA FILTROS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              gap: 2,
+              mt: 3,
+              pt: 3,
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+            }}>
+              <Button
+                variant="contained"
+                startIcon={<FilterList />}
+                onClick={aplicarFiltros}
+                disabled={!hasUnappliedFilters && filtersApplied}
+                sx={{
+                  minWidth: 160,
+                  py: 1.5,
+                  px: 3,
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  background: hasUnappliedFilters || !filtersApplied 
+                    ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                    : theme.palette.action.disabled,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  '&:hover': {
+                    background: hasUnappliedFilters || !filtersApplied 
+                      ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+                      : theme.palette.action.disabled,
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+                  }
+                }}
+              >
+                {filtersApplied && !hasUnappliedFilters ? 'Filtros Aplicados' : 'Aplicar Filtros'}
+              </Button>
+              {hasActiveFilters && filtersApplied && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Close />}
+                  onClick={limpiarFiltros}
+                  sx={{
+                    minWidth: 140,
+                    py: 1.5,
+                    px: 3,
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    borderColor: alpha(theme.palette.error.main, 0.5),
+                    color: theme.palette.error.main,
+                    backgroundColor: alpha(theme.palette.error.main, 0.05),
+                    '&:hover': {
+                      borderColor: theme.palette.error.main,
+                      backgroundColor: alpha(theme.palette.error.main, 0.1),
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  Limpiar Filtros
+                </Button>
+              )}
+            </Box>
+          </motion.div>
         </Box>
       </Paper>
 
