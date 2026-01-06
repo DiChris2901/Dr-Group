@@ -139,8 +139,9 @@ const RecursosHumanosPage = () => {
           id: doc.id,
           ...data,
           fechaSolicitud: data.fechaSolicitud?.toDate ? data.fechaSolicitud.toDate() : new Date(data.fechaSolicitud),
-          fechaInicio: data.fechaInicio?.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio),
-          fechaFin: data.fechaFin?.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin)
+          // Solo convertir fechas si existen (certificaciones no tienen fechaInicio/fechaFin)
+          fechaInicio: data.fechaInicio ? (data.fechaInicio?.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio)) : null,
+          fechaFin: data.fechaFin ? (data.fechaFin?.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin)) : null
         });
       });
       setSolicitudes(solicitudesData);

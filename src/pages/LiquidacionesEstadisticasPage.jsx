@@ -404,86 +404,42 @@ const LiquidacionesEstadisticasPage = () => {
           return;
         }
 
-        const periodoUltimo = periodosIncluidos[0];
+        // Consultar TODAS las salas de TODOS los periodos (no filtrar por último mes)
+        const historico = [];
+        const todasLasSalas = new Set();
 
-        let topSalasDocs = [];
-        try {
-          const qTop = query(
-            collection(db, 'liquidaciones_por_sala'),
-            where('empresa.normalizado', '==', empresaNorm),
-            where('fechas.periodoLiquidacion', '==', periodoUltimo),
-            orderBy('metricas.totalProduccion', 'desc'),
-            limit(10)
-          );
-          const snapTop = await getDocs(qTop);
-          topSalasDocs = snapTop.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-        } catch (e) {
-          console.warn('⚠️ Query top salas con orderBy falló, usando fallback sin orderBy:', e);
-          const qTopFallback = query(
-            collection(db, 'liquidaciones_por_sala'),
-            where('empresa.normalizado', '==', empresaNorm),
-            where('fechas.periodoLiquidacion', '==', periodoUltimo)
-          );
-          const snapTopFallback = await getDocs(qTopFallback);
-          const all = snapTopFallback.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-          all.sort((a, b) => (Number(b.metricas?.totalProduccion) || 0) - (Number(a.metricas?.totalProduccion) || 0));
-          topSalasDocs = all.slice(0, 10);
+        for (const periodo of periodosIncluidos) {
+          try {
+            const qPeriodo = query(
+              collection(db, 'liquidaciones_por_sala'),
+              where('empresa.normalizado', '==', empresaNorm),
+              where('fechas.periodoLiquidacion', '==', periodo)
+            );
+            const snapPeriodo = await getDocs(qPeriodo);
+            snapPeriodo.docs.forEach((docSnap) => {
+              const doc = { id: docSnap.id, ...docSnap.data() };
+              historico.push(doc);
+              const salaNombre = doc?.sala?.nombre;
+              if (typeof salaNombre === 'string' && salaNombre.trim()) {
+                todasLasSalas.add(salaNombre);
+              }
+            });
+          } catch (e) {
+            console.error(`❌ Error consultando periodo ${periodo}:`, e);
+          }
         }
 
-        const salaNorms = topSalasDocs
-          .map((d) => d?.sala?.normalizado)
-          .filter((s) => typeof s === 'string' && s.trim())
-          .slice(0, 10);
+        setSalasDisponibles(Array.from(todasLasSalas).sort());
 
-        const salaNombres = topSalasDocs
-          .map((d) => d?.sala?.nombre)
-          .filter((s) => typeof s === 'string' && s.trim());
-
-        setSalasDisponibles(Array.from(new Set(salaNombres)).sort());
-
-        if (!salaNorms.length) {
+        if (!historico.length) {
           setLiquidacionesPorSala([]);
           setSalaDetalleSeleccionada('');
           return;
         }
 
-        // Seed histórico con docs del último mes (evita 1 query adicional)
-        const historico = [...topSalasDocs];
-
-        for (const periodo of periodosIncluidos) {
-          if (periodo === periodoUltimo) continue;
-          try {
-            const qPeriodo = query(
-              collection(db, 'liquidaciones_por_sala'),
-              where('empresa.normalizado', '==', empresaNorm),
-              where('fechas.periodoLiquidacion', '==', periodo),
-              where('sala.normalizado', 'in', salaNorms)
-            );
-            const snapPeriodo = await getDocs(qPeriodo);
-            snapPeriodo.docs.forEach((docSnap) => {
-              historico.push({ id: docSnap.id, ...docSnap.data() });
-            });
-          } catch (e) {
-            console.warn('⚠️ Query por periodo+sala.in falló, usando fallback por sala individual:', e);
-            for (const salaNorm of salaNorms) {
-              const qSala = query(
-                collection(db, 'liquidaciones_por_sala'),
-                where('empresa.normalizado', '==', empresaNorm),
-                where('fechas.periodoLiquidacion', '==', periodo),
-                where('sala.normalizado', '==', salaNorm),
-                limit(1)
-              );
-              const snapSala = await getDocs(qSala);
-              snapSala.docs.forEach((docSnap) => {
-                historico.push({ id: docSnap.id, ...docSnap.data() });
-              });
-            }
-          }
-        }
-
         setLiquidacionesPorSala(historico);
         console.log('✅ Empresa mensual (docs):', mensualSeleccionado.length);
-        console.log('✅ Salas top (último mes):', salaNorms.length);
+        console.log('✅ Salas únicas encontradas:', todasLasSalas.size);
         console.log('✅ Histórico por sala (docs):', historico.length);
 
         liquidacionesCacheRef.current.set(cacheKey, {
@@ -630,7 +586,13 @@ const LiquidacionesEstadisticasPage = () => {
       // 1) Agregar primero a nivel mensual (doc = empresa + mes)
       const mensual = {};
       const isModoEmpresaPorSala = empresaSeleccionada !== 'todas';
-      liquidaciones.forEach((liq) => {
+      
+      // Usar liquidacionesPorSala cuando hay empresa seleccionada para contar salas correctamente
+      const datosParaProcesar = isModoEmpresaPorSala && liquidacionesPorSala.length > 0 
+        ? liquidacionesPorSala 
+        : liquidaciones;
+      
+      datosParaProcesar.forEach((liq) => {
         const ym = extraerYearMonthPeriodo(liq);
         if (!ym) return;
         const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
@@ -743,7 +705,7 @@ const LiquidacionesEstadisticasPage = () => {
 
     const tipoActual = periodoTab === 0 ? 'trimestral' : periodoTab === 1 ? 'semestral' : 'anual';
     return agruparPorPeriodo(tipoActual);
-  }, [liquidaciones, periodoTab]);
+  }, [liquidaciones, liquidacionesPorSala, periodoTab, empresaSeleccionada]);
 
   const comparativoPorSala = useMemo(() => {
     if (empresaSeleccionada === 'todas') return [];

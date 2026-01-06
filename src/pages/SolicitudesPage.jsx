@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Container, CircularProgress, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -21,19 +21,30 @@ const SolicitudesPage = () => {
   // Validar permisos
   const canViewSolicitudes = hasPermission('solicitudes');
 
-  // Listener de solicitudes
+  // Listener de solicitudes - Solo las del usuario actual
   useEffect(() => {
-    if (!canViewSolicitudes) {
+    if (!canViewSolicitudes || !userProfile?.uid) {
       setLoading(false);
       return;
     }
 
-    const q = query(collection(db, 'solicitudes'));
+    const q = query(
+      collection(db, 'solicitudes'),
+      where('empleadoId', '==', userProfile.uid)
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const solicitudesData = [];
       snapshot.forEach((doc) => {
-        solicitudesData.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        solicitudesData.push({ 
+          id: doc.id, 
+          ...data,
+          // Convertir fechas solo si existen (certificaciones no tienen fechaInicio/fechaFin)
+          fechaSolicitud: data.fechaSolicitud?.toDate ? data.fechaSolicitud.toDate() : (data.fechaSolicitud ? new Date(data.fechaSolicitud) : new Date()),
+          fechaInicio: data.fechaInicio ? (data.fechaInicio?.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio)) : null,
+          fechaFin: data.fechaFin ? (data.fechaFin?.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin)) : null
+        });
       });
       setSolicitudes(solicitudesData);
       setLoading(false);
@@ -43,7 +54,7 @@ const SolicitudesPage = () => {
     });
 
     return () => unsubscribe();
-  }, [canViewSolicitudes]);
+  }, [canViewSolicitudes, userProfile?.uid]);
 
   // Listener de empleados
   useEffect(() => {
@@ -153,6 +164,7 @@ const SolicitudesPage = () => {
         solicitudes={solicitudes}
         empleados={empleados}
         userProfile={userProfile}
+        showToast={showToast}
         loading={loading}
       />
     </Container>

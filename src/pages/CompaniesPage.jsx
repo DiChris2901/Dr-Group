@@ -102,6 +102,9 @@ const CompaniesPage = () => {
     name: '',
     nit: '',
     email: '',
+    phone: '',
+    address: '',
+    city: '',
     legalRepresentative: '',
     legalRepresentativeId: '',
     contractNumber: '',
@@ -412,6 +415,9 @@ const CompaniesPage = () => {
       name: '',
       nit: '',
       email: '',
+      phone: '',
+      address: '',
+      city: '',
       legalRepresentative: '',
       legalRepresentativeId: '',
       contractNumber: '',
@@ -630,6 +636,9 @@ const CompaniesPage = () => {
       name: company.name || '',
       nit: company.nit || '',
       email: company.email || '',
+      phone: company.phone || '',
+      address: company.address || '',
+      city: company.city || '',
       legalRepresentative: company.legalRepresentative || '',
       legalRepresentativeId: company.legalRepresentativeId || '',
       contractNumber: company.contractNumber || '',
@@ -1677,6 +1686,54 @@ const CompaniesPage = () => {
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
+                          label="Teléfono"
+                          value={formData.phone}
+                          onChange={(e) => handleFormChange('phone', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: +57 300 123 4567"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Dirección"
+                          value={formData.address}
+                          onChange={(e) => handleFormChange('address', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: Calle 123 #45-67"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Ciudad"
+                          value={formData.city}
+                          onChange={(e) => handleFormChange('city', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: Bogotá"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
                           label="Representante Legal"
                           value={formData.legalRepresentative}
                           onChange={(e) => handleFormChange('legalRepresentative', e.target.value)}
@@ -2433,7 +2490,50 @@ const CompaniesPage = () => {
                   </Grid>
                 )}
 
-                {/* Segunda fila - Información del Representante Legal y Contrato */}
+                {/* Segunda fila - Teléfono, Dirección y Ciudad */}
+                {selectedCompany.phone && (
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Teléfono
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedCompany.phone}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                )}
+
+                {selectedCompany.address && (
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        <LocationIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Dirección
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedCompany.address}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                )}
+
+                {selectedCompany.city && (
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        <LocationIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Ciudad
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedCompany.city}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                )}
+
+                {/* Tercera fila - Información del Representante Legal y Contrato */}
                 {(selectedCompany.legalRepresentative || selectedCompany.legalRepresentativeId || selectedCompany.contractNumber) && (
                   <>
                     {selectedCompany.legalRepresentative && (

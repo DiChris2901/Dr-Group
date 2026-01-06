@@ -237,6 +237,40 @@ const CompanyDetailsModal = ({ open, onClose, company }) => {
           </Grid>
 
           {/* Segunda fila */}
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                Teléfono
+              </Typography>
+              <Typography variant="body1">
+                {company.phone || 'No registrado'}
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                Dirección
+              </Typography>
+              <Typography variant="body1">
+                {company.address || 'No registrada'}
+              </Typography>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                Ciudad
+              </Typography>
+              <Typography variant="body1">
+                {company.city || 'No registrada'}
+              </Typography>
+            </Card>
+          </Grid>
+
+          {/* Tercera fila */}
           <Grid item xs={12} md={6}>
             <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
               <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -244,7 +278,7 @@ const CompanyDetailsModal = ({ open, onClose, company }) => {
                 Representante Legal
               </Typography>
               <Typography variant="body1">
-                Isael Carreño Sierra
+                {company.legalRepresentative || 'Isael Carreño Sierra'}
               </Typography>
             </Card>
           </Grid>
@@ -255,7 +289,7 @@ const CompanyDetailsModal = ({ open, onClose, company }) => {
                 Cédula Rep Legal
               </Typography>
               <Typography variant="body1">
-                1.065.829.778
+                {company.legalRepresentativeId || '1.065.829.778'}
               </Typography>
             </Card>
           </Grid>
