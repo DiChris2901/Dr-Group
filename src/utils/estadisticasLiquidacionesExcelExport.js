@@ -1,18 +1,224 @@
 import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 // ===== EXPORTACIÓN EXCEL PARA ESTADÍSTICAS DE LIQUIDACIONES =====
 // Formato Python profesional (7 filas header, freeze panes, brand colors)
 // Siguiendo el estándar de docs/EXCEL_EXPORT_DESIGN_SYSTEM.md
 
 const BRAND_COLORS = {
-  primary: '667EEA',
-  secondary: '764BA2',
-  accent: 'F093FB',
-  dark: '1A202C',
-  light: 'F7FAFC',
-  success: '48BB78',
-  warning: 'ECC94B',
-  error: 'F56565'
+  titleBg: '0B3040',
+  subtitleBg: '1A5F7A',
+  metricsBg: '334155',
+  dateBg: '475569',
+  headerBg: '0B3040',
+  white: 'FFFFFF',
+  textDark: '223344',
+  borderLight: 'E2E8F0',
+  borderMedium: 'C0CCDA',
+  borderDark: '94A3B8'
+};
+
+const argb = (hexNoAlpha) => `FF${hexNoAlpha}`;
+
+const fmtTitle = {
+  font: { name: 'Segoe UI', size: 18, bold: true, color: { argb: argb(BRAND_COLORS.white) } },
+  alignment: { horizontal: 'center', vertical: 'middle' },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.titleBg) } }
+};
+
+const fmtSubTitle = {
+  font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: argb(BRAND_COLORS.white) } },
+  alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.subtitleBg) } }
+};
+
+const fmtMetrics = {
+  font: { name: 'Segoe UI', size: 10, bold: true, color: { argb: argb(BRAND_COLORS.white) } },
+  alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.metricsBg) } }
+};
+
+const fmtDate = {
+  font: { name: 'Segoe UI', size: 10, bold: false, color: { argb: argb(BRAND_COLORS.white) } },
+  alignment: { horizontal: 'center', vertical: 'middle' },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.dateBg) } }
+};
+
+const fmtHeader = {
+  font: { name: 'Segoe UI', size: 10, bold: true, color: { argb: argb(BRAND_COLORS.white) } },
+  alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.headerBg) } },
+  border: {
+    top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+    left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+    bottom: { style: 'thin', color: { argb: 'FF666666' } },
+    right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+  }
+};
+
+const fmtDataBase = {
+  font: { name: 'Segoe UI', size: 9, color: { argb: argb(BRAND_COLORS.textDark) } },
+  alignment: { vertical: 'middle', wrapText: false },
+  border: {
+    top: { style: 'thin', color: { argb: argb(BRAND_COLORS.borderLight) } },
+    left: { style: 'thin', color: { argb: argb(BRAND_COLORS.borderLight) } },
+    bottom: { style: 'thin', color: { argb: argb(BRAND_COLORS.borderMedium) } },
+    right: { style: 'thin', color: { argb: argb(BRAND_COLORS.borderLight) } }
+  }
+};
+
+const fmtDataTextLeft = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'left' } };
+const fmtDataNumber = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'center' } };
+const fmtDataMoney = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'right' }, numFmt: '"$"#,##0' };
+const fmtDataPercent = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'center' }, numFmt: '0.0%' };
+
+const applyZebraFill = (cell, isZebra) => {
+  if (!isZebra) return;
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+};
+
+const applyHeader7Rows = (ws, { title, subtitle, metrics, totalColumns }) => {
+  // Freeze panes fila 7
+  ws.views = [{ state: 'frozen', ySplit: 7 }];
+
+  // Fila 1: Título
+  ws.mergeCells(1, 1, 1, totalColumns);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = 'DR GROUP';
+  titleCell.style = fmtTitle;
+  ws.getRow(1).height = 30;
+
+  // Fila 2: Subtítulo
+  ws.mergeCells(2, 1, 2, totalColumns);
+  const subCell = ws.getCell(2, 1);
+  subCell.value = title;
+  subCell.style = fmtSubTitle;
+  ws.getRow(2).height = 22;
+
+  // Fila 3-4: Métricas + Fecha (combinadas para evitar texto apiñado)
+  ws.mergeCells(3, 1, 4, totalColumns);
+  const metricsCell = ws.getCell(3, 1);
+  metricsCell.value = `${metrics}\nGenerado: ${new Date().toLocaleString('es-CO')}`;
+  metricsCell.style = {
+    ...fmtMetrics,
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }
+  };
+  // Altura combinada (suma aproximada de 2 filas, más holgada)
+  ws.getRow(3).height = 34;
+  ws.getRow(4).height = 22;
+
+  // Fila 5-6: Espaciadores
+  ws.getRow(5).height = 5;
+  ws.getRow(6).height = 8;
+
+  // Fila 7: Encabezado de columnas (se llena afuera)
+  ws.getRow(7).height = 28;
+
+  // Nota: subtitle param mantiene compatibilidad futura (por ahora va en metrics string)
+  void subtitle;
+};
+
+const toNumber = (v) => {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = typeof v === 'string' ? parseFloat(v.toString().replace(/[^0-9.-]/g, '')) : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const formatMoneyCompact = (value) => {
+  const n = Math.round(toNumber(value));
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+};
+
+const buildProduccionImpuestosChartPngDataUrl = async ({ labels, produccion, impuestos, title }) => {
+  if (typeof document === 'undefined') return null;
+
+  const canvas = document.createElement('canvas');
+  // Tamaño fijo para que se vea consistente en Excel
+  canvas.width = 1100;
+  canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Dynamic import para no penalizar carga inicial
+  const mod = await import('chart.js/auto');
+  const ChartCtor = mod?.default;
+  if (!ChartCtor) return null;
+
+  const chart = new ChartCtor(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Producción',
+          data: produccion,
+          backgroundColor: `#${BRAND_COLORS.titleBg}`,
+          borderColor: `#${BRAND_COLORS.titleBg}`,
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Impuestos',
+          data: impuestos,
+          backgroundColor: `#${BRAND_COLORS.subtitleBg}`,
+          borderColor: `#${BRAND_COLORS.subtitleBg}`,
+          borderWidth: 1,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: false,
+      animation: false,
+      devicePixelRatio: 1,
+      plugins: {
+        title: {
+          display: true,
+          text: title,
+          color: '#0B3040',
+          font: { family: 'Segoe UI', size: 14, weight: '600' }
+        },
+        legend: {
+          position: 'top',
+          labels: { font: { family: 'Segoe UI', size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const v = context.parsed?.y ?? 0;
+              return `${context.dataset.label}: $${Math.round(v).toLocaleString('es-CO')}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { family: 'Segoe UI', size: 11 },
+            maxRotation: 0,
+            autoSkip: false
+          },
+          grid: { display: false }
+        },
+        y: {
+          ticks: {
+            font: { family: 'Segoe UI', size: 11 },
+            callback: (v) => formatMoneyCompact(v)
+          },
+          grid: { color: '#E2E8F0' }
+        }
+      }
+    }
+  });
+
+  // Asegurar que pinte
+  await new Promise((r) => setTimeout(r, 0));
+  const dataUrl = canvas.toDataURL('image/png');
+  chart.destroy();
+  return dataUrl;
 };
 
 export const exportarEstadisticasLiquidaciones = async (
@@ -27,299 +233,234 @@ export const exportarEstadisticasLiquidaciones = async (
     wb.creator = 'DR Group Dashboard';
     wb.created = new Date();
 
-    // ===== HOJA 1: RESUMEN EJECUTIVO =====
-    const wsResumen = wb.addWorksheet('Resumen Ejecutivo', {
-      views: [{ state: 'frozen', xSplit: 0, ySplit: 7 }]
-    });
+    const empresaLabel = filtros?.empresa && filtros.empresa !== 'todas' ? filtros.empresa : 'Todas';
+    const tipoPeriodoLabel = filtros?.tipoPeriodo || 'N/A';
+    const numPeriodos = Array.isArray(datosGraficos) ? datosGraficos.length : 0;
+    const prodTotal = toNumber(kpis?.produccionTotal);
+    const impTotal = Array.isArray(datosGraficos)
+      ? datosGraficos.reduce((acc, r) => acc + toNumber(r?.impuestos), 0)
+      : 0;
+    const prodProm = toNumber(kpis?.produccionPromedio);
+    const prodSala = toNumber(kpis?.produccionPorSala);
+    const prodMaquina = toNumber(kpis?.produccionPorMaquina);
+    const mesesConsolidados = Number.isFinite(kpis?.mesesTotal) ? kpis.mesesTotal : 0;
+    const metricsLine = `Empresa: ${empresaLabel} | Periodos: ${numPeriodos} (${tipoPeriodoLabel}) | Producción Total: $${Math.round(prodTotal).toLocaleString('es-CO')} | Impuestos Total: $${Math.round(impTotal).toLocaleString('es-CO')} | Promedio Periodo: $${Math.round(prodProm).toLocaleString('es-CO')} | Prod/Sala (est.): $${Math.round(prodSala).toLocaleString('es-CO')} | Prod/Máquina (est.): $${Math.round(prodMaquina).toLocaleString('es-CO')} | Meses consolidados: ${mesesConsolidados}`;
 
-    // ROW 1: Título principal
-    wsResumen.mergeCells('A1:F1');
-    const cellTitulo = wsResumen.getCell('A1');
-    cellTitulo.value = 'ESTADÍSTICAS DE LIQUIDACIONES';
-    cellTitulo.font = { name: 'Roboto', size: 20, bold: true, color: { argb: 'FFFFFFFF' } };
-    cellTitulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.primary } };
-    cellTitulo.alignment = { horizontal: 'center', vertical: 'middle' };
-    wsResumen.getRow(1).height = 40;
+    // ===== HOJA 1: RESUMEN (FORMATO PYTHON) =====
+    const wsResumen = wb.addWorksheet('Resumen Ejecutivo', { views: [{ state: 'frozen', ySplit: 7 }] });
 
-    // ROW 2: Subtítulo
-    wsResumen.mergeCells('A2:F2');
-    const cellSubtitulo = wsResumen.getCell('A2');
-    cellSubtitulo.value = `Análisis Comparativo - ${filtros.tipoPeriodo}`;
-    cellSubtitulo.font = { name: 'Roboto', size: 12, italic: true, color: { argb: BRAND_COLORS.dark } };
-    cellSubtitulo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.light } };
-    cellSubtitulo.alignment = { horizontal: 'center', vertical: 'middle' };
-    wsResumen.getRow(2).height = 25;
-
-    // ROW 3: Empresa
-    wsResumen.mergeCells('A3:C3');
-    wsResumen.getCell('A3').value = 'EMPRESA:';
-    wsResumen.getCell('A3').font = { name: 'Roboto', size: 10, bold: true };
-    wsResumen.mergeCells('D3:F3');
-    wsResumen.getCell('D3').value = filtros.empresa || 'Todas';
-    wsResumen.getCell('D3').font = { name: 'Roboto', size: 10 };
-
-    // ROW 4: Alcance
-    wsResumen.mergeCells('A4:C4');
-    wsResumen.getCell('A4').value = 'ALCANCE:';
-    wsResumen.getCell('A4').font = { name: 'Roboto', size: 10, bold: true };
-    wsResumen.mergeCells('D4:F4');
-    wsResumen.getCell('D4').value = 'Consolidado (sin sala)';
-    wsResumen.getCell('D4').font = { name: 'Roboto', size: 10 };
-
-    // ROW 5: Fecha generación
-    wsResumen.mergeCells('A5:C5');
-    wsResumen.getCell('A5').value = 'FECHA GENERACIÓN:';
-    wsResumen.getCell('A5').font = { name: 'Roboto', size: 10, bold: true };
-    wsResumen.mergeCells('D5:F5');
-    wsResumen.getCell('D5').value = new Date().toLocaleString('es-ES');
-    wsResumen.getCell('D5').font = { name: 'Roboto', size: 10 };
-
-    // ROW 6: Espacio en blanco
-    wsResumen.getRow(6).height = 10;
-
-    // ROW 7: KPIs Principales (Header de sección)
-    wsResumen.mergeCells('A7:F7');
-    const cellKPIsHeader = wsResumen.getCell('A7');
-    cellKPIsHeader.value = '📊 INDICADORES CLAVE (KPIs)';
-    cellKPIsHeader.font = { name: 'Roboto', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-    cellKPIsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.secondary } };
-    cellKPIsHeader.alignment = { horizontal: 'center', vertical: 'middle' };
-    wsResumen.getRow(7).height = 30;
-
-    // ROW 8: Headers KPIs
-    const headerKPIs = [
-      'Producción Total',
-      'Promedio por Período',
-      'Tendencia',
-      'Cambio %',
-      'Prod. por Sala (est.)',
-      'Meses Consolidados'
+    const columnsResumen = [
+      { header: 'Periodo', key: 'periodoLabel', width: 18 },
+      { header: 'Periodo (Key)', key: 'periodoKey', width: 14 },
+      { header: 'Producción', key: 'produccion', width: 18 },
+      { header: 'Impuestos', key: 'impuestos', width: 18 },
+      { header: 'Empresas consolidadas', key: 'empresas', width: 18 },
+      { header: 'Salas prom. mensual', key: 'salasProm', width: 18 },
+      { header: 'Máquinas prom. mensual', key: 'maquinasProm', width: 20 },
+      { header: 'Variación % vs anterior', key: 'variacion', width: 18 }
     ];
 
-    headerKPIs.forEach((header, idx) => {
-      const cell = wsResumen.getCell(8, idx + 1);
-      cell.value = header;
-      cell.font = { name: 'Roboto', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.dark } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-      };
+    applyHeader7Rows(wsResumen, {
+      title: 'Estadísticas de Liquidaciones',
+      subtitle: `Análisis comparativo - ${tipoPeriodoLabel}`,
+      metrics: metricsLine,
+      totalColumns: columnsResumen.length
     });
-    wsResumen.getRow(8).height = 35;
 
-    // ROW 9: Valores KPIs
-    if (kpis) {
-      const valoresKPIs = [
-        `$${Math.round(kpis.produccionTotal).toLocaleString()}`,
-        `$${Math.round(kpis.produccionPromedio).toLocaleString()}`,
-        kpis.tendencia === 'creciente' ? '↗️ Creciente' : kpis.tendencia === 'decreciente' ? '↘️ Decreciente' : '→ Estable',
-        `${kpis.porcentajeCambio >= 0 ? '+' : ''}${kpis.porcentajeCambio.toFixed(1)}%`,
-        `$${Math.round(kpis.produccionPorSala).toLocaleString()}`,
-        kpis.mesesTotal
-      ];
+    // Configurar columnas (sin headers automáticos)
+    wsResumen.columns = columnsResumen.map(({ width, key }) => ({ key, width }));
 
-      valoresKPIs.forEach((valor, idx) => {
-        const cell = wsResumen.getCell(9, idx + 1);
-        cell.value = valor;
-        cell.font = { name: 'Roboto', size: 10, bold: true };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-        };
-      });
-      wsResumen.getRow(9).height = 30;
+    // Headers fila 7
+    columnsResumen.forEach((col, idx) => {
+      const cell = wsResumen.getCell(7, idx + 1);
+      cell.value = col.header;
+      cell.style = fmtHeader;
+    });
+
+    // Gráfico (imagen) debajo del header
+    const dataRowsStartResumen = 22;
+    if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
+      try {
+        const labels = datosGraficos.map((r) => r?.periodoLabel ?? String(r?.periodo ?? ''));
+        const produccionSeries = datosGraficos.map((r) => Math.round(toNumber(r?.produccion)));
+        const impuestosSeries = datosGraficos.map((r) => Math.round(toNumber(r?.impuestos)));
+        const pngDataUrl = await buildProduccionImpuestosChartPngDataUrl({
+          labels,
+          produccion: produccionSeries,
+          impuestos: impuestosSeries,
+          title: 'Producción vs Impuestos por período'
+        });
+        if (pngDataUrl) {
+          const imageId = wb.addImage({ base64: pngDataUrl, extension: 'png' });
+          wsResumen.addImage(imageId, 'A8:H20');
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo generar/incrustar el gráfico en Excel:', e);
+      }
     }
 
-    // ROW 11: Alertas (si existen)
-    let currentRow = 11;
-    if (alertas && alertas.length > 0) {
-      wsResumen.mergeCells(`A${currentRow}:F${currentRow}`);
-      const cellAlertasHeader = wsResumen.getCell(`A${currentRow}`);
-      cellAlertasHeader.value = '⚠️ ALERTAS Y NOTIFICACIONES';
-      cellAlertasHeader.font = { name: 'Roboto', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-      cellAlertasHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.warning } };
-      cellAlertasHeader.alignment = { horizontal: 'center', vertical: 'middle' };
-      wsResumen.getRow(currentRow).height = 30;
-      currentRow++;
+    // Datos desde fila 8
+    let rowIndex = dataRowsStartResumen;
+    if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
+      datosGraficos.forEach((r, idx) => {
+        const zebra = idx % 2 === 0;
 
-      alertas.forEach((alerta, idx) => {
-        wsResumen.mergeCells(`A${currentRow}:F${currentRow}`);
-        const cellAlerta = wsResumen.getCell(`A${currentRow}`);
-        cellAlerta.value = `${idx + 1}. ${alerta.mensaje}`;
-        cellAlerta.font = { name: 'Roboto', size: 10 };
-        
-        let bgColor = BRAND_COLORS.light;
-        if (alerta.tipo === 'error') bgColor = 'FFFEF2F2';
-        else if (alerta.tipo === 'warning') bgColor = 'FFFFFBEB';
-        else if (alerta.tipo === 'success') bgColor = 'FFF0FDF4';
-        
-        cellAlerta.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-        cellAlerta.alignment = { horizontal: 'left', vertical: 'middle' };
-        wsResumen.getRow(currentRow).height = 25;
-        currentRow++;
-      });
-      currentRow++;
-    }
+        const periodoKey = r?.periodo ?? '';
+        const periodoLabel = r?.periodoLabel ?? String(periodoKey);
+        const produccion = Math.round(toNumber(r?.produccion));
+        const impuestos = Math.round(toNumber(r?.impuestos));
+        const empresas = Math.round(toNumber(r?.empresasConsolidadas));
+        const salasProm = Math.round(toNumber(r?.salasPromedioMensual));
+        const maquinasProm = Math.round(toNumber(r?.maquinasPromedioMensual));
 
-    // ROW: Tabla detallada por período
-    currentRow++;
-    wsResumen.mergeCells(`A${currentRow}:F${currentRow}`);
-    const cellTablaHeader = wsResumen.getCell(`A${currentRow}`);
-    cellTablaHeader.value = '📋 DETALLE POR PERÍODO';
-    cellTablaHeader.font = { name: 'Roboto', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-    cellTablaHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.secondary } };
-    cellTablaHeader.alignment = { horizontal: 'center', vertical: 'middle' };
-    wsResumen.getRow(currentRow).height = 30;
-    currentRow++;
-
-    // Headers de tabla
-    const headersTabla = ['Período', 'Producción', 'Impuestos', 'Empresas', 'Máquinas (prom. mensual)', 'Variación %'];
-    headersTabla.forEach((header, idx) => {
-      const cell = wsResumen.getCell(currentRow, idx + 1);
-      cell.value = header;
-      cell.font = { name: 'Roboto', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.dark } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-      };
-    });
-    wsResumen.getRow(currentRow).height = 30;
-    currentRow++;
-
-    // Datos de tabla
-    if (datosGraficos && datosGraficos.length > 0) {
-      datosGraficos.forEach((row, idx) => {
-        // Calcular variación vs período anterior
-        let variacion = 0;
+        let variacionFraction = null;
         if (idx > 0) {
-          const anterior = datosGraficos[idx - 1].produccion;
-          variacion = anterior > 0 ? ((row.produccion - anterior) / anterior) * 100 : 0;
+          const anterior = toNumber(datosGraficos[idx - 1]?.produccion);
+          variacionFraction = anterior > 0 ? (produccion - anterior) / anterior : null;
         }
 
-        const valores = [
-          row.periodo,
-          Math.round(row.produccion),
-          Math.round(row.impuestos || 0),
-          row.empresasConsolidadas || 0,
-          Math.round(row.maquinasPromedioMensual || 0),
-          `${variacion >= 0 ? '+' : ''}${variacion.toFixed(1)}%`
-        ];
+        const row = wsResumen.getRow(rowIndex);
+        row.getCell(1).value = periodoLabel;
+        row.getCell(1).style = fmtDataTextLeft;
+        applyZebraFill(row.getCell(1), zebra);
 
-        valores.forEach((valor, colIdx) => {
-          const cell = wsResumen.getCell(currentRow, colIdx + 1);
-          cell.value = valor;
-          cell.font = { name: 'Roboto', size: 10 };
-          cell.alignment = { horizontal: colIdx === 0 ? 'left' : 'center', vertical: 'middle' };
-          
-          // Color alternado
-          if (idx % 2 === 0) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-          }
-          
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-          };
+        row.getCell(2).value = String(periodoKey);
+        row.getCell(2).style = fmtDataTextLeft;
+        applyZebraFill(row.getCell(2), zebra);
 
-          // Formato moneda para producción
-          if (colIdx === 1 || colIdx === 2) {
-            cell.numFmt = '$#,##0';
-          }
-        });
+        row.getCell(3).value = produccion;
+        row.getCell(3).style = fmtDataMoney;
+        applyZebraFill(row.getCell(3), zebra);
 
-        wsResumen.getRow(currentRow).height = 25;
-        currentRow++;
+        row.getCell(4).value = impuestos;
+        row.getCell(4).style = fmtDataMoney;
+        applyZebraFill(row.getCell(4), zebra);
+
+        row.getCell(5).value = empresas;
+        row.getCell(5).style = fmtDataNumber;
+        applyZebraFill(row.getCell(5), zebra);
+
+        row.getCell(6).value = salasProm;
+        row.getCell(6).style = fmtDataNumber;
+        applyZebraFill(row.getCell(6), zebra);
+
+        row.getCell(7).value = maquinasProm;
+        row.getCell(7).style = fmtDataNumber;
+        applyZebraFill(row.getCell(7), zebra);
+
+        if (variacionFraction === null) {
+          row.getCell(8).value = 'N/A';
+          row.getCell(8).style = fmtDataNumber;
+        } else {
+          row.getCell(8).value = variacionFraction;
+          row.getCell(8).style = fmtDataPercent;
+        }
+        applyZebraFill(row.getCell(8), zebra);
+
+        row.height = 18;
+        rowIndex++;
       });
     }
 
-    // Ajustar anchos de columnas
-    wsResumen.columns = [
-      { width: 18 }, // Período
-      { width: 18 }, // Producción
-      { width: 18 }, // Impuestos
-      { width: 10 }, // Meses
-      { width: 22 }, // Máquinas (prom.)
-      { width: 12 }  // Variación
-    ];
 
-    // ===== HOJA 2: DETALLE POR PERÍODO (opcional, solo si hay suficientes datos) =====
+    // ===== HOJA 2: DETALLE (RAW) =====
+    // Mantiene el mismo estándar visual para consistencia.
     if (datosEstadisticos && Object.keys(datosEstadisticos).length > 0) {
-      const wsDetalle = wb.addWorksheet('Detalle por Período', {
-        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
-      });
+      const wsDetalle = wb.addWorksheet('Detalle por Período', { views: [{ state: 'frozen', ySplit: 7 }] });
 
-      // Header
-      wsDetalle.getCell('A1').value = 'Período';
-      wsDetalle.getCell('B1').value = 'Producción';
-      wsDetalle.getCell('C1').value = 'Empresas';
-      wsDetalle.getCell('D1').value = 'Salas (prom. mensual)';
-      wsDetalle.getCell('E1').value = 'Máquinas (prom. mensual)';
-      wsDetalle.getCell('F1').value = 'Impuestos Totales';
-
-      ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'].forEach(cell => {
-        wsDetalle.getCell(cell).font = { name: 'Roboto', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-        wsDetalle.getCell(cell).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.primary } };
-        wsDetalle.getCell(cell).alignment = { horizontal: 'center', vertical: 'middle' };
-      });
-
-      // Datos
-      let rowDetalle = 2;
-      Object.keys(datosEstadisticos).sort().forEach(key => {
-        const data = datosEstadisticos[key];
-        wsDetalle.getCell(`A${rowDetalle}`).value = key;
-        wsDetalle.getCell(`B${rowDetalle}`).value = Math.round(data.produccion);
-        wsDetalle.getCell(`C${rowDetalle}`).value = data.documentos || 0;
-        wsDetalle.getCell(`D${rowDetalle}`).value = Math.round(data.salasPromedioMensual || 0);
-        wsDetalle.getCell(`E${rowDetalle}`).value = Math.round(data.maquinasPromedioMensual || 0);
-        wsDetalle.getCell(`F${rowDetalle}`).value = Math.round(data.impuestos);
-
-        // Formato moneda
-        wsDetalle.getCell(`B${rowDetalle}`).numFmt = '$#,##0';
-        wsDetalle.getCell(`F${rowDetalle}`).numFmt = '$#,##0';
-
-        rowDetalle++;
-      });
-
-      wsDetalle.columns = [
-        { width: 15 },
-        { width: 18 },
-        { width: 12 },
-        { width: 20 },
-        { width: 22 },
-        { width: 18 }
+      const columnsDetalle = [
+        { header: 'Periodo (Key)', key: 'periodoKey', width: 14 },
+        { header: 'Producción', key: 'produccion', width: 18 },
+        { header: 'Impuestos', key: 'impuestos', width: 18 },
+        { header: 'Empresas consolidadas', key: 'empresas', width: 18 },
+        { header: 'Salas prom. mensual', key: 'salasProm', width: 18 },
+        { header: 'Máquinas prom. mensual', key: 'maquinasProm', width: 20 }
       ];
+
+      applyHeader7Rows(wsDetalle, {
+        title: 'Detalle por Período - Estadísticas de Liquidaciones',
+        subtitle: `Empresa: ${empresaLabel} - ${tipoPeriodoLabel}`,
+        metrics: metricsLine,
+        totalColumns: columnsDetalle.length
+      });
+
+      wsDetalle.columns = columnsDetalle.map(({ width, key }) => ({ key, width }));
+      columnsDetalle.forEach((col, idx) => {
+        const cell = wsDetalle.getCell(7, idx + 1);
+        cell.value = col.header;
+        cell.style = fmtHeader;
+      });
+
+      // Gráfico (imagen) debajo del header
+      const dataRowsStartDetalle = 22;
+      if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
+        try {
+          const labels = datosGraficos.map((r) => r?.periodoLabel ?? String(r?.periodo ?? ''));
+          const produccionSeries = datosGraficos.map((r) => Math.round(toNumber(r?.produccion)));
+          const impuestosSeries = datosGraficos.map((r) => Math.round(toNumber(r?.impuestos)));
+          const pngDataUrl = await buildProduccionImpuestosChartPngDataUrl({
+            labels,
+            produccion: produccionSeries,
+            impuestos: impuestosSeries,
+            title: 'Producción vs Impuestos por período'
+          });
+          if (pngDataUrl) {
+            const imageId = wb.addImage({ base64: pngDataUrl, extension: 'png' });
+            wsDetalle.addImage(imageId, 'A8:F20');
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo generar/incrustar el gráfico en Excel (detalle):', e);
+        }
+      }
+
+      let rIdx = dataRowsStartDetalle;
+      Object.keys(datosEstadisticos)
+        .sort()
+        .forEach((key, idx) => {
+          const zebra = idx % 2 === 0;
+          const data = datosEstadisticos[key] || {};
+          const row = wsDetalle.getRow(rIdx);
+
+          row.getCell(1).value = String(key);
+          row.getCell(1).style = fmtDataTextLeft;
+          applyZebraFill(row.getCell(1), zebra);
+
+          row.getCell(2).value = Math.round(toNumber(data.produccion));
+          row.getCell(2).style = fmtDataMoney;
+          applyZebraFill(row.getCell(2), zebra);
+
+          row.getCell(3).value = Math.round(toNumber(data.impuestos));
+          row.getCell(3).style = fmtDataMoney;
+          applyZebraFill(row.getCell(3), zebra);
+
+          row.getCell(4).value = Math.round(toNumber(data.documentos));
+          row.getCell(4).style = fmtDataNumber;
+          applyZebraFill(row.getCell(4), zebra);
+
+          row.getCell(5).value = Math.round(toNumber(data.salasPromedioMensual));
+          row.getCell(5).style = fmtDataNumber;
+          applyZebraFill(row.getCell(5), zebra);
+
+          row.getCell(6).value = Math.round(toNumber(data.maquinasPromedioMensual));
+          row.getCell(6).style = fmtDataNumber;
+          applyZebraFill(row.getCell(6), zebra);
+
+          row.height = 18;
+          rIdx++;
+        });
     }
 
     // ===== GENERAR Y DESCARGAR =====
     const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
     const fecha = new Date().toISOString().split('T')[0];
-    const nombreEmpresa = filtros.empresa !== 'todas' ? filtros.empresa.replace(/\s+/g, '_') : 'Todas';
+    const nombreEmpresa = empresaLabel !== 'Todas' ? empresaLabel.replace(/\s+/g, '_') : 'Todas';
     const nombreArchivo = `Estadisticas_Liquidaciones_${nombreEmpresa}_${fecha}.xlsx`;
-    
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nombreArchivo;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+
+    saveAs(blob, nombreArchivo);
 
     return {
       success: true,
