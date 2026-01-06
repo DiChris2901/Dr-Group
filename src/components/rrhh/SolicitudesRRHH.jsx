@@ -28,6 +28,8 @@ import {
   Stack,
   Typography,
   Alert,
+  Switch,
+  FormControlLabel,
   alpha,
   useTheme
 } from '@mui/material';
@@ -42,6 +44,7 @@ import {
   MedicalServices as IncapacidadIcon,
   WatchLater as PermisoIcon,
   Celebration as CompensatorioIcon,
+  Description as DocumentoIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -82,7 +85,11 @@ const SolicitudesRRHH = ({
     fechaInicio: '',
     fechaFin: '',
     dias: 0,
-    motivo: ''
+    motivo: '',
+    // Campos específicos para certificaciones
+    dirigidoA: '',
+    incluirSalario: false,
+    fechaRequerida: ''
   });
 
   // Calcular días automáticamente
@@ -98,27 +105,58 @@ const SolicitudesRRHH = ({
   // Crear nueva solicitud
   const handleCrearSolicitud = async () => {
     try {
-      if (!formSolicitud.empleadoId || !formSolicitud.fechaInicio || !formSolicitud.fechaFin) {
-        showToast('Por favor completa todos los campos obligatorios', 'warning');
+      // Validación base
+      if (!formSolicitud.empleadoId) {
+        showToast('Por favor selecciona un empleado', 'warning');
         return;
+      }
+
+      // Validación de fechas solo para solicitudes que no sean certificaciones
+      if (formSolicitud.tipo !== 'certificacion') {
+        if (!formSolicitud.fechaInicio || !formSolicitud.fechaFin) {
+          showToast('Por favor completa las fechas de inicio y fin', 'warning');
+          return;
+        }
+      }
+
+      // Validación de motivo obligatorio para certificaciones
+      if (formSolicitud.tipo === 'certificacion') {
+        if (!formSolicitud.motivo || !formSolicitud.dirigidoA) {
+          showToast('Por favor completa el tipo de certificación y a quién va dirigida', 'warning');
+          return;
+        }
       }
 
       const empleado = empleados.find(e => e.id === formSolicitud.empleadoId);
       
-      await addDoc(collection(db, 'solicitudes'), {
+      // Estructura base del documento
+      const solicitudData = {
         tipo: formSolicitud.tipo,
         empleadoId: formSolicitud.empleadoId,
         empleadoNombre: empleado?.nombre || formSolicitud.empleadoNombre,
         empleadoEmail: empleado?.email || '',
-        fechaInicio: Timestamp.fromDate(new Date(formSolicitud.fechaInicio)),
-        fechaFin: Timestamp.fromDate(new Date(formSolicitud.fechaFin)),
-        dias: formSolicitud.dias,
         motivo: formSolicitud.motivo,
         estado: 'pendiente',
         fechaSolicitud: Timestamp.now(),
         creadoPor: userProfile.uid,
         creadoPorNombre: userProfile.name || userProfile.displayName
-      });
+      };
+
+      // Agregar fechas solo si no es certificación
+      if (formSolicitud.tipo !== 'certificacion') {
+        solicitudData.fechaInicio = Timestamp.fromDate(new Date(formSolicitud.fechaInicio));
+        solicitudData.fechaFin = Timestamp.fromDate(new Date(formSolicitud.fechaFin));
+        solicitudData.dias = formSolicitud.dias;
+      } else {
+        // Agregar campos específicos de certificación
+        solicitudData.dirigidoA = formSolicitud.dirigidoA;
+        solicitudData.incluirSalario = formSolicitud.incluirSalario;
+        if (formSolicitud.fechaRequerida) {
+          solicitudData.fechaRequerida = Timestamp.fromDate(new Date(formSolicitud.fechaRequerida));
+        }
+      }
+      
+      await addDoc(collection(db, 'solicitudes'), solicitudData);
 
       showToast('Solicitud creada exitosamente', 'success');
       handleCloseModal();
@@ -190,6 +228,19 @@ const SolicitudesRRHH = ({
   // Cerrar modal
   const handleCloseModal = () => {
     setOpenSolicitudModal(false);
+    // Resetear formulario
+    setFormSolicitud({
+      tipo: 'vacaciones',
+      empleadoId: '',
+      empleadoNombre: '',
+      fechaInicio: '',
+      fechaFin: '',
+      dias: 0,
+      motivo: '',
+      dirigidoA: '',
+      incluirSalario: false,
+      fechaRequerida: ''
+    });
   };
 
   // Helper: Ícono según tipo con colores vibrantes
@@ -197,13 +248,15 @@ const SolicitudesRRHH = ({
     const iconStyles = { fontSize: 20 };
     switch (tipo) {
       case 'vacaciones': 
-        return <VacacionesIcon sx={{ ...iconStyles, color: '#00bcd4' }} />;
+        return <VacacionesIcon sx={{ ...iconStyles, color: theme.palette.info.main }} />;
       case 'permiso': 
-        return <PermisoIcon sx={{ ...iconStyles, color: '#ff9800' }} />;
+        return <PermisoIcon sx={{ ...iconStyles, color: theme.palette.warning.main }} />;
       case 'incapacidad': 
-        return <IncapacidadIcon sx={{ ...iconStyles, color: '#f44336' }} />;
+        return <IncapacidadIcon sx={{ ...iconStyles, color: theme.palette.error.main }} />;
       case 'compensatorio': 
-        return <CompensatorioIcon sx={{ ...iconStyles, color: '#9c27b0' }} />;
+        return <CompensatorioIcon sx={{ ...iconStyles, color: theme.palette.secondary.main }} />;
+      case 'certificacion': 
+        return <DocumentoIcon sx={{ ...iconStyles, color: theme.palette.primary.main }} />;
       default: 
         return <AssignmentIcon sx={iconStyles} />;
     }
@@ -489,7 +542,7 @@ const SolicitudesRRHH = ({
                 Nueva Solicitud
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Registrar vacaciones, permisos o incapacidades
+                Registrar vacaciones, permisos, incapacidades o certificaciones
               </Typography>
             </Box>
           </Box>
@@ -509,26 +562,32 @@ const SolicitudesRRHH = ({
                 >
                   <MenuItem value="vacaciones">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <VacacionesIcon fontSize="small" sx={{ color: '#00bcd4' }} />
+                      <VacacionesIcon fontSize="small" sx={{ color: theme.palette.info.main }} />
                       Vacaciones
                     </Box>
                   </MenuItem>
                   <MenuItem value="permiso">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PermisoIcon fontSize="small" sx={{ color: '#ff9800' }} />
+                      <PermisoIcon fontSize="small" sx={{ color: theme.palette.warning.main }} />
                       Permiso
                     </Box>
                   </MenuItem>
                   <MenuItem value="incapacidad">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <IncapacidadIcon fontSize="small" sx={{ color: '#f44336' }} />
+                      <IncapacidadIcon fontSize="small" sx={{ color: theme.palette.error.main }} />
                       Incapacidad
                     </Box>
                   </MenuItem>
                   <MenuItem value="compensatorio">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CompensatorioIcon fontSize="small" sx={{ color: '#9c27b0' }} />
+                      <CompensatorioIcon fontSize="small" sx={{ color: theme.palette.secondary.main }} />
                       Día Compensatorio
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="certificacion">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DocumentoIcon fontSize="small" sx={{ color: theme.palette.primary.main }} />
+                      Certificación Laboral
                     </Box>
                   </MenuItem>
                 </Select>
@@ -565,44 +624,97 @@ const SolicitudesRRHH = ({
               </FormControl>
             </Grid>
 
-            {/* Fechas */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Fecha Inicio"
-                value={formSolicitud.fechaInicio}
-                onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaInicio: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Fecha Fin"
-                value={formSolicitud.fechaFin}
-                onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaFin: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+            {/* Fechas - Solo para tipos que requieren rango de fechas */}
+            {formSolicitud.tipo !== 'certificacion' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Fecha Inicio"
+                    value={formSolicitud.fechaInicio}
+                    onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaInicio: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Fecha Fin"
+                    value={formSolicitud.fechaFin}
+                    onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaFin: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
 
-            {/* Días Calculados */}
-            <Grid item xs={12}>
-              <Alert
-                severity="info"
-                icon={<InfoIcon />}
-                sx={{ 
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.info.main, 0.08),
-                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-                }}
-              >
-                <Typography variant="body2">
-                  <strong>Días solicitados:</strong> {formSolicitud.dias} día{formSolicitud.dias !== 1 ? 's' : ''}
-                </Typography>
-              </Alert>
-            </Grid>
+                {/* Días Calculados */}
+                <Grid item xs={12}>
+                  <Alert
+                    severity="info"
+                    icon={<InfoIcon />}
+                    sx={{ 
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.info.main, 0.08),
+                      border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                    }}
+                  >
+                    <Typography variant="body2">
+                      <strong>Días solicitados:</strong> {formSolicitud.dias} día{formSolicitud.dias !== 1 ? 's' : ''}
+                    </Typography>
+                  </Alert>
+                </Grid>
+              </>
+            )}
+
+            {/* Campos específicos para Certificación Laboral */}
+            {formSolicitud.tipo === 'certificacion' && (
+              <>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="A quién va dirigido"
+                    required
+                    value={formSolicitud.dirigidoA}
+                    onChange={(e) => setFormSolicitud({ ...formSolicitud, dirigidoA: e.target.value })}
+                    placeholder="Ej: A quien corresponda, Banco XYZ, Notaría..."
+                    helperText="Indica la entidad o persona a quien va dirigida la certificación"
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Fecha requerida (opcional)"
+                    value={formSolicitud.fechaRequerida}
+                    onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaRequerida: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    helperText="¿Para cuándo necesitas la certificación?"
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formSolicitud.incluirSalario}
+                        onChange={(e) => setFormSolicitud({ ...formSolicitud, incluirSalario: e.target.checked })}
+                        color="primary"
+                      />
+                    }
+                    label="¿Incluir asignación salarial?"
+                    sx={{ 
+                      mt: 1,
+                      '& .MuiFormControlLabel-label': {
+                        fontWeight: 500,
+                        color: 'text.primary'
+                      }
+                    }}
+                  />
+                </Grid>
+              </>
+            )}
 
             {/* Motivo */}
             <Grid item xs={12}>
@@ -610,10 +722,16 @@ const SolicitudesRRHH = ({
                 fullWidth
                 multiline
                 rows={3}
-                label="Motivo (opcional)"
+                required={formSolicitud.tipo === 'certificacion'}
+                label={formSolicitud.tipo === 'certificacion' ? 'Tipo de certificación' : 'Motivo (opcional)'}
                 value={formSolicitud.motivo}
                 onChange={(e) => setFormSolicitud({ ...formSolicitud, motivo: e.target.value })}
-                placeholder="Describe el motivo de la solicitud..."
+                placeholder={
+                  formSolicitud.tipo === 'certificacion' 
+                    ? 'Ej: Certificación laboral, certificación de ingresos, constancia de trabajo...'
+                    : 'Describe el motivo de la solicitud...'
+                }
+                helperText={formSolicitud.tipo === 'certificacion' ? 'Especifica qué tipo de certificación necesitas' : ''}
               />
             </Grid>
             </Grid>
@@ -621,7 +739,17 @@ const SolicitudesRRHH = ({
         </DialogContent>
         <Divider />
         <DialogActions sx={{ p: 3, gap: 1.5 }}>
-          <Button onClick={handleCloseModal} variant="outlined" color="secondary">
+          <Button 
+            onClick={handleCloseModal} 
+            variant="outlined" 
+            color="secondary"
+            sx={{ 
+              borderRadius: 1, 
+              fontWeight: 500, 
+              textTransform: 'none', 
+              px: 3 
+            }}
+          >
             Cancelar
           </Button>
           <Button
@@ -629,9 +757,13 @@ const SolicitudesRRHH = ({
             onClick={handleCrearSolicitud}
             startIcon={<CheckIcon />}
             sx={{
+              borderRadius: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              px: 4,
               backgroundColor: theme.palette.success.main,
               color: 'white',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
               '&:hover': {
                 backgroundColor: theme.palette.success.dark,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
