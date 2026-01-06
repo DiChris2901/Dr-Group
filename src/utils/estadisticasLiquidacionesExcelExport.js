@@ -72,6 +72,17 @@ const fmtDataNumber = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, h
 const fmtDataMoney = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'right' }, numFmt: '"$"#,##0' };
 const fmtDataPercent = { ...fmtDataBase, alignment: { ...fmtDataBase.alignment, horizontal: 'center' }, numFmt: '0.0%' };
 
+const makeTotalStyle = (baseStyle) => ({
+  ...baseStyle,
+  font: { ...(baseStyle.font || {}), name: 'Segoe UI', size: 9, bold: true, color: { argb: argb(BRAND_COLORS.textDark) } },
+  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND_COLORS.borderLight) } }
+});
+
+const fmtTotalTextLeft = makeTotalStyle(fmtDataTextLeft);
+const fmtTotalNumber = makeTotalStyle(fmtDataNumber);
+const fmtTotalMoney = makeTotalStyle(fmtDataMoney);
+const fmtTotalPercent = makeTotalStyle(fmtDataPercent);
+
 const applyZebraFill = (cell, isZebra) => {
   if (!isZebra) return;
   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -122,6 +133,71 @@ const toNumber = (v) => {
   if (v === null || v === undefined || v === '') return 0;
   const n = typeof v === 'string' ? parseFloat(v.toString().replace(/[^0-9.-]/g, '')) : Number(v);
   return Number.isFinite(n) ? n : 0;
+};
+
+const capitalizeFirst = (s) => {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+const shortPeriodoLabel = (raw) => {
+  const s = (raw ?? '').toString().trim();
+  if (!s) return '';
+
+  // Ya está abreviado (Oct 2025 / oct 2025)
+  if (/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3,4}\s+\d{4}$/.test(s)) {
+    const [m, y] = s.split(/\s+/);
+    return `${capitalizeFirst(m.slice(0, 3))} ${y}`;
+  }
+
+  // Formatos YYYY-MM o YYYY/MM
+  const ym = s.match(/^(\d{4})[-/](\d{2})$/);
+  if (ym) {
+    const year = ym[1];
+    const month = ym[2];
+    const map = {
+      '01': 'Ene',
+      '02': 'Feb',
+      '03': 'Mar',
+      '04': 'Abr',
+      '05': 'May',
+      '06': 'Jun',
+      '07': 'Jul',
+      '08': 'Ago',
+      '09': 'Sep',
+      '10': 'Oct',
+      '11': 'Nov',
+      '12': 'Dic'
+    };
+    return `${map[month] ?? month} ${year}`;
+  }
+
+  // Formato "Octubre 2025" (o similar)
+  const mm = s.match(/^(.+?)\s+(\d{4})$/);
+  if (mm) {
+    const monthRaw = mm[1].trim().toLowerCase();
+    const year = mm[2];
+    const monthMap = {
+      enero: 'Ene',
+      february: 'Feb',
+      febrero: 'Feb',
+      marzo: 'Mar',
+      abril: 'Abr',
+      mayo: 'May',
+      junio: 'Jun',
+      julio: 'Jul',
+      agosto: 'Ago',
+      septiembre: 'Sep',
+      setiembre: 'Sep',
+      octubre: 'Oct',
+      noviembre: 'Nov',
+      diciembre: 'Dic'
+    };
+    const abbr = monthMap[monthRaw] || capitalizeFirst(mm[1].slice(0, 3));
+    return `${abbr} ${year}`;
+  }
+
+  return s;
 };
 
 const formatMoneyCompact = (value) => {
@@ -197,9 +273,11 @@ const buildProduccionImpuestosChartPngDataUrl = async ({ labels, produccion, imp
       scales: {
         x: {
           ticks: {
-            font: { family: 'Segoe UI', size: 11 },
-            maxRotation: 0,
-            autoSkip: false
+            font: { family: 'Segoe UI', size: 10 },
+            maxRotation: 30,
+            minRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 12
           },
           grid: { display: false }
         },
@@ -244,7 +322,21 @@ export const exportarEstadisticasLiquidaciones = async (
     const prodSala = toNumber(kpis?.produccionPorSala);
     const prodMaquina = toNumber(kpis?.produccionPorMaquina);
     const mesesConsolidados = Number.isFinite(kpis?.mesesTotal) ? kpis.mesesTotal : 0;
-    const metricsLine = `Empresa: ${empresaLabel} | Periodos: ${numPeriodos} (${tipoPeriodoLabel}) | Producción Total: $${Math.round(prodTotal).toLocaleString('es-CO')} | Impuestos Total: $${Math.round(impTotal).toLocaleString('es-CO')} | Promedio Periodo: $${Math.round(prodProm).toLocaleString('es-CO')} | Prod/Sala (est.): $${Math.round(prodSala).toLocaleString('es-CO')} | Prod/Máquina (est.): $${Math.round(prodMaquina).toLocaleString('es-CO')} | Meses consolidados: ${mesesConsolidados}`;
+
+    const tendenciaRaw = (kpis?.tendencia ?? '').toString().toLowerCase();
+    const tendenciaLabel =
+      tendenciaRaw === 'creciente'
+        ? 'Crecimiento'
+        : tendenciaRaw === 'decreciente'
+          ? 'Disminución'
+          : 'Estable';
+    const porcentajeCambio = Number.isFinite(kpis?.porcentajeCambio) ? kpis.porcentajeCambio : null;
+    const porcentajeCambioLabel =
+      porcentajeCambio === null
+        ? 'N/A'
+        : `${porcentajeCambio > 0 ? '+' : ''}${porcentajeCambio.toFixed(1)}%`;
+
+    const metricsLine = `Empresa: ${empresaLabel} | Periodos: ${numPeriodos} (${tipoPeriodoLabel}) | Producción Total: $${Math.round(prodTotal).toLocaleString('es-CO')} | Impuestos Total: $${Math.round(impTotal).toLocaleString('es-CO')} | Promedio Periodo: $${Math.round(prodProm).toLocaleString('es-CO')} | Prod/Sala (est.): $${Math.round(prodSala).toLocaleString('es-CO')} | Prod/Máquina (est.): $${Math.round(prodMaquina).toLocaleString('es-CO')} | Meses consolidados: ${mesesConsolidados} | Tendencia: ${tendenciaLabel} | % cambio: ${porcentajeCambioLabel}`;
 
     // ===== HOJA 1: RESUMEN (FORMATO PYTHON) =====
     const wsResumen = wb.addWorksheet('Resumen Ejecutivo', { views: [{ state: 'frozen', ySplit: 7 }] });
@@ -281,7 +373,7 @@ export const exportarEstadisticasLiquidaciones = async (
     const dataRowsStartResumen = 22;
     if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
       try {
-        const labels = datosGraficos.map((r) => r?.periodoLabel ?? String(r?.periodo ?? ''));
+        const labels = datosGraficos.map((r) => shortPeriodoLabel(r?.periodoLabel ?? String(r?.periodo ?? '')));
         const produccionSeries = datosGraficos.map((r) => Math.round(toNumber(r?.produccion)));
         const impuestosSeries = datosGraficos.map((r) => Math.round(toNumber(r?.impuestos)));
         const pngDataUrl = await buildProduccionImpuestosChartPngDataUrl({
@@ -301,6 +393,12 @@ export const exportarEstadisticasLiquidaciones = async (
 
     // Datos desde fila 8
     let rowIndex = dataRowsStartResumen;
+    let totalProduccion = 0;
+    let totalImpuestos = 0;
+    let sumEmpresas = 0;
+    let sumSalasProm = 0;
+    let sumMaquinasProm = 0;
+    let countRowsResumen = 0;
     if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
       datosGraficos.forEach((r, idx) => {
         const zebra = idx % 2 === 0;
@@ -312,6 +410,13 @@ export const exportarEstadisticasLiquidaciones = async (
         const empresas = Math.round(toNumber(r?.empresasConsolidadas));
         const salasProm = Math.round(toNumber(r?.salasPromedioMensual));
         const maquinasProm = Math.round(toNumber(r?.maquinasPromedioMensual));
+
+        totalProduccion += produccion;
+        totalImpuestos += impuestos;
+        sumEmpresas += empresas;
+        sumSalasProm += salasProm;
+        sumMaquinasProm += maquinasProm;
+        countRowsResumen += 1;
 
         let variacionFraction = null;
         if (idx > 0) {
@@ -362,6 +467,37 @@ export const exportarEstadisticasLiquidaciones = async (
       });
     }
 
+    // Fila TOTAL (gerencial)
+    if (countRowsResumen > 0) {
+      const totalRow = wsResumen.getRow(rowIndex);
+      totalRow.getCell(1).value = 'TOTAL';
+      totalRow.getCell(1).style = fmtTotalTextLeft;
+
+      totalRow.getCell(2).value = '';
+      totalRow.getCell(2).style = fmtTotalTextLeft;
+
+      totalRow.getCell(3).value = totalProduccion;
+      totalRow.getCell(3).style = fmtTotalMoney;
+
+      totalRow.getCell(4).value = totalImpuestos;
+      totalRow.getCell(4).style = fmtTotalMoney;
+
+      totalRow.getCell(5).value = Math.round(sumEmpresas / countRowsResumen);
+      totalRow.getCell(5).style = fmtTotalNumber;
+
+      totalRow.getCell(6).value = Math.round(sumSalasProm / countRowsResumen);
+      totalRow.getCell(6).style = fmtTotalNumber;
+
+      totalRow.getCell(7).value = Math.round(sumMaquinasProm / countRowsResumen);
+      totalRow.getCell(7).style = fmtTotalNumber;
+
+      totalRow.getCell(8).value = 'N/A';
+      totalRow.getCell(8).style = fmtTotalNumber;
+
+      totalRow.height = 20;
+      rowIndex++;
+    }
+
 
     // ===== HOJA 2: DETALLE (RAW) =====
     // Mantiene el mismo estándar visual para consistencia.
@@ -395,7 +531,7 @@ export const exportarEstadisticasLiquidaciones = async (
       const dataRowsStartDetalle = 22;
       if (Array.isArray(datosGraficos) && datosGraficos.length > 0) {
         try {
-          const labels = datosGraficos.map((r) => r?.periodoLabel ?? String(r?.periodo ?? ''));
+          const labels = datosGraficos.map((r) => shortPeriodoLabel(r?.periodoLabel ?? String(r?.periodo ?? '')));
           const produccionSeries = datosGraficos.map((r) => Math.round(toNumber(r?.produccion)));
           const impuestosSeries = datosGraficos.map((r) => Math.round(toNumber(r?.impuestos)));
           const pngDataUrl = await buildProduccionImpuestosChartPngDataUrl({
@@ -414,40 +550,85 @@ export const exportarEstadisticasLiquidaciones = async (
       }
 
       let rIdx = dataRowsStartDetalle;
+      let totalProduccionDet = 0;
+      let totalImpuestosDet = 0;
+      let sumEmpresasDet = 0;
+      let sumSalasPromDet = 0;
+      let sumMaquinasPromDet = 0;
+      let countRowsDet = 0;
       Object.keys(datosEstadisticos)
         .sort()
         .forEach((key, idx) => {
           const zebra = idx % 2 === 0;
           const data = datosEstadisticos[key] || {};
+
+          const produccion = Math.round(toNumber(data.produccion));
+          const impuestos = Math.round(toNumber(data.impuestos));
+          const empresas = Math.round(toNumber(data.documentos));
+          const salasProm = Math.round(toNumber(data.salasPromedioMensual));
+          const maquinasProm = Math.round(toNumber(data.maquinasPromedioMensual));
+
+          totalProduccionDet += produccion;
+          totalImpuestosDet += impuestos;
+          sumEmpresasDet += empresas;
+          sumSalasPromDet += salasProm;
+          sumMaquinasPromDet += maquinasProm;
+          countRowsDet += 1;
+
           const row = wsDetalle.getRow(rIdx);
 
           row.getCell(1).value = String(key);
           row.getCell(1).style = fmtDataTextLeft;
           applyZebraFill(row.getCell(1), zebra);
 
-          row.getCell(2).value = Math.round(toNumber(data.produccion));
+          row.getCell(2).value = produccion;
           row.getCell(2).style = fmtDataMoney;
           applyZebraFill(row.getCell(2), zebra);
 
-          row.getCell(3).value = Math.round(toNumber(data.impuestos));
+          row.getCell(3).value = impuestos;
           row.getCell(3).style = fmtDataMoney;
           applyZebraFill(row.getCell(3), zebra);
 
-          row.getCell(4).value = Math.round(toNumber(data.documentos));
+          row.getCell(4).value = empresas;
           row.getCell(4).style = fmtDataNumber;
           applyZebraFill(row.getCell(4), zebra);
 
-          row.getCell(5).value = Math.round(toNumber(data.salasPromedioMensual));
+          row.getCell(5).value = salasProm;
           row.getCell(5).style = fmtDataNumber;
           applyZebraFill(row.getCell(5), zebra);
 
-          row.getCell(6).value = Math.round(toNumber(data.maquinasPromedioMensual));
+          row.getCell(6).value = maquinasProm;
           row.getCell(6).style = fmtDataNumber;
           applyZebraFill(row.getCell(6), zebra);
 
           row.height = 18;
           rIdx++;
         });
+
+      // Fila TOTAL (gerencial)
+      if (countRowsDet > 0) {
+        const totalRow = wsDetalle.getRow(rIdx);
+        totalRow.getCell(1).value = 'TOTAL';
+        totalRow.getCell(1).style = fmtTotalTextLeft;
+
+        totalRow.getCell(2).value = totalProduccionDet;
+        totalRow.getCell(2).style = fmtTotalMoney;
+
+        totalRow.getCell(3).value = totalImpuestosDet;
+        totalRow.getCell(3).style = fmtTotalMoney;
+
+        totalRow.getCell(4).value = Math.round(sumEmpresasDet / countRowsDet);
+        totalRow.getCell(4).style = fmtTotalNumber;
+
+        totalRow.getCell(5).value = Math.round(sumSalasPromDet / countRowsDet);
+        totalRow.getCell(5).style = fmtTotalNumber;
+
+        totalRow.getCell(6).value = Math.round(sumMaquinasPromDet / countRowsDet);
+        totalRow.getCell(6).style = fmtTotalNumber;
+
+        totalRow.height = 20;
+        rIdx++;
+      }
     }
 
     // ===== GENERAR Y DESCARGAR =====

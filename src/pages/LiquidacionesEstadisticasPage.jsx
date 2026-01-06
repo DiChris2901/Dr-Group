@@ -59,6 +59,7 @@ import { db } from '../config/firebase';
 import { startOfMonth, endOfMonth, subMonths, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { exportarEstadisticasLiquidaciones } from '../utils/estadisticasLiquidacionesExcelExport';
+import { exportarDetalleSalaExcel } from '../utils/salaDetalleExcelExport';
 import { useNotifications } from '../context/NotificationsContext';
 import SalaDetallePorMesModal from '../components/modals/SalaDetallePorMesModal';
 import MaquinaDetallePorMesModal from '../components/modals/MaquinaDetallePorMesModal';
@@ -995,6 +996,32 @@ const LiquidacionesEstadisticasPage = () => {
     }
   };
 
+  const handleExportarDetalleSalaExcel = async (salaNombre) => {
+    try {
+      if (!salaNombre) return;
+      const tipoPeriodo = periodoTab === 0 ? 'Trimestral' : periodoTab === 1 ? 'Semestral' : 'Anual';
+
+      const periodosIncluidos = Array.isArray(periodosLiquidacionIncluidos) ? periodosLiquidacionIncluidos : [];
+
+      const result = await exportarDetalleSalaExcel({
+        empresa: empresaSeleccionada,
+        sala: salaNombre,
+        tipoPeriodo,
+        periodosIncluidos,
+        liquidacionesPorSala
+      });
+
+      if (result.success) {
+        addNotification(result.message, 'success');
+      } else {
+        addNotification(result.message, 'error');
+      }
+    } catch (error) {
+      console.error('Error exportando detalle por sala:', error);
+      addNotification('Error al exportar detalle por sala', 'error');
+    }
+  };
+
   // ===== RENDERIZADO =====
   if (loading) {
     return (
@@ -1483,25 +1510,46 @@ const LiquidacionesEstadisticasPage = () => {
                           {Math.round(row.maquinasPromedioMensual).toLocaleString()}
                         </TableCell>
                         <TableCell align="right" sx={{ fontSize: 13 }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<VisibilityIcon />}
-                            onClick={() => abrirDetalleSalaPorMes(row.sala)}
-                            sx={{
-                              borderRadius: 1,
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderColor: alpha(theme.palette.primary.main, 0.6),
-                              color: 'text.primary',
-                              '&:hover': {
-                                borderColor: alpha(theme.palette.primary.main, 0.8),
-                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                              }
-                            }}
-                          >
-                            Ver detalle
-                          </Button>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<FileDownload />}
+                              onClick={() => handleExportarDetalleSalaExcel(row.sala)}
+                              sx={{
+                                borderRadius: 1,
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderColor: alpha(theme.palette.secondary.main, 0.6),
+                                color: 'text.primary',
+                                '&:hover': {
+                                  borderColor: alpha(theme.palette.secondary.main, 0.8),
+                                  backgroundColor: alpha(theme.palette.secondary.main, 0.04)
+                                }
+                              }}
+                            >
+                              Exportar
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<VisibilityIcon />}
+                              onClick={() => abrirDetalleSalaPorMes(row.sala)}
+                              sx={{
+                                borderRadius: 1,
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderColor: alpha(theme.palette.primary.main, 0.6),
+                                color: 'text.primary',
+                                '&:hover': {
+                                  borderColor: alpha(theme.palette.primary.main, 0.8),
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                                }
+                              }}
+                            >
+                              Ver detalle
+                            </Button>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
