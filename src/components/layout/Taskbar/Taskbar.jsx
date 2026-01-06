@@ -268,8 +268,10 @@ const Taskbar = React.memo(() => {
 
   // Auto-seleccionar primera categoría disponible solo cuando se abre el menú
   // Detectar categoría actual basada en la página donde está el usuario
+  // ✅ FIX: Actualizar selectedCategory solo cuando se ABRE el menú o cuando se navega con menú cerrado
   useEffect(() => {
-    if (menuInicioAnchorEl && filteredTaskbarItems.length > 0) {
+    // Solo actualizar la categoría si el menú está cerrado o acabamos de cambiar de página
+    if (!menuInicioAnchorEl && filteredTaskbarItems.length > 0) {
       // Buscar la categoría que contiene la página actual
       const currentCategory = filteredTaskbarItems.find(category => {
         if (category.path === location.pathname) return true;
@@ -281,11 +283,29 @@ const Taskbar = React.memo(() => {
       
       if (currentCategory) {
         setSelectedCategory(currentCategory.id);
-      } else if (!selectedCategory) {
-        setSelectedCategory(filteredTaskbarItems[0].id);
+      } else {
+        // Si no se encuentra la categoría, seleccionar la primera
+        setSelectedCategory(filteredTaskbarItems[0]?.id || 'dashboard');
       }
     }
-  }, [menuInicioAnchorEl, filteredTaskbarItems, location.pathname, selectedCategory]);
+  }, [menuInicioAnchorEl, filteredTaskbarItems, location.pathname]);
+
+  // ✅ Al abrir el menú, actualizar la categoría seleccionada a la actual
+  useEffect(() => {
+    if (menuInicioAnchorEl && filteredTaskbarItems.length > 0) {
+      const currentCategory = filteredTaskbarItems.find(category => {
+        if (category.path === location.pathname) return true;
+        if (category.submenu) {
+          return category.submenu.some(sub => sub.path === location.pathname);
+        }
+        return false;
+      });
+      
+      if (currentCategory) {
+        setSelectedCategory(currentCategory.id);
+      }
+    }
+  }, [menuInicioAnchorEl]);
 
   // 🎯 SISTEMA INTELIGENTE: Decidir comportamiento del Taskbar
   const showMenuInicio = filteredTaskbarItems.length > 6;

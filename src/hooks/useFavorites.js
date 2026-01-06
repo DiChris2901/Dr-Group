@@ -6,10 +6,20 @@ import { useAuth } from '../context/AuthContext';
 /**
  * Hook para gestionar favoritos del Taskbar
  * Persiste en Firebase: userSettings/{uid}/taskbar/favorites
+ * Y en localStorage como cache para persistencia inmediata
  */
 export const useFavorites = (maxFavorites = 5) => {
   const { currentUser } = useAuth();
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => {
+    // Intentar cargar desde localStorage primero (cache inmediato)
+    if (!currentUser?.uid) return [];
+    try {
+      const cached = localStorage.getItem(`taskbar_favorites_${currentUser.uid}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   // Cargar favoritos desde Firebase
@@ -26,7 +36,10 @@ export const useFavorites = (maxFavorites = 5) => {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setFavorites(docSnap.data().items || []);
+          const firebaseFavorites = docSnap.data().items || [];
+          setFavorites(firebaseFavorites);
+          // Actualizar cache de localStorage
+          localStorage.setItem(`taskbar_favorites_${currentUser.uid}`, JSON.stringify(firebaseFavorites));
         } else {
           // Favoritos por defecto: Dashboard, Compromisos, Pagos
           const defaultFavorites = [
@@ -35,12 +48,23 @@ export const useFavorites = (maxFavorites = 5) => {
             { path: '/payments', permission: 'pagos' }
           ];
           setFavorites(defaultFavorites);
-          // Guardar defaults en Firebase
+          // Guardar defaults en Firebase y localStorage
           await setDoc(docRef, { items: defaultFavorites });
+          localStorage.setItem(`taskbar_favorites_${currentUser.uid}`, JSON.stringify(defaultFavorites));
         }
       } catch (error) {
         console.error('Error cargando favoritos:', error);
-        setFavorites([]);
+        // Si hay error de Firebase, usar el cache de localStorage
+        try {
+          const cached = localStorage.getItem(`taskbar_favorites_${currentUser.uid}`);
+          if (cached) {
+            setFavorites(JSON.parse(cached));
+          } else {
+            setFavorites([]);
+          }
+        } catch {
+          setFavorites([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -49,14 +73,20 @@ export const useFavorites = (maxFavorites = 5) => {
     loadFavorites();
   }, [currentUser]);
 
-  // Guardar favoritos en Firebase
+  // Guardar favoritos en Firebase y localStorage
   const saveFavorites = async (newFavorites) => {
     if (!currentUser) return;
 
     try {
+      // Actualizar estado local inmediatamente
+      setFavorites(newFavorites);
+      
+      // Guardar en localStorage (inmediato)
+      localStorage.setItem(`taskbar_favorites_${currentUser.uid}`, JSON.stringify(newFavorites));
+      
+      // Guardar en Firebase (async)
       const docRef = doc(db, 'userSettings', currentUser.uid, 'taskbar', 'favorites');
       await setDoc(docRef, { items: newFavorites });
-      setFavorites(newFavorites);
     } catch (error) {
       console.error('Error guardando favoritos:', error);
     }
