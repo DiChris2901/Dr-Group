@@ -1067,33 +1067,50 @@ const LiquidacionesEstadisticasPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* HEADER */}
+      {/* HEADER GRADIENT SOBRIO SIMPLIFICADO */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Box
+        <Paper
           sx={{
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-            borderRadius: 2,
-            p: 3,
-            mb: 3,
-            color: 'white'
+            background: theme.palette.mode === 'dark'
+              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            borderRadius: 1,
+            overflow: 'hidden',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            mb: 3
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Assessment sx={{ fontSize: 40, mr: 2 }} />
-            <Box>
-              <Typography variant="h4" fontWeight={600}>
-                Estadísticas de Liquidaciones
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Análisis por últimos 3, 6 o 12 meses
-              </Typography>
-            </Box>
+          <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+            <Typography variant="overline" sx={{
+              fontWeight: 600,
+              fontSize: '0.7rem',
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              FINANZAS • ANÁLISIS
+            </Typography>
+            <Typography variant="h4" sx={{
+              fontWeight: 700,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              Estadísticas de Liquidaciones
+            </Typography>
+            <Typography variant="body1" sx={{
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Análisis comparativo por últimos 3, 6 o 12 meses
+            </Typography>
           </Box>
-        </Box>
+        </Paper>
       </motion.div>
 
       {/* FILTROS */}
@@ -1102,7 +1119,7 @@ const LiquidacionesEstadisticasPage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <Card sx={{ mb: 3, borderRadius: 2 }}>
+        <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} sm={4}>
@@ -1150,7 +1167,7 @@ const LiquidacionesEstadisticasPage = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
-        <Card sx={{ mb: 3, borderRadius: 2 }}>
+        <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <Tabs
             value={periodoTab}
             onChange={(e, newValue) => setPeriodoTab(newValue)}
@@ -1203,7 +1220,7 @@ const LiquidacionesEstadisticasPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.4 }}
             >
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
                 <CardContent>
                   <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                     Producción Total
@@ -1228,7 +1245,7 @@ const LiquidacionesEstadisticasPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.5 }}
             >
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
                 <CardContent>
                   <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                     Promedio por Período
@@ -1253,7 +1270,7 @@ const LiquidacionesEstadisticasPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.6 }}
             >
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
                 <CardContent>
                   <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                     Tendencia
@@ -1283,7 +1300,7 @@ const LiquidacionesEstadisticasPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.7 }}
             >
-              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
                 <CardContent>
                   <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                     Prod. Promedio por Sala
@@ -1310,7 +1327,7 @@ const LiquidacionesEstadisticasPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.8 }}
         >
-          <Card sx={{ mb: 3, borderRadius: 2, p: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 2 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
               Producción por Período
             </Typography>
@@ -1360,7 +1377,7 @@ const LiquidacionesEstadisticasPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.9 }}
         >
-          <Card sx={{ mb: 3, borderRadius: 2, p: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 2 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
               Tendencias Operativas
             </Typography>
@@ -1429,7 +1446,7 @@ const LiquidacionesEstadisticasPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 1.0 }}
         >
-          <Card sx={{ borderRadius: 2 }}>
+          <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
                 Detalle Comparativo por Período
@@ -1488,7 +1505,7 @@ const LiquidacionesEstadisticasPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 1.05 }}
         >
-          <Card sx={{ borderRadius: 2, mt: 3 }}>
+          <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', mt: 3 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
                 Comparativo por Sala (Empresa: {empresaSeleccionada})
@@ -1607,7 +1624,7 @@ const LiquidacionesEstadisticasPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 1.1 }}
         >
-          <Card sx={{ borderRadius: 2, mt: 3 }}>
+          <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', mt: 3 }}>
             <CardContent>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
                 <Typography variant="h6" fontWeight={600} sx={{ flex: '1 1 auto' }}>
@@ -1743,7 +1760,7 @@ const LiquidacionesEstadisticasPage = () => {
 
       {/* EMPTY STATE */}
       {!datosEstadisticos && !loading && (
-        <Card sx={{ borderRadius: 2, p: 4, textAlign: 'center' }}>
+        <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 4, textAlign: 'center' }}>
           <Assessment sx={{ fontSize: 80, color: theme.palette.text.disabled, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
             No hay datos disponibles para el período seleccionado

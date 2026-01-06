@@ -749,7 +749,8 @@ const LiquidacionesHistorialPage = () => {
   };
 
   // Detectar si hay filtros activos (para mostrar botón de limpiar)
-  const hasActiveFilters = searchTerm || filterEmpresa !== 'todas' || periodoFiltro !== 'thisMonth';
+  // ✅ Considera que HAY filtros activos si el usuario ya aplicó filtros (independientemente del valor)
+  const hasActiveFilters = filtersApplied || searchTerm || filterEmpresa !== 'todas';
   
   // Detectar si se debe mostrar la tabla (solo si se aplicaron filtros Y hay liquidaciones)
   const shouldShowTable = filtersApplied && liquidaciones.length > 0;
@@ -1037,18 +1038,23 @@ const LiquidacionesHistorialPage = () => {
                       sx={{ borderRadius: 2 }}
                     />
                   )}
-                  {periodoFiltro !== 'thisMonth' && (
-                    <Chip
-                      label={`Período: ${periodoMes?.toLocaleDateString?.('es-CO', { month: 'long', year: 'numeric' }) || '—'}`}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                      onDelete={() => {
-                        handlePeriodoFiltroChange('thisMonth');
-                      }}
-                      sx={{ borderRadius: 2 }}
-                    />
-                  )}
+                  {/* ✅ Siempre mostrar chip de período cuando hay filtros aplicados */}
+                  <Chip
+                    label={`Período: ${
+                      periodoFiltro === 'thisMonth' 
+                        ? 'Este mes' 
+                        : periodoFiltro === 'lastMonth' 
+                          ? 'Mes pasado' 
+                          : periodoMes?.toLocaleDateString?.('es-CO', { month: 'long', year: 'numeric' }) || '—'
+                    }`}
+                    size="small"
+                    color="secondary"
+                    variant="outlined"
+                    onDelete={() => {
+                      handlePeriodoFiltroChange('thisMonth');
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  />
                 </Box>
               </Box>
             </motion.div>
