@@ -241,7 +241,8 @@ const Taskbar = React.memo(() => {
       submenu: [
         { label: 'Talento Humano', path: '/recursos-humanos', icon: BadgeIcon, permission: 'rrhh' },
         { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
-        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' }
+        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
+        { label: 'Solicitudes', path: '/solicitudes', icon: AssignmentIcon, permission: 'solicitudes' }
       ]
     },
     {
