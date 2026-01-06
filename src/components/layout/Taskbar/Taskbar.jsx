@@ -259,7 +259,7 @@ const Taskbar = React.memo(() => {
   ], [theme.palette.primary.main, theme.palette.secondary.main]); // Solo recalcular si cambian los colores del tema
 
   // ✅ Usar hook centralizado de permisos (elimina 70+ líneas duplicadas)
-  const { shouldShowMenuItem, hasSubmenuPermission } = usePermissions();
+  const { shouldShowMenuItem, hasSubmenuPermission, hasPermission } = usePermissions();
 
   // ✅ OPTIMIZACIÓN: Cachear filtrado de permisos con useMemo
   const filteredTaskbarItems = useMemo(() => {
@@ -412,12 +412,37 @@ const Taskbar = React.memo(() => {
     handleMenuClose();
   }, [navigate]);
 
-  // Filtrado de menú con búsqueda interna
+  // Filtrado de menú con búsqueda interna y permisos
   const filteredMenuItems = useMemo(() => {
-    if (!menuSearchQuery.trim()) return filteredTaskbarItems;
+    // Primero filtrar por permisos los submenús de cada categoría
+    let itemsWithFilteredSubmenus = filteredTaskbarItems.map(category => {
+      if (!category.submenu) return category;
+      
+      // Filtrar submenús por permisos
+      const filteredSubmenuByPermissions = category.submenu.filter(item => {
+        // Si tiene permiso específico del subitem
+        if (item.permission && shouldShowMenuItem(item)) {
+          return true;
+        }
+        // Si no tiene permiso específico pero tiene el permiso padre
+        if (!item.permission && hasPermission(category.permission)) {
+          return true;
+        }
+        return false;
+      });
+      
+      return { ...category, submenu: filteredSubmenuByPermissions };
+    }).filter(category => 
+      // Solo mostrar categorías que tengan al menos un submenú visible
+      !category.submenu || category.submenu.length > 0
+    );
     
+    // Si no hay búsqueda, retornar items con submenús filtrados por permisos
+    if (!menuSearchQuery.trim()) return itemsWithFilteredSubmenus;
+    
+    // Si hay búsqueda, filtrar adicionalmente por texto
     const query = menuSearchQuery.toLowerCase();
-    return filteredTaskbarItems.map(category => {
+    return itemsWithFilteredSubmenus.map(category => {
       if (!category.submenu) return category;
       
       const filteredSubmenu = category.submenu.filter(item => 
@@ -430,7 +455,7 @@ const Taskbar = React.memo(() => {
       !category.submenu || category.submenu.length > 0 ||
       category.label.toLowerCase().includes(query)
     );
-  }, [filteredTaskbarItems, menuSearchQuery]);
+  }, [filteredTaskbarItems, menuSearchQuery, shouldShowMenuItem, hasPermission]);
 
   // Contador de páginas por categoría
   const getCategoryCount = useCallback((category) => {
