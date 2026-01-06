@@ -60,8 +60,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import { isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays } from 'date-fns';
-import DateRangeFilter from '../components/payments/DateRangeFilter';
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
 import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -82,18 +82,16 @@ const LiquidacionesHistorialPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
-  const [customStartDate, setCustomStartDate] = useState(null);
-  const [customEndDate, setCustomEndDate] = useState(null);
+  const [periodoFiltro, setPeriodoFiltro] = useState('thisMonth');
+  const [periodoMes, setPeriodoMes] = useState(startOfMonth(new Date()));
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
   // Filtros aplicados (los que realmente se usan para consultar Firebase)
   const [appliedFilters, setAppliedFilters] = useState({
     empresa: 'todas',
-    dateRange: 'thisMonth',
-    customStartDate: null,
-    customEndDate: null
+    periodoFiltro: 'thisMonth',
+    periodoMes: startOfMonth(new Date())
   });
   const [filtersApplied, setFiltersApplied] = useState(false); // Bandera para controlar si se han aplicado filtros
   
@@ -261,13 +259,10 @@ const LiquidacionesHistorialPage = () => {
         filtrosFirebase.empresa = filtrosAplicar.empresa;
       }
       
-      // ✅ Filtro por periodo (fechas)
-      if (filtrosAplicar.dateRange && filtrosAplicar.dateRange !== 'all') {
-        const dateRange = getDateRangeFromFilter(filtrosAplicar.dateRange, filtrosAplicar.customStartDate, filtrosAplicar.customEndDate);
-        if (dateRange) {
-          filtrosFirebase.startDate = dateRange.start;
-          filtrosFirebase.endDate = dateRange.end;
-        }
+      // ✅ Filtro por periodo mensual (siempre 1 mes)
+      if (filtrosAplicar.periodoMes) {
+        filtrosFirebase.startDate = startOfMonth(filtrosAplicar.periodoMes);
+        filtrosFirebase.endDate = endOfMonth(filtrosAplicar.periodoMes);
       }
       
       // Cargar liquidaciones desde Firebase CON FILTROS
@@ -754,11 +749,7 @@ const LiquidacionesHistorialPage = () => {
   };
 
   // Detectar si hay filtros activos (para mostrar botón de limpiar)
-  const hasActiveFilters = searchTerm || 
-    filterEmpresa !== 'todas' ||
-    dateRangeFilter !== 'thisMonth' ||
-    customStartDate !== null ||
-    customEndDate !== null;
+  const hasActiveFilters = searchTerm || filterEmpresa !== 'todas' || periodoFiltro !== 'thisMonth';
   
   // Detectar si se debe mostrar la tabla (solo si se aplicaron filtros Y hay liquidaciones)
   const shouldShowTable = filtersApplied && liquidaciones.length > 0;
@@ -769,59 +760,21 @@ const LiquidacionesHistorialPage = () => {
     setCurrentPage(1);
   };
 
-  // 📅 Función para convertir filtro de fecha a rango
-  const getDateRangeFromFilter = (filterValue, customStart, customEnd) => {
-    const now = new Date();
-    
-    switch (filterValue) {
-      case 'thisMonth':
-        return {
-          start: startOfMonth(now),
-          end: endOfMonth(now)
-        };
-      case 'lastMonth':
-        const lastMonth = subMonths(now, 1);
-        return {
-          start: startOfMonth(lastMonth),
-          end: endOfMonth(lastMonth)
-        };
-      case 'last90Days':
-        return {
-          start: subDays(now, 89),
-          end: now
-        };
-      case 'thisYear':
-        return {
-          start: startOfYear(now),
-          end: endOfYear(now)
-        };
-      case 'lastYear':
-        const lastYear = new Date(now.getFullYear() - 1, 0, 1);
-        return {
-          start: startOfYear(lastYear),
-          end: endOfYear(lastYear)
-        };
-      case 'custom':
-        if (customStart && customEnd) {
-          return { start: customStart, end: customEnd };
-        }
-        return null;
-      default:
-        return null;
-    }
-  };
-
-  // 📅 Handlers para filtro de fechas
-  const handleDateRangeChange = (value) => {
+  // 📅 Handlers para filtro mensual
+  const handlePeriodoFiltroChange = (value) => {
     console.log('📅 Filtro de periodo seleccionado:', value);
-    setDateRangeFilter(value);
+    setPeriodoFiltro(value);
+
+    if (value === 'thisMonth') {
+      setPeriodoMes(startOfMonth(new Date()));
+    } else if (value === 'lastMonth') {
+      setPeriodoMes(startOfMonth(subMonths(new Date(), 1)));
+    }
     // NO recargar automáticamente - esperar a que presione "Aplicar Filtros"
   };
 
-  const handleCustomDateRangeChange = (startDate, endDate) => {
-    console.log('📅 Rango personalizado seleccionado:', { startDate, endDate });
-    setCustomStartDate(startDate);
-    setCustomEndDate(endDate);
+  const handlePeriodoMesChange = (monthDate) => {
+    setPeriodoMes(startOfMonth(monthDate));
     // NO recargar automáticamente - esperar a que presione "Aplicar Filtros"
   };
 
@@ -835,15 +788,13 @@ const LiquidacionesHistorialPage = () => {
   const aplicarFiltros = () => {
     console.log('✅ Aplicando filtros:', { 
       empresa: filterEmpresa, 
-      periodo: dateRangeFilter,
-      customStartDate,
-      customEndDate
+      periodoFiltro,
+      periodoMes
     });
     const nuevosFiltros = {
       empresa: filterEmpresa,
-      dateRange: dateRangeFilter,
-      customStartDate,
-      customEndDate
+      periodoFiltro,
+      periodoMes
     };
     setAppliedFilters(nuevosFiltros);
     setFiltersApplied(true); // ✅ Marcar que se aplicaron filtros
@@ -856,14 +807,12 @@ const LiquidacionesHistorialPage = () => {
     console.log('🧹 Limpiando filtros - tabla quedará vacía hasta aplicar filtros');
     setSearchTerm('');
     setFilterEmpresa('todas');
-    setDateRangeFilter('thisMonth');
-    setCustomStartDate(null);
-    setCustomEndDate(null);
+    setPeriodoFiltro('thisMonth');
+    setPeriodoMes(startOfMonth(new Date()));
     const filtrosLimpios = { 
       empresa: 'todas',
-      dateRange: 'thisMonth',
-      customStartDate: null,
-      customEndDate: null
+      periodoFiltro: 'thisMonth',
+      periodoMes: startOfMonth(new Date())
     };
     setAppliedFilters(filtrosLimpios);
     setFiltersApplied(false); // ✅ Marcar que NO hay filtros aplicados - tabla queda vacía
@@ -875,9 +824,8 @@ const LiquidacionesHistorialPage = () => {
   // Detectar si hay cambios sin aplicar
   const hasUnappliedFilters = 
     filterEmpresa !== appliedFilters.empresa ||
-    dateRangeFilter !== appliedFilters.dateRange ||
-    customStartDate !== appliedFilters.customStartDate ||
-    customEndDate !== appliedFilters.customEndDate;
+    periodoFiltro !== appliedFilters.periodoFiltro ||
+    periodoMes?.getTime?.() !== appliedFilters.periodoMes?.getTime?.();
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -1046,14 +994,13 @@ const LiquidacionesHistorialPage = () => {
               </FormControl>
             </Grid>
 
-            {/* 📅 Filtro por periodo (fechas) */}
+            {/* 📅 Filtro por periodo (mensual) */}
             <Grid item xs={12} md={4}>
-              <DateRangeFilter
-                value={dateRangeFilter}
-                customStartDate={customStartDate}
-                customEndDate={customEndDate}
-                onChange={handleDateRangeChange}
-                onCustomRangeChange={handleCustomDateRangeChange}
+              <HistoricoPeriodoFilter
+                value={periodoFiltro}
+                monthDate={periodoMes}
+                onChange={handlePeriodoFiltroChange}
+                onMonthChange={handlePeriodoMesChange}
               />
             </Grid>
           </Grid>
@@ -1090,17 +1037,14 @@ const LiquidacionesHistorialPage = () => {
                       sx={{ borderRadius: 2 }}
                     />
                   )}
-                  {dateRangeFilter !== 'all' && (
+                  {periodoFiltro !== 'thisMonth' && (
                     <Chip
-                      label={`Período: ${dateRangeFilter === 'custom' && customStartDate && customEndDate 
-                        ? `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`
-                        : dateRangeFilter}`}
+                      label={`Período: ${periodoMes?.toLocaleDateString?.('es-CO', { month: 'long', year: 'numeric' }) || '—'}`}
                       size="small"
                       color="secondary"
                       variant="outlined"
                       onDelete={() => {
-                        handleDateRangeChange('all');
-                        handleCustomDateRangeChange(null, null);
+                        handlePeriodoFiltroChange('thisMonth');
                       }}
                       sx={{ borderRadius: 2 }}
                     />
