@@ -243,7 +243,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
         
         // Convertir permissions de objeto a array si es necesario
         let userPermissions = user.permissions || [];
@@ -393,6 +393,7 @@ const UserManagementPage = () => {
         'liquidaciones',
         'liquidaciones.liquidaciones',
         'liquidaciones.historico',
+        'liquidaciones.estadisticas',
         'facturacion',
         'facturacion.liquidaciones_por_sala',
         'facturacion.cuentas_cobro',
@@ -536,7 +537,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1824,7 +1825,8 @@ const UserManagementPage = () => {
                         color: '#ff9800',
                         subPermissions: [
                           { key: 'liquidaciones.liquidaciones', label: 'Liquidaciones' },
-                          { key: 'liquidaciones.historico', label: 'Histórico de Liquidaciones' }
+                          { key: 'liquidaciones.historico', label: 'Histórico de Liquidaciones' },
+                          { key: 'liquidaciones.estadisticas', label: 'Estadísticas' }
                         ]
                       },
                       { 

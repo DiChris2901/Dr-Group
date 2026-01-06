@@ -38,6 +38,7 @@ import {
   DeleteSweep as DeleteSweepIcon,
   AdminPanelSettings as AdminIcon,
   AccessTime,
+  BarChart as BarChartIcon,
   Search as SearchIcon,
   Menu as MenuIcon,
   Close as CloseIcon
@@ -203,7 +204,8 @@ const Taskbar = React.memo(() => {
       permission: 'liquidaciones',
       submenu: [
         { label: 'Liquidaciones', path: '/liquidaciones', icon: PaymentsIcon, permission: 'liquidaciones.liquidaciones' },
-        { label: 'Histórico de Liquidaciones', path: '/liquidaciones/historico', icon: ReportsIcon, permission: 'liquidaciones.historico' }
+        { label: 'Histórico de Liquidaciones', path: '/liquidaciones/historico', icon: ReportsIcon, permission: 'liquidaciones.historico' },
+        { label: 'Estadísticas', path: '/liquidaciones/estadisticas', icon: BarChartIcon, permission: 'liquidaciones.estadisticas' }
       ]
     },
     {

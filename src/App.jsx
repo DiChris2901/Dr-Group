@@ -56,6 +56,7 @@ import OrphanFilesPage from './pages/OrphanFilesPage';
 import LiquidacionesPage from './pages/LiquidacionesPage';
 import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
 import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
+import LiquidacionesEstadisticasPage from './pages/LiquidacionesEstadisticasPage';
 
 // Módulo de Facturación
 import FacturacionPage from './pages/FacturacionPage';
@@ -232,6 +233,16 @@ const DashboardLayout = () => {
           <ProtectedRoute requiredPermission="liquidaciones">
             <MainLayout title="Histórico de Liquidaciones" breadcrumbs={['Liquidaciones', 'Histórico']}>
               <LiquidacionesHistorialPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/liquidaciones/estadisticas" 
+        element={
+          <ProtectedRoute requiredPermission="liquidaciones">
+            <MainLayout title="Estadísticas de Liquidaciones" breadcrumbs={['Liquidaciones', 'Estadísticas']}>
+              <LiquidacionesEstadisticasPage />
             </MainLayout>
           </ProtectedRoute>
         }

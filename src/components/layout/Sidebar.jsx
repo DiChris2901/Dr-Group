@@ -6,6 +6,7 @@ import {
     Assignment,
     AttachMoney,
     Badge,
+    BarChart,
     Business,
     Clear,
     Dashboard,
@@ -311,7 +312,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'liquidaciones',
       submenu: [
         { title: 'Liquidaciones', icon: Receipt, path: '/liquidaciones', permission: 'liquidaciones.liquidaciones' },
-        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico', permission: 'liquidaciones.historico' }
+        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico', permission: 'liquidaciones.historico' },
+        { title: 'Estadísticas', icon: BarChart, path: '/liquidaciones/estadisticas', permission: 'liquidaciones.estadisticas' }
       ]
     },
     {
