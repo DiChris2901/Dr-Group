@@ -17,6 +17,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
   Button,
   Chip,
@@ -35,6 +36,8 @@ import {
   CalendarToday,
   Warning,
   CheckCircle,
+  Info,
+  Visibility as VisibilityIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -51,15 +54,17 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { startOfMonth, endOfMonth, subMonths, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { exportarEstadisticasLiquidaciones } from '../utils/estadisticasLiquidacionesExcelExport';
 import { useNotifications } from '../context/NotificationsContext';
+import SalaDetallePorMesModal from '../components/modals/SalaDetallePorMesModal';
+import MaquinaDetallePorMesModal from '../components/modals/MaquinaDetallePorMesModal';
 
 // ===== PÁGINA DE ESTADÍSTICAS DE LIQUIDACIONES =====
-// Comparativas por trimestre, semestre y año
+// Comparativas por rangos de meses (3, 6 y 12 meses)
 // Métricas por empresa y por sala
 // Alertas automáticas y exportación Excel
 
@@ -73,9 +78,111 @@ const LiquidacionesEstadisticasPage = () => {
   const [empresas, setEmpresas] = useState([]);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState('todas');
   const [salaSeleccionada, setSalaSeleccionada] = useState('todas');
+  const [salaDetalleSeleccionada, setSalaDetalleSeleccionada] = useState('');
   const [periodoTab, setPeriodoTab] = useState(0); // 0: Trimestral, 1: Semestral, 2: Anual
   const [liquidaciones, setLiquidaciones] = useState([]);
+  const [liquidacionesPorSala, setLiquidacionesPorSala] = useState([]);
   const [salasDisponibles, setSalasDisponibles] = useState([]);
+  const [periodosLiquidacionIncluidos, setPeriodosLiquidacionIncluidos] = useState([]);
+  const [periodoLiquidacionUltimo, setPeriodoLiquidacionUltimo] = useState('');
+  const [mostrarDetalleMaquinas, setMostrarDetalleMaquinas] = useState(false);
+  const [detalleSalaMesModalOpen, setDetalleSalaMesModalOpen] = useState(false);
+  const [detalleSalaMesSelection, setDetalleSalaMesSelection] = useState(null);
+  const [detalleMaquinaMesModalOpen, setDetalleMaquinaMesModalOpen] = useState(false);
+  const [detalleMaquinaMesSelection, setDetalleMaquinaMesSelection] = useState(null);
+
+  const [pageSalas, setPageSalas] = useState(0);
+  const [rowsPerPageSalas, setRowsPerPageSalas] = useState(10);
+  const [pageMaquinas, setPageMaquinas] = useState(0);
+  const [rowsPerPageMaquinas, setRowsPerPageMaquinas] = useState(10);
+
+  const normalizarTexto = (value) => {
+    if (value === null || value === undefined) return '';
+    return value
+      .toString()
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const normalizarEmpresaKey = (texto) => {
+    if (!texto) return '';
+    return String(texto).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  };
+
+  const normalizarSalaKey = (texto) => {
+    if (!texto) return '';
+    return String(texto).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  };
+
+  const abrirDetalleSalaPorMes = (salaNombre) => {
+    if (!salaNombre) return;
+
+    const salaKey = normalizarSalaKey(salaNombre);
+    const matchDoc =
+      liquidacionesPorSala.find((d) => d?.sala?.nombre === salaNombre) ||
+      liquidacionesPorSala.find((d) => normalizarSalaKey(d?.sala?.nombre) === salaKey);
+
+    const salaNormalizado = matchDoc?.sala?.normalizado || salaKey;
+    setDetalleSalaMesSelection({ nombre: salaNombre, normalizado: salaNormalizado });
+    setDetalleSalaMesModalOpen(true);
+  };
+
+  const abrirDetalleMaquinaPorMes = (machine) => {
+    if (!machine) return;
+    setDetalleMaquinaMesSelection({
+      serial: machine.serial || 'N/A',
+      nuc: machine.nuc || 'N/A',
+      tipoApuesta: machine.tipoApuesta || null
+    });
+    setDetalleMaquinaMesModalOpen(true);
+  };
+
+  const monthIndexFromNombre = (nombreMes) => {
+    const key = normalizarTexto(nombreMes);
+    const map = {
+      enero: 0,
+      febrero: 1,
+      marzo: 2,
+      abril: 3,
+      mayo: 4,
+      junio: 5,
+      julio: 6,
+      agosto: 7,
+      septiembre: 8,
+      setiembre: 8,
+      octubre: 9,
+      noviembre: 10,
+      diciembre: 11
+    };
+    return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+  };
+
+  const extraerYearMonthPeriodo = (liq) => {
+    const periodo = liq?.fechas?.periodoLiquidacion;
+    if (typeof periodo === 'string' && periodo.includes('_')) {
+      const parts = periodo.split('_');
+      const yearStr = parts[parts.length - 1];
+      const year = Number.parseInt(yearStr, 10);
+      const nombreMes = parts.slice(0, -1).join('_');
+      const monthIndex = monthIndexFromNombre(nombreMes);
+      if (Number.isFinite(year) && monthIndex !== null) return { year, monthIndex };
+    }
+
+    const yearFromDoc = liq?.fechas?.añoLiquidacion;
+    const mesFromDoc = liq?.fechas?.mesLiquidacion;
+    const parsedYear = Number.parseInt(yearFromDoc, 10);
+    const monthIndex2 = monthIndexFromNombre(mesFromDoc);
+    if (Number.isFinite(parsedYear) && monthIndex2 !== null) return { year: parsedYear, monthIndex: monthIndex2 };
+
+    const fecha = liq?.fechas?.createdAt?.toDate?.() || new Date(liq?.fechas?.createdAt);
+    if (fecha instanceof Date && !Number.isNaN(fecha.getTime())) {
+      return { year: fecha.getFullYear(), monthIndex: fecha.getMonth() };
+    }
+
+    return null;
+  };
 
   // ===== CARGAR EMPRESAS DESDE LIQUIDACIONES =====
   useEffect(() => {
@@ -135,42 +242,176 @@ const LiquidacionesEstadisticasPage = () => {
     const cargarLiquidaciones = async () => {
       setLoading(true);
       try {
-        const hace24Meses = new Date();
-        hace24Meses.setMonth(hace24Meses.getMonth() - 24);
+        const monthsToShow = periodoTab === 0 ? 3 : periodoTab === 1 ? 6 : 12;
 
-        // Cargar todas las liquidaciones de los últimos 24 meses
-        const q = query(
-          collection(db, 'liquidaciones'),
-          where('fechas.createdAt', '>=', hace24Meses),
-          orderBy('fechas.createdAt', 'desc')
-        );
+        // Solo necesitamos ventana máxima anual (12 meses). Agregamos un buffer por seguridad.
+        const hace15Meses = new Date();
+        hace15Meses.setMonth(hace15Meses.getMonth() - 15);
 
-        const snapshot = await getDocs(q);
-        let data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        // ===== MODO TODAS LAS EMPRESAS =====
+        if (empresaSeleccionada === 'todas') {
+          const q = query(
+            collection(db, 'liquidaciones'),
+            where('fechas.createdAt', '>=', hace15Meses),
+            orderBy('fechas.createdAt', 'desc')
+          );
 
-        // Filtrar por empresa en el cliente (porque empresa puede ser string u objeto)
-        if (empresaSeleccionada !== 'todas') {
-          data = data.filter(liq => {
-            const empresaDoc = liq.empresa;
-            const nombreEmpresa = typeof empresaDoc === 'object' && empresaDoc?.nombre 
-              ? empresaDoc.nombre 
-              : empresaDoc;
-            return nombreEmpresa === empresaSeleccionada;
-          });
+          const snapshot = await getDocs(q);
+          const data = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data()
+          }));
+
+          setLiquidaciones(data);
+          setLiquidacionesPorSala([]);
+          setSalasDisponibles([]);
+          setSalaDetalleSeleccionada('');
+          setPeriodosLiquidacionIncluidos([]);
+          setPeriodoLiquidacionUltimo('');
+          console.log('✅ Liquidaciones (todas las empresas) cargadas:', data.length);
+          return;
         }
 
-        setLiquidaciones(data);
-        console.log('✅ Liquidaciones totales:', snapshot.docs.length);
-        console.log('✅ Liquidaciones filtradas:', data.length);
-        console.log('✅ Filtro empresa:', empresaSeleccionada);
+        // ===== MODO EMPRESA (optimizado) =====
+        const empresaNorm = normalizarEmpresaKey(empresaSeleccionada);
 
-        // NOTA: Los datos ya están consolidados por empresa/período
-        // No hay array consolidatedData con datos por sala individual
-        setSalasDisponibles([]);
-        console.log('ℹ️ Los datos están consolidados por empresa/mes (no hay desglose por sala)');
+        // 1) Cargar meses consolidados de la empresa desde `liquidaciones` (uno por mes)
+        let mensualDocs = [];
+        try {
+          const qMensual = query(
+            collection(db, 'liquidaciones'),
+            where('empresa.normalizado', '==', empresaNorm),
+            where('fechas.createdAt', '>=', hace15Meses),
+            orderBy('fechas.createdAt', 'desc'),
+            limit(24)
+          );
+          const snapMensual = await getDocs(qMensual);
+          mensualDocs = snapMensual.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        } catch (e) {
+          console.warn('⚠️ Query por empresa.normalizado falló, usando fallback por nombre:', e);
+          const qFallback = query(
+            collection(db, 'liquidaciones'),
+            where('fechas.createdAt', '>=', hace15Meses),
+            orderBy('fechas.createdAt', 'desc'),
+            limit(300)
+          );
+          const snapFallback = await getDocs(qFallback);
+          mensualDocs = snapFallback.docs
+            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter((liq) => {
+              const empresaDoc = liq.empresa;
+              const nombreEmpresa = typeof empresaDoc === 'object' && empresaDoc?.nombre ? empresaDoc.nombre : empresaDoc;
+              return nombreEmpresa === empresaSeleccionada;
+            });
+        }
+
+        // Seleccionar meses únicos (máximo monthsToShow)
+        const vistos = new Set();
+        const mensualSeleccionado = [];
+        for (const liq of mensualDocs) {
+          const periodo = liq?.fechas?.periodoLiquidacion;
+          if (!periodo || vistos.has(periodo)) continue;
+          vistos.add(periodo);
+          mensualSeleccionado.push(liq);
+          if (mensualSeleccionado.length >= monthsToShow) break;
+        }
+
+        setLiquidaciones(mensualSeleccionado);
+
+        const periodosIncluidos = mensualSeleccionado
+          .map((l) => l?.fechas?.periodoLiquidacion)
+          .filter((p) => typeof p === 'string' && p.trim());
+
+        setPeriodosLiquidacionIncluidos(periodosIncluidos);
+        setPeriodoLiquidacionUltimo(periodosIncluidos[0] || '');
+
+        // 2) Top 10 salas del último mes y traer histórico de esas mismas salas
+        if (!periodosIncluidos.length) {
+          setLiquidacionesPorSala([]);
+          setSalasDisponibles([]);
+          setSalaDetalleSeleccionada('');
+          console.log('ℹ️ Empresa sin periodos disponibles en ventana.');
+          return;
+        }
+
+        const periodoUltimo = periodosIncluidos[0];
+
+        let topSalasDocs = [];
+        try {
+          const qTop = query(
+            collection(db, 'liquidaciones_por_sala'),
+            where('empresa.normalizado', '==', empresaNorm),
+            where('fechas.periodoLiquidacion', '==', periodoUltimo),
+            orderBy('metricas.totalProduccion', 'desc'),
+            limit(10)
+          );
+          const snapTop = await getDocs(qTop);
+          topSalasDocs = snapTop.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        } catch (e) {
+          console.warn('⚠️ Query top salas con orderBy falló, usando fallback sin orderBy:', e);
+          const qTopFallback = query(
+            collection(db, 'liquidaciones_por_sala'),
+            where('empresa.normalizado', '==', empresaNorm),
+            where('fechas.periodoLiquidacion', '==', periodoUltimo)
+          );
+          const snapTopFallback = await getDocs(qTopFallback);
+          const all = snapTopFallback.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          all.sort((a, b) => (Number(b.metricas?.totalProduccion) || 0) - (Number(a.metricas?.totalProduccion) || 0));
+          topSalasDocs = all.slice(0, 10);
+        }
+
+        const salaNorms = topSalasDocs
+          .map((d) => d?.sala?.normalizado)
+          .filter((s) => typeof s === 'string' && s.trim())
+          .slice(0, 10);
+
+        const salaNombres = topSalasDocs
+          .map((d) => d?.sala?.nombre)
+          .filter((s) => typeof s === 'string' && s.trim());
+
+        setSalasDisponibles(Array.from(new Set(salaNombres)).sort());
+
+        if (!salaNorms.length) {
+          setLiquidacionesPorSala([]);
+          setSalaDetalleSeleccionada('');
+          return;
+        }
+
+        const historico = [];
+        for (const periodo of periodosIncluidos) {
+          try {
+            const qPeriodo = query(
+              collection(db, 'liquidaciones_por_sala'),
+              where('empresa.normalizado', '==', empresaNorm),
+              where('fechas.periodoLiquidacion', '==', periodo),
+              where('sala.normalizado', 'in', salaNorms)
+            );
+            const snapPeriodo = await getDocs(qPeriodo);
+            snapPeriodo.docs.forEach((docSnap) => {
+              historico.push({ id: docSnap.id, ...docSnap.data() });
+            });
+          } catch (e) {
+            console.warn('⚠️ Query por periodo+sala.in falló, usando fallback por sala individual:', e);
+            for (const salaNorm of salaNorms) {
+              const qSala = query(
+                collection(db, 'liquidaciones_por_sala'),
+                where('empresa.normalizado', '==', empresaNorm),
+                where('fechas.periodoLiquidacion', '==', periodo),
+                where('sala.normalizado', '==', salaNorm),
+                limit(1)
+              );
+              const snapSala = await getDocs(qSala);
+              snapSala.docs.forEach((docSnap) => {
+                historico.push({ id: docSnap.id, ...docSnap.data() });
+              });
+            }
+          }
+        }
+
+        setLiquidacionesPorSala(historico);
+        console.log('✅ Empresa mensual (docs):', mensualSeleccionado.length);
+        console.log('✅ Salas top (último mes):', salaNorms.length);
+        console.log('✅ Histórico por sala (docs):', historico.length);
       } catch (error) {
         console.error('Error cargando liquidaciones:', error);
       } finally {
@@ -179,7 +420,121 @@ const LiquidacionesEstadisticasPage = () => {
     };
 
     cargarLiquidaciones();
-  }, [empresaSeleccionada]);
+  }, [empresaSeleccionada, periodoTab]);
+
+  useEffect(() => {
+    if (empresaSeleccionada === 'todas') return;
+    if (!salasDisponibles.length) return;
+    if (salaDetalleSeleccionada && salasDisponibles.includes(salaDetalleSeleccionada)) return;
+    setSalaDetalleSeleccionada(salasDisponibles[0] || '');
+  }, [empresaSeleccionada, salasDisponibles, salaDetalleSeleccionada]);
+
+  useEffect(() => {
+    setPageSalas(0);
+    setPageMaquinas(0);
+    setRowsPerPageMaquinas(10);
+    setMostrarDetalleMaquinas(false);
+    setDetalleSalaMesModalOpen(false);
+    setDetalleSalaMesSelection(null);
+    setDetalleMaquinaMesModalOpen(false);
+    setDetalleMaquinaMesSelection(null);
+  }, [empresaSeleccionada, periodoTab]);
+
+  const detalleMaquinasSala = useMemo(() => {
+    if (empresaSeleccionada === 'todas') return null;
+    if (!salaDetalleSeleccionada) return null;
+    if (!Array.isArray(periodosLiquidacionIncluidos) || periodosLiquidacionIncluidos.length === 0) return null;
+    if (!Array.isArray(liquidacionesPorSala) || liquidacionesPorSala.length === 0) return null;
+
+    const periodos = periodosLiquidacionIncluidos.filter((p) => typeof p === 'string' && p.trim());
+    if (!periodos.length) return null;
+
+    const periodoUltimo = periodos[0];
+    const periodoAnterior = periodos.length > 1 ? periodos[1] : '';
+
+    const salaNorm = normalizarSalaKey(salaDetalleSeleccionada);
+
+    const docsSala = liquidacionesPorSala.filter((d) => {
+      const p = d?.fechas?.periodoLiquidacion;
+      if (!p || !periodos.includes(p)) return false;
+      const salaNormDoc = d?.sala?.normalizado;
+      if (salaNormDoc) return salaNormDoc === salaNorm;
+      const salaNombreDoc = d?.sala?.nombre;
+      return normalizarSalaKey(salaNombreDoc) === salaNorm;
+    });
+
+    const docByPeriodo = new Map();
+    docsSala.forEach((d) => {
+      const p = d?.fechas?.periodoLiquidacion;
+      if (!p) return;
+      if (!docByPeriodo.has(p)) docByPeriodo.set(p, d);
+    });
+
+    const pickNumber = (value) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const extractMachine = (m, index) => {
+      const serial = m?.serial || m?.Serial || 'N/A';
+      const nucRaw = m?.nuc ?? m?.NUC ?? null;
+      const nuc = nucRaw != null ? String(nucRaw) : 'N/A';
+      const tipoApuesta = m?.tipoApuesta || m?.tipo_apuesta || m?.tipo || 'N/A';
+      return {
+        serial,
+        nuc,
+        tipoApuesta,
+        produccion: pickNumber(m?.produccion),
+        impuestos: pickNumber(m?.totalImpuestos ?? m?.impuestos),
+        _fallbackKey: `${serial}_${nuc}_${index}`
+      };
+    };
+
+    const acc = new Map();
+
+    for (const p of periodos) {
+      const doc = docByPeriodo.get(p);
+      const maquinas = Array.isArray(doc?.datosConsolidados) ? doc.datosConsolidados : [];
+
+      maquinas.forEach((m, idx) => {
+        const base = extractMachine(m, idx);
+        const stableKey = base.serial !== 'N/A' ? base.serial : base.nuc !== 'N/A' ? base.nuc : base._fallbackKey;
+
+        if (!acc.has(stableKey)) {
+          acc.set(stableKey, {
+            id: stableKey,
+            serial: base.serial,
+            nuc: base.nuc,
+            tipoApuesta: base.tipoApuesta,
+            produccionRango: 0,
+            impuestosRango: 0,
+            produccionUltimoMes: 0,
+            produccionMesAnterior: 0
+          });
+        }
+
+        const item = acc.get(stableKey);
+        item.produccionRango += base.produccion;
+        item.impuestosRango += base.impuestos;
+        if (p === periodoUltimo) item.produccionUltimoMes += base.produccion;
+        if (p === periodoAnterior) item.produccionMesAnterior += base.produccion;
+      });
+    }
+
+    const maquinas = Array.from(acc.values()).map((m) => {
+      const prev = m.produccionMesAnterior;
+      const cambioPct = prev > 0 ? ((m.produccionUltimoMes - prev) / prev) * 100 : null;
+      return { ...m, cambioPct };
+    });
+
+    maquinas.sort((a, b) => (b.produccionRango || 0) - (a.produccionRango || 0));
+
+    return {
+      sala: salaDetalleSeleccionada,
+      periodoUltimo,
+      maquinas
+    };
+  }, [empresaSeleccionada, liquidacionesPorSala, periodosLiquidacionIncluidos, salaDetalleSeleccionada]);
 
   // ===== PROCESAMIENTO DE DATOS =====
   const datosEstadisticos = useMemo(() => {
@@ -188,108 +543,119 @@ const LiquidacionesEstadisticasPage = () => {
     console.log('🔍 Procesando liquidaciones:', liquidaciones.length);
 
     // Función para agrupar por período
+    // Requisito negocio: Trimestral/Semestral/Anual = últimos 3/6/12 meses (sin Q1/Q2/etc.)
     const agruparPorPeriodo = (tipo) => {
-      const agrupado = {};
-      const ahora = new Date();
-      const añoActual = ahora.getFullYear();
-      const mesActual = ahora.getMonth(); // 0-11
-
-      // Calcular el período actual y los límites
-      let periodoActual;
-      let periodosAMostrar = [];
-
-      if (tipo === 'trimestral') {
-        const trimestreActual = Math.floor(mesActual / 3) + 1;
-        // Generar últimos 4 trimestres desde el trimestre anterior al actual
-        for (let i = 3; i >= 0; i--) {
-          let año = añoActual;
-          let trimestre = trimestreActual - i;
-          
-          while (trimestre <= 0) {
-            trimestre += 4;
-            año -= 1;
-          }
-          
-          periodosAMostrar.push(`${año}-Q${trimestre}`);
-        }
-      } else if (tipo === 'semestral') {
-        const semestreActual = mesActual < 6 ? 1 : 2;
-        // Generar últimos 4 semestres
-        for (let i = 3; i >= 0; i--) {
-          let año = añoActual;
-          let semestre = semestreActual - i;
-          
-          while (semestre <= 0) {
-            semestre += 2;
-            año -= 1;
-          }
-          
-          periodosAMostrar.push(`${año}-S${semestre}`);
-        }
-      } else {
-        // Generar últimos 3 años
-        for (let i = 2; i >= 0; i--) {
-          periodosAMostrar.push(`${añoActual - i}`);
-        }
-      }
-
-      console.log('📅 Períodos a mostrar:', periodosAMostrar);
-
-      liquidaciones.forEach(liq => {
-        // Estructura real de Firestore:
-        // - empresa: {nombre, normalizado}
-        // - metricas: {totalProduccion, derechosExplotacion, gastosAdministracion, maquinasConsolidadas, totalEstablecimientos, totalImpuestos}
-        // - fechas: {mesLiquidacion, añoLiquidacion, periodoLiquidacion, createdAt}
-        
-        const fecha = liq.fechas?.createdAt?.toDate?.() || new Date(liq.fechas?.createdAt);
-        const año = liq.fechas?.añoLiquidacion || fecha.getFullYear();
-        const mes = fecha.getMonth(); // 0-11
-
-        let periodoKey;
-        if (tipo === 'trimestral') {
-          const trimestre = Math.floor(mes / 3) + 1;
-          periodoKey = `${año}-Q${trimestre}`;
-        } else if (tipo === 'semestral') {
-          const semestre = mes < 6 ? 1 : 2;
-          periodoKey = `${año}-S${semestre}`;
-        } else {
-          periodoKey = `${año}`;
-        }
-
-        // Solo procesar si está en el rango de períodos a mostrar
-        if (!periodosAMostrar.includes(periodoKey)) {
-          return;
-        }
-
-        if (!agrupado[periodoKey]) {
-          agrupado[periodoKey] = {
+      // 1) Agregar primero a nivel mensual (doc = empresa + mes)
+      const mensual = {};
+      const isModoEmpresaPorSala = empresaSeleccionada !== 'todas';
+      liquidaciones.forEach((liq) => {
+        const ym = extraerYearMonthPeriodo(liq);
+        if (!ym) return;
+        const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
+        if (!mensual[monthKey]) {
+          mensual[monthKey] = {
+            year: ym.year,
+            monthIndex: ym.monthIndex,
             produccion: 0,
-            diasTransmitidos: 0,
-            numSalas: 0,
-            maquinas: 0,
             impuestos: 0,
             derechosExplotacion: 0,
             gastosAdministracion: 0,
-            numDocumentos: 0
+            maquinasTotal: 0,
+            salasTotal: 0,
+            empresasSet: new Set(),
+            salasSet: new Set()
           };
         }
 
-        // Sumar datos desde la estructura real (metricas)
-        agrupado[periodoKey].produccion += liq.metricas?.totalProduccion || 0;
-        agrupado[periodoKey].numSalas += liq.metricas?.totalEstablecimientos || 0;
-        agrupado[periodoKey].maquinas += liq.metricas?.maquinasConsolidadas || 0;
-        agrupado[periodoKey].impuestos += liq.metricas?.totalImpuestos || 0;
-        agrupado[periodoKey].derechosExplotacion += liq.metricas?.derechosExplotacion || 0;
-        agrupado[periodoKey].gastosAdministracion += liq.metricas?.gastosAdministracion || 0;
-        
-        // Estimación de días transmitidos (30 días por mes como estándar)
-        agrupado[periodoKey].diasTransmitidos += 30;
-        agrupado[periodoKey].numDocumentos += 1;
+        mensual[monthKey].produccion += liq.metricas?.totalProduccion || 0;
+        mensual[monthKey].impuestos += liq.metricas?.totalImpuestos || 0;
+        mensual[monthKey].derechosExplotacion += liq.metricas?.derechosExplotacion || 0;
+        mensual[monthKey].gastosAdministracion += liq.metricas?.gastosAdministracion || 0;
+
+        // Máquinas/Salas: totales del mes (sumados por empresa). Luego se usan como promedio mensual en el rango.
+        mensual[monthKey].maquinasTotal +=
+          (liq.metricas?.totalMaquinas ?? liq.metricas?.maquinasConsolidadas ?? 0);
+
+        if (isModoEmpresaPorSala) {
+          const salaNombre = liq?.sala?.nombre;
+          if (typeof salaNombre === 'string' && salaNombre.trim()) {
+            mensual[monthKey].salasSet.add(salaNombre);
+          }
+        } else {
+          mensual[monthKey].salasTotal += liq.metricas?.totalEstablecimientos || 0;
+        }
+
+        const empresaDoc = liq.empresa;
+        const nombreEmpresa = typeof empresaDoc === 'object' && empresaDoc?.nombre
+          ? empresaDoc.nombre
+          : empresaDoc;
+        if (typeof nombreEmpresa === 'string' && nombreEmpresa.trim()) {
+          mensual[monthKey].empresasSet.add(nombreEmpresa);
+        }
+
+        mensual[monthKey].documentos += 1;
       });
 
-      console.log('✅ Datos agrupados por período:', Object.keys(agrupado).length, 'períodos');
-      console.log('📊 Períodos con datos:', Object.keys(agrupado));
+      // 2) Seleccionar últimos N meses disponibles (según pestaña)
+      const monthsToShow = tipo === 'trimestral' ? 3 : tipo === 'semestral' ? 6 : 12;
 
+      const monthKeys = Object.keys(mensual);
+      if (monthKeys.length === 0) return {};
+
+      // Encontrar el mes más reciente con data (no depende de la fecha actual)
+      const parseMonthKey = (mk) => {
+        const [yy, mm] = String(mk).split('-');
+        const year = Number(yy);
+        const month = Number(mm); // 1-12
+        if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+        return { year, monthIndex: month - 1, score: year * 12 + (month - 1) };
+      };
+
+      const parsed = monthKeys
+        .map((k) => ({ key: k, p: parseMonthKey(k) }))
+        .filter((x) => x.p);
+
+      if (parsed.length === 0) return {};
+
+      parsed.sort((a, b) => a.p.score - b.p.score);
+      const latest = parsed[parsed.length - 1].p;
+
+      const monthsToInclude = [];
+      for (let i = monthsToShow - 1; i >= 0; i--) {
+        let score = latest.score - i;
+        const year = Math.floor(score / 12);
+        const monthIndex = score % 12;
+        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        if (mensual[key]) monthsToInclude.push(key);
+      }
+
+      console.log('📅 Meses a mostrar:', monthsToInclude);
+
+      // 3) Devolver por mes (cada key = YYYY-MM)
+      const agrupado = {};
+      monthsToInclude.forEach((key) => {
+        const m = mensual[key];
+        if (!m) return;
+
+        const empresasConsolidadas = m.empresasSet ? m.empresasSet.size : 0;
+        const salasConsolidadas = isModoEmpresaPorSala ? (m.salasSet ? m.salasSet.size : 0) : m.salasTotal;
+
+        agrupado[key] = {
+          produccion: m.produccion,
+          impuestos: m.impuestos,
+          derechosExplotacion: m.derechosExplotacion,
+          gastosAdministracion: m.gastosAdministracion,
+          meses: 1,
+          maquinasSumaMensual: m.maquinasTotal,
+          salasSumaMensual: salasConsolidadas,
+          documentos: empresasConsolidadas,
+          maquinasPromedioMensual: m.maquinasTotal,
+          salasPromedioMensual: salasConsolidadas,
+          produccionPromedioMensual: m.produccion
+        };
+      });
+
+      console.log('✅ Meses con datos:', Object.keys(agrupado));
       return agrupado;
     };
 
@@ -297,13 +663,73 @@ const LiquidacionesEstadisticasPage = () => {
     return agruparPorPeriodo(tipoActual);
   }, [liquidaciones, periodoTab]);
 
+  const comparativoPorSala = useMemo(() => {
+    if (empresaSeleccionada === 'todas') return [];
+    if (!datosEstadisticos) return [];
+
+    const periodos = Object.keys(datosEstadisticos).sort();
+    if (!periodos.length) return [];
+
+    const ultimoPeriodo = periodos[periodos.length - 1];
+    const penultimoPeriodo = periodos.length > 1 ? periodos[periodos.length - 2] : null;
+    const periodosSet = new Set(periodos);
+
+    const porSalaPorMes = new Map();
+
+    liquidacionesPorSala.forEach((liq) => {
+      const salaNombre = liq?.sala?.nombre;
+      if (typeof salaNombre !== 'string' || !salaNombre.trim()) return;
+      const ym = extraerYearMonthPeriodo(liq);
+      if (!ym) return;
+      const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
+      if (!periodosSet.has(monthKey)) return;
+
+      if (!porSalaPorMes.has(salaNombre)) porSalaPorMes.set(salaNombre, {});
+      const salaData = porSalaPorMes.get(salaNombre);
+      salaData[monthKey] = {
+        produccion: Number(liq.metricas?.totalProduccion) || 0,
+        impuestos: Number(liq.metricas?.totalImpuestos) || 0,
+        maquinas: Number(liq.metricas?.totalMaquinas ?? liq.metricas?.maquinasConsolidadas) || 0
+      };
+    });
+
+    const filas = [];
+    porSalaPorMes.forEach((meses, salaNombre) => {
+      const produccionRango = periodos.reduce((sum, p) => sum + (meses[p]?.produccion || 0), 0);
+      const impuestosRango = periodos.reduce((sum, p) => sum + (meses[p]?.impuestos || 0), 0);
+      const maquinasPromedioMensual = periodos.length
+        ? periodos.reduce((sum, p) => sum + (meses[p]?.maquinas || 0), 0) / periodos.length
+        : 0;
+
+      const prodUltimo = meses[ultimoPeriodo]?.produccion || 0;
+      const prodPrevio = penultimoPeriodo ? (meses[penultimoPeriodo]?.produccion || 0) : null;
+      const cambioPct = prodPrevio && prodPrevio > 0 ? ((prodUltimo - prodPrevio) / prodPrevio) * 100 : null;
+
+      filas.push({
+        sala: salaNombre,
+        produccionRango,
+        impuestosRango,
+        maquinasPromedioMensual,
+        ultimoPeriodo,
+        produccionUltimoMes: prodUltimo,
+        produccionMesAnterior: prodPrevio,
+        cambioPct
+      });
+    });
+
+    filas.sort((a, b) => b.produccionRango - a.produccionRango);
+    return filas;
+  }, [empresaSeleccionada, datosEstadisticos, liquidacionesPorSala]);
+
+
+
   // ===== CÁLCULO DE KPIs =====
   const kpis = useMemo(() => {
     if (!datosEstadisticos) return null;
 
     const valores = Object.values(datosEstadisticos);
     const produccionTotal = valores.reduce((sum, p) => sum + p.produccion, 0);
-    const diasTotal = valores.reduce((sum, p) => sum + p.diasTransmitidos, 0);
+    const mesesTotal = valores.reduce((sum, p) => sum + (p.meses || 0), 0);
     const produccionPromedio = valores.length > 0 ? produccionTotal / valores.length : 0;
 
     // Calcular tendencia (últimos 3 períodos vs primeros 3)
@@ -319,25 +745,27 @@ const LiquidacionesEstadisticasPage = () => {
       else if (porcentajeCambio < -5) tendencia = 'decreciente';
     }
 
-    // Promedio por sala/máquina
-    const salasActivas = new Set();
-    Object.values(datosEstadisticos).forEach(p => {
-      if (p.numSalas) salasActivas.add(p.numSalas);
-    });
-    const numSalasPromedio = salasActivas.size > 0 ? Array.from(salasActivas).reduce((a, b) => a + b, 0) / salasActivas.size : 0;
-    const produccionPorSala = numSalasPromedio > 0 ? produccionTotal / numSalasPromedio : 0;
+    const salasPromedioMensualGlobal = mesesTotal > 0
+      ? valores.reduce((sum, p) => sum + (p.salasPromedioMensual || 0) * (p.meses || 0), 0) / mesesTotal
+      : 0;
+    const maquinasPromedioMensualGlobal = mesesTotal > 0
+      ? valores.reduce((sum, p) => sum + (p.maquinasPromedioMensual || 0) * (p.meses || 0), 0) / mesesTotal
+      : 0;
 
-    const maquinasTotal = valores.reduce((sum, p) => sum + p.maquinas, 0);
-    const produccionPorMaquina = maquinasTotal > 0 ? produccionTotal / maquinasTotal : 0;
+    // Producción por sala: usando salas promedio mensual (evita sumar “stocks” mes a mes)
+    const produccionPorSala = salasPromedioMensualGlobal > 0 ? produccionTotal / salasPromedioMensualGlobal : 0;
+    const produccionPorMaquina = maquinasPromedioMensualGlobal > 0 ? produccionTotal / maquinasPromedioMensualGlobal : 0;
 
     return {
       produccionTotal,
-      diasTotal,
+      mesesTotal,
       produccionPromedio,
       tendencia,
       porcentajeCambio,
       produccionPorSala,
       produccionPorMaquina,
+      salasPromedioMensualGlobal,
+      maquinasPromedioMensualGlobal,
       numPeriodos: valores.length
     };
   }, [datosEstadisticos]);
@@ -351,27 +779,32 @@ const LiquidacionesEstadisticasPage = () => {
   };
 
   const formatearPeriodo = (periodo) => {
-    if (periodo.includes('Q')) {
-      const [año, trimestre] = periodo.split('-');
-      const numTrimestre = trimestre.replace('Q', '');
-      const nombreTrimestre = {
-        '1': '1er Trimestre',
-        '2': '2do Trimestre',
-        '3': '3er Trimestre',
-        '4': '4to Trimestre'
-      }[numTrimestre] || trimestre;
-      return `${nombreTrimestre} ${año}`;
+    // Esperado: YYYY-MM
+    const parts = String(periodo).split('-');
+    if (parts.length === 2) {
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      const meses = [
+        'Enero',
+        'Febrero',
+        'Marzo',
+        'Abril',
+        'Mayo',
+        'Junio',
+        'Julio',
+        'Agosto',
+        'Septiembre',
+        'Octubre',
+        'Noviembre',
+        'Diciembre'
+      ];
+      if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+        return `${meses[month - 1]} ${year}`;
+      }
     }
-    if (periodo.includes('S')) {
-      const [año, semestre] = periodo.split('-');
-      const numSemestre = semestre.replace('S', '');
-      const nombreSemestre = {
-        '1': '1er Semestre',
-        '2': '2do Semestre'
-      }[numSemestre] || semestre;
-      return `${nombreSemestre} ${año}`;
-    }
-    return `Año ${periodo}`;
+
+    // Fallback
+    return String(periodo);
   };
 
   // ===== DATOS PARA GRÁFICOS =====
@@ -387,9 +820,9 @@ const LiquidacionesEstadisticasPage = () => {
           periodo: key,
           periodoLabel: formatearPeriodo(key),
           produccion: Math.round(data.produccion),
-          diasTransmitidos: data.diasTransmitidos, // Total sumado
-          salas: data.numSalas, // Total sumado
-          maquinas: data.maquinas, // Total sumado
+          empresasConsolidadas: data.documentos || 0,
+          salasPromedioMensual: Math.round(data.salasPromedioMensual || 0),
+          maquinasPromedioMensual: Math.round(data.maquinasPromedioMensual || 0),
           impuestos: Math.round(data.impuestos)
         };
       });
@@ -407,7 +840,18 @@ const LiquidacionesEstadisticasPage = () => {
     if (ultimoPeriodo && penultimoPeriodo) {
       const prodActual = datosEstadisticos[ultimoPeriodo].produccion;
       const prodAnterior = datosEstadisticos[penultimoPeriodo].produccion;
-      const cambio = ((prodActual - prodAnterior) / prodAnterior) * 100;
+      const cambio = prodAnterior > 0 ? ((prodActual - prodAnterior) / prodAnterior) * 100 : null;
+
+      if (cambio === null) {
+        if (prodActual > 0) {
+          alerts.push({
+            tipo: 'info',
+            mensaje: 'Mes anterior sin producción: % no comparable',
+            icono: <Info />
+          });
+        }
+        return alerts;
+      }
 
       if (cambio < -30) {
         alerts.push({
@@ -430,11 +874,11 @@ const LiquidacionesEstadisticasPage = () => {
       }
     }
 
-    // Alerta si no hay días transmitidos
-    if (datosEstadisticos[ultimoPeriodo]?.diasTransmitidos === 0) {
+    // Alerta si no hay meses consolidados
+    if ((datosEstadisticos[ultimoPeriodo]?.meses || 0) === 0) {
       alerts.push({
         tipo: 'error',
-        mensaje: 'No hay días transmitidos en el último período',
+        mensaje: 'No hay meses consolidados en el último período',
         icono: <ErrorIcon />
       });
     }
@@ -511,7 +955,7 @@ const LiquidacionesEstadisticasPage = () => {
                 Estadísticas de Liquidaciones
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Análisis comparativo por trimestre, semestre y año
+                Análisis por últimos 3, 6 o 12 meses
               </Typography>
             </Box>
           </Box>
@@ -535,6 +979,7 @@ const LiquidacionesEstadisticasPage = () => {
                     onChange={(e) => {
                       setEmpresaSeleccionada(e.target.value);
                       setSalaSeleccionada('todas');
+                      setSalaDetalleSeleccionada('');
                     }}
                     label="Empresa"
                   >
@@ -659,7 +1104,7 @@ const LiquidacionesEstadisticasPage = () => {
                   </Typography>
                   <Chip
                     size="small"
-                    label={`${kpis.diasTotal} días total`}
+                    label={`${kpis.mesesTotal} meses total`}
                     sx={{ backgroundColor: alpha(theme.palette.secondary.main, 0.1) }}
                   />
                 </CardContent>
@@ -797,14 +1242,14 @@ const LiquidacionesEstadisticasPage = () => {
                   yAxisId="left"
                   stroke={theme.palette.text.secondary}
                   style={{ fontSize: 12 }}
-                  label={{ value: 'Días', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
+                  label={{ value: 'Empresas', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
                 />
                 <YAxis 
                   yAxisId="right"
                   orientation="right"
                   stroke={theme.palette.text.secondary}
                   style={{ fontSize: 12 }}
-                  label={{ value: 'Máquinas', angle: 90, position: 'insideRight', style: { fontSize: 12 } }}
+                  label={{ value: 'Máquinas (prom. mensual)', angle: 90, position: 'insideRight', style: { fontSize: 12 } }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -820,20 +1265,20 @@ const LiquidacionesEstadisticasPage = () => {
                 <Line 
                   yAxisId="left"
                   type="monotone" 
-                  dataKey="diasTransmitidos" 
+                  dataKey="empresasConsolidadas" 
                   stroke={theme.palette.secondary.main} 
                   strokeWidth={2.5} 
-                  name="Días Transmitidos"
+                  name="Empresas Consolidadas"
                   dot={{ fill: theme.palette.secondary.main, r: 4 }}
                   activeDot={{ r: 6 }}
                 />
                 <Line 
                   yAxisId="right"
                   type="monotone" 
-                  dataKey="maquinas" 
+                  dataKey="maquinasPromedioMensual" 
                   stroke={theme.palette.warning.main} 
                   strokeWidth={2.5} 
-                  name="Máquinas Consolidadas"
+                  name="Máquinas (prom. mensual)"
                   dot={{ fill: theme.palette.warning.main, r: 4 }}
                   activeDot={{ r: 6 }}
                 />
@@ -862,10 +1307,10 @@ const LiquidacionesEstadisticasPage = () => {
                       <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>Período</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Producción Total</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Impuestos</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Días</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Salas</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Máquinas</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Prod/Día</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Empresas</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Salas (prom. mensual)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Máquinas (prom. mensual)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Prod/Empresa (prom.)</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -886,17 +1331,256 @@ const LiquidacionesEstadisticasPage = () => {
                         <TableCell align="right" sx={{ fontSize: 13 }}>
                           ${row.impuestos.toLocaleString()}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.diasTransmitidos}</TableCell>
-                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.salas}</TableCell>
-                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.maquinas.toLocaleString()}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.empresasConsolidadas}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.salasPromedioMensual}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>{row.maquinasPromedioMensual.toLocaleString()}</TableCell>
                         <TableCell align="right" sx={{ fontSize: 13, fontWeight: 500 }}>
-                          ${row.diasTransmitidos > 0 ? Math.round(row.produccion / row.diasTransmitidos).toLocaleString() : 0}
+                          ${row.empresasConsolidadas > 0 ? Math.round(row.produccion / row.empresasConsolidadas).toLocaleString() : 0}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </TableContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* COMPARATIVO POR SALA (solo cuando se filtra una empresa) */}
+      {empresaSeleccionada !== 'todas' && comparativoPorSala.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 1.05 }}
+        >
+          <Card sx={{ borderRadius: 2, mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                Comparativo por Sala (Empresa: {empresaSeleccionada})
+              </Typography>
+              <TableContainer>
+                <Table size="medium">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: alpha(theme.palette.secondary.main, 0.08) }}>
+                      <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>Sala</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Producción (rango)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Producción (último mes)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>% vs mes anterior</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Impuestos (rango)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Máquinas (prom. mensual)</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: 13 }}>Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {comparativoPorSala
+                      .slice(pageSalas * rowsPerPageSalas, pageSalas * rowsPerPageSalas + rowsPerPageSalas)
+                      .map((row, index) => (
+                      <TableRow
+                        key={row.sala}
+                        sx={{
+                          backgroundColor: index % 2 === 0 ? alpha(theme.palette.secondary.main, 0.02) : 'transparent',
+                          '&:hover': { backgroundColor: alpha(theme.palette.secondary.main, 0.05) }
+                        }}
+                      >
+                        <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>{row.sala}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.primary.main }}>
+                          ${Math.round(row.produccionRango).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>
+                          ${Math.round(row.produccionUltimoMes).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>
+                          {row.cambioPct === null
+                            ? 'N/A'
+                            : `${row.cambioPct > 0 ? '+' : ''}${row.cambioPct.toFixed(1)}%`}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>
+                          ${Math.round(row.impuestosRango).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>
+                          {Math.round(row.maquinasPromedioMensual).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: 13 }}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => abrirDetalleSalaPorMes(row.sala)}
+                            sx={{
+                              borderRadius: 1,
+                              fontWeight: 600,
+                              textTransform: 'none',
+                              borderColor: alpha(theme.palette.primary.main, 0.6),
+                              color: 'text.primary',
+                              '&:hover': {
+                                borderColor: alpha(theme.palette.primary.main, 0.8),
+                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                              }
+                            }}
+                          >
+                            Ver detalle
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TablePagination
+                component="div"
+                count={comparativoPorSala.length}
+                page={pageSalas}
+                onPageChange={(e, newPage) => setPageSalas(newPage)}
+                rowsPerPage={rowsPerPageSalas}
+                onRowsPerPageChange={(e) => {
+                  setRowsPerPageSalas(Number(e.target.value));
+                  setPageSalas(0);
+                }}
+                rowsPerPageOptions={[10]}
+              />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* DETALLE POR MÁQUINA (opcional) */}
+      {empresaSeleccionada !== 'todas' && salasDisponibles.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 1.1 }}
+        >
+          <Card sx={{ borderRadius: 2, mt: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} sx={{ flex: '1 1 auto' }}>
+                  Detalle por Máquina
+                </Typography>
+                <Button
+                  variant={mostrarDetalleMaquinas ? 'outlined' : 'contained'}
+                  size="small"
+                  onClick={() => {
+                    setMostrarDetalleMaquinas((prev) => {
+                      const next = !prev;
+                      if (!next) setPageMaquinas(0);
+                      return next;
+                    });
+                  }}
+                >
+                  {mostrarDetalleMaquinas ? 'Ocultar detalle' : 'Ver detalle'}
+                </Button>
+
+                <FormControl sx={{ minWidth: 260 }} size="small">
+                  <InputLabel>Sala</InputLabel>
+                  <Select
+                    value={salaDetalleSeleccionada || ''}
+                    label="Sala"
+                    onChange={(e) => setSalaDetalleSeleccionada(e.target.value)}
+                  >
+                    {salasDisponibles.map((s) => (
+                      <MenuItem key={s} value={s}>
+                        {s}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {mostrarDetalleMaquinas && detalleMaquinasSala && (
+                <>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Período último: {detalleMaquinasSala.periodoUltimo || 'N/A'} · Sala: {detalleMaquinasSala.sala}
+                  </Typography>
+                  {detalleMaquinasSala.maquinas.length === 0 ? (
+                    <Alert severity="info" icon={<Info />} sx={{ borderRadius: 1 }}>
+                      No hay máquinas disponibles para esta sala en el rango actual.
+                    </Alert>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: alpha(theme.palette.info.main, 0.08) }}>
+                            <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Serial</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>NUC</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Tipo</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Producción (rango)</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Producción (último mes)</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>% vs mes anterior</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Impuestos (rango)</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Acciones</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {detalleMaquinasSala.maquinas
+                            .slice(pageMaquinas * rowsPerPageMaquinas, pageMaquinas * rowsPerPageMaquinas + rowsPerPageMaquinas)
+                            .map((m, idx) => (
+                              <TableRow
+                                key={m.id}
+                                sx={{
+                                  backgroundColor: idx % 2 === 0 ? alpha(theme.palette.info.main, 0.02) : 'transparent'
+                                }}
+                              >
+                                <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>{m.serial}</TableCell>
+                                <TableCell sx={{ fontSize: 12 }}>{m.nuc}</TableCell>
+                                <TableCell sx={{ fontSize: 12 }}>{m.tipoApuesta || 'N/A'}</TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.primary.main }}>
+                                  ${Math.round(m.produccionRango).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12 }}>
+                                  ${Math.round(m.produccionUltimoMes).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12 }}>
+                                  {m.cambioPct === null
+                                    ? 'N/A'
+                                    : `${m.cambioPct > 0 ? '+' : ''}${m.cambioPct.toFixed(1)}%`}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12 }}>
+                                  ${Math.round(m.impuestosRango).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12 }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={<VisibilityIcon />}
+                                    onClick={() => abrirDetalleMaquinaPorMes(m)}
+                                    sx={{
+                                      borderRadius: 1,
+                                      fontWeight: 600,
+                                      textTransform: 'none',
+                                      borderColor: alpha(theme.palette.primary.main, 0.6),
+                                      color: 'text.primary',
+                                      '&:hover': {
+                                        borderColor: alpha(theme.palette.primary.main, 0.8),
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                                      }
+                                    }}
+                                  >
+                                    Ver detalle
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  <TablePagination
+                    component="div"
+                    count={detalleMaquinasSala.maquinas.length}
+                    page={pageMaquinas}
+                    onPageChange={(e, newPage) => setPageMaquinas(newPage)}
+                    rowsPerPage={rowsPerPageMaquinas}
+                    onRowsPerPageChange={(e) => {
+                      setRowsPerPageMaquinas(Number(e.target.value));
+                      setPageMaquinas(0);
+                    }}
+                    rowsPerPageOptions={[10]}
+                  />
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -914,6 +1598,29 @@ const LiquidacionesEstadisticasPage = () => {
           </Typography>
         </Card>
       )}
+
+      {/* MODAL: DETALLE POR MES DE LA SALA */}
+      <SalaDetallePorMesModal
+        open={detalleSalaMesModalOpen}
+        onClose={() => setDetalleSalaMesModalOpen(false)}
+        empresaNombre={empresaSeleccionada}
+        salaNombre={detalleSalaMesSelection?.nombre || ''}
+        salaNormalizado={detalleSalaMesSelection?.normalizado || ''}
+        periodosLiquidacion={periodosLiquidacionIncluidos}
+        liquidacionesPorSala={liquidacionesPorSala}
+      />
+
+      {/* MODAL: DETALLE POR MES DE LA MÁQUINA */}
+      <MaquinaDetallePorMesModal
+        open={detalleMaquinaMesModalOpen}
+        onClose={() => setDetalleMaquinaMesModalOpen(false)}
+        empresaNombre={empresaSeleccionada}
+        salaNombre={salaDetalleSeleccionada || ''}
+        salaNormalizado={normalizarSalaKey(salaDetalleSeleccionada || '')}
+        machineSelection={detalleMaquinaMesSelection}
+        periodosLiquidacion={periodosLiquidacionIncluidos}
+        liquidacionesPorSala={liquidacionesPorSala}
+      />
     </Box>
   );
 };

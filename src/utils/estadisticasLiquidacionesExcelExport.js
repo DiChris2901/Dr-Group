@@ -50,7 +50,7 @@ export const exportarEstadisticasLiquidaciones = async (
     cellSubtitulo.alignment = { horizontal: 'center', vertical: 'middle' };
     wsResumen.getRow(2).height = 25;
 
-    // ROW 3: Empresa/Sala
+    // ROW 3: Empresa
     wsResumen.mergeCells('A3:C3');
     wsResumen.getCell('A3').value = 'EMPRESA:';
     wsResumen.getCell('A3').font = { name: 'Roboto', size: 10, bold: true };
@@ -58,12 +58,12 @@ export const exportarEstadisticasLiquidaciones = async (
     wsResumen.getCell('D3').value = filtros.empresa || 'Todas';
     wsResumen.getCell('D3').font = { name: 'Roboto', size: 10 };
 
-    // ROW 4: Sala
+    // ROW 4: Alcance
     wsResumen.mergeCells('A4:C4');
-    wsResumen.getCell('A4').value = 'SALA:';
+    wsResumen.getCell('A4').value = 'ALCANCE:';
     wsResumen.getCell('A4').font = { name: 'Roboto', size: 10, bold: true };
     wsResumen.mergeCells('D4:F4');
-    wsResumen.getCell('D4').value = filtros.sala || 'Todas';
+    wsResumen.getCell('D4').value = 'Consolidado (sin sala)';
     wsResumen.getCell('D4').font = { name: 'Roboto', size: 10 };
 
     // ROW 5: Fecha generación
@@ -92,8 +92,8 @@ export const exportarEstadisticasLiquidaciones = async (
       'Promedio por Período',
       'Tendencia',
       'Cambio %',
-      'Prod. por Sala/Máquina',
-      'Días Transmitidos'
+      'Prod. por Sala (est.)',
+      'Meses Consolidados'
     ];
 
     headerKPIs.forEach((header, idx) => {
@@ -118,8 +118,8 @@ export const exportarEstadisticasLiquidaciones = async (
         `$${Math.round(kpis.produccionPromedio).toLocaleString()}`,
         kpis.tendencia === 'creciente' ? '↗️ Creciente' : kpis.tendencia === 'decreciente' ? '↘️ Decreciente' : '→ Estable',
         `${kpis.porcentajeCambio >= 0 ? '+' : ''}${kpis.porcentajeCambio.toFixed(1)}%`,
-        `$${Math.round(filtros.sala !== 'todas' ? kpis.produccionPorMaquina : kpis.produccionPorSala).toLocaleString()}`,
-        kpis.diasTotal
+        `$${Math.round(kpis.produccionPorSala).toLocaleString()}`,
+        kpis.mesesTotal
       ];
 
       valoresKPIs.forEach((valor, idx) => {
@@ -181,7 +181,7 @@ export const exportarEstadisticasLiquidaciones = async (
     currentRow++;
 
     // Headers de tabla
-    const headersTabla = ['Período', 'Producción', 'Días Transmitidos', 'Salas Activas', 'Prod. por Día', 'Variación %'];
+    const headersTabla = ['Período', 'Producción', 'Impuestos', 'Empresas', 'Máquinas (prom. mensual)', 'Variación %'];
     headersTabla.forEach((header, idx) => {
       const cell = wsResumen.getCell(currentRow, idx + 1);
       cell.value = header;
@@ -201,8 +201,6 @@ export const exportarEstadisticasLiquidaciones = async (
     // Datos de tabla
     if (datosGraficos && datosGraficos.length > 0) {
       datosGraficos.forEach((row, idx) => {
-        const prodPorDia = row.diasTransmitidos > 0 ? Math.round(row.produccion / row.diasTransmitidos) : 0;
-        
         // Calcular variación vs período anterior
         let variacion = 0;
         if (idx > 0) {
@@ -213,9 +211,9 @@ export const exportarEstadisticasLiquidaciones = async (
         const valores = [
           row.periodo,
           Math.round(row.produccion),
-          row.diasTransmitidos,
-          row.salas || 0,
-          prodPorDia,
+          Math.round(row.impuestos || 0),
+          row.empresasConsolidadas || 0,
+          Math.round(row.maquinasPromedioMensual || 0),
           `${variacion >= 0 ? '+' : ''}${variacion.toFixed(1)}%`
         ];
 
@@ -238,7 +236,7 @@ export const exportarEstadisticasLiquidaciones = async (
           };
 
           // Formato moneda para producción
-          if (colIdx === 1 || colIdx === 4) {
+          if (colIdx === 1 || colIdx === 2) {
             cell.numFmt = '$#,##0';
           }
         });
@@ -252,24 +250,24 @@ export const exportarEstadisticasLiquidaciones = async (
     wsResumen.columns = [
       { width: 18 }, // Período
       { width: 18 }, // Producción
-      { width: 18 }, // Días
-      { width: 15 }, // Salas
-      { width: 15 }, // Prod/Día
+      { width: 18 }, // Impuestos
+      { width: 10 }, // Meses
+      { width: 22 }, // Máquinas (prom.)
       { width: 12 }  // Variación
     ];
 
-    // ===== HOJA 2: DETALLE MENSUAL (opcional, solo si hay suficientes datos) =====
+    // ===== HOJA 2: DETALLE POR PERÍODO (opcional, solo si hay suficientes datos) =====
     if (datosEstadisticos && Object.keys(datosEstadisticos).length > 0) {
-      const wsDetalle = wb.addWorksheet('Detalle Mensual', {
+      const wsDetalle = wb.addWorksheet('Detalle por Período', {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
       });
 
       // Header
       wsDetalle.getCell('A1').value = 'Período';
       wsDetalle.getCell('B1').value = 'Producción';
-      wsDetalle.getCell('C1').value = 'Días Transmitidos';
-      wsDetalle.getCell('D1').value = 'Salas Activas';
-      wsDetalle.getCell('E1').value = 'Máquinas';
+      wsDetalle.getCell('C1').value = 'Empresas';
+      wsDetalle.getCell('D1').value = 'Salas (prom. mensual)';
+      wsDetalle.getCell('E1').value = 'Máquinas (prom. mensual)';
       wsDetalle.getCell('F1').value = 'Impuestos Totales';
 
       ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'].forEach(cell => {
@@ -284,9 +282,9 @@ export const exportarEstadisticasLiquidaciones = async (
         const data = datosEstadisticos[key];
         wsDetalle.getCell(`A${rowDetalle}`).value = key;
         wsDetalle.getCell(`B${rowDetalle}`).value = Math.round(data.produccion);
-        wsDetalle.getCell(`C${rowDetalle}`).value = data.diasTransmitidos;
-        wsDetalle.getCell(`D${rowDetalle}`).value = data.numSalas;
-        wsDetalle.getCell(`E${rowDetalle}`).value = data.maquinas;
+        wsDetalle.getCell(`C${rowDetalle}`).value = data.documentos || 0;
+        wsDetalle.getCell(`D${rowDetalle}`).value = Math.round(data.salasPromedioMensual || 0);
+        wsDetalle.getCell(`E${rowDetalle}`).value = Math.round(data.maquinasPromedioMensual || 0);
         wsDetalle.getCell(`F${rowDetalle}`).value = Math.round(data.impuestos);
 
         // Formato moneda
@@ -299,9 +297,9 @@ export const exportarEstadisticasLiquidaciones = async (
       wsDetalle.columns = [
         { width: 15 },
         { width: 18 },
-        { width: 18 },
-        { width: 15 },
         { width: 12 },
+        { width: 20 },
+        { width: 22 },
         { width: 18 }
       ];
     }
