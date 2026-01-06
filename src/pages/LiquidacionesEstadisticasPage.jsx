@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -96,6 +96,9 @@ const LiquidacionesEstadisticasPage = () => {
   const [pageMaquinas, setPageMaquinas] = useState(0);
   const [rowsPerPageMaquinas, setRowsPerPageMaquinas] = useState(10);
 
+  // Cache en memoria (evita re-queries al alternar pestañas/volver a selección previa)
+  const liquidacionesCacheRef = useRef(new Map());
+
   const normalizarTexto = (value) => {
     if (value === null || value === undefined) return '';
     return value
@@ -157,6 +160,38 @@ const LiquidacionesEstadisticasPage = () => {
       diciembre: 11
     };
     return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+  };
+
+  const periodoLiquidacionScore = (periodoLiquidacion) => {
+    if (!periodoLiquidacion || typeof periodoLiquidacion !== 'string') return null;
+    if (!periodoLiquidacion.includes('_')) return null;
+
+    const parts = periodoLiquidacion.split('_').filter(Boolean);
+    if (parts.length < 2) return null;
+
+    const year = Number.parseInt(parts[parts.length - 1], 10);
+    if (!Number.isFinite(year)) return null;
+
+    const nombreMes = parts.slice(0, -1).join('_');
+    const monthIndex = monthIndexFromNombre(nombreMes);
+    if (monthIndex === null) return null;
+    return year * 12 + monthIndex;
+  };
+
+  const formatPeriodoLiquidacionLabel = (periodoLiquidacion) => {
+    if (!periodoLiquidacion || typeof periodoLiquidacion !== 'string') return 'N/A';
+    if (!periodoLiquidacion.includes('_')) return periodoLiquidacion;
+
+    const parts = periodoLiquidacion.split('_').filter(Boolean);
+    if (parts.length < 2) return periodoLiquidacion;
+
+    const year = parts[parts.length - 1];
+    const monthRaw = parts.slice(0, -1).join(' ');
+    const month = monthRaw
+      .split(' ')
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+      .join(' ');
+    return `${month} ${year}`;
   };
 
   const extraerYearMonthPeriodo = (liq) => {
@@ -244,6 +279,20 @@ const LiquidacionesEstadisticasPage = () => {
       try {
         const monthsToShow = periodoTab === 0 ? 3 : periodoTab === 1 ? 6 : 12;
 
+        // Cache key estable por empresa + pestaña
+        const cacheKey = `${empresaSeleccionada}::${periodoTab}`;
+        const cached = liquidacionesCacheRef.current.get(cacheKey);
+        if (cached) {
+          setLiquidaciones(cached.liquidaciones || []);
+          setLiquidacionesPorSala(cached.liquidacionesPorSala || []);
+          setSalasDisponibles(cached.salasDisponibles || []);
+          setSalaDetalleSeleccionada(cached.salaDetalleSeleccionada || '');
+          setPeriodosLiquidacionIncluidos(cached.periodosLiquidacionIncluidos || []);
+          setPeriodoLiquidacionUltimo(cached.periodoLiquidacionUltimo || '');
+          console.log('♻️ Cache hit (liquidaciones):', cacheKey);
+          return;
+        }
+
         // Solo necesitamos ventana máxima anual (12 meses). Agregamos un buffer por seguridad.
         const hace15Meses = new Date();
         hace15Meses.setMonth(hace15Meses.getMonth() - 15);
@@ -269,6 +318,15 @@ const LiquidacionesEstadisticasPage = () => {
           setPeriodosLiquidacionIncluidos([]);
           setPeriodoLiquidacionUltimo('');
           console.log('✅ Liquidaciones (todas las empresas) cargadas:', data.length);
+
+          liquidacionesCacheRef.current.set(cacheKey, {
+            liquidaciones: data,
+            liquidacionesPorSala: [],
+            salasDisponibles: [],
+            salaDetalleSeleccionada: '',
+            periodosLiquidacionIncluidos: [],
+            periodoLiquidacionUltimo: ''
+          });
           return;
         }
 
@@ -318,12 +376,23 @@ const LiquidacionesEstadisticasPage = () => {
 
         setLiquidaciones(mensualSeleccionado);
 
-        const periodosIncluidos = mensualSeleccionado
+        // Periodos incluidos ordenados DESC (último primero) usando score
+        const periodosIncluidosRaw = mensualSeleccionado
           .map((l) => l?.fechas?.periodoLiquidacion)
           .filter((p) => typeof p === 'string' && p.trim());
 
+        const periodosIncluidos = [...new Set(periodosIncluidosRaw)].sort((a, b) => {
+          const sa = periodoLiquidacionScore(a);
+          const sb = periodoLiquidacionScore(b);
+          if (sa === null && sb === null) return String(b).localeCompare(String(a));
+          if (sa === null) return 1;
+          if (sb === null) return -1;
+          return sb - sa;
+        });
+
+        const periodoUltimoComputed = periodosIncluidos[0] || '';
         setPeriodosLiquidacionIncluidos(periodosIncluidos);
-        setPeriodoLiquidacionUltimo(periodosIncluidos[0] || '');
+        setPeriodoLiquidacionUltimo(periodoUltimoComputed);
 
         // 2) Top 10 salas del último mes y traer histórico de esas mismas salas
         if (!periodosIncluidos.length) {
@@ -377,8 +446,11 @@ const LiquidacionesEstadisticasPage = () => {
           return;
         }
 
-        const historico = [];
+        // Seed histórico con docs del último mes (evita 1 query adicional)
+        const historico = [...topSalasDocs];
+
         for (const periodo of periodosIncluidos) {
+          if (periodo === periodoUltimo) continue;
           try {
             const qPeriodo = query(
               collection(db, 'liquidaciones_por_sala'),
@@ -412,6 +484,15 @@ const LiquidacionesEstadisticasPage = () => {
         console.log('✅ Empresa mensual (docs):', mensualSeleccionado.length);
         console.log('✅ Salas top (último mes):', salaNorms.length);
         console.log('✅ Histórico por sala (docs):', historico.length);
+
+        liquidacionesCacheRef.current.set(cacheKey, {
+          liquidaciones: mensualSeleccionado,
+          liquidacionesPorSala: historico,
+          salasDisponibles: Array.from(new Set(salaNombres)).sort(),
+          salaDetalleSeleccionada: Array.from(new Set(salaNombres)).sort()[0] || '',
+          periodosLiquidacionIncluidos: periodosIncluidos,
+          periodoLiquidacionUltimo: periodoUltimoComputed
+        });
       } catch (error) {
         console.error('Error cargando liquidaciones:', error);
       } finally {
@@ -1491,7 +1572,7 @@ const LiquidacionesEstadisticasPage = () => {
               {mostrarDetalleMaquinas && detalleMaquinasSala && (
                 <>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Período último: {detalleMaquinasSala.periodoUltimo || 'N/A'} · Sala: {detalleMaquinasSala.sala}
+                    Período último: {formatPeriodoLiquidacionLabel(detalleMaquinasSala.periodoUltimo) || 'N/A'} · Sala: {detalleMaquinasSala.sala}
                   </Typography>
                   {detalleMaquinasSala.maquinas.length === 0 ? (
                     <Alert severity="info" icon={<Info />} sx={{ borderRadius: 1 }}>
