@@ -47,12 +47,15 @@ const DateRangeFilter = ({
   customStartDate = null,
   customEndDate = null,
   onChange,
-  onCustomRangeChange
+  onCustomRangeChange,
+  enableMonthPicker = false
 }) => {
   const theme = useTheme();
   const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [tempStartDate, setTempStartDate] = useState(customStartDate);
   const [tempEndDate, setTempEndDate] = useState(customEndDate);
+  const [tempMonthDate, setTempMonthDate] = useState(customStartDate || new Date());
   const selectRef = useRef(null);
 
   // Opciones predefinidas de filtros de fecha
@@ -60,6 +63,7 @@ const DateRangeFilter = ({
     { value: 'all', label: 'Todas las fechas', icon: '📅' },
     { value: 'thisMonth', label: 'Este mes', icon: '🗓️' },
     { value: 'lastMonth', label: 'Mes pasado', icon: '📆' },
+    ...(enableMonthPicker ? [{ value: 'month', label: 'Mes específico', icon: '🗓️' }] : []),
     { value: 'last90Days', label: 'Últimos 90 días', icon: '📊' },
     { value: 'thisYear', label: 'Este año', icon: '🎯' },
     { value: 'lastYear', label: 'Año pasado', icon: '⏳' },
@@ -72,8 +76,13 @@ const DateRangeFilter = ({
     
     if (selectedValue === 'custom') {
       setShowCustomPicker(true);
+      setShowMonthPicker(false);
+    } else if (selectedValue === 'month') {
+      setShowMonthPicker(true);
+      setShowCustomPicker(false);
     } else {
       setShowCustomPicker(false);
+      setShowMonthPicker(false);
       // Limpiar fechas personalizadas si se selecciona otra opción
       if (onCustomRangeChange) {
         onCustomRangeChange(null, null);
@@ -85,6 +94,11 @@ const DateRangeFilter = ({
     setShowCustomPicker(false);
     setTempStartDate(customStartDate);
     setTempEndDate(customEndDate);
+  };
+
+  const handleCloseMonthPopover = () => {
+    setShowMonthPicker(false);
+    setTempMonthDate(customStartDate || new Date());
   };
 
   const handleApplyCustomRange = () => {
@@ -102,6 +116,28 @@ const DateRangeFilter = ({
     }
     onChange('all');
     setShowCustomPicker(false);
+  };
+
+  const handleApplyMonth = () => {
+    if (!tempMonthDate || !isValid(tempMonthDate)) return;
+
+    const start = startOfMonth(tempMonthDate);
+    const end = endOfMonth(tempMonthDate);
+
+    if (onCustomRangeChange) {
+      onCustomRangeChange(start, end);
+    }
+    setShowMonthPicker(false);
+    setShowCustomPicker(false);
+  };
+
+  const handleClearMonth = () => {
+    setTempMonthDate(new Date());
+    if (onCustomRangeChange) {
+      onCustomRangeChange(null, null);
+    }
+    onChange('all');
+    setShowMonthPicker(false);
   };
 
   // Función para obtener el rango de fechas basado en la opción seleccionada
@@ -149,6 +185,12 @@ const DateRangeFilter = ({
   const isCustomRangeValid = tempStartDate && tempEndDate && tempStartDate <= tempEndDate;
 
   const getDisplayText = () => {
+    if (value === 'month') {
+      if (customStartDate && isValid(customStartDate)) {
+        return format(customStartDate, 'MMMM yyyy', { locale: es });
+      }
+      return 'Mes específico';
+    }
     if (value === 'custom' && customStartDate && customEndDate) {
       return `${format(customStartDate, 'dd/MM/yyyy')} - ${format(customEndDate, 'dd/MM/yyyy')}`;
     }
@@ -159,15 +201,16 @@ const DateRangeFilter = ({
   useEffect(() => {
     setTempStartDate(customStartDate);
     setTempEndDate(customEndDate);
+    if (customStartDate && isValid(customStartDate)) {
+      setTempMonthDate(customStartDate);
+    }
   }, [customStartDate, customEndDate]);
 
   useEffect(() => {
-    if (value === 'custom' && !showCustomPicker) {
-      setShowCustomPicker(true);
-    } else if (value !== 'custom' && showCustomPicker) {
-      setShowCustomPicker(false);
-    }
-  }, [value, showCustomPicker]);
+    // Si cambia el valor externamente, cerrar popovers incompatibles.
+    if (value !== 'custom' && showCustomPicker) setShowCustomPicker(false);
+    if (value !== 'month' && showMonthPicker) setShowMonthPicker(false);
+  }, [value, showCustomPicker, showMonthPicker]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
@@ -369,6 +412,81 @@ const DateRangeFilter = ({
             </motion.div>
           </AnimatePresence>
         </Popover>
+
+        {/* Popover para selección de mes específico */}
+        <Popover
+          open={showMonthPicker && value === 'month'}
+          anchorEl={selectRef.current}
+          onClose={handleCloseMonthPopover}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'center',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'center',
+          }}
+          PaperProps={{
+            elevation: 8,
+            sx: {
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              backgroundColor: theme.palette.background.paper,
+              minWidth: 360,
+              maxWidth: 440,
+              mt: 1,
+              p: 2
+            }
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CalendarIcon sx={{ color: 'text.secondary' }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Seleccionar mes
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseMonthPopover}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          <DatePicker
+            label="Mes"
+            value={tempMonthDate}
+            onChange={(newValue) => setTempMonthDate(newValue)}
+            views={['year', 'month']}
+            openTo="month"
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                size: 'small'
+              }
+            }}
+          />
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+            <Button
+              size="small"
+              variant="text"
+              onClick={handleClearMonth}
+              startIcon={<CloseIcon />}
+              sx={{ textTransform: 'none' }}
+            >
+              Limpiar
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleApplyMonth}
+              disabled={!tempMonthDate || !isValid(tempMonthDate)}
+              startIcon={<CheckIcon />}
+              sx={{ textTransform: 'none' }}
+            >
+              Aplicar
+            </Button>
+          </Box>
+        </Popover>
       </motion.div>
     </LocalizationProvider>
   );
@@ -407,6 +525,12 @@ export const getDateRangeFromFilter = (filterValue, customStartDate = null, cust
         endDate: endOfYear(lastYear)
       };
     case 'custom':
+      return customStartDate && customEndDate ? {
+        startDate: startOfDay(customStartDate),
+        endDate: endOfDay(customEndDate)
+      } : null;
+    case 'month':
+      // Reutiliza fechas ya calculadas (idealmente startOfMonth/endOfMonth).
       return customStartDate && customEndDate ? {
         startDate: startOfDay(customStartDate),
         endDate: endOfDay(customEndDate)

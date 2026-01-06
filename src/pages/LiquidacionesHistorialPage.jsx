@@ -61,6 +61,8 @@ import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import { isValid, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays } from 'date-fns';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import DateRangeFilter from '../components/payments/DateRangeFilter';
 import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
@@ -806,6 +808,12 @@ const LiquidacionesHistorialPage = () => {
           return { start: customStart, end: customEnd };
         }
         return null;
+      case 'month':
+        // En modo mes usamos el rango ya calculado por el selector
+        if (customStart && customEnd) {
+          return { start: customStart, end: customEnd };
+        }
+        return null;
       default:
         return null;
     }
@@ -1054,6 +1062,7 @@ const LiquidacionesHistorialPage = () => {
                 customEndDate={customEndDate}
                 onChange={handleDateRangeChange}
                 onCustomRangeChange={handleCustomDateRangeChange}
+                enableMonthPicker
               />
             </Grid>
           </Grid>
@@ -1094,7 +1103,9 @@ const LiquidacionesHistorialPage = () => {
                     <Chip
                       label={`Período: ${dateRangeFilter === 'custom' && customStartDate && customEndDate 
                         ? `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`
-                        : dateRangeFilter}`}
+                        : dateRangeFilter === 'month' && customStartDate
+                          ? format(customStartDate, 'MMMM yyyy', { locale: es })
+                          : dateRangeFilter}`}
                       size="small"
                       color="secondary"
                       variant="outlined"

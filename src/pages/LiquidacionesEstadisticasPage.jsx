@@ -814,17 +814,43 @@ const LiquidacionesEstadisticasPage = () => {
     const mesesTotal = valores.reduce((sum, p) => sum + (p.meses || 0), 0);
     const produccionPromedio = valores.length > 0 ? produccionTotal / valores.length : 0;
 
-    // Calcular tendencia (últimos 3 períodos vs primeros 3)
+    // Calcular tendencia
+    // - Si hay >= 6 períodos: compara suma últimos 3 vs suma primeros 3
+    // - Si hay < 6 períodos (p.ej. trimestral): compara primer período vs último período
     const periodosOrdenados = Object.keys(datosEstadisticos).sort();
-    const ultimos3 = periodosOrdenados.slice(-3).reduce((sum, key) => sum + datosEstadisticos[key].produccion, 0);
-    const primeros3 = periodosOrdenados.slice(0, 3).reduce((sum, key) => sum + datosEstadisticos[key].produccion, 0);
-    
+    const numPeriodos = periodosOrdenados.length;
+
     let tendencia = 'estable';
     let porcentajeCambio = 0;
-    if (primeros3 > 0) {
-      porcentajeCambio = ((ultimos3 - primeros3) / primeros3) * 100;
-      if (porcentajeCambio > 5) tendencia = 'creciente';
-      else if (porcentajeCambio < -5) tendencia = 'decreciente';
+
+    const aplicarClasificacionTendencia = (pct) => {
+      if (pct > 5) return 'creciente';
+      if (pct < -5) return 'decreciente';
+      return 'estable';
+    };
+
+    if (numPeriodos >= 2) {
+      let base = 0;
+      let actual = 0;
+
+      if (numPeriodos >= 6) {
+        base = periodosOrdenados.slice(0, 3).reduce((sum, key) => sum + (Number(datosEstadisticos[key]?.produccion) || 0), 0);
+        actual = periodosOrdenados.slice(-3).reduce((sum, key) => sum + (Number(datosEstadisticos[key]?.produccion) || 0), 0);
+      } else {
+        const primerKey = periodosOrdenados[0];
+        const ultimoKey = periodosOrdenados[numPeriodos - 1];
+        base = Number(datosEstadisticos[primerKey]?.produccion) || 0;
+        actual = Number(datosEstadisticos[ultimoKey]?.produccion) || 0;
+      }
+
+      if (base > 0) {
+        porcentajeCambio = ((actual - base) / base) * 100;
+        tendencia = aplicarClasificacionTendencia(porcentajeCambio);
+      } else {
+        // Evita divisiones por 0: si no hay base, no podemos inferir % real.
+        porcentajeCambio = 0;
+        tendencia = 'estable';
+      }
     }
 
     const salasPromedioMensualGlobal = mesesTotal > 0
