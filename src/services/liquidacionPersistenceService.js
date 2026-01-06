@@ -824,19 +824,73 @@ class LiquidacionPersistenceService {
   }
 
   /**
-   * Obtiene TODAS las liquidaciones del sistema (sin filtro de usuario)
-   * Para páginas de histórico donde todos los usuarios deben ver todas las liquidaciones
-   * @param {number} limitCount - Límite de registros a obtener
-   * @returns {Promise<Array>} - Lista de todas las liquidaciones
+   * Obtiene liquidaciones con filtros opcionales (sin filtro de usuario)
+   * Solo trae de Firebase lo que coincide con los filtros - EFICIENTE
+   * @param {Object} filters - Filtros opcionales
+   * @param {string} filters.empresa - Filtrar por empresa específica
+   * @param {string} filters.mes - Filtrar por mes (ej: 'diciembre')
+   * @param {number} filters.año - Filtrar por año (ej: 2025)
+   * @param {Date} filters.startDate - Filtrar por fecha inicio (≥)
+   * @param {Date} filters.endDate - Filtrar por fecha fin (≤)
+   * @param {number} limitCount - Límite de registros (default: 100)
+   * @returns {Promise<Array>} - Lista de liquidaciones filtradas
    */
-  async getAllLiquidaciones(limitCount = 50) {
+  async getAllLiquidaciones(filters = {}, limitCount = 100) {
     try {
-      // Consulta sin filtro de usuario
-      const q = query(
-        collection(db, 'liquidaciones'),
-        limit(limitCount)
-      );
-
+      const { empresa, mes, año, startDate, endDate } = filters;
+      
+      console.log('🔍 Consultando liquidaciones con filtros:', {
+        empresa: empresa || 'todas',
+        mes: mes || 'todos',
+        año: año || 'todos',
+        startDate: startDate ? startDate.toLocaleDateString() : 'sin filtro',
+        endDate: endDate ? endDate.toLocaleDateString() : 'sin filtro',
+        límite: limitCount
+      });
+      
+      // Construir query dinámicamente según filtros
+      let constraints = [];
+      
+      // Filtro por empresa (si se especifica)
+      if (empresa && empresa !== 'todas') {
+        // Normalizar nombre de empresa para búsqueda
+        const empresaNormalizada = empresa.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        constraints.push(where('metadatos.empresaNormalizada', '==', empresaNormalizada));
+      }
+      
+      // Filtro por mes (si se especifica)
+      if (mes && mes !== 'todos') {
+        constraints.push(where('fechas.mesLiquidacion', '==', mes.toLowerCase()));
+      }
+      
+      // Filtro por año (si se especifica)
+      if (año && año !== 'todos') {
+        constraints.push(where('fechas.añoLiquidacion', '==', parseInt(año)));
+      }
+      
+      // 📅 Filtro por rango de fechas (si se especifica)
+      if (startDate && endDate) {
+        // Convertir a Timestamp de Firebase para comparación
+        const startTimestamp = new Date(startDate);
+        const endTimestamp = new Date(endDate);
+        endTimestamp.setHours(23, 59, 59, 999); // Fin del día
+        
+        console.log('📅 Filtrando por rango:', {
+          inicio: startTimestamp.toLocaleDateString(),
+          fin: endTimestamp.toLocaleDateString()
+        });
+        
+        // Firebase requiere usar where con '>=' y '<=' para rangos
+        // NOTA: Requiere índice compuesto si se combina con otros filtros
+        constraints.push(where('fechas.createdAt', '>=', startTimestamp));
+        constraints.push(where('fechas.createdAt', '<=', endTimestamp));
+      }
+      
+      // Agregar límite
+      constraints.push(limit(limitCount));
+      
+      // Ejecutar query
+      const q = query(collection(db, 'liquidaciones'), ...constraints);
       const querySnapshot = await getDocs(q);
       const liquidaciones = [];
 
@@ -849,18 +903,32 @@ class LiquidacionPersistenceService {
 
       // Ordenar en el cliente por fecha de creación (más recientes primero)
       liquidaciones.sort((a, b) => {
-        // Si tienen timestamp, usar eso
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toMillis() - a.createdAt.toMillis();
+        if (a.fechas?.createdAt && b.fechas?.createdAt) {
+          const aTime = a.fechas.createdAt.toMillis ? a.fechas.createdAt.toMillis() : 0;
+          const bTime = b.fechas.createdAt.toMillis ? b.fechas.createdAt.toMillis() : 0;
+          return bTime - aTime;
         }
-        // Fallback: ordenar por ID (que incluye timestamp)
         return b.id.localeCompare(a.id);
       });
 
-      console.log(`✅ Cargadas ${liquidaciones.length} liquidaciones del sistema (todas)`);
+      console.log(`✅ Cargadas ${liquidaciones.length} liquidaciones desde Firestore`);
+      
+      if (liquidaciones.length === limitCount) {
+        console.warn(`⚠️ Se alcanzó el límite de ${limitCount} registros. Puede haber más en la BD.`);
+      }
+      
       return liquidaciones;
     } catch (error) {
-      console.error('Error obteniendo todas las liquidaciones:', error);
+      console.error('Error obteniendo liquidaciones:', error);
+      
+      // Si el error es por índice compuesto faltante, dar instrucciones
+      if (error.message.includes('index') || error.message.includes('índice')) {
+        console.error('❌ ERROR: Falta índice compuesto en Firestore');
+        console.error('📋 SOLUCIÓN: Firebase te mostrará un link para crear el índice automáticamente');
+        console.error('🔗 Busca en la consola del navegador un link que diga "create composite index"');
+        console.error('⚡ Haz clic en ese link y Firebase creará el índice en ~2-3 minutos');
+      }
+      
       throw new Error(`Error al obtener liquidaciones: ${error.message}`);
     }
   }
