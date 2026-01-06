@@ -16,7 +16,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Chip
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -41,7 +42,8 @@ import {
   BarChart as BarChartIcon,
   Search as SearchIcon,
   Menu as MenuIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Keyboard as KeyboardIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -84,6 +86,46 @@ const Taskbar = React.memo(() => {
 
   // Hook de favoritos
   const { favorites, toggleFavorite, isFavorite, loading: favoritesLoading } = useFavorites(isMobile ? 2 : 4);
+
+  // Ref para el campo de búsqueda del menú
+  const menuSearchInputRef = React.useRef(null);
+
+  // ⌨️ Atajo de teclado Ctrl + B para abrir menú y buscar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isCtrlB = (e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B');
+      
+      if (isCtrlB) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Si el menú no está abierto, abrirlo primero
+        if (!menuInicioAnchorEl) {
+          // Buscar el botón del menú de inicio y hacer clic
+          const menuButton = document.querySelector('[data-menu-inicio-button]');
+          if (menuButton) {
+            menuButton.click();
+            // Esperar a que el menú se abra y hacer focus
+            setTimeout(() => {
+              if (menuSearchInputRef.current) {
+                menuSearchInputRef.current.focus();
+                menuSearchInputRef.current.select();
+              }
+            }, 100);
+          }
+        } else {
+          // Si ya está abierto, hacer focus directamente
+          if (menuSearchInputRef.current) {
+            menuSearchInputRef.current.focus();
+            menuSearchInputRef.current.select();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [menuInicioAnchorEl]);
 
   // Función para registrar página visitada
   const registerPageVisit = useCallback((path, label, categoryLabel, categoryColor) => {
@@ -566,6 +608,7 @@ const Taskbar = React.memo(() => {
             <Tooltip title={`Menú completo (${filteredTaskbarItems.length} secciones)`}>
               <Box sx={{ position: 'relative' }}>
                 <IconButton
+                  data-menu-inicio-button
                   onClick={handleMenuInicioOpen}
                   sx={{
                     bgcolor: alpha(theme.palette.primary.main, 0.08),
@@ -1201,6 +1244,7 @@ const Taskbar = React.memo(() => {
             
             {/* Campo de Búsqueda */}
             <TextField
+              inputRef={menuSearchInputRef}
               value={menuSearchQuery}
               onChange={(e) => setMenuSearchQuery(e.target.value)}
               placeholder="Buscar en menú..."
@@ -1238,17 +1282,131 @@ const Taskbar = React.memo(() => {
                     <SearchIcon sx={{ color: theme.palette.text.secondary, fontSize: 18 }} />
                   </InputAdornment>
                 ),
-                endAdornment: menuSearchQuery && (
+                endAdornment: menuSearchQuery ? (
                   <InputAdornment position="end">
                     <IconButton size="small" onClick={() => setMenuSearchQuery('')}>
                       <CloseIcon sx={{ fontSize: 16 }} />
                     </IconButton>
+                  </InputAdornment>
+                ) : (
+                  <InputAdornment position="end">
+                    <Chip
+                      icon={<KeyboardIcon sx={{ fontSize: 12 }} />}
+                      label="Ctrl+B"
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        color: alpha(theme.palette.text.secondary, 0.7),
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                        '& .MuiChip-icon': {
+                          fontSize: 12,
+                          ml: 0.5
+                        }
+                      }}
+                    />
                   </InputAdornment>
                 )
               }}
             />
           </Box>
         </Box>
+
+        {/* Páginas Recientes - Siempre Visibles */}
+        {recentPages.length > 0 && (
+          <Box sx={{ 
+            px: 2.5, 
+            py: 2,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+            bgcolor: alpha(theme.palette.background.paper, 0.3)
+          }}>
+            <Typography 
+              variant="overline" 
+              sx={{ 
+                fontWeight: 700, 
+                fontSize: '0.65rem',
+                color: 'text.secondary',
+                display: 'block',
+                mb: 1.5,
+                letterSpacing: 0.8
+              }}
+            >
+              📌 Páginas Recientes
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1.5,
+              overflowX: 'auto',
+              pb: 0.5,
+              '&::-webkit-scrollbar': {
+                height: 4
+              },
+              '&::-webkit-scrollbar-thumb': {
+                bgcolor: alpha(theme.palette.primary.main, 0.3),
+                borderRadius: 2
+              }
+            }}>
+              {recentPages.slice(0, 4).map((page) => {
+                const isCurrentPage = location.pathname === page.path;
+                
+                return (
+                  <Box
+                    key={page.path}
+                    onClick={() => handleNavigateFromSearch(page.path, page.label, page.categoryLabel, page.categoryColor)}
+                    sx={{
+                      minWidth: 140,
+                      py: 1.25,
+                      px: 1.75,
+                      borderRadius: 1.5,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      border: `1.5px solid ${alpha(page.categoryColor || theme.palette.divider, isCurrentPage ? 0.5 : 0.2)}`,
+                      bgcolor: isCurrentPage 
+                        ? alpha(page.categoryColor || theme.palette.primary.main, 0.1) 
+                        : alpha(theme.palette.background.paper, 0.8),
+                      '&:hover': {
+                        bgcolor: alpha(page.categoryColor || theme.palette.primary.main, 0.12),
+                        border: `1.5px solid ${alpha(page.categoryColor || theme.palette.primary.main, 0.4)}`,
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 12px ${alpha(page.categoryColor || theme.palette.primary.main, 0.2)}`
+                      }
+                    }}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontSize: '0.8rem',
+                        fontWeight: isCurrentPage ? 600 : 500,
+                        color: isCurrentPage ? page.categoryColor : 'text.primary',
+                        mb: 0.25,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {page.label}
+                    </Typography>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        fontSize: '0.65rem',
+                        color: page.categoryColor || 'text.secondary',
+                        display: 'block',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {page.categoryLabel}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
 
         {/* Layout de Dos Columnas */}
         <Box sx={{ display: 'flex', height: 'calc(500px - 96px)', maxHeight: 'calc(500px - 96px)' }}>
@@ -1376,76 +1534,6 @@ const Taskbar = React.memo(() => {
                 </Box>
               );
             })()}
-
-            {/* Páginas Recientes */}
-            {recentPages.length > 0 && (
-              <Box sx={{ mb: 2, pb: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
-                <Typography 
-                  variant="overline" 
-                  sx={{ 
-                    fontWeight: 700, 
-                    fontSize: '0.7rem',
-                    color: 'text.secondary',
-                    display: 'block',
-                    mb: 1
-                  }}
-                >
-                  📌 Páginas Recientes
-                </Typography>
-                <List sx={{ py: 0 }}>
-                  {recentPages.slice(0, 3).map((page) => {
-                    const isCurrentPage = location.pathname === page.path;
-                    
-                    return (
-                      <ListItem key={page.path} disablePadding sx={{ mb: 0.5 }}>
-                        <ListItemButton
-                          onClick={() => handleNavigateFromSearch(page.path, page.label, page.categoryLabel, page.categoryColor)}
-                          selected={isCurrentPage}
-                          sx={{
-                            py: 1,
-                            px: 1.5,
-                            borderRadius: 1,
-                            transition: 'all 0.2s ease',
-                            border: `1px solid ${alpha(page.categoryColor || theme.palette.divider, 0.15)}`,
-                            bgcolor: isCurrentPage 
-                              ? alpha(page.categoryColor || theme.palette.primary.main, 0.08) 
-                              : 'transparent',
-                            '&:hover': {
-                              bgcolor: alpha(page.categoryColor || theme.palette.primary.main, 0.08),
-                              border: `1px solid ${alpha(page.categoryColor || theme.palette.primary.main, 0.3)}`,
-                            }
-                          }}
-                        >
-                          <ListItemText 
-                            primary={page.label}
-                            secondary={page.categoryLabel}
-                            primaryTypographyProps={{ 
-                              fontSize: '0.8rem',
-                              fontWeight: isCurrentPage ? 600 : 400
-                            }}
-                            secondaryTypographyProps={{ 
-                              fontSize: '0.65rem',
-                              color: page.categoryColor || 'text.secondary'
-                            }}
-                          />
-                          {isCurrentPage && (
-                            <Box
-                              sx={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                bgcolor: page.categoryColor || theme.palette.primary.main,
-                                ml: 1
-                              }}
-                            />
-                          )}
-                        </ListItemButton>
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              </Box>
-            )}
 
             <List sx={{ py: 0 }}>
               {(() => {
