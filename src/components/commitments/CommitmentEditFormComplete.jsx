@@ -263,9 +263,10 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Llenar formulario cuando se abre
+  // Llenar formulario cuando se abre O cuando commitment cambia
   useEffect(() => {
     if (commitment && open) {
+      console.log('🔄 Re-sincronizando formData con commitment actualizado');
       console.log('🔍 Debugging commitment data:', commitment);
       console.log('🔍 invoiceFiles (legacy):', commitment.invoiceFiles);
       console.log('🔍 invoiceURLs (legacy):', commitment.invoiceURLs);
@@ -353,6 +354,57 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       console.log('✅ FormData inicializado con método de pago:', initialData.paymentMethod);
     }
   }, [commitment, open]);
+
+  // 🔄 Sincronizar cambios de archivos cuando commitment se actualiza (para operaciones de eliminación/edición)
+  useEffect(() => {
+    if (commitment && open && formData.concept) { // Solo si el modal ya está inicializado
+      // Detectar si los archivos en commitment son diferentes a los del formData
+      const commitmentFiles = commitment.invoiceFiles || [];
+      const commitmentURLs = commitment.invoiceURLs || [];
+      const commitmentInvoices = commitment.invoices || [];
+      
+      const hasFilesInCommitment = commitmentFiles.length > 0 || commitmentURLs.length > 0 || commitmentInvoices.length > 0;
+      const hasFilesInFormData = (formData.invoiceFiles && formData.invoiceFiles.length > 0) || 
+                                  (formData.invoiceURLs && formData.invoiceURLs.length > 0);
+      
+      // Si los archivos cambiaron (por ejemplo, se eliminaron), actualizar formData
+      if (hasFilesInCommitment !== hasFilesInFormData) {
+        console.log('🔄 Detectado cambio en archivos, re-sincronizando formData');
+        
+        let invoiceFiles = [];
+        let invoiceURLs = [];
+        let invoiceFileNames = [];
+        
+        if (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0) {
+          commitment.invoices.forEach((invoice, index) => {
+            if (invoice.url || invoice.downloadURL) {
+              invoiceURLs.push(invoice.url || invoice.downloadURL);
+              invoiceFileNames.push(invoice.name || `Factura ${index + 1}`);
+              invoiceFiles.push({
+                name: invoice.name || `Factura ${index + 1}`,
+                url: invoice.url || invoice.downloadURL,
+                type: invoice.type || 'application/pdf'
+              });
+            }
+          });
+        } else if (commitment.invoiceFiles || commitment.invoiceURLs) {
+          invoiceFiles = commitment.invoiceFiles || [];
+          invoiceURLs = commitment.invoiceURLs || [];
+          invoiceFileNames = commitment.invoiceFileNames || [];
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          invoiceFiles: invoiceFiles,
+          invoiceURLs: invoiceURLs,
+          invoiceFileNames: invoiceFileNames,
+          receiptMetadata: commitment.receiptMetadata || {}
+        }));
+        
+        console.log('✅ FormData sincronizado con archivos actualizados');
+      }
+    }
+  }, [commitment?.invoiceFiles, commitment?.invoiceURLs, commitment?.invoices, open, formData.concept]);
 
   // Detectar cambios
   useEffect(() => {
@@ -733,6 +785,15 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       const newInvoiceFiles = [downloadURL];
       const newInvoiceFileNames = combinedFileNames;
 
+      // Crear objeto de invoice en formato nuevo
+      const newInvoices = [{
+        url: downloadURL,
+        name: fileToUploadFinal.name || 'comprobante_combinado.pdf',
+        type: fileToUploadFinal.type || 'application/pdf',
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: currentUser.uid
+      }];
+
       setFormData(prev => ({
         ...prev,
         invoiceFiles: newInvoiceFiles,
@@ -740,12 +801,13 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         invoiceFileNames: newInvoiceFileNames
       }));
 
-      // 4. Actualizar en Firebase
+      // 4. Actualizar en Firebase (legacy + nuevo formato)
       const commitmentRef = doc(db, 'commitments', commitment.id);
       await updateDoc(commitmentRef, {
         invoiceFiles: newInvoiceFiles,
         invoiceURLs: newInvoiceFiles,
         invoiceFileNames: newInvoiceFileNames,
+        invoices: newInvoices, // ✅ Formato nuevo
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       });
@@ -766,6 +828,9 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         message: 'El comprobante se subió correctamente',
         duration: 4000
       });
+
+      // NO llamar onUpdate() aquí para que el modal no se cierre
+      // El estado formData ya se actualizó localmente
 
       // Limpiar estados
       setFileToUpload(null);
@@ -864,6 +929,15 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       // 4. Actualizar en Firestore
       const newInvoiceFiles = [downloadURL];
       
+      // Crear objeto de invoice en formato nuevo
+      const newInvoices = [{
+        url: downloadURL,
+        name: fileName,
+        type: 'application/pdf',
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: currentUser.uid
+      }];
+      
       setFormData(prev => ({
         ...prev,
         invoiceFiles: newInvoiceFiles,
@@ -876,6 +950,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         invoiceFiles: newInvoiceFiles,
         invoiceURLs: newInvoiceFiles,
         invoiceFileNames: finalFileNames,
+        invoices: newInvoices, // ✅ Formato nuevo
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       });
@@ -899,6 +974,9 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           : 'Comprobante reemplazado correctamente',
         duration: 4000
       });
+
+      // NO llamar onUpdate() aquí para que el modal no se cierre
+      // El estado formData ya se actualizó localmente
 
       // Limpiar estados
       setFileToUpload(null);
@@ -925,18 +1003,32 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
 
     setUploadingFile(true);
     try {
+      // Obtener URL del archivo a eliminar (puede ser string o objeto)
+      let fileURL = null;
       const currentFile = formData.invoiceFiles?.[0];
+      
+      if (typeof currentFile === 'string') {
+        fileURL = currentFile;
+      } else if (currentFile && typeof currentFile === 'object') {
+        fileURL = currentFile.url || currentFile.downloadURL;
+      } else if (formData.invoiceURLs?.[0]) {
+        fileURL = formData.invoiceURLs[0];
+      }
 
-      if (!currentFile) {
+      if (!fileURL) {
         throw new Error('No hay archivo para eliminar');
       }
 
+      console.log('🗑️ Eliminando archivo:', fileURL);
+
       // Eliminar archivo de Firebase Storage
       try {
-        const fileRef = ref(storage, currentFile);
+        const fileRef = ref(storage, fileURL);
         await deleteObject(fileRef);
+        console.log('✅ Archivo eliminado de Storage');
       } catch (error) {
-        console.warn('Error al eliminar archivo de storage:', error);
+        console.warn('⚠️ Error al eliminar archivo de storage:', error);
+        // Continuar aunque falle la eliminación del storage
       }
 
       // Limpiar todos los campos de archivos
@@ -944,18 +1036,23 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         ...prev,
         invoiceFiles: [],
         invoiceURLs: [],
-        invoiceFileNames: []
+        invoiceFileNames: [],
+        receiptMetadata: {}
       }));
 
-      // Actualizar en Firebase
+      // Actualizar en Firebase - incluir todos los campos posibles
       const commitmentRef = doc(db, 'commitments', commitment.id);
       await updateDoc(commitmentRef, {
         invoiceFiles: [],
         invoiceURLs: [],
         invoiceFileNames: [],
+        invoices: [], // ✅ Nuevo formato
+        receiptMetadata: {}, // ✅ Limpiar metadata
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       });
+      
+      console.log('✅ Firestore actualizado');
 
       // 📝 Registrar actividad de auditoría - Eliminación de comprobante de compromiso
       await logActivity('delete_commitment_invoice', 'commitment', commitment.id, {
@@ -973,8 +1070,11 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         duration: 4000
       });
 
+      // NO llamar onUpdate() aquí para que el modal no se cierre
+      // El estado formData ya se actualizó localmente
+
     } catch (error) {
-      console.error('Error al eliminar archivo:', error);
+      console.error('❌ Error al eliminar archivo:', error);
       addNotification({
         type: 'error',
         title: '❌ Error al Eliminar',
@@ -1616,7 +1716,11 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                         color="error"
                         size="small"
                         startIcon={uploadingFile ? <CircularProgress size={16} /> : <Delete />}
-                        onClick={handleFileRemove}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFileRemove();
+                        }}
                         disabled={uploadingFile}
                         sx={{ borderRadius: 1 }}
                       >
