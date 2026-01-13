@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import useLiquidacionLogs from '../hooks/useLiquidacionLogs';
 import {
   Box,
   Container,
@@ -114,8 +115,10 @@ const LiquidacionesPage = () => {
   const [reporteBySala, setReporteBySala] = useState(null);
   const [metricsData, setMetricsData] = useState(null);
   
+  // Custom hook para gestión de logs
+  const { logs, addLog, limpiarLogs } = useLiquidacionLogs(LIQUIDACION_CONFIG.MAX_LOGS);
+  
   // Estados de UI
-  const [logs, setLogs] = useState([]);
   const [showEstablecimientoSelector, setShowEstablecimientoSelector] = useState(false);
   const [selectedEstablecimientos, setSelectedEstablecimientos] = useState([]);
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -777,7 +780,6 @@ const LiquidacionesPage = () => {
   // Referencias
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
-  const logIdCounter = useRef(0);
 
   // Efectos
   useEffect(() => {
@@ -807,32 +809,6 @@ const LiquidacionesPage = () => {
       setMetricsData(nuevasMetricas);
     }
   }, [consolidatedData, reporteBySala, metricsData]);
-
-  // Función para agregar logs con límite de 100 registros
-  const addLog = useCallback((message, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    logIdCounter.current += 1;
-    const newLog = {
-      id: `log-${logIdCounter.current}-${Date.now()}`,
-      timestamp,
-      message,
-      type
-    };
-    setLogs(prev => {
-      const updated = [...prev, newLog];
-      // Mantener solo los últimos logs para evitar memory leak
-      if (updated.length > LIQUIDACION_CONFIG.MAX_LOGS) {
-        return updated.slice(-LIQUIDACION_CONFIG.MAX_LOGS);
-      }
-      return updated;
-    });
-  }, []);
-
-  // Función para limpiar logs manualmente
-  const limpiarLogs = useCallback(() => {
-    setLogs([]);
-    addLog('🧹 Logs limpiados correctamente', 'info');
-  }, []);
 
   // Función para buscar empresa por número de contrato
   const buscarEmpresaPorContrato = useCallback((numeroContrato) => {
