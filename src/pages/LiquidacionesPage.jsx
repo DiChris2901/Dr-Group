@@ -2224,9 +2224,7 @@ const LiquidacionesPage = () => {
           sx: {
             borderRadius: 1,
             background: theme.palette.background.paper,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
@@ -2357,8 +2355,7 @@ const LiquidacionesPage = () => {
                           minWidth: 140,
                           borderRadius: 1,
                           fontWeight: 600,
-                          textTransform: 'none',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                          textTransform: 'none'
                         }}
                       >
                         ✅ Sí Coincide
@@ -2372,8 +2369,7 @@ const LiquidacionesPage = () => {
                           minWidth: 140,
                           borderRadius: 1,
                           fontWeight: 600,
-                          textTransform: 'none',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                          textTransform: 'none'
                         }}
                       >
                         ❌ No Coincide
@@ -2442,8 +2438,7 @@ const LiquidacionesPage = () => {
                         sx={{ 
                           borderRadius: 1,
                           fontWeight: 600,
-                          textTransform: 'none',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                          textTransform: 'none'
                         }}
                       >
                         📁 Seleccionar Archivo de Tarifas
@@ -2814,7 +2809,7 @@ const LiquidacionesPage = () => {
                           height: 48,
                           border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
                           backgroundColor: theme.palette.background.paper,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                         }}
                       />
                     ) : empresa && typeof empresa === 'string' ? (
@@ -2827,7 +2822,7 @@ const LiquidacionesPage = () => {
                           fontWeight: 700,
                           fontSize: '1.2rem',
                           border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                         }}
                       >
                         {empresa.charAt(0).toUpperCase()}
@@ -2842,7 +2837,7 @@ const LiquidacionesPage = () => {
                           fontWeight: 600,
                           fontSize: '1.2rem',
                           border: `2px solid ${alpha(theme.palette.grey[500], 0.3)}`,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                         }}
                       >
                         ?
@@ -3000,21 +2995,20 @@ const LiquidacionesPage = () => {
                     variant="contained"
                     startIcon={<Save />}
                     onClick={mostrarConfirmacionGuardado}
-                    disabled={!!(guardandoLiquidacion || liquidacionGuardadaId)} // Deshabilitar si ya está guardada (cargada desde histórico)
+                    disabled={!!(guardandoLiquidacion || liquidacionGuardadaId)}
                     sx={{
                       borderRadius: 1,
                       fontWeight: 600,
                       textTransform: 'none',
                       background: liquidacionGuardadaId 
                         ? alpha(theme.palette.action.disabled, 0.12)
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        : `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                       color: liquidacionGuardadaId 
                         ? theme.palette.action.disabled
                         : 'white',
                       '&:hover': liquidacionGuardadaId ? {} : {
-                        background: 'linear-gradient(135deg, #5a67d8 0%, #6c5ce7 100%)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                        transform: 'translateY(-1px)'
                       },
                       '&:disabled': {
                         background: alpha(theme.palette.action.disabled, 0.12),
@@ -3297,12 +3291,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
                             background: alpha(theme.palette.secondary.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.secondary.main, 0.8),
                               background: alpha(theme.palette.secondary.main, 0.12)
                             }
                           }}>
@@ -3648,8 +3643,7 @@ const LiquidacionesPage = () => {
                             sx={{
                               borderRadius: 1,
                               fontWeight: 600,
-                              textTransform: 'none',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                              textTransform: 'none'
                             }}
                           >
                             Exportar Consolidado
@@ -3830,8 +3824,7 @@ const LiquidacionesPage = () => {
                               sx={{
                                 borderRadius: 1,
                                 fontWeight: 600,
-                                textTransform: 'none',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                                textTransform: 'none'
                               }}
                             >
                               Exportar por Sala
