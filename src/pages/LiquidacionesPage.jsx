@@ -55,6 +55,7 @@ import {
   FilterList,
   GetApp,
   DeleteForever,
+  Delete,
   CheckCircle,
   Warning,
   Info,
@@ -778,30 +779,12 @@ const LiquidacionesPage = () => {
   // Effect para recalcular métricas cuando falten
   useEffect(() => {
     if (consolidatedData && consolidatedData.length > 0 && reporteBySala && reporteBySala.length > 0 && !metricsData) {
-      console.log('🔄 Recalculando métricas faltantes...');
-      console.log('📊 Datos disponibles:', { 
-        consolidatedLength: consolidatedData.length, 
-        reporteSalaLength: reporteBySala.length 
-      });
       const nuevasMetricas = calcularMetricas(consolidatedData, reporteBySala);
-      console.log('📊 Métricas recalculadas:', nuevasMetricas);
       setMetricsData(nuevasMetricas);
     }
   }, [consolidatedData, reporteBySala, metricsData]);
 
-  // Debug: Monitorear cambios en metricsData
-  console.log('🎯 COMPONENT RENDER - metricsData:', metricsData);
-  
-  // Debug adicional: mostrar valores específicos cuando metricsData existe
-  if (metricsData) {
-    console.log('📊 VALORES ESPECÍFICOS EN RENDER:');
-    console.log('  - totalDerechos:', metricsData.totalDerechos);
-    console.log('  - totalGastos:', metricsData.totalGastos);
-    console.log('  - totalProduccion:', metricsData.totalProduccion);
-    console.log('  - totalImpuestos:', metricsData.totalImpuestos);
-  }
-
-  // Función para agregar logs
+  // Función para agregar logs con límite de 100 registros
   const addLog = useCallback((message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
     logIdCounter.current += 1;
@@ -811,22 +794,27 @@ const LiquidacionesPage = () => {
       message,
       type
     };
-    setLogs(prev => [...prev, newLog]);
+    setLogs(prev => {
+      const updated = [...prev, newLog];
+      // Mantener solo los últimos 100 logs para evitar memory leak
+      if (updated.length > 100) {
+        return updated.slice(-100);
+      }
+      return updated;
+    });
+  }, []);
+
+  // Función para limpiar logs manualmente
+  const limpiarLogs = useCallback(() => {
+    setLogs([]);
+    addLog('🧹 Logs limpiados correctamente', 'info');
   }, []);
 
   // Función para buscar empresa por número de contrato
   const buscarEmpresaPorContrato = useCallback((numeroContrato) => {
     if (!companies || companies.length === 0) {
-      console.log('⚠️ No hay empresas cargadas');
       return null;
     }
-
-    console.log(`🔍 Buscando empresa con contrato: "${numeroContrato}"`);
-    console.log('📋 TODAS las empresas y contratos en BD:', companies.map(c => ({ 
-      nombre: c.name, 
-      contrato: c.contractNumber || 'SIN CONTRATO',
-      id: c.id
-    })));
 
     // Normalizar el número de contrato del archivo (quitar "Contrato" si está presente)
     let numeroContratoNormalizado = numeroContrato.toString().trim().toUpperCase();
@@ -834,10 +822,7 @@ const LiquidacionesPage = () => {
     // Si empieza con "Contrato", quitarlo
     if (numeroContratoNormalizado.startsWith('CONTRATO')) {
       numeroContratoNormalizado = numeroContratoNormalizado.replace(/^CONTRATO\s*/i, '').trim();
-      console.log(`🔧 Contrato normalizado (sin prefijo "Contrato"): "${numeroContratoNormalizado}"`);
     }
-
-    console.log(`🎯 Buscando coincidencia EXACTA para: "${numeroContratoNormalizado}"`);
 
     // Buscar por número de contrato EXACTO (case-insensitive)
     const empresaEncontrada = companies.find(company => {
@@ -848,24 +833,13 @@ const LiquidacionesPage = () => {
       const contratoEmpresa = company.contractNumber.toString().trim().toUpperCase();
       const contratoArchivo = numeroContratoNormalizado;
       
-      const coincide = contratoEmpresa === contratoArchivo;
-      
-      console.log(`  ${coincide ? '✅' : '❌'} Comparando: "${contratoEmpresa}" === "${contratoArchivo}" (${company.name})`);
-      
-      return coincide;
+      return contratoEmpresa === contratoArchivo;
     });
 
     if (empresaEncontrada) {
-      console.log(`✅ ✅ ✅ EMPRESA ENCONTRADA: ${empresaEncontrada.name} (Contrato: ${empresaEncontrada.contractNumber})`);
       setEmpresaCompleta(empresaEncontrada); // Guardar empresa completa
       return empresaEncontrada.name;
     } else {
-      console.log(`❌ ❌ ❌ NO SE ENCONTRÓ empresa con contrato: "${numeroContratoNormalizado}"`);
-      console.log('📝 Contratos en BD (solo los que tienen):');
-      companies.filter(c => c.contractNumber).forEach(c => {
-        console.log(`   - ${c.contractNumber} → ${c.name}`);
-      });
-      console.log('⚠️ Empresas SIN contractNumber:', companies.filter(c => !c.contractNumber).map(c => c.name));
       setEmpresaCompleta(null); // Limpiar empresa completa
       return null;
     }
@@ -936,14 +910,9 @@ const LiquidacionesPage = () => {
     // 🔍 EXTRAER Y VALIDAR EMPRESA INMEDIATAMENTE
     try {
       addLog('🏢 Detectando empresa del archivo...', 'info');
-      console.log('🔍 [DETECCIÓN EMPRESA] Iniciando detección anticipada...');
-      console.log('🔍 [DETECCIÓN EMPRESA] Companies disponibles:', companies?.length || 0);
-      console.log('🔍 [DETECCIÓN EMPRESA] Companies loading:', companiesLoading);
       
       // Leer archivo para extraer número de contrato
       const data = await readFile(file);
-      console.log('🔍 [DETECCIÓN EMPRESA] Archivo leído, filas totales:', data.length);
-      console.log('🔍 [DETECCIÓN EMPRESA] Primeras 10 filas:', data.slice(0, 10));
       
       // Buscar número de contrato en las primeras 15 filas (IGNORAR HEADERS)
       let numeroContrato = null;
@@ -951,13 +920,10 @@ const LiquidacionesPage = () => {
       
       for (let i = 1; i < Math.min(15, data.length); i++) {
         const fila = data[i];
-        console.log(`🔍 [DETECCIÓN EMPRESA] Revisando fila ${i}:`, fila);
         
         if (fila && fila[0]) {
           const posibleContrato = fila[0].toString().trim();
           const posibleContratoLower = posibleContrato.toLowerCase();
-          
-          console.log(`🔍 [DETECCIÓN EMPRESA] Posible contrato en fila ${i}:`, posibleContrato);
           
           // Ignorar si es un header (palabras como "Contrato", "Contract", etc.)
           const esHeader = valoresIgnorados.some(palabra => 
@@ -966,7 +932,6 @@ const LiquidacionesPage = () => {
           );
           
           if (esHeader) {
-            console.log(`⚠️ [DETECCIÓN EMPRESA] Fila ${i} ignorada (es header): "${posibleContrato}"`);
             continue; // Saltar esta fila y continuar buscando
           }
           
@@ -974,24 +939,18 @@ const LiquidacionesPage = () => {
           if (posibleContrato && posibleContrato !== '') {
             numeroContrato = posibleContrato;
             addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
-            console.log('✅ [DETECCIÓN EMPRESA] Contrato extraído:', numeroContrato);
             break;
           }
         }
       }
       
-      console.log('🔍 [DETECCIÓN EMPRESA] Número de contrato final:', numeroContrato);
-      
       // Buscar empresa por contrato ANTES de mostrar el popup
       if (numeroContrato) {
-        console.log('🔍 [DETECCIÓN EMPRESA] Llamando buscarEmpresaPorContrato con:', numeroContrato);
         const empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
-        console.log('🔍 [DETECCIÓN EMPRESA] Resultado de búsqueda:', empresaDetectada);
         
         if (empresaDetectada) {
           setEmpresa(empresaDetectada);
           addLog(`✅ Empresa detectada: ${empresaDetectada}`, 'success');
-          console.log('✅ [DETECCIÓN EMPRESA] Empresa setEmpresa llamado con:', empresaDetectada);
           addNotification({
             type: 'success',
             title: 'Empresa detectada',
@@ -1002,7 +961,6 @@ const LiquidacionesPage = () => {
         } else {
           const empresaNoEncontrada = `Contrato ${numeroContrato} (No encontrado)`;
           setEmpresa(empresaNoEncontrada);
-          console.log('⚠️ [DETECCIÓN EMPRESA] No encontrado, setEmpresa con:', empresaNoEncontrada);
           addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
           addNotification({
             type: 'warning',
@@ -1014,7 +972,6 @@ const LiquidacionesPage = () => {
         }
       } else {
         setEmpresa('Empresa no detectada');
-        console.log('⚠️ [DETECCIÓN EMPRESA] No se pudo extraer contrato del archivo');
         addLog('⚠️ No se pudo detectar número de contrato en el archivo', 'warning');
       }
     } catch (error) {
@@ -1087,7 +1044,7 @@ const LiquidacionesPage = () => {
 
   // Consolidar datos por NUC (función que faltaba)
   const consolidarPorNuc = (data) => {
-    console.log('📊 Consolidando por NUC:', data.length, 'registros...');
+    // Consolidando por NUC
     
     const grouped = {};
     
@@ -1122,14 +1079,12 @@ const LiquidacionesPage = () => {
     });
     
     const result = Object.values(grouped);
-    console.log('✅ Consolidación completada:', result.length, 'registros únicos');
+    // Consolidación completada
     return result;
   };
 
   // Agrupar por establecimiento (función que faltaba)
   const agruparPorEstablecimiento = (consolidated) => {
-    console.log('🏢 Agrupando por establecimiento...');
-    
     const grouped = {};
     
     consolidated.forEach(item => {
@@ -1149,7 +1104,6 @@ const LiquidacionesPage = () => {
     });
     
     const result = Object.values(grouped);
-    console.log('✅ Agrupación por establecimiento completada:', result.length, 'establecimientos');
     return result;
   };
 
@@ -1270,7 +1224,6 @@ const LiquidacionesPage = () => {
           );
           
           if (esHeader) {
-            console.log(`⚠️ [PROCESAMIENTO] Fila ${i} ignorada (es header): "${posibleContrato}"`);
             continue; // Saltar esta fila y continuar buscando
           }
           
@@ -1278,7 +1231,6 @@ const LiquidacionesPage = () => {
           if (posibleContrato && posibleContrato !== '') {
             numeroContrato = posibleContrato;
             addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
-            console.log('✅ [PROCESAMIENTO] Contrato extraído:', numeroContrato);
             break;
           }
         }
@@ -1323,16 +1275,9 @@ const LiquidacionesPage = () => {
       // Calcular métricas
       const metrics = calcularMetricas(consolidatedConEmpresa, reporteSala);
       
-      // Debug: Log de los datos consolidados
-      console.log('🔍 DATOS CONSOLIDAS PARA VALIDACIÓN:');
-      console.log('Número de máquinas consolidadas:', consolidatedConEmpresa.length);
-      console.log('Primera máquina consolidada:', consolidatedConEmpresa[0]);
-      console.log('Últimas 3 máquinas:', consolidatedConEmpresa.slice(-3));
-      
-      // Debug: Calcular totales paso a paso
+      // Calcular totales
       const totalProduccion = consolidatedConEmpresa.reduce((sum, item) => {
         const produccion = Number(item.produccion) || 0;
-        console.log(`Máquina ${item.nuc}: producción = ${produccion}`);
         return sum + produccion;
       }, 0);
       
@@ -1345,11 +1290,6 @@ const LiquidacionesPage = () => {
         const gastos = Number(item.gastosAdministracion) || 0;
         return sum + gastos;
       }, 0);
-      
-      console.log('📊 TOTALES CALCULADOS:');
-      console.log('Total Producción:', totalProduccion);
-      console.log('Total Derechos:', totalDerechos);
-      console.log('Total Gastos:', totalGastos);
       
       // Preparar datos de validación
       const validacion = {
@@ -1507,9 +1447,6 @@ const LiquidacionesPage = () => {
     const headers = data[headerRow];
     const rows = data.slice(headerRow + 1);
     
-    console.log('Headers encontrados:', headers);
-    console.log('Procesando desde fila:', headerRow);
-    
     // Mapear columnas basado en el análisis del archivo real
     const columnMap = {};
     headers.forEach((header, index) => {
@@ -1544,7 +1481,6 @@ const LiquidacionesPage = () => {
         headerLower.includes('monto')
       ) {
         columnMap.baseLiquidacion = index;
-        console.log(`✅ COLUMNA DE VALORES ENCONTRADA: "${header}" en índice ${index}`);
       }
       // Mapeos alternativos para compatibilidad
       else if (headerLower.includes('sala') || headerLower.includes('casino')) {
@@ -1552,12 +1488,7 @@ const LiquidacionesPage = () => {
       } else if (headerLower.includes('categoria') || headerLower.includes('tipo')) {
         columnMap.tipoApuesta = index;
       }
-      
-      // Debug: mostrar el mapeo
-      console.log(`🔍 Header "${header}" → headerLower: "${headerLower}" → index: ${index}`);
     });
-    
-    console.log('Mapeo de columnas:', columnMap);
     
     // Verificar que tenemos las columnas esenciales
     const columnasEsenciales = ['nuc', 'baseLiquidacion'];
@@ -1575,16 +1506,8 @@ const LiquidacionesPage = () => {
         obj[key] = row[columnMap[key]] || '';
       });
       
-      // Log de muestra para las primeras 5 filas
-      if (index < 5) {
-        console.log(`Fila ${index + 1} procesada:`, obj);
-      }
-      
       return obj;
     }).filter(row => row.nuc && row.nuc !== ''); // Filtrar filas válidas
-    
-    console.log('Filas procesadas:', processedRows.length);
-    console.log('Primera fila procesada completa:', processedRows[0]);
     
     return processedRows;
   };
@@ -1659,8 +1582,6 @@ const LiquidacionesPage = () => {
 
   // Consolidar datos por NUC
   const consolidarDatos = (data) => {
-    console.log('📊 Consolidando', data.length, 'registros...');
-    
     const grouped = {};
     
     data.forEach((row, index) => {
@@ -1683,15 +1604,6 @@ const LiquidacionesPage = () => {
       let baseLiq = 0;
       if (row.baseLiquidacion !== undefined && row.baseLiquidacion !== '') {
         baseLiq = parseFloat(row.baseLiquidacion) || 0;
-        
-        // Debug: Log los primeros 10 valores para verificar
-        if (index < 10) {
-          console.log(`🔍 Fila ${index + 1}: baseLiquidacion original = "${row.baseLiquidacion}", convertido = ${baseLiq}`);
-        }
-      } else {
-        if (index < 10) {
-          console.log(`⚠️ Fila ${index + 1}: baseLiquidacion está vacía o undefined:`, row.baseLiquidacion);
-        }
       }
       
       grouped[key].produccion += baseLiq;
@@ -1758,14 +1670,6 @@ const LiquidacionesPage = () => {
       return consolidatedItem;
     });
     
-    console.log('✅ Consolidación completada:', result.length, 'máquinas únicas');
-    console.log('💰 Producción total calculada:', result.reduce((sum, item) => sum + item.produccion, 0).toLocaleString());
-    if (result.length) {
-      console.log('🧪 Sample consolidado[0]:', result[0]);
-      const zerosFinancieros = result.filter(r => r.derechosExplotacion === 0).length;
-      console.log(`🧪 Registros con derechosExplotacion=0: ${zerosFinancieros}/${result.length}`);
-    }
-    
     return result;
   };
 
@@ -1804,11 +1708,6 @@ const LiquidacionesPage = () => {
   // Confirmar validación y finalizar procesamiento
   const confirmarValidacion = () => {
     if (validationData) {
-      console.log('🔍 CONFIRMAR VALIDACIÓN - Datos recibidos:');
-      console.log('validationData.metrics:', validationData.metrics);
-      console.log('validationData.totalDerechos:', validationData.totalDerechos);
-      console.log('validationData.totalGastos:', validationData.totalGastos);
-      
       // Crear métricas finales usando los valores actualizados individuales
       const metricasFinales = {
         ...validationData.metrics,
@@ -1818,14 +1717,10 @@ const LiquidacionesPage = () => {
         totalImpuestos: validationData.totalImpuestos
       };
       
-      console.log('🎯 MÉTRICAS FINALES PARA APLICAR:', metricasFinales);
-      
       // Aplicar datos validados
       setConsolidatedData(validationData.consolidated);
       setReporteBySala(validationData.reporteSala);
       setMetricsData(metricasFinales);
-      
-      console.log('✅ Estados actualizados en confirmarValidacion');
       
       addLog(`📊 ${validationData.totalMaquinas} máquinas consolidadas`, 'success');
       addLog(`🏢 ${validationData.totalEstablecimientos} establecimientos procesados`, 'success');
@@ -2017,7 +1912,6 @@ const LiquidacionesPage = () => {
   };
 
   const seleccionarArchivoTarifas = () => {
-    console.log('🔄 Iniciando selección de archivo de tarifas...');
     addLog('📁 Abriendo selector de archivo de tarifas...', 'info');
     
     const input = document.createElement('input');
@@ -2025,25 +1919,21 @@ const LiquidacionesPage = () => {
     input.accept = '.xlsx,.xls,.csv';
     input.onchange = (e) => {
       const archivo = e.target.files[0];
-      console.log('📄 Archivo seleccionado:', archivo);
       
       if (archivo) {
         // VALIDAR: No debe ser el mismo archivo inicial
         if (selectedFile && archivo.name === selectedFile.name && archivo.size === selectedFile.size) {
-          console.log('❌ Archivo duplicado detectado');
           addLog('❌ Error: No puede subir el mismo archivo inicial', 'error');
           addNotification('Error: Debe subir un archivo de tarifas diferente al archivo inicial', 'error');
           return;
         }
         
-        console.log('✅ Archivo válido, procesando automáticamente...', archivo.name);
         addLog(`📄 Archivo de tarifas seleccionado: ${archivo.name}`, 'info');
         setArchivoTarifas(archivo);
         
         // PROCESAR AUTOMÁTICAMENTE
         procesarArchivoTarifas(archivo);
       } else {
-        console.log('❌ No se seleccionó archivo');
         addLog('❌ No se seleccionó archivo de tarifas', 'warning');
       }
     };
@@ -2054,7 +1944,6 @@ const LiquidacionesPage = () => {
     };
     
     input.click();
-    console.log('📂 Selector de archivo activado');
   };
 
   const continuarSinTarifas = () => {
@@ -2089,18 +1978,11 @@ const LiquidacionesPage = () => {
 
   // Calcular métricas generales
   const calcularMetricas = (consolidatedData, reporteSala) => {
-    console.log('🔢 Calculando métricas con datos:', {
-      consolidatedLength: consolidatedData?.length || 0,
-      reporteSalaLength: reporteSala?.length || 0
-    });
-
     if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
-      console.log('⚠️ No hay datos consolidados para calcular métricas');
       return null;
     }
 
     if (!reporteSala || !Array.isArray(reporteSala)) {
-      console.log('⚠️ No hay datos de reporte por sala para calcular métricas');
       return null;
     }
 
@@ -2129,20 +2011,6 @@ const LiquidacionesPage = () => {
       if (typeof item.totalImpuestos !== 'number' || isNaN(item.totalImpuestos) || item.totalImpuestos === 0) {
         item.totalImpuestos = toNumber(item.derechosExplotacion) + toNumber(item.gastosAdministracion);
       }
-    });
-
-    // Debug financiero antes de sumar
-    const sample = consolidatedData[0];
-    const missingDerechos = consolidatedData.filter(i => !i.derechosExplotacion || i.derechosExplotacion === 0).length;
-    const missingGastos = consolidatedData.filter(i => !i.gastosAdministracion || i.gastosAdministracion === 0).length;
-    console.log('🧪 Debug previo a sumas:', {
-      sample,
-      missingDerechos,
-      missingGastos,
-      firstProduccion: sample && sample.produccion,
-      firstDerechos: sample && sample.derechosExplotacion,
-      firstGastos: sample && sample.gastosAdministracion,
-      firstImpuestos: sample && sample.totalImpuestos
     });
 
     const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
@@ -2177,7 +2045,6 @@ const LiquidacionesPage = () => {
       promedioEstablecimiento
     };
 
-    console.log('✅ Métricas calculadas:', metricas);
     return metricas;
   };
 
@@ -3298,18 +3165,46 @@ const LiquidacionesPage = () => {
             }
           }}>
             <CardContent>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'secondary.main',
-                letterSpacing: 0.8,
-                fontSize: '0.75rem'
-              }}>
-                Registro de Actividades
-              </Typography>
-              
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                📋 Log de Actividades
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    Registro de Actividades
+                  </Typography>
+                  
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    📋 Log de Actividades
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip 
+                    label={`${logs.length} registros`}
+                    size="small"
+                    color={logs.length > 80 ? 'warning' : 'default'}
+                    sx={{ fontWeight: 500 }}
+                  />
+                  {logs.length > 0 && (
+                    <IconButton
+                      size="small"
+                      onClick={limpiarLogs}
+                      sx={{ 
+                        color: 'error.main',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.error.main, 0.08)
+                        }
+                      }}
+                      title="Limpiar logs"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              </Box>
               
               <Box sx={{ 
                 maxHeight: 300, 
