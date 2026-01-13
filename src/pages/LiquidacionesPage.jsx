@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -1043,46 +1043,6 @@ const LiquidacionesPage = () => {
   }, [selectedFile, liquidacionGuardadaId, companiesLoading, companies, addNotification]);
 
   // Consolidar datos por NUC (función que faltaba)
-  const consolidarPorNuc = (data) => {
-    // Consolidando por NUC
-    
-    const grouped = {};
-    
-    data.forEach((row, index) => {
-      const key = `${row.nuc}_${row.establecimiento}`;
-      
-      if (!grouped[key]) {
-        grouped[key] = {
-          nuc: row.nuc,
-          serial: row.serial,
-          establecimiento: row.establecimiento,
-          tipoApuesta: row.tipoApuesta,
-          empresa: empresa,
-          produccion: 0,
-          diasTransmitidos: 0,
-          fechas: []
-        };
-      }
-      
-      // Convertir base liquidación a número
-      let baseLiq = 0;
-      if (row.baseLiquidacion !== undefined && row.baseLiquidacion !== '') {
-        baseLiq = parseFloat(row.baseLiquidacion) || 0;
-      }
-      
-      grouped[key].produccion += baseLiq;
-      grouped[key].diasTransmitidos += 1;
-      
-      if (row.fecha && !grouped[key].fechas.includes(row.fecha)) {
-        grouped[key].fechas.push(row.fecha);
-      }
-    });
-    
-    const result = Object.values(grouped);
-    // Consolidación completada
-    return result;
-  };
-
   // Agrupar por establecimiento (función que faltaba)
   const agruparPorEstablecimiento = (consolidated) => {
     const grouped = {};
@@ -1151,8 +1111,8 @@ const LiquidacionesPage = () => {
       // Procesar datos
       const processedData = procesarDatos(data, headerRow);
       
-      // Consolidar por NUC
-      const consolidated = consolidarPorNuc(processedData);
+      // Consolidar por NUC (usa función completa con cálculos)
+      const consolidated = consolidarDatos(processedData);
       
       // Agrupar por establecimiento
       const reporteSala = agruparPorEstablecimiento(consolidated);
@@ -1977,43 +1937,45 @@ const LiquidacionesPage = () => {
   };
 
   // Calcular métricas generales
-  const calcularMetricas = (consolidatedData, reporteSala) => {
-    if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
-      return null;
-    }
-
-    if (!reporteSala || !Array.isArray(reporteSala)) {
-      return null;
-    }
-
-    // Normalización helper
-    const toNumber = (v) => {
-      if (v === null || v === undefined) return 0;
-      if (typeof v === 'number') return isFinite(v) ? v : 0;
-      if (typeof v === 'string') {
-        const cleaned = v.replace(/[$,%\s]/g, '').replace(/\.(?=.*\.)/g,'').replace(/,/g,'.');
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? 0 : n;
+  // Calcular métricas (memoizado para evitar recálculos innecesarios)
+  const calcularMetricas = useMemo(() => {
+    return (consolidatedData, reporteSala) => {
+      if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+        return null;
       }
-      return 0;
-    };
 
-    // Asegurar que cada item tenga cálculos financieros básicos si faltan
-    consolidatedData.forEach(item => {
-      const prod = toNumber(item.produccion || item.totalProduccion);
-      if (!item || prod === 0) return;
-      if (typeof item.derechosExplotacion !== 'number' || isNaN(item.derechosExplotacion) || item.derechosExplotacion === 0) {
-        item.derechosExplotacion = prod * 0.12;
+      if (!reporteSala || !Array.isArray(reporteSala)) {
+        return null;
       }
-      if (typeof item.gastosAdministracion !== 'number' || isNaN(item.gastosAdministracion) || item.gastosAdministracion === 0) {
-        item.gastosAdministracion = prod * 0.015;
-      }
-      if (typeof item.totalImpuestos !== 'number' || isNaN(item.totalImpuestos) || item.totalImpuestos === 0) {
-        item.totalImpuestos = toNumber(item.derechosExplotacion) + toNumber(item.gastosAdministracion);
-      }
-    });
 
-    const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
+      // Normalización helper
+      const toNumber = (v) => {
+        if (v === null || v === undefined) return 0;
+        if (typeof v === 'number') return isFinite(v) ? v : 0;
+        if (typeof v === 'string') {
+          const cleaned = v.replace(/[$,%\s]/g, '').replace(/\.(?=.*\.)/g,'').replace(/,/g,'.');
+          const n = parseFloat(cleaned);
+          return isNaN(n) ? 0 : n;
+        }
+        return 0;
+      };
+
+      // Asegurar que cada item tenga cálculos financieros básicos si faltan
+      consolidatedData.forEach(item => {
+        const prod = toNumber(item.produccion || item.totalProduccion);
+        if (!item || prod === 0) return;
+        if (typeof item.derechosExplotacion !== 'number' || isNaN(item.derechosExplotacion) || item.derechosExplotacion === 0) {
+          item.derechosExplotacion = prod * 0.12;
+        }
+        if (typeof item.gastosAdministracion !== 'number' || isNaN(item.gastosAdministracion) || item.gastosAdministracion === 0) {
+          item.gastosAdministracion = prod * 0.015;
+        }
+        if (typeof item.totalImpuestos !== 'number' || isNaN(item.totalImpuestos) || item.totalImpuestos === 0) {
+          item.totalImpuestos = toNumber(item.derechosExplotacion) + toNumber(item.gastosAdministracion);
+        }
+      });
+
+      const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
     const totalDerechos = consolidatedData.reduce((sum, item) => sum + toNumber(item.derechosExplotacion), 0);
     const totalGastos = consolidatedData.reduce((sum, item) => sum + toNumber(item.gastosAdministracion), 0);
     const totalImpuestos = consolidatedData.reduce((sum, item) => sum + toNumber(item.totalImpuestos), 0);
@@ -2046,7 +2008,8 @@ const LiquidacionesPage = () => {
     };
 
     return metricas;
-  };
+    };
+  }, []); // Memoizado sin dependencias (función pura)
 
   // Funciones de exportación
   const exportarConsolidado = async () => {

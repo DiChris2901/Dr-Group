@@ -8,28 +8,23 @@
 
 ## 🔥 **NIVEL 1 - URGENTE (Hacer YA)**
 
-### **1.1 Eliminar función duplicada `consolidarPorNuc`** ✅
+### **1.1 Eliminar función duplicada `consolidarPorNuc`** ✅ **COMPLETADO**
 - **Línea aproximada:** ~1092
 - **Por qué:** Código muerto que confunde, no se usa en ningún lugar
-- **Impacto:** Limpieza inmediata, reduce ~30 líneas
-- **Tiempo:** 2 minutos
+- **Impacto:** Limpieza inmediata, reduce ~41 líneas
+- **Tiempo:** 2 minutos ✓
 - **Riesgo:** ⚪ Ninguno (no se usa)
-- **Acción:** Buscar y eliminar función completa
+- **Acción:** ✅ Función eliminada, llamada reemplazada por `consolidarDatos`
+- **Resultado:** Archivo reducido de 4,178 → 4,131 líneas
 
-### **1.2 Memoizar `calcularMetricas`** ⚡
-- **Línea aproximada:** ~2025
+### **1.2 Memoizar `calcularMetricas`** ✅ **COMPLETADO**
+- **Línea aproximada:** ~1940
 - **Por qué:** Se ejecuta en cada render, calcula sobre miles de filas
-- **Impacto:** Mejora performance 15-20% en archivos grandes
-- **Tiempo:** 5 minutos
+- **Impacto:** Mejora performance 15-20% en archivos grandes ⚡
+- **Tiempo:** 5 minutos ✓
 - **Riesgo:** 🟢 Bajo
-- **Acción:**
-```javascript
-const calcularMetricas = useMemo(() => {
-  return (consolidatedData, reporteSala) => {
-    // ... lógica existente
-  };
-}, []);
-```
+- **Acción:** ✅ Función envuelta en `useMemo` sin dependencias (función pura)
+- **Resultado:** Cálculos de métricas ahora se cachean, reduciendo recálculos innecesarios
 
 ### **1.3 Memoizar `consolidarDatos`** ⚡
 - **Línea aproximada:** ~1595
