@@ -104,25 +104,24 @@
   - Eliminados: estado `logs`, ref `logIdCounter`, funciones `addLog` y `limpiarLogs`
   - Hook es reutilizable en cualquier página que necesite sistema de logs
 
-### **3.2 Extraer custom hook: `useLiquidacionExport`** 🎣
-- **Por qué:** Lógica de exportación es independiente (3 formatos)
+### **3.2 Extraer custom hook: `useLiquidacionExport`** ✅ **COMPLETADO**
+- **Por qué:** Lógica de exportación es independiente (3 formatos) 🎣
 - **Impacto:** Separación de responsabilidades
-- **Tiempo:** 1.5 horas
+- **Tiempo:** 1.5 horas ✓
 - **Riesgo:** 🟢 Bajo
-- **Acción:** Crear `src/hooks/useLiquidacionExport.js`
-```javascript
-export default function useLiquidacionExport(consolidatedData, reporteBySala, empresa) {
-  const exportarConsolidado = useCallback(async () => {
-    // ... lógica líneas 2133-2245
-  }, [consolidatedData, empresa]);
-  
-  const exportarReporteSala = useCallback(() => {
-    // ... lógica líneas 2127-2159
-  }, [reporteBySala, empresa]);
-  
-  return { exportarConsolidado, exportarReporteSala };
-}
-```
+- **Acción:** ✅ Creado `src/hooks/useLiquidacionExport.js` con:
+  - `exportarConsolidado()` - Formato Python → Spectacular → Simple con fallbacks
+  - `exportarReporteSala()` - Reporte agrupado por establecimiento
+  - `exportarReporteDiario(establecimiento)` - Reporte multi-hoja diario
+  - Gestión completa de logs y notificaciones
+  - Logging de actividad en Firebase
+- **Resultado:**
+  - Archivo creado: `src/hooks/useLiquidacionExport.js` (231 líneas)
+  - LiquidacionesPage.jsx: Eliminadas ~190 líneas de lógica de exportación
+  - Import agregado: `import useLiquidacionExport from '../hooks/useLiquidacionExport';`
+  - Hook usado con 9 parámetros: consolidatedData, reporteBySala, originalData, empresa, addLog, addNotification, logActivity, currentUser, userProfile
+  - Funciones extraídas ahora son reutilizables en otras páginas
+  - Código más limpio y mantenible (~3,900 líneas)
 
 ### **3.3 Virtualización de tablas grandes (react-window)** 📊
 - **Por qué:** Con 1000+ filas, el scroll es pesado
