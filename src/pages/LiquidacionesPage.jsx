@@ -4253,4 +4253,5 @@ const LiquidacionesPage = () => {
   );
 };
 
-export default LiquidacionesPage;
+// Memoizar componente para evitar re-renders innecesarios
+export default React.memo(LiquidacionesPage);
