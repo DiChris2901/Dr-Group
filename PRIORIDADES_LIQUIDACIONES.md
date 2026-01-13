@@ -39,26 +39,18 @@
 
 ## ⚠️ **NIVEL 2 - IMPORTANTE (Hacer pronto)**
 
-### **2.1 Centralizar magic numbers en constantes** 📝
+### **2.1 Centralizar magic numbers en constantes** ✅ **COMPLETADO**
 - **Por qué:** Valores hardcodeados dispersos (10, 15, 100, 500ms)
-- **Impacto:** Fácil ajustar comportamiento, mejor documentación
-- **Tiempo:** 15 minutos
+- **Impacto:** Fácil ajustar comportamiento, mejor documentación 📝
+- **Tiempo:** 15 minutos ✓
 - **Riesgo:** ⚪ Ninguno
-- **Acción:**
-```javascript
-const LIQUIDACION_CONFIG = {
-  MAX_LOGS: 100,
-  HEADER_SCAN_ROWS: 15,
-  CONTRACT_SCAN_ROWS: 10,
-  AUTO_PROCESS_DELAY: 500,
-  SAMPLE_ROWS_TO_LOG: 5
-};
-```
-- **Ubicaciones a reemplazar:**
-  - Línea ~827: `Math.min(10, data.length)` → `LIQUIDACION_CONFIG.CONTRACT_SCAN_ROWS`
-  - Línea ~954: `Math.min(15, data.length)` → `LIQUIDACION_CONFIG.HEADER_SCAN_ROWS`
-  - Línea ~1030: `setTimeout(..., 500)` → `LIQUIDACION_CONFIG.AUTO_PROCESS_DELAY`
-  - Línea ~810: `if (updated.length > 100)` → `LIQUIDACION_CONFIG.MAX_LOGS`
+- **Acción:** ✅ Creada constante `LIQUIDACION_CONFIG` con 5 valores centralizados
+- **Resultado:** 
+  - `MAX_LOGS: 100` → Límite de logs en UI (línea ~810)
+  - `HEADER_SCAN_ROWS: 15` → Filas para detectar headers (líneas ~1362, ~1381)
+  - `CONTRACT_SCAN_ROWS: 10` → Filas para detectar contrato (línea ~394)
+  - `AUTO_PROCESS_DELAY: 500` → Delay antes de procesar (línea ~995)
+  - `SAMPLE_ROWS_TO_LOG: 5` → Filas de muestra para logs (reservado)
 
 ### **2.2 Validación robusta de Excel** 🛡️
 - **Por qué:** Prevenir crashes con archivos malformados

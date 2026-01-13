@@ -91,6 +91,15 @@ const LiquidacionesPage = () => {
   const { logActivity } = useActivityLogs();
   const { companies, loading: companiesLoading } = useCompanies();
 
+  // Constantes de configuración centralizadas
+  const LIQUIDACION_CONFIG = {
+    MAX_LOGS: 100,              // Límite de logs en UI
+    HEADER_SCAN_ROWS: 15,       // Filas a escanear para detectar headers
+    CONTRACT_SCAN_ROWS: 10,     // Filas a escanear para detectar contrato
+    AUTO_PROCESS_DELAY: 500,    // Delay en ms antes de procesar automáticamente
+    SAMPLE_ROWS_TO_LOG: 5       // Filas de muestra a mostrar en logs
+  };
+
   // Estados principales
   const [selectedFile, setSelectedFile] = useState(null);
   const [empresa, setEmpresa] = useState('');
@@ -382,7 +391,7 @@ const LiquidacionesPage = () => {
         addLog('🔍 Buscando número de contrato en el archivo...', 'info');
         
         // Buscar en las primeras filas para encontrar el contrato
-        for (let i = 1; i < Math.min(10, data.length); i++) {
+        for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.CONTRACT_SCAN_ROWS, data.length); i++) {
           const fila = data[i];
           if (fila && fila[0]) {
             const posibleContrato = fila[0].toString().trim();
@@ -796,9 +805,9 @@ const LiquidacionesPage = () => {
     };
     setLogs(prev => {
       const updated = [...prev, newLog];
-      // Mantener solo los últimos 100 logs para evitar memory leak
-      if (updated.length > 100) {
-        return updated.slice(-100);
+      // Mantener solo los últimos logs para evitar memory leak
+      if (updated.length > LIQUIDACION_CONFIG.MAX_LOGS) {
+        return updated.slice(-LIQUIDACION_CONFIG.MAX_LOGS);
       }
       return updated;
     });
@@ -914,11 +923,11 @@ const LiquidacionesPage = () => {
       // Leer archivo para extraer número de contrato
       const data = await readFile(file);
       
-      // Buscar número de contrato en las primeras 15 filas (IGNORAR HEADERS)
+      // Buscar número de contrato en las primeras filas (IGNORAR HEADERS)
       let numeroContrato = null;
       const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
       
-      for (let i = 1; i < Math.min(15, data.length); i++) {
+      for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
         const fila = data[i];
         
         if (fila && fila[0]) {
@@ -983,7 +992,7 @@ const LiquidacionesPage = () => {
     // Procesar automáticamente después de detectar empresa
     setTimeout(() => {
       procesarLiquidacion(file);
-    }, 500);
+    }, LIQUIDACION_CONFIG.AUTO_PROCESS_DELAY);
   };
 
   // Drag & Drop handlers
@@ -1076,7 +1085,7 @@ const LiquidacionesPage = () => {
         let numeroContrato = null;
         const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
         
-        for (let i = 1; i < Math.min(15, data.length); i++) {
+        for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
           const fila = data[i];
           if (fila && fila[0]) {
             const posibleContrato = fila[0].toString().trim();
@@ -1168,10 +1177,10 @@ const LiquidacionesPage = () => {
       
       addLog('🔍 Buscando número de contrato en el archivo...', 'info');
       
-      // Buscar en las primeras 15 filas para encontrar el contrato (IGNORAR HEADERS)
+      // Buscar en las primeras filas para encontrar el contrato (IGNORAR HEADERS)
       const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
       
-      for (let i = 1; i < Math.min(15, data.length); i++) {
+      for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
         const fila = data[i];
         if (fila && fila[0]) {
           const posibleContrato = fila[0].toString().trim();
@@ -1347,10 +1356,10 @@ const LiquidacionesPage = () => {
   const detectarFilaEncabezados = (data) => {
     const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion'];
     
-    addLog('🔍 Analizando las primeras 15 filas para encontrar encabezados...');
+    addLog('🔍 Analizando las primeras filas para encontrar encabezados...');
     
     // Búsqueda estricta
-    for (let fila = 0; fila < Math.min(15, data.length); fila++) {
+    for (let fila = 0; fila < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); fila++) {
       const row = data[fila];
       if (!row) continue;
       
@@ -1369,7 +1378,7 @@ const LiquidacionesPage = () => {
     addLog('🔍 Búsqueda estricta fallida, probando búsqueda flexible...');
     const palabrasEncabezado = ['serial', 'nuc', 'establecimiento', 'contrato', 'codigo', 'tipo', 'fecha', 'base', 'liquidacion', 'produccion', 'ingresos', 'casino', 'sala'];
     
-    for (let fila = 0; fila < Math.min(15, data.length); fila++) {
+    for (let fila = 0; fila < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); fila++) {
       const row = data[fila];
       if (!row) continue;
       
