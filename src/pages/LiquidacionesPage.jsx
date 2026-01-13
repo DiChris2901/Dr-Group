@@ -43,6 +43,7 @@ import {
   Avatar,
   FormControlLabel,
   Radio,
+  Skeleton,
   alpha
 } from '@mui/material';
 import {
@@ -2505,17 +2506,17 @@ const LiquidacionesPage = () => {
       </Dialog>
 
       <Container maxWidth="xl" sx={{ py: 3 }}>
-      {/* Header - Diseño Sobrio */}
+      {/* Header - Diseño Sobrio con Gradient Dinámico */}
       <Paper sx={{ 
-        background: theme.palette.mode === 'dark' 
-          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
-          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
         borderRadius: 1,
         overflow: 'hidden',
-        boxShadow: theme.palette.mode === 'dark'
-          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-          : '0 4px 20px rgba(0, 0, 0, 0.08)',
-        mb: 6
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        mb: 6,
+        transition: 'box-shadow 0.2s ease',
+        '&:hover': {
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        }
       }}>
         <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
           <Typography variant="overline" sx={{ 
@@ -2563,8 +2564,13 @@ const LiquidacionesPage = () => {
         <Card sx={{ 
           mb: 3,
           borderRadius: 1,
-          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
         }}>
           <CardContent sx={{ p: 2.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -2633,11 +2639,12 @@ const LiquidacionesPage = () => {
           <Card sx={{ 
             height: 'fit-content',
             borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'box-shadow 0.2s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             <CardContent>
@@ -2710,19 +2717,20 @@ const LiquidacionesPage = () => {
                     selectedFile || liquidacionGuardadaId || companiesLoading
                       ? alpha(theme.palette.action.disabled, 0.3)
                       : dragActive 
-                        ? alpha(theme.palette.primary.main, 0.6) 
-                        : alpha(theme.palette.divider, 0.15)
+                        ? alpha(theme.palette.primary.main, 0.8) 
+                        : alpha(theme.palette.primary.main, 0.6)
                   }`,
                   backgroundColor: selectedFile || liquidacionGuardadaId || companiesLoading
                     ? alpha(theme.palette.action.disabled, 0.05)
                     : dragActive 
-                      ? alpha(theme.palette.primary.main, 0.08) 
+                      ? alpha(theme.palette.primary.main, 0.1) 
                       : alpha(theme.palette.primary.main, 0.04),
                   textAlign: 'center',
                   cursor: selectedFile || liquidacionGuardadaId || companiesLoading ? 'not-allowed' : 'pointer',
                   mb: 2,
                   borderRadius: 1,
                   transition: 'all 0.2s ease',
+                  transform: dragActive ? 'scale(1.02)' : 'scale(1)',
                   opacity: selectedFile || liquidacionGuardadaId || companiesLoading ? 0.6 : 1
                 }}
               >
@@ -2951,14 +2959,19 @@ const LiquidacionesPage = () => {
                   p: 3, 
                   background: alpha(theme.palette.primary.main, 0.08),
                   borderRadius: 1,
-                  textAlign: 'center',
                   mb: 2,
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
                 }}>
-                  <Typography variant="body1" color="primary" sx={{ mb: 1 }}>
+                  <Typography variant="body1" color="primary" sx={{ mb: 2, textAlign: 'center' }}>
                     ⚙️ Procesando automáticamente...
                   </Typography>
-                  <LinearProgress />
+                  <Skeleton variant="rectangular" height={60} sx={{ mb: 2, borderRadius: 1 }} />
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
+                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
+                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
+                  </Box>
+                  <LinearProgress sx={{ borderRadius: 1 }} />
                 </Box>
               ) : (
                 <Box sx={{ 
@@ -3119,7 +3132,23 @@ const LiquidacionesPage = () => {
                 border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                 borderRadius: 1,
                 p: 1,
-                backgroundColor: alpha(theme.palette.background.default, 0.5)
+                backgroundColor: alpha(theme.palette.background.default, 0.5),
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                  height: '8px'
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: alpha(theme.palette.divider, 0.1),
+                  borderRadius: '4px'
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.6)}, ${alpha(theme.palette.secondary.main, 0.6)})`,
+                  borderRadius: '4px',
+                  transition: 'all 0.2s ease'
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.8)}, ${alpha(theme.palette.secondary.main, 0.8)})`
+                }
               }}>
                 {logs.length === 0 && (
                   <Typography variant="body2" color="textSecondary">
@@ -3166,7 +3195,14 @@ const LiquidacionesPage = () => {
                   '& .MuiTab-root': {
                     fontWeight: 500,
                     textTransform: 'none',
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    transition: 'all 0.2s ease'
+                  },
+                  '& .MuiTabs-indicator': {
+                    height: 3,
+                    borderRadius: '3px 3px 0 0',
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                   }
                 }}
               >
@@ -3225,12 +3261,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                             background: alpha(theme.palette.primary.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.primary.main, 0.8),
                               background: alpha(theme.palette.primary.main, 0.12)
                             }
                           }}>
@@ -3295,12 +3332,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
                             background: alpha(theme.palette.success.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.success.main, 0.8),
                               background: alpha(theme.palette.success.main, 0.12)
                             }
                           }}>
@@ -3330,12 +3368,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
                             background: alpha(theme.palette.warning.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.warning.main, 0.8),
                               background: alpha(theme.palette.warning.main, 0.12)
                             }
                           }}>
@@ -3400,12 +3439,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
                             background: alpha(theme.palette.error.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.error.main, 0.8),
                               background: alpha(theme.palette.error.main, 0.12)
                             }
                           }}>
@@ -3452,12 +3492,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
                             background: alpha(theme.palette.success.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.success.main, 0.8),
                               background: alpha(theme.palette.success.main, 0.12)
                             }
                           }}>
@@ -3487,12 +3528,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
                             background: alpha(theme.palette.warning.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.warning.main, 0.8),
                               background: alpha(theme.palette.warning.main, 0.12)
                             }
                           }}>
@@ -3676,7 +3718,17 @@ const LiquidacionesPage = () => {
                             </TableHead>
                             <TableBody>
                               {consolidatedData.map((row, index) => (
-                                <TableRow key={`consolidated-${row.nuc}-${row.establecimiento}-${index}`} hover>
+                                <TableRow 
+                                  key={`consolidated-${row.nuc}-${row.establecimiento}-${index}`} 
+                                  hover
+                                  sx={{
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                      borderLeft: `3px solid ${theme.palette.primary.main}`,
+                                      transition: 'all 0.2s ease'
+                                    }
+                                  }}
+                                >
                                   <TableCell>{row.empresa}</TableCell>
                                   <TableCell>{row.serial}</TableCell>
                                   <TableCell>{row.nuc}</TableCell>
@@ -3830,7 +3882,11 @@ const LiquidacionesPage = () => {
                               },
                               '& .MuiTableBody-root': {
                                 '& .MuiTableRow-root': {
-                                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                                  '&:hover': { 
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                    borderLeft: `3px solid ${theme.palette.primary.main}`,
+                                    transition: 'all 0.2s ease'
+                                  },
                                   '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
                                   '& .MuiTableCell-root': {
                                     paddingY: 1.8,
@@ -3946,7 +4002,11 @@ const LiquidacionesPage = () => {
                               },
                               '& .MuiTableBody-root': {
                                 '& .MuiTableRow-root': {
-                                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                                  '&:hover': { 
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                    borderLeft: `3px solid ${theme.palette.primary.main}`,
+                                    transition: 'all 0.2s ease'
+                                  },
                                   '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
                                   '& .MuiTableCell-root': {
                                     paddingY: 1.8,
@@ -3971,7 +4031,17 @@ const LiquidacionesPage = () => {
                               {consolidatedData
                                 .filter(row => tarifasOficiales && tarifasOficiales[row.nuc.toString()])
                                 .map((row, index) => (
-                                  <TableRow key={`tarifa-fija-${row.nuc}-${index}`} hover>
+                                  <TableRow 
+                                    key={`tarifa-fija-${row.nuc}-${index}`} 
+                                    hover
+                                    sx={{
+                                      '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                                        borderLeft: `3px solid ${theme.palette.primary.main}`,
+                                        transition: 'all 0.2s ease'
+                                      }
+                                    }}
+                                  >
                                     <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento}</TableCell>
                                     <TableCell>{row.serial}</TableCell>
                                     <TableCell>{row.nuc}</TableCell>
