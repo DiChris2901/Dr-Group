@@ -1540,8 +1540,8 @@ const LiquidacionesPage = () => {
     }
   };
 
-  // Consolidar datos por NUC
-  const consolidarDatos = (data) => {
+  // Consolidar datos por NUC (memoizado para evitar reprocesamiento)
+  const consolidarDatos = useCallback((data) => {
     const grouped = {};
     
     data.forEach((row, index) => {
@@ -1631,7 +1631,7 @@ const LiquidacionesPage = () => {
     });
     
     return result;
-  };
+  }, [empresa]); // Memoizado con dependencia en empresa
 
   // Generar reporte por sala
   const generarReporteSala = (consolidatedConEmpresa) => {

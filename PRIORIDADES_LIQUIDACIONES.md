@@ -26,18 +26,14 @@
 - **Acción:** ✅ Función envuelta en `useMemo` sin dependencias (función pura)
 - **Resultado:** Cálculos de métricas ahora se cachean, reduciendo recálculos innecesarios
 
-### **1.3 Memoizar `consolidarDatos`** ⚡
-- **Línea aproximada:** ~1595
+### **1.3 Memoizar `consolidarDatos`** ✅ **COMPLETADO**
+- **Línea aproximada:** ~1543
 - **Por qué:** Procesa 6000+ filas, se recalcula innecesariamente
-- **Impacto:** Reduce lag al procesar archivos grandes
-- **Tiempo:** 5 minutos
+- **Impacto:** Reduce lag al procesar archivos grandes ⚡
+- **Tiempo:** 5 minutos ✓
 - **Riesgo:** 🟢 Bajo
-- **Acción:**
-```javascript
-const consolidarDatos = useCallback((data) => {
-  // ... lógica existente
-}, [empresa]);
-```
+- **Acción:** ✅ Función envuelta en `useCallback` con dependencia en `[empresa]`
+- **Resultado:** Consolidación de datos ahora se cachea, solo se recalcula cuando cambia la empresa
 
 ---
 
