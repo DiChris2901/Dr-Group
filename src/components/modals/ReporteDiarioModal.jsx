@@ -153,11 +153,15 @@ const ReporteDiarioModal = ({
             {/* Info header sobrio */}
             <Box sx={{ 
               background: theme => alpha(theme.palette.primary.main, 0.08),
-              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               p: 2.5, 
               display: 'flex', 
               alignItems: 'center',
-              gap: 2
+              gap: 2,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderBottomColor: theme => alpha(theme.palette.primary.main, 0.8)
+              }
             }}>
               <Box sx={{ 
                 fontWeight: 500,
@@ -257,9 +261,9 @@ const ReporteDiarioModal = ({
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
                       background: theme => alpha(theme.palette.primary.main, 0.02),
-                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                       '&:hover': {
-                        borderColor: theme => alpha(theme.palette.primary.main, 0.4)
+                        borderColor: theme => alpha(theme.palette.primary.main, 0.8)
                       },
                       '&.Mui-focused': {
                         borderColor: theme => theme.palette.primary.main
@@ -289,7 +293,7 @@ const ReporteDiarioModal = ({
                     right: 0,
                     zIndex: 1000,
                     background: 'background.paper',
-                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                     borderTop: 'none',
                     borderRadius: '0 0 4px 4px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -337,10 +341,10 @@ const ReporteDiarioModal = ({
                   borderRadius: 1,
                   background: theme => alpha(theme.palette.secondary.main, 0.08),
                   color: 'text.secondary',
-                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
                   '&:hover': { 
                     background: theme => alpha(theme.palette.secondary.main, 0.12),
-                    borderColor: theme => alpha(theme.palette.secondary.main, 0.4)
+                    borderColor: theme => alpha(theme.palette.secondary.main, 0.8)
                   },
                   transition: 'all 0.2s ease'
                 }}
@@ -486,11 +490,15 @@ const ReporteDiarioModal = ({
             {/* Selected info sobrio */}
             <Box sx={{ 
               background: theme => alpha(theme.palette.secondary.main, 0.08),
-              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
               p: 2,
               display: 'flex',
               alignItems: 'center',
-              gap: 1.5
+              gap: 1.5,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderTopColor: theme => alpha(theme.palette.secondary.main, 0.8)
+              }
             }}>
               <Box sx={{ 
                 width: 8, 

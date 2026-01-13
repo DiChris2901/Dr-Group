@@ -2766,7 +2766,11 @@ const LiquidacionesPage = () => {
                   sx={{ 
                     mb: 2,
                     backgroundColor: alpha(theme.palette.success.main, 0.08),
-                    border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: alpha(theme.palette.success.main, 0.8)
+                    }
                   }}
                 >
                   <strong>Archivo seleccionado:</strong><br />
@@ -2790,10 +2794,11 @@ const LiquidacionesPage = () => {
                     p: 2.5,
                     borderRadius: 1,
                     backgroundColor: empresa ? alpha(theme.palette.success.main, 0.04) : alpha(theme.palette.grey[500], 0.04),
-                    border: `1px solid ${empresa ? alpha(theme.palette.success.main, 0.2) : alpha(theme.palette.grey[500], 0.2)}`,
+                    border: `1px solid ${empresa ? alpha(theme.palette.success.main, 0.6) : alpha(theme.palette.grey[500], 0.6)}`,
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       backgroundColor: empresa ? alpha(theme.palette.success.main, 0.08) : alpha(theme.palette.grey[500], 0.08),
+                      borderColor: empresa ? alpha(theme.palette.success.main, 0.8) : alpha(theme.palette.grey[500], 0.8)
                     }
                   }}
                 >
@@ -2955,7 +2960,11 @@ const LiquidacionesPage = () => {
                   background: alpha(theme.palette.primary.main, 0.08),
                   borderRadius: 1,
                   mb: 2,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
+                  }
                 }}>
                   <Typography variant="body1" color="primary" sx={{ mb: 2, textAlign: 'center' }}>
                     ⚙️ Procesando automáticamente...
@@ -2975,7 +2984,11 @@ const LiquidacionesPage = () => {
                   borderRadius: 1,
                   textAlign: 'center',
                   mb: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.success.main, 0.8)
+                  }
                 }}>
                   <Typography variant="body1" color="success.main">
                     ✅ Archivo procesado correctamente
@@ -3032,7 +3045,11 @@ const LiquidacionesPage = () => {
                       bgcolor: alpha(theme.palette.info.main, 0.1),
                       borderRadius: 1,
                       textAlign: 'center',
-                      border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                      border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.info.main, 0.8)
+                      }
                     }}>
                       <Typography variant="caption" color="info.main" sx={{ fontWeight: 500 }}>
                         📋 Liquidación cargada desde histórico: {liquidacionGuardadaId.slice(0, 8)}...
@@ -3071,11 +3088,12 @@ const LiquidacionesPage = () => {
           <Card sx={{ 
             mt: 2,
             borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'box-shadow 0.2s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderColor: alpha(theme.palette.secondary.main, 0.8)
             }
           }}>
             <CardContent>
@@ -3173,11 +3191,12 @@ const LiquidacionesPage = () => {
           <Card sx={{
             height: 'fit-content',
             borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'box-shadow 0.2s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
@@ -3399,12 +3418,13 @@ const LiquidacionesPage = () => {
                             p: 3, 
                             textAlign: 'center',
                             borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
                             background: alpha(theme.palette.info.main, 0.08),
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             transition: 'all 0.2s ease',
                             '&:hover': {
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderColor: alpha(theme.palette.info.main, 0.8),
                               background: alpha(theme.palette.info.main, 0.12)
                             }
                           }}>
@@ -3656,7 +3676,12 @@ const LiquidacionesPage = () => {
                             maxHeight: 600,
                             borderRadius: 1,
                             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              borderColor: alpha(theme.palette.primary.main, 0.8),
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                            }
                           }}
                         >
                           <Table 
@@ -3852,7 +3877,12 @@ const LiquidacionesPage = () => {
                             maxHeight: 600,
                             borderRadius: 1,
                             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              borderColor: alpha(theme.palette.primary.main, 0.8),
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                            }
                           }}
                         >
                           <Table 
@@ -3972,7 +4002,12 @@ const LiquidacionesPage = () => {
                             maxHeight: 600,
                             borderRadius: 1,
                             border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              borderColor: alpha(theme.palette.secondary.main, 0.8),
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                            }
                           }}
                         >
                           <Table 
