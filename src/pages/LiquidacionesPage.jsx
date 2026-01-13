@@ -384,6 +384,21 @@ const LiquidacionesPage = () => {
         const data = await readFile(originalFile);
         addLog('✅ Archivo original leído correctamente', 'success');
         
+        // Validar datos antes de procesar
+        const validation = validateExcelData(data);
+        if (!validation.valid) {
+          addLog(`❌ Validación fallida: ${validation.errors.join(', ')}`, 'error');
+          throw new Error(`Archivo inválido: ${validation.errors.join(', ')}`);
+        }
+        
+        // Mostrar advertencias si existen
+        if (validation.warnings.length > 0) {
+          validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
+        }
+        
+        // Mostrar estadísticas
+        addLog(`📊 Archivo validado: ${validation.stats.dataRows} filas de datos, ${validation.stats.columns} columnas`, 'info');
+        
         // Extraer número de contrato del archivo (siguiendo lógica original)
         let numeroContrato = null;
         let empresaDetectada = null;
@@ -923,6 +938,20 @@ const LiquidacionesPage = () => {
       // Leer archivo para extraer número de contrato
       const data = await readFile(file);
       
+      // Validar datos antes de procesar
+      const validation = validateExcelData(data);
+      if (!validation.valid) {
+        addLog(`❌ Archivo inválido: ${validation.errors.join(', ')}`, 'error');
+        addNotification(`Error: ${validation.errors[0]}`, 'error');
+        setEmpresa('Error en archivo');
+        return;
+      }
+      
+      // Mostrar advertencias si existen
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
+      }
+      
       // Buscar número de contrato en las primeras filas (IGNORAR HEADERS)
       let numeroContrato = null;
       const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
@@ -1171,6 +1200,18 @@ const LiquidacionesPage = () => {
       const data = await readFile(archivo);
       addLog('✅ Archivo leído correctamente', 'success');
       
+      // Validar datos antes de procesar
+      const validation = validateExcelData(data);
+      if (!validation.valid) {
+        addLog(`❌ Validación fallida: ${validation.errors.join(', ')}`, 'error');
+        throw new Error(`Archivo inválido: ${validation.errors.join(', ')}`);
+      }
+      
+      // Mostrar advertencias si existen
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
+      }
+      
       // Extraer número de contrato del archivo (IGNORAR HEADERS)
       let numeroContrato = null;
       let empresaDetectada = null;
@@ -1409,6 +1450,78 @@ const LiquidacionesPage = () => {
     // Fallback
     addLog('⚠️ No se detectaron encabezados automáticamente, usando fila 2 como fallback');
     return 1;
+  };
+
+  // Validación robusta de datos Excel (prevenir crashes)
+  const validateExcelData = (data) => {
+    const errors = [];
+    const warnings = [];
+
+    // Validación 1: Debe ser un array
+    if (!Array.isArray(data)) {
+      errors.push('Los datos no son un array válido');
+      return { valid: false, errors, warnings };
+    }
+
+    // Validación 2: Debe tener al menos 2 filas (headers + datos)
+    if (data.length < 2) {
+      errors.push(`Archivo sin datos suficientes (${data.length} fila${data.length === 1 ? '' : 's'})`);
+      return { valid: false, errors, warnings };
+    }
+
+    // Validación 3: Primera fila debe existir y ser un array
+    if (!data[0] || !Array.isArray(data[0])) {
+      errors.push('Primera fila inválida o ausente');
+      return { valid: false, errors, warnings };
+    }
+
+    // Validación 4: Verificar que hay datos reales después de headers
+    const filasConDatos = data.filter(row => 
+      Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== '')
+    );
+    
+    if (filasConDatos.length < 2) {
+      errors.push('El archivo no contiene filas con datos válidos');
+      return { valid: false, errors, warnings };
+    }
+
+    // Validación 5: Verificar consistencia de columnas
+    const columnasEsperadas = data[0].length;
+    const filasInconsistentes = data.filter((row, idx) => 
+      Array.isArray(row) && row.length !== columnasEsperadas && row.some(cell => cell !== null && cell !== undefined && cell !== '')
+    );
+    
+    if (filasInconsistentes.length > data.length * 0.1) { // Más del 10% inconsistente
+      warnings.push(`${filasInconsistentes.length} filas tienen diferente número de columnas`);
+    }
+
+    // Validación 6: Verificar si hay columnas completamente vacías
+    const columnasVacias = [];
+    for (let col = 0; col < columnasEsperadas; col++) {
+      const tieneValor = data.some(row => 
+        Array.isArray(row) && row[col] !== null && row[col] !== undefined && row[col] !== ''
+      );
+      if (!tieneValor) {
+        columnasVacias.push(col);
+      }
+    }
+    
+    if (columnasVacias.length > 0) {
+      warnings.push(`${columnasVacias.length} columna${columnasVacias.length === 1 ? '' : 's'} completamente vacía${columnasVacias.length === 1 ? '' : 's'}`);
+    }
+
+    // Validación exitosa
+    return { 
+      valid: true, 
+      errors: [], 
+      warnings,
+      stats: {
+        totalRows: data.length,
+        dataRows: filasConDatos.length - 1, // Excluir headers
+        columns: columnasEsperadas,
+        emptyColumns: columnasVacias.length
+      }
+    };
   };
 
   // Procesar datos del archivo

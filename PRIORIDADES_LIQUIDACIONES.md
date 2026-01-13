@@ -52,21 +52,23 @@
   - `AUTO_PROCESS_DELAY: 500` → Delay antes de procesar (línea ~995)
   - `SAMPLE_ROWS_TO_LOG: 5` → Filas de muestra para logs (reservado)
 
-### **2.2 Validación robusta de Excel** 🛡️
-- **Por qué:** Prevenir crashes con archivos malformados
-- **Impacto:** Estabilidad ante archivos corruptos
-- **Tiempo:** 30 minutos
+### **2.2 Validación robusta de Excel** ✅ **COMPLETADO**
+- **Por qué:** Prevenir crashes con archivos malformados 🛡️
+- **Impacto:** Estabilidad ante archivos corruptos o vacíos
+- **Tiempo:** 30 minutos ✓
 - **Riesgo:** 🟢 Bajo
-- **Acción:**
-```javascript
-function validateExcelData(data) {
-  if (!Array.isArray(data)) throw new Error('Datos inválidos: no es un array');
-  if (data.length < 2) throw new Error('Archivo sin datos suficientes');
-  if (!data[0] || !Array.isArray(data[0])) throw new Error('Primera fila inválida');
-  return { valid: true, warnings: [] };
-}
-```
-- **Ubicación:** Antes de `procesarDatos()`, línea ~1445
+- **Acción:** ✅ Creada función `validateExcelData()` con 6 validaciones:
+  - Verifica que los datos sean un array válido
+  - Valida al menos 2 filas (headers + datos)
+  - Verifica primera fila válida
+  - Detecta filas con datos reales
+  - Valida consistencia de columnas (máx 10% inconsistencia)
+  - Detecta columnas completamente vacías
+- **Resultado:** 
+  - Validación aplicada en 3 ubicaciones clave (líneas ~384, ~924, ~1171)
+  - Retorna objeto con `{ valid, errors, warnings, stats }`
+  - Logs descriptivos de errores y advertencias
+  - Previene crashes por archivos vacíos/malformados
 
 ### **2.3 Límite de renders con React.memo** ⚡
 - **Por qué:** Componente se re-renderiza 24+ veces innecesariamente
