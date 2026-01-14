@@ -31,6 +31,7 @@ import {
   Casino,
   CheckCircle,
   Close,
+  CloudUpload,
   DeleteSweep,
   History,
   Notifications,
@@ -276,6 +277,7 @@ export default function LiquidacionesPageV2() {
   const [activeTab, setActiveTab] = useState(0);
   const [logsOpen, setLogsOpen] = useState(false);
   const [logs, setLogs] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
 
   // Datos reales se migrarán en fases (procesamiento/carga). Por ahora se mantienen como placeholders.
   const [empresa, setEmpresa] = useState('GENERAL');
@@ -1509,6 +1511,67 @@ export default function LiquidacionesPageV2() {
     [processSelectedFile]
   );
 
+  // Drag & Drop handlers
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // No cambiar estado visual si ya hay archivos procesados
+    if (selectedFile || liquidacionGuardadaId) {
+      return;
+    }
+    
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, [selectedFile, liquidacionGuardadaId]);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    // Validación: Prevenir drop si empresas no están disponibles
+    if (companiesLoading) {
+      addNotification({
+        type: 'warning',
+        title: 'Cargando empresas',
+        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    if (!companies || companies.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Sin empresas disponibles',
+        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Prevenir drop si ya hay archivos procesados
+    if (selectedFile || liquidacionGuardadaId) {
+      addNotification({
+        type: 'warning',
+        title: 'Ya hay archivos cargados',
+        message: 'Reinicia la liquidación antes de cargar nuevos archivos.',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      processSelectedFile(file);
+    }
+  }, [selectedFile, liquidacionGuardadaId, companiesLoading, companies, addNotification, processSelectedFile]);
+
   const abrirModalSala = useCallback(() => {
     if (!Array.isArray(reporteBySala) || reporteBySala.length === 0) {
       addNotification('No hay reporte por sala para exportar', 'warning');
@@ -2176,6 +2239,85 @@ export default function LiquidacionesPageV2() {
           </Typography>
         )}
       </Paper>
+
+      {/* Drag & Drop Zone */}
+      {!processing && !selectedFile && (
+        <Paper
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          sx={{
+            p: 6,
+            mb: 3,
+            textAlign: 'center',
+            border: `2px dashed ${
+              dragActive
+                ? theme.palette.primary.main
+                : alpha(theme.palette.divider, 0.3)
+            }`,
+            borderRadius: 2,
+            backgroundColor: dragActive
+              ? alpha(theme.palette.primary.main, 0.08)
+              : alpha(theme.palette.background.paper, 0.6),
+            transition: 'all 0.3s ease',
+            cursor: companiesLoading || (companies && companies.length === 0)
+              ? 'not-allowed'
+              : 'pointer',
+            transform: dragActive ? 'scale(1.02)' : 'scale(1)',
+            opacity: companiesLoading || (companies && companies.length === 0) ? 0.5 : 1,
+            boxShadow: dragActive 
+              ? '0 4px 12px rgba(0,0,0,0.1)' 
+              : '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: companiesLoading || (companies && companies.length === 0)
+                ? alpha(theme.palette.divider, 0.3)
+                : alpha(theme.palette.primary.main, 0.5),
+              backgroundColor: companiesLoading || (companies && companies.length === 0)
+                ? alpha(theme.palette.background.paper, 0.6)
+                : alpha(theme.palette.primary.main, 0.04)
+            }
+          }}
+        >
+          <CloudUpload
+            sx={{
+              fontSize: 64,
+              color: dragActive
+                ? theme.palette.primary.main
+                : alpha(theme.palette.text.secondary, 0.4),
+              mb: 2,
+              transition: 'all 0.3s ease'
+            }}
+          />
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+              mb: 1
+            }}
+          >
+            {companiesLoading
+              ? 'Cargando empresas...'
+              : (companies && companies.length === 0)
+              ? 'No hay empresas disponibles'
+              : 'Arrastra aquí el archivo Excel de liquidaciones'}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              mb: 2
+            }}
+          >
+            {companiesLoading
+              ? 'Esperando datos de empresas...'
+              : (companies && companies.length === 0)
+              ? 'Primero debes crear empresas en el sistema'
+              : 'O haz clic en el botón "Cargar Archivo" para seleccionar manualmente'}
+          </Typography>
+        </Paper>
+      )}
 
       {/* Stepper */}
       <Paper
