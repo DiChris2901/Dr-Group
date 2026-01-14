@@ -107,35 +107,32 @@ V2 tiene **paridad funcional completa** con V1 en todas las características COR
 
 ### 🔨 Características Pendientes de Migración
 
-1. ⏳ **Drag & Drop Zona**
+1. ✅ ~~Skeleton Loaders~~ → **COMPLETADO**
+   - Skeletons en KPIs, métricas, gráficos y tablas
+   - Mejora percepción de performance durante carga
+
+2. ✅ ~~Avatar con Logo de Empresa~~ → **COMPLETADO**
+   - Avatar con logo/NIT/contrato de empresa
+   - 3 estados: logo, inicial, placeholder
+   - Chip "Detectada" para empresas identificadas
+
+3. ⏳ **Drag & Drop Zona**
    - **Descripción:** Zona visual para arrastrar y soltar archivos Excel
    - **Implementación:** Handlers `handleDrag`, `handleDrop`, indicador visual con borde punteado
    - **Estado V1:** ✅ Completamente funcional
    - **Prioridad:** Media - Mejora UX significativa
 
-2. ⏳ **Tab "Tarifa Fija" Dedicada**
+4. ⏳ **Tab "Tarifa Fija" Dedicada**
    - **Descripción:** Tab específica para ver solo máquinas con tarifa fija aplicada
    - **Implementación:** Filtrar `consolidatedData.filter(item => item.novedad === 'Tarifa fija')`
    - **Estado V1:** ✅ Completamente funcional
    - **Prioridad:** Media - Facilita revisión de tarifas
 
-3. ⏳ **Avatar con Logo de Empresa**
-   - **Descripción:** Avatar circular con logo de la empresa detectada + chip con NIT
-   - **Implementación:** Usar `empresaCompleta.logo` y mostrar info completa (nombre, NIT, contrato)
-   - **Estado V1:** ✅ Completamente funcional
-   - **Prioridad:** Media - Mejora visual y claridad
-
-4. ⏳ **Animaciones Framer Motion**
+5. ⏳ **Animaciones Framer Motion**
    - **Descripción:** Transiciones suaves en tabs, modales, cards con Framer Motion
    - **Implementación:** Agregar `<motion.div>` con variants en componentes principales
    - **Estado V1:** ✅ Completamente funcional
    - **Prioridad:** Baja - Mejora estética, no funcional
-
-5. ⏳ **Skeleton Loaders**
-   - **Descripción:** Placeholders animados durante carga de datos
-   - **Implementación:** MUI Skeleton en tablas y cards mientras `processing === true`
-   - **Estado V1:** ✅ Completamente funcional
-   - **Prioridad:** Media - Mejora percepción de performance
 
 ---🔜 PENDIENTE PARA FASE DE PRODUCCIÓN
 
