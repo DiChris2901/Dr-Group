@@ -423,6 +423,36 @@ export default function LiquidacionesPageV2() {
     return entries.slice(-31);
   }, [originalData, parseFechaToDate]);
 
+  // Filtrar datos de tarifa fija
+  const tarifaFijaData = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    if (consolidated.length === 0) return [];
+    if (!tarifasOficiales || Object.keys(tarifasOficiales).length === 0) return [];
+
+    return consolidated.filter(row => {
+      const nucStr = String(row?.nuc || '').trim();
+      return nucStr && tarifasOficiales[nucStr];
+    });
+  }, [consolidatedData, tarifasOficiales]);
+
+  // Resumen de tarifas fijas
+  const tarifaFijaResumen = useMemo(() => {
+    if (!tarifasOficiales || Object.keys(tarifasOficiales).length === 0) {
+      return { count: 0, totalDerechos: 0, totalGastos: 0, totalImpuestos: 0 };
+    }
+
+    const count = tarifaFijaData.length;
+    const totalDerechos = Object.values(tarifasOficiales).reduce((sum, tarifa) => 
+      sum + (Number(tarifa?.derechosAdicionales) || 0), 0
+    );
+    const totalGastos = Object.values(tarifasOficiales).reduce((sum, tarifa) => 
+      sum + (Number(tarifa?.gastosAdicionales) || 0), 0
+    );
+    const totalImpuestos = totalDerechos + totalGastos;
+
+    return { count, totalDerechos, totalGastos, totalImpuestos };
+  }, [tarifaFijaData, tarifasOficiales]);
+
   const mockMetrics = useMemo(
     () => ({
       maquinas: { value: 205, trend: 3.5, isPositive: true },
@@ -2848,6 +2878,9 @@ export default function LiquidacionesPageV2() {
           <Tab label="Resumen General" />
           <Tab label="Consolidado Detallado" />
           <Tab label="Reporte por Sala" />
+          {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+            <Tab label="🏷️ Tarifa Fija" />
+          )}
         </Tabs>
 
         <Divider sx={{ mt: 1.5 }} />
@@ -3011,6 +3044,130 @@ export default function LiquidacionesPageV2() {
           </Box>
           )}
         </TabPanel>
+
+        {/* Tab Tarifa Fija */}
+        {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+          <TabPanel value={activeTab} index={3}>
+            {!Array.isArray(tarifaFijaData) || tarifaFijaData.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Casino sx={{ fontSize: 64, color: alpha(theme.palette.text.secondary, 0.4), mb: 2 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}>
+                  No hay máquinas con tarifa fija aplicada
+                </Typography>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Las máquinas con tarifas oficiales aparecerán aquí
+                </Typography>
+              </Box>
+            ) : (
+              <>
+                {/* Resumen de tarifa fija */}
+                <Box sx={{ 
+                  mb: 3, 
+                  p: 3, 
+                  background: alpha(theme.palette.secondary.main, 0.08),
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem',
+                    display: 'block',
+                    mb: 1
+                  }}>
+                    Resumen Tarifa Fija
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Máquinas con Tarifa Fija
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {tarifaFijaResumen.count}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Derechos Fijos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalDerechos)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Gastos Fijos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalGastos)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Impuestos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalImpuestos)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                {/* Tabla de máquinas con tarifa fija */}
+                <Box sx={{ height: 550, borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`, bgcolor: theme.palette.background.paper }}>
+                  <VirtualTable
+                    data={tarifaFijaData}
+                    columns={[
+                      { key: 'establecimiento', label: 'Establecimiento', width: 220 },
+                      { key: 'serial', label: 'Serial', width: 120 },
+                      { key: 'nuc', label: 'NUC', width: 100 },
+                      { 
+                        key: 'derechosFijos', 
+                        label: 'Derechos Fijos', 
+                        width: 150, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          const derechos = nucStr && tarifasOficiales[nucStr] 
+                            ? Number(tarifasOficiales[nucStr].derechosAdicionales) || 0 
+                            : 0;
+                          return formatCurrencyCOP(derechos);
+                        }
+                      },
+                      { 
+                        key: 'gastosFijos', 
+                        label: 'Gastos Fijos', 
+                        width: 150, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          const gastos = nucStr && tarifasOficiales[nucStr] 
+                            ? Number(tarifasOficiales[nucStr].gastosAdicionales) || 0 
+                            : 0;
+                          return formatCurrencyCOP(gastos);
+                        }
+                      },
+                      { 
+                        key: 'totalFijo', 
+                        label: 'Total Impuestos Fijos', 
+                        width: 180, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          if (!nucStr || !tarifasOficiales[nucStr]) return formatCurrencyCOP(0);
+                          const derechos = Number(tarifasOficiales[nucStr].derechosAdicionales) || 0;
+                          const gastos = Number(tarifasOficiales[nucStr].gastosAdicionales) || 0;
+                          return formatCurrencyCOP(derechos + gastos);
+                        }
+                      }
+                    ]}
+                  />
+                </Box>
+              </>
+            )}
+          </TabPanel>
+        )}
 
       </Paper>
 
