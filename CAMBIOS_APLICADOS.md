@@ -270,3 +270,63 @@ Si hay problemas después de los cambios:
 
 **Estado Final:** ✅ **OPTIMIZADO Y LISTO PARA DESARROLLO**  
 (Una vez instalado Node.js v20 LTS)
+
+---
+
+# 🧾 Liquidaciones V1 → V2 (Checklist de Migración)
+
+**Objetivo:** Mantener 100% funcionalidad de Liquidaciones V1 en la nueva UI V2, migrando por fases sin romper V1.
+
+## ✅ Migrado / Implementado (V2)
+
+- [x] Página V2 en paralelo + ruta `/liquidaciones-v2` con el mismo permiso `liquidaciones`.
+- [x] Pipeline de procesamiento del archivo principal:
+   - [x] Carga XLSX/CSV + lectura con `xlsx`
+   - [x] Validación base (estructura/filas) + warnings/logs
+   - [x] Detección de encabezados + mapeo de filas
+   - [x] Detección de empresa por contrato (integración con empresas)
+   - [x] Consolidación por máquina + generación de `reporteBySala`
+- [x] Sistema de logs en UI (`addLog`, `clearLogs`) + panel.
+- [x] Exportaciones:
+   - [x] Consolidado (hook `useLiquidacionExport` → Python exacto + fallbacks)
+   - [x] Reporte por salas y reporte diario usando modales existentes (reutilizados “tal cual”).
+- [x] Persistencia Firebase (Guardar): `ConfirmarGuardadoModal` + `liquidacionPersistenceService.saveLiquidacion`.
+- [x] Tarifas (opcional):
+   - [x] Cargar archivo de tarifas
+   - [x] Aplicar “Tarifa fija” por NUC sumando derechos/gastos
+   - [x] Recalcular `consolidatedData`, `reporteBySala` y `metricsData`
+- [x] Acceso a histórico: V2 no embebe historial (ya existe la página `/liquidaciones/historico`), se dejó botón “Ver histórico”.
+- [x] Servicio de persistencia/carga estabilizado: `loadAndProcessLiquidacion` sin duplicados y con compatibilidad nueva/legacy.
+
+- [x] Tabs con contenido real + performance:
+   - [x] “Resumen General” usando `metricsData`/derivadas
+   - [x] “Consolidado Detallado” con tabla virtualizada
+   - [x] “Reporte por Sala” con tabla virtualizada
+   - [x] Virtualización con `react-window`
+
+- [x] Flujo de Validación equivalente a V1 (modal/confirmación de resultados) + soporte de tarifas.
+
+- [x] Gráficos reales (Recharts):
+   - [x] Producción por establecimiento
+   - [x] Distribución de novedades
+   - [x] Tendencia diaria
+
+## ⏳ Pendiente (Prioridad Alta)
+
+- [ ] Integración opcional con el histórico (sin duplicar UI): abrir un registro guardado en V2 vía query param (ej: `/liquidaciones-v2?id=...`).
+
+## ⏳ Pendiente (Prioridad Media)
+- [ ] Auditoría / activity logs:
+   - [ ] Completar logs para aplicar tarifas (manual/validación) si se requiere trazabilidad completa
+
+## ⏳ Pendiente (Prioridad Baja / Mejora)
+
+- [ ] Refactor: extraer procesador de tarifas a helper/hook para reducir peso de la página V2.
+- [ ] Pulir UX: contadores (tarifas aplicadas vs no aplicadas), estados vacíos más informativos.
+
+## 🔗 Archivos Clave
+
+- [src/pages/LiquidacionesPageV2.jsx](src/pages/LiquidacionesPageV2.jsx)
+- [src/pages/LiquidacionesPage.jsx](src/pages/LiquidacionesPage.jsx)
+- [src/services/liquidacionPersistenceService.js](src/services/liquidacionPersistenceService.js)
+- [src/hooks/useLiquidacionExport.js](src/hooks/useLiquidacionExport.js)

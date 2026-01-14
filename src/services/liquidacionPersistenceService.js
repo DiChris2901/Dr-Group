@@ -942,155 +942,8 @@ class LiquidacionPersistenceService {
    */
   async loadAndProcessLiquidacion(liquidacionId, userId, processingFunction) {
     try {
-      // 1. Obtener metadatos de la liquidación
-      const docRef = doc(db, 'liquidaciones', liquidacionId);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        throw new Error('Liquidación no encontrada');
-      }
-
-      const liquidacionData = docSnap.data();
-
-      // 2. Verificar permisos
-      if (liquidacionData.userId !== userId) {
-        throw new Error('No tienes permisos para acceder a esta liquidación');
-      }
-
-      // 3. Descargar archivos originales de Storage
-      console.log('📁 Descargando archivos originales...');
-      
-      // Archivo principal - Usar Firebase Storage SDK
-      let originalFilePath = liquidacionData.archivoOriginal.path;
-      
-      // Si no hay path, extraer de la URL
-      if (!originalFilePath && liquidacionData.archivoOriginal.downloadURL) {
-        const match = liquidacionData.archivoOriginal.downloadURL.match(/\/o\/(.+?)\?/);
-        if (match) {
-          originalFilePath = decodeURIComponent(match[1]);
-        }
-      }
-      
-      if (!originalFilePath) {
-        throw new Error('No se pudo determinar la ruta del archivo original');
-      }
-      
-      // Definir si estamos en desarrollo
-      const isDevelopment = import.meta.env.DEV;
-      
-      // En desarrollo, usar proxy directo para evitar CORS
-      let originalFileBlob;
-      
-      if (isDevelopment) {
-        console.log('🔧 Modo desarrollo: usando proxy para archivo original');
-        try {
-          const proxyUrl = `https://us-central1-dr-group-cd21b.cloudfunctions.net/storageProxy?path=${encodeURIComponent(originalFilePath)}`;
-          const response = await fetch(proxyUrl, { mode: 'cors' });
-          if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-          originalFileBlob = await response.blob();
-        } catch (proxyError) {
-          console.error('❌ Error con proxy para archivo original:', proxyError);
-          throw new Error(`No se pudo descargar archivo original: ${proxyError.message}`);
-        }
-      } else {
-        // En producción, usar Firebase SDK normal
-        try {
-          const originalFileRef = ref(storage, originalFilePath);
-          originalFileBlob = await getBlob(originalFileRef);
-        } catch (corsError) {
-          console.warn('⚠️ CORS error con getBlob, intentando con getDownloadURL + fetch');
-          const originalFileRef = ref(storage, originalFilePath);
-          const downloadUrl = await getDownloadURL(originalFileRef);
-          const response = await fetch(downloadUrl, { mode: 'cors' });
-          originalFileBlob = await response.blob();
-        }
-      }
-      
-      const originalFile = new File([originalFileBlob], liquidacionData.archivoOriginal.originalName, {
-        type: liquidacionData.archivoOriginal.type
-      });
-
-      // Archivo de tarifas (si existe)
-      let tarifasFile = null;
-      if (liquidacionData.archivoTarifas) {
-        console.log('📄 Descargando archivo de tarifas...');
-        
-        let tarifasFilePath = liquidacionData.archivoTarifas.path;
-        
-        // Si no hay path, extraer de la URL
-        if (!tarifasFilePath && liquidacionData.archivoTarifas.downloadURL) {
-          const match = liquidacionData.archivoTarifas.downloadURL.match(/\/o\/(.+?)\?/);
-          if (match) {
-            tarifasFilePath = decodeURIComponent(match[1]);
-          }
-        }
-        
-        if (tarifasFilePath) {
-          // En desarrollo, usar proxy directo para evitar CORS
-          let tarifasBlob;
-          
-          if (isDevelopment) {
-            console.log('🔧 Modo desarrollo: usando proxy para archivo de tarifas');
-            try {
-              const proxyUrl = `https://us-central1-dr-group-cd21b.cloudfunctions.net/storageProxy?path=${encodeURIComponent(tarifasFilePath)}`;
-              const response = await fetch(proxyUrl, { mode: 'cors' });
-              if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-              tarifasBlob = await response.blob();
-            } catch (proxyError) {
-              console.error('❌ Error con proxy para tarifas:', proxyError);
-              throw new Error(`No se pudo descargar archivo de tarifas: ${proxyError.message}`);
-            }
-          } else {
-            // En producción, usar Firebase SDK normal
-            try {
-              const tarifasFileRef = ref(storage, tarifasFilePath);
-              tarifasBlob = await getBlob(tarifasFileRef);
-            } catch (corsError) {
-              console.warn('⚠️ CORS error con getBlob para tarifas, intentando alternativo');
-              const tarifasFileRef = ref(storage, tarifasFilePath);
-              const downloadUrl = await getDownloadURL(tarifasFileRef);
-              const response = await fetch(downloadUrl, { mode: 'cors' });
-              tarifasBlob = await response.blob();
-            }
-          }
-          
-          tarifasFile = new File([tarifasBlob], liquidacionData.archivoTarifas.originalName, {
-            type: liquidacionData.archivoTarifas.type
-          });
-        } else {
-          console.warn('⚠️ No se pudo determinar la ruta del archivo de tarifas');
-        }
-      }
-
-      // 4. Procesar archivos con la misma lógica de la página
-      console.log('⚙️ Procesando archivos originales...');
-      const processedData = await processingFunction(originalFile, tarifasFile);
-
-      // 5. Retornar datos completos
-      return {
-        metadata: liquidacionData,
-        originalFile,
-        tarifasFile,
-        ...processedData
-      };
-
-    } catch (error) {
-      console.error('Error cargando y procesando liquidación:', error);
-      throw new Error(`Error al cargar liquidación: ${error.message}`);
-    }
-  }
-
-  /**
-   * Carga una liquidación y procesa los archivos originales en tiempo real
-   * @param {string} liquidacionId - ID de la liquidación
-   * @param {string} userId - ID del usuario
-   * @param {Function} processingFunction - Función de procesamiento a aplicar
-   * @returns {Promise<Object>} - Datos procesados en tiempo real
-   */
-  async loadAndProcessLiquidacion(liquidacionId, userId, processingFunction) {
-    try {
       console.log('📥 Cargando liquidación:', liquidacionId);
-      
+
       // 1. Obtener metadatos
       const docRef = doc(db, 'liquidaciones', liquidacionId);
       const docSnap = await getDoc(docRef);
@@ -1101,116 +954,79 @@ class LiquidacionPersistenceService {
 
       const liquidacionData = docSnap.data();
 
-      // 2. Verificación de permisos eliminada - Permitir acceso a todas las liquidaciones
-      // Todos los usuarios autenticados pueden ver y editar liquidaciones del sistema
-      console.log('✅ Acceso permitido a liquidación. Usuario actual:', userId, '| Creada por:', liquidacionData.userId);
+      // 2. Verificar permisos (por defecto: solo propietario)
+      if (liquidacionData.userId && liquidacionData.userId !== userId) {
+        throw new Error('No tienes permisos para acceder a esta liquidación');
+      }
 
-      // 3. Descargar archivos originales de Storage
-      console.log('📁 Descargando archivo original...');
-      console.log('📄 Estructura de archivos:', JSON.stringify(liquidacionData.archivos, null, 2));
-      
-      // Verificar que existan los archivos en la estructura correcta
-      if (!liquidacionData.archivos?.archivoOriginal?.url) {
-        throw new Error('No se encontró el archivo original en la liquidación');
+      // 3. Normalizar metadatos de archivos (soporte nuevo + legacy)
+      const originalMeta = liquidacionData.archivos?.archivoOriginal || liquidacionData.archivoOriginal || null;
+      const tarifasMeta = liquidacionData.archivos?.archivoTarifas || liquidacionData.archivoTarifas || null;
+
+      if (!originalMeta) {
+        throw new Error('No se encontró metadato de archivo original en la liquidación');
       }
-      
-      // Usar Firebase Storage SDK para evitar problemas de CORS
-      let filePath = liquidacionData.archivos.archivoOriginal.path;
-      
-      // Si no hay path, extraer de la URL
-      if (!filePath && liquidacionData.archivos.archivoOriginal.url) {
-        const match = liquidacionData.archivos.archivoOriginal.url.match(/\/o\/(.+?)\?/);
-        if (match) {
-          filePath = decodeURIComponent(match[1]);
+
+      const isDevelopment =
+        import.meta.env.DEV ||
+        (typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1'));
+
+      const resolveStoragePath = (meta) => {
+        if (!meta) return null;
+        // Estructura nueva
+        if (meta.nombreStorage) return meta.nombreStorage;
+        // Variantes legacy
+        if (meta.path) return meta.path;
+        if (meta.fileName) return meta.fileName;
+
+        const possibleUrl = meta.url || meta.downloadURL;
+        if (possibleUrl) {
+          const match = String(possibleUrl).match(/\/o\/(.+?)\?/);
+          if (match) return decodeURIComponent(match[1]);
         }
-      }
-      
-      if (!filePath) {
-        throw new Error('No se pudo determinar la ruta del archivo original');
-      }
-      
-      // En desarrollo, usar proxy directo para evitar CORS
-      let originalBlob;
-      const isDevelopment = import.meta.env.DEV || location.hostname === 'localhost';
-      
-      if (isDevelopment) {
-        console.log('🔧 Modo desarrollo: usando proxy para evitar CORS');
-        try {
-          const proxyUrl = `https://us-central1-dr-group-cd21b.cloudfunctions.net/storageProxy?path=${encodeURIComponent(filePath)}`;
+        return null;
+      };
+
+      const downloadBlob = async (storagePath, label) => {
+        if (!storagePath) throw new Error(`No se pudo determinar la ruta del archivo (${label})`);
+
+        if (isDevelopment) {
+          const proxyUrl = `https://us-central1-dr-group-cd21b.cloudfunctions.net/storageProxy?path=${encodeURIComponent(storagePath)}`;
           const response = await fetch(proxyUrl, { mode: 'cors' });
-          if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-          originalBlob = await response.blob();
-        } catch (proxyError) {
-          console.error('❌ Error con proxy:', proxyError);
-          throw new Error(`No se pudo descargar el archivo: ${proxyError.message}`);
+          if (!response.ok) throw new Error(`Proxy error (${label}): ${response.status}`);
+          return response.blob();
         }
-      } else {
-        // En producción, usar Firebase SDK normal
-        try {
-          const originalFileRef = ref(storage, filePath);
-          originalBlob = await getBlob(originalFileRef);
-        } catch (corsError) {
-          console.warn('⚠️ CORS error con getBlob, intentando con getDownloadURL + fetch');
-          const originalFileRef = ref(storage, filePath);
-          const downloadUrl = await getDownloadURL(originalFileRef);
-          const response = await fetch(downloadUrl, { mode: 'cors' });
-          originalBlob = await response.blob();
-        }
-      }
-      
-      const originalFile = new File([originalBlob], liquidacionData.archivos.archivoOriginal.nombre, {
-        type: liquidacionData.archivos.archivoOriginal.tipo
-      });
 
-      // Archivo de tarifas (si existe)
-      let tarifasFile = null;
-      if (liquidacionData.archivos?.archivoTarifas?.url) {
-        console.log('📄 Descargando archivo de tarifas...');
-        
-        let tarifasFilePath = liquidacionData.archivos.archivoTarifas.path;
-        
-        // Si no hay path, extraer de la URL
-        if (!tarifasFilePath && liquidacionData.archivos.archivoTarifas.url) {
-          const match = liquidacionData.archivos.archivoTarifas.url.match(/\/o\/(.+?)\?/);
-          if (match) {
-            tarifasFilePath = decodeURIComponent(match[1]);
-          }
+        try {
+          const fileRef = ref(storage, storagePath);
+          return await getBlob(fileRef);
+        } catch (corsError) {
+          console.warn(`⚠️ CORS con getBlob (${label}), intentando getDownloadURL + fetch`);
+          const fileRef = ref(storage, storagePath);
+          const downloadUrl = await getDownloadURL(fileRef);
+          const response = await fetch(downloadUrl, { mode: 'cors' });
+          return response.blob();
         }
-        
-        if (tarifasFilePath) {
-          // En desarrollo, usar proxy directo para evitar CORS
-          let tarifasBlob;
-          
-          if (isDevelopment) {
-            console.log('🔧 Modo desarrollo: usando proxy para archivo de tarifas');
-            try {
-              const proxyUrl = `https://us-central1-dr-group-cd21b.cloudfunctions.net/storageProxy?path=${encodeURIComponent(tarifasFilePath)}`;
-              const response = await fetch(proxyUrl, { mode: 'cors' });
-              if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-              tarifasBlob = await response.blob();
-            } catch (proxyError) {
-              console.error('❌ Error con proxy para tarifas:', proxyError);
-              throw new Error(`No se pudo descargar archivo de tarifas: ${proxyError.message}`);
-            }
-          } else {
-            // En producción, usar Firebase SDK normal
-            try {
-              const tarifasFileRef = ref(storage, tarifasFilePath);
-              tarifasBlob = await getBlob(tarifasFileRef);
-            } catch (corsError) {
-              console.warn('⚠️ CORS error con getBlob para tarifas, intentando alternativo');
-              const tarifasFileRef = ref(storage, tarifasFilePath);
-              const downloadUrl = await getDownloadURL(tarifasFileRef);
-              const response = await fetch(downloadUrl, { mode: 'cors' });
-              tarifasBlob = await response.blob();
-            }
-          }
-          
-          tarifasFile = new File([tarifasBlob], liquidacionData.archivos.archivoTarifas.nombre, {
-            type: liquidacionData.archivos.archivoTarifas.tipo
-          });
-        } else {
-          console.warn('⚠️ No se pudo determinar la ruta del archivo de tarifas');
+      };
+
+      // 4. Descargar archivo original
+      console.log('📁 Descargando archivo original...');
+      const originalPath = resolveStoragePath(originalMeta);
+      const originalBlob = await downloadBlob(originalPath, 'original');
+      const originalName = originalMeta.nombre || originalMeta.originalName || 'liquidacion.xlsx';
+      const originalType = originalMeta.tipo || originalMeta.type || 'application/octet-stream';
+      const originalFile = new File([originalBlob], originalName, { type: originalType });
+
+      // 5. Descargar archivo de tarifas (opcional)
+      let tarifasFile = null;
+      if (tarifasMeta) {
+        const tarifasPath = resolveStoragePath(tarifasMeta);
+        if (tarifasPath) {
+          console.log('📄 Descargando archivo de tarifas...');
+          const tarifasBlob = await downloadBlob(tarifasPath, 'tarifas');
+          const tarifasName = tarifasMeta.nombre || tarifasMeta.originalName || 'tarifas.xlsx';
+          const tarifasType = tarifasMeta.tipo || tarifasMeta.type || 'application/octet-stream';
+          tarifasFile = new File([tarifasBlob], tarifasName, { type: tarifasType });
         }
       }
 

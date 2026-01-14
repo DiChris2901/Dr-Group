@@ -33,11 +33,25 @@ export default function useLiquidacionExport({
   userProfile
 }) {
 
+  const getUserDisplayName = () => {
+    return (
+      userProfile?.name ||
+      currentUser?.displayName ||
+      currentUser?.email ||
+      'Usuario desconocido'
+    );
+  };
+
   /**
    * Exportar datos consolidados en formato Python profesional
    * Intenta Python → Spectacular → Simple como fallbacks
    */
   const exportarConsolidado = useCallback(async () => {
+    if (!currentUser?.uid) {
+      addNotification('Sesión no válida. Inicia sesión nuevamente.', 'error');
+      return;
+    }
+
     if (!consolidatedData) {
       addNotification('No hay datos consolidados para exportar', 'warning');
       return;
@@ -63,7 +77,7 @@ export default function useLiquidacionExport({
               fileName: result?.fileName || 'Liquidacion.xlsx'
             },
             currentUser.uid,
-            userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+            getUserDisplayName(),
             currentUser.email
           );
         } catch (logError) {
@@ -105,7 +119,12 @@ export default function useLiquidacionExport({
   /**
    * Exportar reporte agrupado por sala con totales
    */
-  const exportarReporteSala = useCallback(() => {
+  const exportarReporteSala = useCallback(async () => {
+    if (!currentUser?.uid) {
+      addNotification('Sesión no válida. Inicia sesión nuevamente.', 'error');
+      return;
+    }
+
     if (!reporteBySala) {
       addNotification('No hay reporte por sala para exportar', 'warning');
       return;
@@ -135,19 +154,46 @@ export default function useLiquidacionExport({
       
       addLog(`✅ Reporte por sala exportado como: ${filename}`, 'success');
       addNotification('Reporte por sala exportado exitosamente', 'success');
+
+      // 🏢 LOG DE ACTIVIDAD: Exportación reporte por sala
+      try {
+        if (typeof logActivity === 'function') {
+          await logActivity(
+            'reporte_sala_exportado',
+            'liquidacion',
+            empresa || 'GENERAL',
+            {
+              empresa: empresa || 'GENERAL',
+              establecimientos: reporteBySala?.length || 0,
+              exportFormat: 'xlsx',
+              fileName: filename
+            },
+            currentUser.uid,
+            getUserDisplayName(),
+            currentUser.email
+          );
+        }
+      } catch (logError) {
+        console.error('Error logging sala report export:', logError);
+      }
       
     } catch (error) {
       console.error('Error exportando reporte por sala:', error);
       addLog(`❌ Error exportando: ${error.message}`, 'error');
       addNotification('Error al exportar reporte por sala', 'error');
     }
-  }, [reporteBySala, empresa, addLog, addNotification]);
+  }, [reporteBySala, empresa, addLog, addNotification, logActivity, currentUser, userProfile]);
 
   /**
    * Exportar reporte diario multi-hoja por establecimiento
    * @param {string} establecimientoForzado - Establecimiento específico a exportar
    */
   const exportarReporteDiario = useCallback(async (establecimientoForzado) => {
+    if (!currentUser?.uid) {
+      addNotification('Sesión no válida. Inicia sesión nuevamente.', 'error');
+      return;
+    }
+
     if (!consolidatedData || !consolidatedData.length) {
       addNotification('No hay datos para exportar reporte diario', 'warning');
       return;
@@ -202,7 +248,7 @@ export default function useLiquidacionExport({
             exportFormat: 'python'
           },
           currentUser.uid,
-          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          getUserDisplayName(),
           currentUser.email
         );
       } catch (logError) {

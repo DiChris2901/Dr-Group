@@ -78,7 +78,8 @@ export default defineConfig({
       'firebase/auth',
       'firebase/firestore',
       'firebase/storage',
-      'exceljs' // ✅ Reincluido para evitar error de export
+      'exceljs', // ✅ Reincluido para evitar error de export
+      'react-window' // ✅ Virtualización (Liquidaciones V2)
     ],
     exclude: [
       // Excluir solo paquetes realmente problemáticos
