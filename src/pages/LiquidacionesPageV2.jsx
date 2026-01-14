@@ -279,6 +279,7 @@ export default function LiquidacionesPageV2() {
 
   // Datos reales se migrarán en fases (procesamiento/carga). Por ahora se mantienen como placeholders.
   const [empresa, setEmpresa] = useState('GENERAL');
+  const [empresaCompleta, setEmpresaCompleta] = useState(null); // Estado para empresa completa con logo/NIT/contrato
   const [selectedFile, setSelectedFile] = useState(null);
   const [archivoTarifas, setArchivoTarifas] = useState(null);
   const [tarifasOficiales, setTarifasOficiales] = useState({});
@@ -858,7 +859,7 @@ export default function LiquidacionesPageV2() {
         const contratoEmpresa = company.contractNumber.toString().trim().toUpperCase();
         return contratoEmpresa === numeroContratoNormalizado;
       });
-      return empresaEncontrada ? empresaEncontrada.name : null;
+      return empresaEncontrada || null; // Retornar objeto completo o null
     },
     [companies]
   );
@@ -869,11 +870,13 @@ export default function LiquidacionesPageV2() {
     setTarifasOficiales({});
     setMetricsData(null);
     setEmpresa('GENERAL');
+    setEmpresaCompleta(null);
     setConsolidatedData(null);
     setReporteBySala(null);
     setOriginalData(null);
     setLiquidacionGuardadaId(null);
     setActiveStep(1);
+    setLogs([]);
     addLog('🔄 Estado reiniciado. Listo para cargar un nuevo archivo.', 'info');
   }, [addLog]);
 
@@ -1223,23 +1226,28 @@ export default function LiquidacionesPageV2() {
           }
         }
 
-        let empresaDetectada = null;
+        let empresaObj = null;
         if (numeroContrato && Array.isArray(companies) && companies.length > 0) {
-          empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
-          if (empresaDetectada) {
-            setEmpresa(empresaDetectada);
-            addLog(`✅ Empresa detectada: ${empresaDetectada}`, 'success');
+          empresaObj = buscarEmpresaPorContrato(numeroContrato);
+          if (empresaObj) {
+            setEmpresa(empresaObj.name);
+            setEmpresaCompleta(empresaObj);
+            addLog(`✅ Empresa detectada: ${empresaObj.name}`, 'success');
+            addLog(`🏭 Logo disponible: ${empresaObj.logoURL ? 'SÍ' : 'NO'}`, empresaObj.logoURL ? 'success' : 'warning');
           } else {
             const fallback = `Contrato ${numeroContrato} (No encontrado)`;
             setEmpresa(fallback);
+            setEmpresaCompleta(null);
             addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
           }
         } else if (numeroContrato) {
           const fallback = `Contrato ${numeroContrato} (No encontrado)`;
           setEmpresa(fallback);
+          setEmpresaCompleta(null);
           addLog(`ℹ️ Empresas no disponibles para validar contrato (${numeroContrato})`, 'info');
         } else {
           setEmpresa('Empresa no detectada');
+          setEmpresaCompleta(null);
           addLog('⚠️ No se pudo detectar número de contrato', 'warning');
         }
 
@@ -1248,7 +1256,7 @@ export default function LiquidacionesPageV2() {
         setOriginalData(processedRows);
 
         const empresaFinal =
-          empresaDetectada || (numeroContrato ? `Contrato ${numeroContrato} (No encontrado)` : 'Empresa no detectada');
+          empresaObj?.name || (numeroContrato ? `Contrato ${numeroContrato} (No encontrado)` : 'Empresa no detectada');
         const consolidatedBase = consolidarDatos(processedRows, empresaFinal);
 
         // Aplicar tarifas (si llegan) y recalcular
@@ -2034,8 +2042,123 @@ export default function LiquidacionesPageV2() {
             </Button>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-          <Chip size="small" label={`Empresa: ${empresa || 'GENERAL'}`} />
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 1.5, alignItems: 'center' }}>
+          {/* Avatar con logo de empresa */}
+          <Paper
+            elevation={0}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              px: 1.5,
+              py: 1,
+              borderRadius: 2,
+              border: `1px solid ${alpha(empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500], 0.3)}`,
+              backgroundColor: alpha(empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500], 0.06),
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {empresaCompleta?.logoURL ? (
+              <Avatar
+                src={empresaCompleta.logoURL}
+                alt={`Logo de ${empresaCompleta.name}`}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                  backgroundColor: theme.palette.background.paper,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                }}
+              />
+            ) : empresa && empresa !== 'GENERAL' ? (
+              <Avatar
+                sx={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: alpha(theme.palette.success.main, 0.15),
+                  color: theme.palette.success.main,
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                }}
+              >
+                {empresa.charAt(0).toUpperCase()}
+              </Avatar>
+            ) : (
+              <Avatar
+                sx={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: alpha(theme.palette.grey[500], 0.15),
+                  color: theme.palette.grey[600],
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  border: `2px solid ${alpha(theme.palette.grey[500], 0.3)}`,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                }}
+              >
+                ?
+              </Avatar>
+            )}
+            
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 700,
+                  color: empresa && empresa !== 'GENERAL' ? theme.palette.text.primary : theme.palette.text.secondary,
+                  lineHeight: 1.2,
+                  fontSize: '0.875rem'
+                }}
+              >
+                {empresa || 'GENERAL'}
+              </Typography>
+              {empresaCompleta && (
+                <Box sx={{ mt: 0.25 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      fontSize: '0.7rem',
+                      display: 'block'
+                    }}
+                  >
+                    NIT: {empresaCompleta.nit}
+                  </Typography>
+                  {empresaCompleta.contractNumber && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.palette.success.main,
+                        fontWeight: 600,
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      Contrato: {empresaCompleta.contractNumber}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
+            
+            {empresa && empresa !== 'GENERAL' && (
+              <Chip
+                size="small"
+                label="Detectada"
+                sx={{
+                  height: 20,
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  backgroundColor: alpha(theme.palette.success.main, 0.12),
+                  color: theme.palette.success.main,
+                  border: 'none'
+                }}
+              />
+            )}
+          </Paper>
+          
           {selectedFile && <Chip size="small" label={`Archivo: ${selectedFile.name}`} />}
           {archivoTarifas && <Chip size="small" color="info" label={`Tarifas: ${archivoTarifas.name}`} />}
           {liquidacionGuardadaId && <Chip size="small" color="success" label="Guardada" />}
