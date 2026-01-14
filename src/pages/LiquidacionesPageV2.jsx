@@ -15,6 +15,7 @@ import {
   Grid,
   IconButton,
   Paper,
+  Skeleton,
   Tab,
   Tabs,
   Typography,
@@ -2146,7 +2147,32 @@ export default function LiquidacionesPageV2() {
 
       {/* KPIs */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {[
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para KPIs durante carga
+          [1, 2, 3, 4].map((i) => (
+            <Grid key={`kpi-skeleton-${i}`} item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 2.5,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="60%" height={40} />
+                    <Skeleton variant="text" width="90%" height={20} sx={{ mt: 0.5 }} />
+                  </Box>
+                  <Skeleton variant="rounded" width={44} height={44} />
+                </Box>
+                <Skeleton variant="rounded" width={80} height={24} sx={{ mt: 2 }} />
+              </Paper>
+            </Grid>
+          ))
+        ) : (
+          [
           {
             key: 'maquinas',
             title: 'Máquinas Consolidadas',
@@ -2234,11 +2260,36 @@ export default function LiquidacionesPageV2() {
               </Paper>
             </Grid>
           );
-        })}
+        })
+        )}
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {[
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para métricas secundarias durante carga
+          [1, 2, 3, 4, 5].map((i) => (
+            <Grid key={`metric-skeleton-${i}`} item xs={12} sm={6} md={2.4}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 2,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="80%" height={24} />
+                    <Skeleton variant="text" width="60%" height={16} />
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+          ))
+        ) : (
+          [
           { label: 'Establecimientos', value: String(metrics.establecimientos.value), icon: Business, color: theme.palette.primary.main },
           { label: 'Derechos Explotación', value: formatCurrencyCompact(metrics.derechos.value), icon: AttachMoney, color: theme.palette.warning.main },
           { label: 'Gastos Admin.', value: formatCurrencyCompact(metrics.gastos.value), icon: ReceiptLong, color: theme.palette.secondary.main },
@@ -2281,12 +2332,57 @@ export default function LiquidacionesPageV2() {
               </Typography>
             </Paper>
           </Grid>
-        ))}
+        ))
+        )}
       </Grid>
 
       {/* Charts */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para gráficos durante carga
+          <>
+            <Grid item xs={12} md={6}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 2.5,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  minHeight: 240
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Skeleton variant="text" width="60%" height={28} />
+                  <Skeleton variant="circular" width={24} height={24} />
+                </Box>
+                <Skeleton variant="rectangular" width="100%" height={180} sx={{ borderRadius: 2 }} />
+              </Paper>
+            </Grid>
+            {[1, 2].map((i) => (
+              <Grid key={`chart-skeleton-${i}`} item xs={12} md={3}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 2,
+                    p: 2.5,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    minHeight: 240
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Skeleton variant="text" width="70%" height={28} />
+                    <Skeleton variant="circular" width={24} height={24} />
+                  </Box>
+                  <Skeleton variant="circular" width={140} height={140} sx={{ mx: 'auto', mt: 2 }} />
+                </Paper>
+              </Grid>
+            ))}
+          </>
+        ) : (
+          <>
+            <Grid item xs={12} md={6}>
           <Paper
             elevation={0}
             sx={{
@@ -2460,6 +2556,8 @@ export default function LiquidacionesPageV2() {
             )}
           </Paper>
         </Grid>
+          </>
+        )}
       </Grid>
 
       {/* Tabs + content placeholder */}
@@ -2514,7 +2612,40 @@ export default function LiquidacionesPageV2() {
           )}
         </TabPanel>
         <TabPanel value={activeTab} index={1}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          {processing && (!consolidatedData || consolidatedData.length === 0) ? (
+            // Skeleton durante carga
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Skeleton variant="text" width={200} height={28} />
+                  <Skeleton variant="text" width={120} height={20} />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+              </Box>
+              <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                {[...Array(10)].map((_, i) => (
+                  <Box
+                    key={`skeleton-row-${i}`}
+                    sx={{
+                      display: 'flex',
+                      gap: 2,
+                      p: 1.5,
+                      borderBottom: i < 9 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none'
+                    }}
+                  >
+                    <Skeleton variant="text" width="20%" />
+                    <Skeleton variant="text" width="12%" />
+                    <Skeleton variant="text" width="10%" />
+                    <Skeleton variant="text" width="12%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="16%" />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
@@ -2549,9 +2680,42 @@ export default function LiquidacionesPageV2() {
               ]}
             />
           </Box>
+          )}
         </TabPanel>
         <TabPanel value={activeTab} index={2}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          {processing && (!reporteBySala || reporteBySala.length === 0) ? (
+            // Skeleton durante carga
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Skeleton variant="text" width={180} height={28} />
+                  <Skeleton variant="text" width={140} height={20} />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+              </Box>
+              <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                {[...Array(8)].map((_, i) => (
+                  <Box
+                    key={`skeleton-sala-${i}`}
+                    sx={{
+                      display: 'flex',
+                      gap: 2,
+                      p: 1.5,
+                      borderBottom: i < 7 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none'
+                    }}
+                  >
+                    <Skeleton variant="text" width="30%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="10%" />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
@@ -2580,6 +2744,7 @@ export default function LiquidacionesPageV2() {
               ]}
             />
           </Box>
+          )}
         </TabPanel>
 
       </Paper>
