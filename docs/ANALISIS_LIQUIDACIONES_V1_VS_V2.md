@@ -122,11 +122,11 @@ V2 tiene **paridad funcional completa** con V1 en todas las características COR
    - Feedback visual con border dashed y scale
    - 3 estados: loading, disabled, active
 
-4. ⏳ **Tab "Tarifa Fija" Dedicada**
-   - **Descripción:** Tab específica para ver solo máquinas con tarifa fija aplicada
-   - **Implementación:** Filtrar `consolidatedData.filter(item => item.novedad === 'Tarifa fija')`
-   - **Estado V1:** ✅ Completamente funcional
-   - **Prioridad:** Media - Facilita revisión de tarifas
+4. ✅ ~~Tab "Tarifa Fija" Dedicada~~ → **COMPLETADO**
+   - Tab específica para ver solo máquinas con tarifa fija
+   - Filtro de consolidatedData por tarifasOficiales
+   - Resumen con 4 métricas clave
+   - Tabla virtualizada con VirtualTable
 
 5. ⏳ **Animaciones Framer Motion**
    - **Descripción:** Transiciones suaves en tabs, modales, cards con Framer Motion
