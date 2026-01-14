@@ -26,6 +26,7 @@ import {
 import {
   AccountCircle,
   Analytics,
+  Assessment,
   AttachMoney,
   BarChart as BarChartIcon,
   Business,
@@ -2468,7 +2469,21 @@ export default function LiquidacionesPageV2() {
             </Grid>
           ))
         ) : (
-          [
+          (() => {
+            // Calcular cumplimiento de transmisión (solo si hay datos)
+            const totalMaquinasContrato = Array.isArray(consolidatedData) ? consolidatedData.length : 0;
+            const maquinasTransmitiendo = Array.isArray(consolidatedData) 
+              ? consolidatedData.filter(m => (m.produccion || 0) > 0).length 
+              : 0;
+            const maquinasSinTransmitir = totalMaquinasContrato - maquinasTransmitiendo;
+            const porcentajeIncumplimiento = totalMaquinasContrato > 0 
+              ? ((maquinasSinTransmitir / totalMaquinasContrato) * 100).toFixed(1)
+              : 0;
+            const porcentajeCumplimiento = totalMaquinasContrato > 0
+              ? ((maquinasTransmitiendo / totalMaquinasContrato) * 100).toFixed(1)
+              : 0;
+            
+            const kpis = [
           {
             key: 'maquinas',
             title: 'Máquinas Consolidadas',
@@ -2501,30 +2516,83 @@ export default function LiquidacionesPageV2() {
             icon: Analytics,
             color: theme.palette.secondary.main
           }
-        ].map((kpi) => {
+        ];
+        
+        // Agregar tarjeta de cumplimiento
+        kpis.push({
+          key: 'cumplimiento',
+          title: 'Cumplimiento Transmisión',
+          value: `${porcentajeCumplimiento}%`,
+          subtitle: `${maquinasTransmitiendo}/${totalMaquinasContrato} transmitiendo`,
+          incumplimiento: maquinasSinTransmitir,
+          porcentajeIncumplimiento: porcentajeIncumplimiento,
+          trend: { value: 0, trend: 0, isPositive: maquinasSinTransmitir === 0 },
+          icon: Assessment,
+          color: maquinasSinTransmitir === 0 ? theme.palette.success.main : theme.palette.error.main,
+          isCumplimiento: true
+        });
+
+        return kpis.map((kpi) => {
           const TrendIcon = kpi.trend.isPositive ? TrendingUp : TrendingDown;
           const trendColor = kpi.trend.isPositive ? theme.palette.success.main : theme.palette.error.main;
           return (
-            <Grid key={kpi.key} item xs={12} sm={6} md={3}>
+            <Grid key={kpi.key} item xs={12} sm={6} md={kpi.isCumplimiento ? 12 : 3}>
               <Paper
                 elevation={0}
                 sx={{
                   borderRadius: 2,
                   p: 2.5,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  border: `1px solid ${alpha(kpi.isCumplimiento ? kpi.color : theme.palette.primary.main, 0.6)}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   transition: 'all 0.2s ease',
-                  '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderColor: alpha(theme.palette.primary.main, 0.8) }
+                  '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderColor: alpha(kpi.isCumplimiento ? kpi.color : theme.palette.primary.main, 0.8) },
+                  ...(kpi.isCumplimiento && { background: alpha(kpi.color, 0.04) })
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: -0.3 }}>
                       {kpi.value}
                     </Typography>
                     <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
                       {kpi.title}
                     </Typography>
+                    {kpi.subtitle && (
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
+                        {kpi.subtitle}
+                      </Typography>
+                    )}
+                    {kpi.isCumplimiento && kpi.incumplimiento > 0 && (
+                      <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            bgcolor: alpha(theme.palette.error.main, 0.12),
+                            border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'error.main' }}>
+                            ⚠️ {kpi.incumplimiento} máquinas sin transmitir ({kpi.porcentajeIncumplimiento}% incumplimiento)
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                    {kpi.isCumplimiento && kpi.incumplimiento === 0 && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <Chip
+                          size="small"
+                          icon={<CheckCircle fontSize="small" />}
+                          label="✅ 100% de las máquinas transmitiendo correctamente"
+                          sx={{
+                            bgcolor: alpha(theme.palette.success.main, 0.12),
+                            color: 'success.main',
+                            fontWeight: 600
+                          }}
+                        />
+                      </Box>
+                    )}
                   </Box>
                   <Box
                     sx={{
@@ -2541,22 +2609,25 @@ export default function LiquidacionesPageV2() {
                   </Box>
                 </Box>
 
-                <Chip
-                  size="small"
-                  icon={<TrendIcon fontSize="small" />}
-                  label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
-                  sx={{
-                    mt: 2,
-                    bgcolor: alpha(trendColor, 0.12),
-                    color: trendColor,
-                    fontWeight: 700,
-                    '& .MuiChip-icon': { color: trendColor }
-                  }}
-                />
+                {!kpi.isCumplimiento && (
+                  <Chip
+                    size="small"
+                    icon={<TrendIcon fontSize="small" />}
+                    label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
+                    sx={{
+                      mt: 2,
+                      bgcolor: alpha(trendColor, 0.12),
+                      color: trendColor,
+                      fontWeight: 700,
+                      '& .MuiChip-icon': { color: trendColor }
+                    }}
+                  />
+                )}
               </Paper>
             </Grid>
           );
-        })
+        });
+          })()
         )}
       </Grid>
 
@@ -2898,24 +2969,256 @@ export default function LiquidacionesPageV2() {
               <TabPanel value={activeTab} index={0}>
                 {!Array.isArray(consolidatedData) || consolidatedData.length === 0 ? (
                   <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                    Procesa un archivo para ver el resumen.
+                    Procesa un archivo para ver el dashboard ejecutivo.
                   </Typography>
                 ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                      Resumen General
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      <Chip size="small" label={`Máquinas: ${metricsData?.totalMaquinas ?? consolidatedData.length}`} />
-                      <Chip size="small" label={`Establecimientos: ${metricsData?.totalEstablecimientos ?? (Array.isArray(reporteBySala) ? reporteBySala.length : 0)}`} />
-                      <Chip size="small" label={`Producción: ${formatCurrencyCompact(metricsData?.totalProduccion ?? derivedMetrics.totalProduccion)}`} />
-                      <Chip size="small" label={`Derechos: ${formatCurrencyCompact(metricsData?.totalDerechos ?? derivedMetrics.totalDerechos)}`} />
-                      <Chip size="small" label={`Gastos: ${formatCurrencyCompact(metricsData?.totalGastos ?? derivedMetrics.totalGastos)}`} />
-                      <Chip size="small" color={archivoTarifas ? 'info' : 'default'} label={archivoTarifas ? 'Tarifas aplicadas' : 'Sin tarifas'} />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    {/* Top 5 Establecimientos por Producción */}
+                    <Paper
+                      sx={{
+                        p: 2.5,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        background: alpha(theme.palette.primary.main, 0.04),
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                      }}
+                    >
+                      <Typography
+                        variant="overline"
+                        sx={{ fontWeight: 600, color: 'primary.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
+                      >
+                        🏆 Top 5 Establecimientos por Producción
+                      </Typography>
+                      {(() => {
+                        const salasOrdenadas = [...(Array.isArray(reporteBySala) ? reporteBySala : [])]
+                          .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+                          .slice(0, 5);
+                        const totalProduccionGlobal = metricsData?.totalProduccion || derivedMetrics.totalProduccion || 1;
+                        
+                        return salasOrdenadas.length === 0 ? (
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            No hay datos de establecimientos disponibles.
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {salasOrdenadas.map((sala, idx) => {
+                              const porcentaje = ((sala.produccion || 0) / totalProduccionGlobal) * 100;
+                              return (
+                                <Box key={idx}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                                      {sala.establecimiento || 'Sin nombre'}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+                                      {formatCurrencyCOP(sala.produccion || 0)} ({porcentaje.toFixed(1)}%)
+                                    </Typography>
+                                  </Box>
+                                  <Box
+                                    sx={{
+                                      width: '100%',
+                                      height: 8,
+                                      borderRadius: 1,
+                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                      overflow: 'hidden'
+                                    }}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: `${porcentaje}%`,
+                                        height: '100%',
+                                        bgcolor: theme.palette.primary.main,
+                                        transition: 'width 0.3s ease'
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                        );
+                      })()}
+                    </Paper>
+
+                    {/* Alertas y Validaciones */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                      {/* Alertas */}
+                      <Paper
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 1,
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                          background: alpha(theme.palette.warning.main, 0.04),
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                        }}
+                      >
+                        <Typography
+                          variant="overline"
+                          sx={{ fontWeight: 600, color: 'warning.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
+                        >
+                          ⚠️ Alertas y Observaciones
+                        </Typography>
+                        {(() => {
+                          const maquinasConNovedades = consolidatedData.filter(m => m.novedad && m.novedad !== 'Sin cambios').length;
+                          const establecimientosSinProduccion = (Array.isArray(reporteBySala) ? reporteBySala : []).filter(s => (s.produccion || 0) === 0).length;
+                          const promedioDiario = (metricsData?.totalProduccion || derivedMetrics.totalProduccion || 0) / 30;
+                          
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: maquinasConNovedades > 0 ? 'warning.main' : 'success.main' }} />
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  <strong>{maquinasConNovedades}</strong> máquinas con novedades {maquinasConNovedades > 10 && '(requiere seguimiento)'}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: establecimientosSinProduccion > 0 ? 'error.main' : 'success.main' }} />
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  <strong>{establecimientosSinProduccion}</strong> establecimientos sin producción {establecimientosSinProduccion > 0 && '(verificar operación)'}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'info.main' }} />
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  Promedio diario estimado: <strong>{formatCurrencyCOP(promedioDiario)}</strong>
+                                </Typography>
+                              </Box>
+                            </Box>
+                          );
+                        })()}
+                      </Paper>
+
+                      {/* Validaciones */}
+                      <Paper
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 1,
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                          background: alpha(theme.palette.success.main, 0.04),
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                        }}
+                      >
+                        <Typography
+                          variant="overline"
+                          sx={{ fontWeight: 600, color: 'success.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
+                        >
+                          ✅ Validaciones Automáticas
+                        </Typography>
+                        {(() => {
+                          const totalMaquinas = consolidatedData.length;
+                          const maquinasConTarifa = consolidatedData.filter(m => m.tarifaOficial && m.tarifaOficial !== 0).length;
+                          const sinTarifa = totalMaquinas - maquinasConTarifa;
+                          const calculosOK = consolidatedData.every(m => 
+                            (m.totalImpuestos || 0) === ((m.derechosExplotacion || 0) + (m.gastosAdministracion || 0))
+                          );
+                          
+                          // Detectar periodo usando la misma función del modal
+                          const periodoDetectado = detectarPeriodoLiquidacion();
+                          
+                          // Detectar posibles duplicados (mismo NUC)
+                          const nucsUnicos = new Set(consolidatedData.map(m => m.nuc).filter(Boolean));
+                          const posiblesDuplicados = totalMaquinas - nucsUnicos.size;
+                          
+                          // Máquinas sin NUC
+                          const sinNUC = consolidatedData.filter(m => !m.nuc || m.nuc === '').length;
+                          
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {calculosOK ? '✅' : '❌'}
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  Cálculos de impuestos verificados
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                📅
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  Periodo: <strong>{periodoDetectado}</strong>
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                📊
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  Tarifa Fija: <strong>{maquinasConTarifa}</strong> | Variable (12%): <strong>{sinTarifa}</strong>
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {posiblesDuplicados === 0 ? '✅' : '⚠️'}
+                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                  Duplicados: <strong>{posiblesDuplicados}</strong>
+                                  {posiblesDuplicados > 0 && ' (revisar NUCs)'}
+                                </Typography>
+                              </Box>
+                              
+                              {sinNUC > 0 && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  ⚠️
+                                  <Typography variant="body2" sx={{ fontSize: '0.9rem', color: 'warning.main' }}>
+                                    <strong>{sinNUC}</strong> máquinas sin NUC asignado
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        })()}
+                      </Paper>
                     </Box>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                      Usa las pestañas para revisar el consolidado y el reporte por sala.
-                    </Typography>
+
+                    {/* Top Máquinas de Mayor Rendimiento */}
+                    <Paper
+                      sx={{
+                        p: 2.5,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                        background: alpha(theme.palette.secondary.main, 0.04),
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                      }}
+                    >
+                      <Typography
+                        variant="overline"
+                        sx={{ fontWeight: 600, color: 'secondary.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
+                      >
+                        🎰 Máquinas de Mayor Rendimiento
+                      </Typography>
+                      {(() => {
+                        const topMaquinas = [...consolidatedData]
+                          .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+                          .slice(0, 5);
+                        
+                        return topMaquinas.length === 0 ? (
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            No hay datos de máquinas disponibles.
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+                            {topMaquinas.map((maq, idx) => (
+                              <Box
+                                key={idx}
+                                sx={{
+                                  p: 1.5,
+                                  borderRadius: 1,
+                                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                                  background: alpha(theme.palette.background.paper, 0.6),
+                                  minWidth: 140
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                                  #{maq.serial || maq.nuc || `Máq ${idx + 1}`}
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                                  {formatCurrencyCOP(maq.produccion || 0)}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                                  {maq.establecimiento || 'Sin sala'}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        );
+                      })()}
+                    </Paper>
                   </Box>
                 )}
               </TabPanel>
