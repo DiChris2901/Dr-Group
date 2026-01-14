@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Avatar,
   Box,
@@ -2885,31 +2886,51 @@ export default function LiquidacionesPageV2() {
 
         <Divider sx={{ mt: 1.5 }} />
 
-        <TabPanel value={activeTab} index={0}>
-          {!Array.isArray(consolidatedData) || consolidatedData.length === 0 ? (
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-              Procesa un archivo para ver el resumen.
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                Resumen General
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <Chip size="small" label={`Máquinas: ${metricsData?.totalMaquinas ?? consolidatedData.length}`} />
-                <Chip size="small" label={`Establecimientos: ${metricsData?.totalEstablecimientos ?? (Array.isArray(reporteBySala) ? reporteBySala.length : 0)}`} />
-                <Chip size="small" label={`Producción: ${formatCurrencyCompact(metricsData?.totalProduccion ?? derivedMetrics.totalProduccion)}`} />
-                <Chip size="small" label={`Derechos: ${formatCurrencyCompact(metricsData?.totalDerechos ?? derivedMetrics.totalDerechos)}`} />
-                <Chip size="small" label={`Gastos: ${formatCurrencyCompact(metricsData?.totalGastos ?? derivedMetrics.totalGastos)}`} />
-                <Chip size="small" color={archivoTarifas ? 'info' : 'default'} label={archivoTarifas ? 'Tarifas aplicadas' : 'Sin tarifas'} />
-              </Box>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                Usa las pestañas para revisar el consolidado y el reporte por sala.
-              </Typography>
-            </Box>
+        <AnimatePresence mode="wait">
+          {activeTab === 0 && (
+            <motion.div
+              key="resumen"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={0}>
+                {!Array.isArray(consolidatedData) || consolidatedData.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    Procesa un archivo para ver el resumen.
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                      Resumen General
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Chip size="small" label={`Máquinas: ${metricsData?.totalMaquinas ?? consolidatedData.length}`} />
+                      <Chip size="small" label={`Establecimientos: ${metricsData?.totalEstablecimientos ?? (Array.isArray(reporteBySala) ? reporteBySala.length : 0)}`} />
+                      <Chip size="small" label={`Producción: ${formatCurrencyCompact(metricsData?.totalProduccion ?? derivedMetrics.totalProduccion)}`} />
+                      <Chip size="small" label={`Derechos: ${formatCurrencyCompact(metricsData?.totalDerechos ?? derivedMetrics.totalDerechos)}`} />
+                      <Chip size="small" label={`Gastos: ${formatCurrencyCompact(metricsData?.totalGastos ?? derivedMetrics.totalGastos)}`} />
+                      <Chip size="small" color={archivoTarifas ? 'info' : 'default'} label={archivoTarifas ? 'Tarifas aplicadas' : 'Sin tarifas'} />
+                    </Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Usa las pestañas para revisar el consolidado y el reporte por sala.
+                    </Typography>
+                  </Box>
+                )}
+              </TabPanel>
+            </motion.div>
           )}
-        </TabPanel>
-        <TabPanel value={activeTab} index={1}>
+
+          {activeTab === 1 && (
+            <motion.div
+              key="consolidado"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={1}>
           {processing && (!consolidatedData || consolidatedData.length === 0) ? (
             // Skeleton durante carga
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
@@ -2980,10 +3001,21 @@ export default function LiquidacionesPageV2() {
           </Box>
           )}
         </TabPanel>
-        <TabPanel value={activeTab} index={2}>
-          {processing && (!reporteBySala || reporteBySala.length === 0) ? (
-            // Skeleton durante carga
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            </motion.div>
+          )}
+
+          {activeTab === 2 && (
+            <motion.div
+              key="porSala"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={2}>
+                {processing && (!reporteBySala || reporteBySala.length === 0) ? (
+                  // Skeleton durante carga
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                 <Box>
                   <Skeleton variant="text" width={180} height={28} />
@@ -3044,12 +3076,21 @@ export default function LiquidacionesPageV2() {
           </Box>
           )}
         </TabPanel>
+            </motion.div>
+          )}
 
-        {/* Tab Tarifa Fija */}
-        {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
-          <TabPanel value={activeTab} index={3}>
-            {!Array.isArray(tarifaFijaData) || tarifaFijaData.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
+          {/* Tab Tarifa Fija */}
+          {activeTab === 3 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+            <motion.div
+              key="tarifaFija"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={3}>
+                {!Array.isArray(tarifaFijaData) || tarifaFijaData.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Casino sx={{ fontSize: 64, color: alpha(theme.palette.text.secondary, 0.4), mb: 2 }} />
                 <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}>
                   No hay máquinas con tarifa fija aplicada
@@ -3167,7 +3208,9 @@ export default function LiquidacionesPageV2() {
               </>
             )}
           </TabPanel>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </Paper>
 
