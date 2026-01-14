@@ -116,11 +116,11 @@ V2 tiene **paridad funcional completa** con V1 en todas las características COR
    - 3 estados: logo, inicial, placeholder
    - Chip "Detectada" para empresas identificadas
 
-3. ⏳ **Drag & Drop Zona**
-   - **Descripción:** Zona visual para arrastrar y soltar archivos Excel
-   - **Implementación:** Handlers `handleDrag`, `handleDrop`, indicador visual con borde punteado
-   - **Estado V1:** ✅ Completamente funcional
-   - **Prioridad:** Media - Mejora UX significativa
+3. ✅ ~~Drag & Drop Zona~~ → **COMPLETADO**
+   - Zona visual para arrastrar archivos Excel
+   - Handlers `handleDrag`, `handleDrop` con validaciones
+   - Feedback visual con border dashed y scale
+   - 3 estados: loading, disabled, active
 
 4. ⏳ **Tab "Tarifa Fija" Dedicada**
    - **Descripción:** Tab específica para ver solo máquinas con tarifa fija aplicada
