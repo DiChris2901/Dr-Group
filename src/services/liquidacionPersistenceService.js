@@ -954,10 +954,8 @@ class LiquidacionPersistenceService {
 
       const liquidacionData = docSnap.data();
 
-      // 2. Verificar permisos (por defecto: solo propietario)
-      if (liquidacionData.userId && liquidacionData.userId !== userId) {
-        throw new Error('No tienes permisos para acceder a esta liquidación');
-      }
+      // 2. NO verificar permisos - TODOS los usuarios pueden reprocesar liquidaciones
+      // (Eliminado: validación de userId - requerimiento del usuario)
 
       // 3. Normalizar metadatos de archivos (soporte nuevo + legacy)
       const originalMeta = liquidacionData.archivos?.archivoOriginal || liquidacionData.archivoOriginal || null;
