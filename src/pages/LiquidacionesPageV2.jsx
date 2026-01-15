@@ -2790,25 +2790,26 @@ export default function LiquidacionesPageV2() {
                   
                   {/* Indicador de máquinas en cero */}
                   {maquinasEnCero > 0 && (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        px: 2.5,
-                        py: 1.25,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.error.main, 0.08),
-                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
-                      }}
-                    >
-                      <Warning sx={{ fontSize: 20, color: theme.palette.error.main }} />
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.error.main, lineHeight: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box
+                        sx={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 2,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: alpha(theme.palette.error.main, 0.12),
+                          color: theme.palette.error.main
+                        }}
+                      >
+                        <Warning fontSize="large" />
+                      </Box>
+                      <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: theme.palette.error.main }}>
                           {maquinasEnCero}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-                          en cero
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                          {maquinasEnCero === 1 ? 'Máquina' : 'Máquinas'} en cero
                         </Typography>
                       </Box>
                     </Box>
