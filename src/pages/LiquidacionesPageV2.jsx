@@ -44,6 +44,7 @@ import {
   Save,
   Settings,
   Store,
+  TableView,
   TrendingDown,
   TrendingUp,
   Warning
@@ -3065,14 +3066,119 @@ export default function LiquidacionesPageV2() {
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
           sx={{
-            minHeight: 38,
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 38 },
-            '& .MuiTabs-indicator': { height: 3, borderRadius: 2 }
+            minHeight: 48,
+            '& .MuiTab-root': { 
+              textTransform: 'none', 
+              fontWeight: 500,
+              minHeight: 48,
+              px: 2.5,
+              transition: 'all 0.2s ease',
+              '&.Mui-selected': {
+                fontWeight: 600
+              },
+              '&:hover': {
+                bgcolor: alpha(theme.palette.primary.main, 0.04)
+              }
+            },
+            '& .MuiTabs-indicator': { 
+              height: 4, 
+              borderRadius: '4px 4px 0 0'
+            }
           }}
         >
-          <Tab label="Resumen General" />
-          <Tab label="Consolidado Detallado" />
-          <Tab label="Reporte por Sala" />
+          <Tab 
+            icon={<Assessment sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Resumen General
+                {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                  <Chip 
+                    label={consolidatedData.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 0 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<TableView sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Consolidado Detallado
+                {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                  <Chip 
+                    label={consolidatedData.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 1 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<Business sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Reporte por Sala
+                {Array.isArray(reporteBySala) && reporteBySala.length > 0 && (
+                  <Chip 
+                    label={reporteBySala.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 2 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<Warning sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Máquinas en Cero
+                {(() => {
+                  const maquinasEnCero = Array.isArray(consolidatedData) 
+                    ? consolidatedData.filter(m => {
+                        const prod = parseFloat(m.produccion) || 0;
+                        return Math.abs(prod) < 0.01;
+                      }).length 
+                    : 0;
+                  return maquinasEnCero > 0 && (
+                    <Chip 
+                      label={maquinasEnCero} 
+                      size="small" 
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        bgcolor: activeTab === 3 ? alpha(theme.palette.error.main, 0.12) : alpha(theme.palette.divider, 0.08),
+                        color: activeTab === 3 ? theme.palette.error.main : theme.palette.text.secondary
+                      }} 
+                    />
+                  );
+                })()}
+              </Box>
+            }
+          />
           {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
             <Tab label="🏷️ Tarifa Fija" />
           )}
@@ -3616,8 +3722,113 @@ export default function LiquidacionesPageV2() {
             </motion.div>
           )}
 
+          {/* Tab Máquinas en Cero */}
+          {activeTab === 3 && (
+            <motion.div
+              key="maquinasEnCero"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={3}>
+                {(() => {
+                  const maquinasEnCero = Array.isArray(consolidatedData) 
+                    ? consolidatedData.filter(m => {
+                        const prod = parseFloat(m.produccion) || 0;
+                        return Math.abs(prod) < 0.01;
+                      })
+                    : [];
+
+                  if (maquinasEnCero.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <CheckCircle sx={{ fontSize: 64, color: theme.palette.success.main, mb: 2 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.success.main, mb: 1 }}>
+                          ¡Excelente! Todas las máquinas están transmitiendo
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                          No hay máquinas con producción en cero
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  return (
+                    <Box>
+                      <Box sx={{ 
+                        mb: 3, 
+                        p: 2.5, 
+                        borderRadius: 2, 
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Warning sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
+                              {maquinasEnCero.length} {maquinasEnCero.length === 1 ? 'Máquina' : 'Máquinas'} sin transmitir
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                              Revisar conexión, energía eléctrica o estado de las máquinas
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      <Grid container spacing={2}>
+                        {maquinasEnCero.map((maquina, idx) => (
+                          <Grid key={idx} item xs={12} sm={6} md={4} lg={3}>
+                            <Paper
+                              elevation={0}
+                              sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                                bgcolor: 'background.paper',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                  transform: 'translateY(-2px)',
+                                  borderColor: alpha(theme.palette.primary.main, 0.3)
+                                }
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                                <Casino sx={{ fontSize: 24, color: theme.palette.text.secondary }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: -0.2 }}>
+                                  {maquina.serial || '—'}
+                                </Typography>
+                              </Box>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: theme.palette.text.secondary,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  minHeight: 40
+                                }}
+                                title={maquina.establecimiento || '—'}
+                              >
+                                {maquina.establecimiento || '—'}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  );
+                })()}
+              </TabPanel>
+            </motion.div>
+          )}
+
           {/* Tab Tarifa Fija */}
-          {activeTab === 3 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+          {activeTab === 4 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
             <motion.div
               key="tarifaFija"
               initial={{ opacity: 0, x: 20 }}
@@ -3625,7 +3836,7 @@ export default function LiquidacionesPageV2() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <TabPanel value={activeTab} index={3}>
+              <TabPanel value={activeTab} index={4}>
                 {!Array.isArray(tarifaFijaData) || tarifaFijaData.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Casino sx={{ fontSize: 64, color: alpha(theme.palette.text.secondary, 0.4), mb: 2 }} />
