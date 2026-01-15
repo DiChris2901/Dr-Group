@@ -2118,7 +2118,7 @@ export default function LiquidacionesPageV2() {
               Acciones
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
-              Carga, procesamiento y exportaciones
+              Carga y procesamiento general
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
@@ -2134,42 +2134,11 @@ export default function LiquidacionesPageV2() {
             </Button>
             <Button
               variant="outlined"
-              onClick={handleSelectTarifasFile}
-              disabled={processing || !selectedFile || !Array.isArray(consolidatedData) || consolidatedData.length === 0}
-            >
-              {archivoTarifas ? 'Tarifas cargadas' : 'Cargar tarifas (opcional)'}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<ReceiptLong />}
-              onClick={exportarConsolidado}
-              disabled={!canExportConsolidado}
-            >
-              Exportar Consolidado
-            </Button>
-            <Button
-              variant="outlined"
               startIcon={<Save />}
               onClick={mostrarConfirmacionGuardado}
               disabled={!canGuardar}
             >
               Guardar
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Business />}
-              onClick={abrirModalSala}
-              disabled={!canExportSala}
-            >
-              Exportar Reporte Salas
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<History />}
-              onClick={abrirModalDaily}
-              disabled={!canExportDiario}
-            >
-              Exportar Reporte Diario
             </Button>
             <Button
               variant="outlined"
@@ -3339,16 +3308,61 @@ export default function LiquidacionesPageV2() {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Consolidado Detallado
-                </Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                  {Array.isArray(consolidatedData) ? `${consolidatedData.length} filas` : 'Sin datos'}
-                </Typography>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                flexWrap: 'wrap', 
+                gap: 2,
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                bgcolor: theme.palette.background.paper,
+                py: 1.5,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                backdropFilter: 'blur(8px)',
+                backgroundColor: alpha(theme.palette.background.paper, 0.95)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Consolidado Detallado
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    {Array.isArray(consolidatedData) ? `${consolidatedData.length} máquinas consolidadas` : 'Sin datos'}
+                  </Typography>
+                </Box>
+                <Chip 
+                  size="small" 
+                  label={Array.isArray(consolidatedData) ? consolidatedData.length : 0}
+                  sx={{ 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    color: 'primary.main',
+                    fontWeight: 600
+                  }} 
+                />
               </Box>
-              <Chip size="small" label="Virtualizado" sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08) }} />
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ReceiptLong />}
+                onClick={exportarConsolidado}
+                disabled={!canExportConsolidado}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }
+                }}
+              >
+                Exportar Excel
+              </Button>
             </Box>
 
             <VirtualTable
@@ -3420,16 +3434,82 @@ export default function LiquidacionesPageV2() {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Reporte por Sala
-                </Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                  {Array.isArray(reporteBySala) ? `${reporteBySala.length} establecimientos` : 'Sin datos'}
-                </Typography>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                flexWrap: 'wrap', 
+                gap: 2,
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                bgcolor: theme.palette.background.paper,
+                py: 1.5,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                backdropFilter: 'blur(8px)',
+                backgroundColor: alpha(theme.palette.background.paper, 0.95)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Reporte por Sala
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    {Array.isArray(reporteBySala) ? `${reporteBySala.length} establecimientos` : 'Sin datos'}
+                  </Typography>
+                </Box>
+                <Chip 
+                  size="small" 
+                  label={Array.isArray(reporteBySala) ? reporteBySala.length : 0}
+                  sx={{ 
+                    bgcolor: alpha(theme.palette.success.main, 0.12),
+                    color: 'success.main',
+                    fontWeight: 600
+                  }} 
+                />
               </Box>
-              <Chip size="small" label="Virtualizado" sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08) }} />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Business />}
+                  onClick={abrirModalSala}
+                  disabled={!canExportSala}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }
+                  }}
+                >
+                  Reporte Salas
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<History />}
+                  onClick={abrirModalDaily}
+                  disabled={!canExportDiario}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    bgcolor: alpha(theme.palette.secondary.main, 0.08),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }
+                  }}
+                >
+                  Reporte Diario
+                </Button>
+              </Box>
             </Box>
 
             <VirtualTable
