@@ -395,6 +395,19 @@ export default function LiquidacionesPageV2() {
     return head;
   }, [reporteBySala]);
 
+  const top5Establecimientos = useMemo(() => {
+    return [...(Array.isArray(reporteBySala) ? reporteBySala : [])]
+      .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+      .slice(0, 5);
+  }, [reporteBySala]);
+
+  const topMaquinas = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    return [...consolidated]
+      .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+      .slice(0, 5);
+  }, [consolidatedData]);
+
   const chartNovedades = useMemo(() => {
     const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
     if (consolidated.length === 0) return [];
@@ -3201,44 +3214,71 @@ export default function LiquidacionesPageV2() {
                     Procesa un archivo para ver el dashboard ejecutivo.
                   </Typography>
                 ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {/* Top 5 Establecimientos por Producción */}
                     <Paper
+                      role="region"
+                      aria-labelledby="top-establecimientos-title"
                       sx={{
-                        p: 2.5,
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                        background: alpha(theme.palette.primary.main, 0.04),
+                        p: 3,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        background: theme.palette.background.paper,
                         boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                       }}
                     >
                       <Typography
+                        id="top-establecimientos-title"
                         variant="overline"
                         sx={{ fontWeight: 600, color: 'primary.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
                       >
                         🏆 Top 5 Establecimientos por Producción
                       </Typography>
                       {(() => {
-                        const salasOrdenadas = [...(Array.isArray(reporteBySala) ? reporteBySala : [])]
-                          .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
-                          .slice(0, 5);
-                        const totalProduccionGlobal = metricsData?.totalProduccion || derivedMetrics.totalProduccion || 1;
+                        if (processing && top5Establecimientos.length === 0) {
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                              {[...Array(5)].map((_, idx) => (
+                                <Box key={idx}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                    <Skeleton variant="text" width="60%" height={20} />
+                                    <Skeleton variant="text" width="30%" height={20} />
+                                  </Box>
+                                  <Skeleton variant="rectangular" width="100%" height={8} sx={{ borderRadius: 0.5 }} />
+                                </Box>
+                              ))}
+                            </Box>
+                          );
+                        }
                         
-                        return salasOrdenadas.length === 0 ? (
+                        const totalProduccionGlobal = metricsData?.totalProduccion || derivedMetrics.produccion?.value || 1;
+                        
+                        return top5Establecimientos.length === 0 ? (
                           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                             No hay datos de establecimientos disponibles.
                           </Typography>
                         ) : (
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {salasOrdenadas.map((sala, idx) => {
+                            {top5Establecimientos.map((sala, idx) => {
                               const porcentaje = ((sala.produccion || 0) / totalProduccionGlobal) * 100;
                               return (
                                 <Box key={idx}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, pr: 1 }}>
+                                    <Typography 
+                                      variant="body2" 
+                                      sx={{ 
+                                        fontWeight: 600, 
+                                        fontSize: '0.9rem',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        maxWidth: '60%'
+                                      }}
+                                      title={sala.establecimiento || 'Sin nombre'}
+                                    >
                                       {sala.establecimiento || 'Sin nombre'}
                                     </Typography>
-                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', flexShrink: 0 }}>
                                       {formatCurrencyCOP(sala.produccion || 0)} ({porcentaje.toFixed(1)}%)
                                     </Typography>
                                   </Box>
@@ -3246,8 +3286,8 @@ export default function LiquidacionesPageV2() {
                                     sx={{
                                       width: '100%',
                                       height: 8,
-                                      borderRadius: 1,
-                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                      borderRadius: 0.5,
+                                      bgcolor: alpha(theme.palette.primary.main, 0.12),
                                       overflow: 'hidden'
                                     }}
                                   >
@@ -3269,24 +3309,43 @@ export default function LiquidacionesPageV2() {
                     </Paper>
 
                     {/* Alertas y Validaciones */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
                       {/* Alertas */}
                       <Paper
+                        role="region"
+                        aria-labelledby="alertas-title"
                         sx={{
-                          p: 2.5,
-                          borderRadius: 1,
-                          border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                          background: alpha(theme.palette.warning.main, 0.04),
+                          p: 3,
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                          background: alpha(theme.palette.warning.main, 0.08),
                           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                         }}
                       >
-                        <Typography
-                          variant="overline"
-                          sx={{ fontWeight: 600, color: 'warning.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
-                        >
-                          ⚠️ Alertas y Observaciones
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <Warning sx={{ fontSize: '1rem', color: 'warning.main' }} />
+                          <Typography
+                            id="alertas-title"
+                            variant="overline"
+                            sx={{ fontWeight: 600, color: 'warning.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                          >
+                            Alertas y Observaciones
+                          </Typography>
+                        </Box>
                         {(() => {
+                          if (processing && consolidatedData.length === 0) {
+                            return (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {[...Array(3)].map((_, idx) => (
+                                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Skeleton variant="circular" width={6} height={6} />
+                                    <Skeleton variant="text" width="80%" height={20} />
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
+                          }
+                          
                           const maquinasConNovedades = consolidatedData.filter(m => m.novedad && m.novedad !== 'Sin cambios').length;
                           const establecimientosSinProduccion = (Array.isArray(reporteBySala) ? reporteBySala : []).filter(s => (s.produccion || 0) === 0).length;
                           const promedioDiario = (metricsData?.totalProduccion || derivedMetrics.totalProduccion || 0) / 30;
@@ -3295,19 +3354,19 @@ export default function LiquidacionesPageV2() {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: maquinasConNovedades > 0 ? 'warning.main' : 'success.main' }} />
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                <Typography variant="body2">
                                   <strong>{maquinasConNovedades}</strong> máquinas con novedades {maquinasConNovedades > 10 && '(requiere seguimiento)'}
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: establecimientosSinProduccion > 0 ? 'error.main' : 'success.main' }} />
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                <Typography variant="body2">
                                   <strong>{establecimientosSinProduccion}</strong> establecimientos sin producción {establecimientosSinProduccion > 0 && '(verificar operación)'}
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'info.main' }} />
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                                <Typography variant="body2">
                                   Promedio diario estimado: <strong>{formatCurrencyCOP(promedioDiario)}</strong>
                                 </Typography>
                               </Box>
@@ -3318,21 +3377,40 @@ export default function LiquidacionesPageV2() {
 
                       {/* Validaciones */}
                       <Paper
+                        role="region"
+                        aria-labelledby="validaciones-title"
                         sx={{
-                          p: 2.5,
-                          borderRadius: 1,
-                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                          background: alpha(theme.palette.success.main, 0.04),
+                          p: 3,
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                          background: alpha(theme.palette.success.main, 0.08),
                           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                         }}
                       >
-                        <Typography
-                          variant="overline"
-                          sx={{ fontWeight: 600, color: 'success.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
-                        >
-                          ✅ Validaciones Automáticas
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <CheckCircle sx={{ fontSize: '1rem', color: 'success.main' }} />
+                          <Typography
+                            id="validaciones-title"
+                            variant="overline"
+                            sx={{ fontWeight: 600, color: 'success.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                          >
+                            Validaciones Automáticas
+                          </Typography>
+                        </Box>
                         {(() => {
+                          if (processing && consolidatedData.length === 0) {
+                            return (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {[...Array(4)].map((_, idx) => (
+                                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Skeleton variant="circular" width={18} height={18} />
+                                    <Skeleton variant="text" width="85%" height={20} />
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
+                          }
+                          
                           const totalMaquinas = consolidatedData.length;
                           const maquinasConTarifa = consolidatedData.filter(m => m.tarifaOficial && m.tarifaOficial !== 0).length;
                           const sinTarifa = totalMaquinas - maquinasConTarifa;
@@ -3352,39 +3430,47 @@ export default function LiquidacionesPageV2() {
                           
                           return (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {calculosOK ? '✅' : '❌'}
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                {calculosOK ? (
+                                  <CheckCircle sx={{ fontSize: 18, color: 'success.main', marginTop: '2px' }} />
+                                ) : (
+                                  <Cancel sx={{ fontSize: 18, color: 'error.main', marginTop: '2px' }} />
+                                )}
+                                <Typography variant="body2">
                                   Cálculos de impuestos verificados
                                 </Typography>
                               </Box>
                               
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                📅
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                <Assessment sx={{ fontSize: 18, color: 'info.main', marginTop: '2px' }} />
+                                <Typography variant="body2">
                                   Periodo: <strong>{periodoDetectado}</strong>
                                 </Typography>
                               </Box>
                               
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                📊
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                <BarChartIcon sx={{ fontSize: 18, color: 'primary.main', marginTop: '2px' }} />
+                                <Typography variant="body2">
                                   Tarifa Fija: <strong>{maquinasConTarifa}</strong> | Variable (12%): <strong>{sinTarifa}</strong>
                                 </Typography>
                               </Box>
                               
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {posiblesDuplicados === 0 ? '✅' : '⚠️'}
-                                <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                {posiblesDuplicados === 0 ? (
+                                  <CheckCircle sx={{ fontSize: 18, color: 'success.main', marginTop: '2px' }} />
+                                ) : (
+                                  <Warning sx={{ fontSize: 18, color: 'warning.main', marginTop: '2px' }} />
+                                )}
+                                <Typography variant="body2">
                                   Duplicados: <strong>{posiblesDuplicados}</strong>
                                   {posiblesDuplicados > 0 && ' (revisar NUCs)'}
                                 </Typography>
                               </Box>
                               
                               {sinNUC > 0 && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  ⚠️
-                                  <Typography variant="body2" sx={{ fontSize: '0.9rem', color: 'warning.main' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                  <Warning sx={{ fontSize: 18, color: 'warning.main', marginTop: '2px' }} />
+                                  <Typography variant="body2" sx={{ color: 'warning.main' }}>
                                     <strong>{sinNUC}</strong> máquinas sin NUC asignado
                                   </Typography>
                                 </Box>
@@ -3394,60 +3480,6 @@ export default function LiquidacionesPageV2() {
                         })()}
                       </Paper>
                     </Box>
-
-                    {/* Top Máquinas de Mayor Rendimiento */}
-                    <Paper
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                        background: alpha(theme.palette.secondary.main, 0.04),
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                      }}
-                    >
-                      <Typography
-                        variant="overline"
-                        sx={{ fontWeight: 600, color: 'secondary.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
-                      >
-                        🎰 Máquinas de Mayor Rendimiento
-                      </Typography>
-                      {(() => {
-                        const topMaquinas = [...consolidatedData]
-                          .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
-                          .slice(0, 5);
-                        
-                        return topMaquinas.length === 0 ? (
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            No hay datos de máquinas disponibles.
-                          </Typography>
-                        ) : (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                            {topMaquinas.map((maq, idx) => (
-                              <Box
-                                key={idx}
-                                sx={{
-                                  p: 1.5,
-                                  borderRadius: 1,
-                                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                                  background: alpha(theme.palette.background.paper, 0.6),
-                                  minWidth: 140
-                                }}
-                              >
-                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-                                  #{maq.serial || maq.nuc || `Máq ${idx + 1}`}
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                                  {formatCurrencyCOP(maq.produccion || 0)}
-                                </Typography>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-                                  {maq.establecimiento || 'Sin sala'}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        );
-                      })()}
-                    </Paper>
                   </Box>
                 )}
               </TabPanel>
