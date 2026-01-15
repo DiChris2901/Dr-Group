@@ -2122,13 +2122,6 @@ export default function LiquidacionesPageV2() {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-            <Button
-              variant="contained"
-              onClick={handleSelectFile}
-              disabled={processing || companiesLoading || !companies || companies.length === 0 || Boolean(selectedFile)}
-            >
-              {processing ? 'Procesando…' : selectedFile ? 'Archivo cargado' : 'Cargar archivo'}
-            </Button>
             <Button variant="outlined" onClick={resetLiquidacion} disabled={processing}>
               Reiniciar
             </Button>
@@ -2153,18 +2146,33 @@ export default function LiquidacionesPageV2() {
         {/* Card de Contexto Integrada - Empresa + Archivo */}
         <Paper
           elevation={0}
+          onClick={!selectedFile ? handleSelectFile : undefined}
           sx={{
             mt: 2.5,
             p: 2.5,
             borderRadius: 2,
             border: `1px solid ${alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.divider) : theme.palette.primary.main, 0.2)}`,
             backgroundColor: alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500]) : theme.palette.primary.main, 0.04),
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            cursor: !selectedFile ? 'pointer' : 'default',
+            transition: 'all 0.2s ease',
+            ...(!selectedFile && {
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              }
+            })
           }}
         >
           {!selectedFile ? (
-            // Estado inicial: Sin archivo cargado
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            // Estado inicial: Sin archivo cargado (clickeable)
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pointerEvents: 'none' }}>
               <CloudUpload 
                 sx={{ 
                   fontSize: 48, 
