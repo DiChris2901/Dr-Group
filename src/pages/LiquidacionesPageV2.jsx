@@ -30,16 +30,19 @@ import {
   AttachMoney,
   BarChart as BarChartIcon,
   Business,
+  Cancel,
   Casino,
   CheckCircle,
   Close,
   CloudUpload,
   DeleteSweep,
+  HelpOutline,
   History,
   Notifications,
   ReceiptLong,
   Save,
   Settings,
+  Store,
   TrendingDown,
   TrendingUp,
   Warning
@@ -1767,12 +1770,12 @@ export default function LiquidacionesPageV2() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-              <Analytics />
+            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main' }}>
+              <Assessment />
             </Avatar>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 0 }}>
-                🔍 Validación de Liquidación
+                Validación de Liquidación
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Revisa los cálculos antes de finalizar
@@ -1781,7 +1784,7 @@ export default function LiquidacionesPageV2() {
           </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 3, pt: 5 }}>
+        <DialogContent sx={{ p: 3, pt: 4 }}>
           <input
             ref={validationTarifasInputRef}
             type="file"
@@ -1791,35 +1794,44 @@ export default function LiquidacionesPageV2() {
           />
 
           {validationData && (
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ mt: 2 }}>
               <Grid item xs={12} md={6}>
                 <Paper
                   sx={{
                     p: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    background: alpha(theme.palette.primary.main, 0.08),
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                   }}
                 >
                   <Typography
                     variant="overline"
-                    sx={{ fontWeight: 600, color: 'primary.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                    sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: 0.8, display: 'block', mb: 2 }}
                   >
                     Información General
                   </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-                    📊 Resumen de Consolidación
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BarChartIcon sx={{ color: 'primary.main' }} />
+                    Resumen de Consolidación
                   </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    🎰 Máquinas consolidadas: <strong>{validationData.totalMaquinas}</strong>
-                  </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    🏢 Establecimientos: <strong>{validationData.totalEstablecimientos}</strong>
-                  </Typography>
-                  <Typography>
-                    🏢 Empresa: <strong>{validationData.empresaFinal || empresa || 'No detectada'}</strong>
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                    <Casino sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Máquinas consolidadas: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.totalMaquinas}</Typography>
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                    <Store sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Establecimientos: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.totalEstablecimientos}</Typography>
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Empresa: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.empresaFinal || empresa || 'No detectada'}</Typography>
+                    </Typography>
+                  </Box>
                 </Paper>
               </Grid>
 
@@ -1827,33 +1839,38 @@ export default function LiquidacionesPageV2() {
                 <Paper
                   sx={{
                     p: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                    background: alpha(theme.palette.secondary.main, 0.08),
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                   }}
                 >
                   <Typography
                     variant="overline"
-                    sx={{ fontWeight: 600, color: 'secondary.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                    sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: 0.8, display: 'block', mb: 2 }}
                   >
                     Información Financiera
                   </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-                    💰 Totales Financieros
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AttachMoney sx={{ color: 'success.main' }} />
+                    Totales Financieros
                   </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    Producción: <strong>{formatCurrencyCOP(validationData.totalProduccion)}</strong>
-                  </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    Derechos (12%): <strong>{formatCurrencyCOP(validationData.totalDerechos)}</strong>
-                  </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    Gastos (1%): <strong>{formatCurrencyCOP(validationData.totalGastos)}</strong>
-                  </Typography>
-                  <Typography sx={{ fontSize: '1.05em', fontWeight: 600 }}>
-                    Total Impuestos: <strong>{formatCurrencyCOP(validationData.totalImpuestos)}</strong>
-                  </Typography>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Producción:</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalProduccion)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Derechos (12%):</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalDerechos)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Gastos (1%):</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalGastos)}</Typography>
+                  </Box>
+                  <Divider sx={{ my: 2 }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Total Impuestos:</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>{formatCurrencyCOP(validationData.totalImpuestos)}</Typography>
+                  </Box>
                 </Paper>
               </Grid>
 
@@ -1862,36 +1879,60 @@ export default function LiquidacionesPageV2() {
                   <Paper
                     sx={{
                       p: 3,
-                      borderRadius: 1,
-                      border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                      background: alpha(theme.palette.info.main, 0.08),
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                     }}
                   >
-                    <Typography variant="h6" sx={{ textAlign: 'center', mb: 2 }}>
-                      🔍 ¿Los cálculos coinciden con las tarifas oficiales?
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+                      <HelpOutline sx={{ color: 'text.secondary' }} />
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        ¿Los cálculos coinciden con las tarifas oficiales?
+                      </Typography>
+                    </Box>
                     <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3 }}>
                       Si tienes un archivo de tarifas oficial, selecciona “No Coincide” para ajustar automáticamente.
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                       <Button
                         onClick={handleLiquidacionCoincide}
-                        variant="contained"
+                        variant="outlined"
                         size="large"
                         color="success"
-                        sx={{ minWidth: 140, borderRadius: 1, fontWeight: 600, textTransform: 'none' }}
+                        startIcon={<CheckCircle />}
+                        sx={{
+                          minWidth: 160,
+                          borderRadius: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          bgcolor: alpha(theme.palette.success.main, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.success.main, 0.12),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }
+                        }}
                       >
-                        ✅ Sí Coincide
+                        Sí Coincide
                       </Button>
                       <Button
                         onClick={handleLiquidacionNoCoincide}
-                        variant="contained"
+                        variant="outlined"
                         size="large"
                         color="error"
-                        sx={{ minWidth: 140, borderRadius: 1, fontWeight: 600, textTransform: 'none' }}
+                        startIcon={<Cancel />}
+                        sx={{
+                          minWidth: 160,
+                          borderRadius: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          bgcolor: alpha(theme.palette.error.main, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.error.main, 0.12),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }
+                        }}
                       >
-                        ❌ No Coincide
+                        No Coincide
                       </Button>
                     </Box>
                   </Paper>
