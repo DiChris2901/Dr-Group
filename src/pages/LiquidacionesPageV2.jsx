@@ -30,6 +30,7 @@ import {
   AttachMoney,
   BarChart as BarChartIcon,
   Business,
+  Cached,
   Cancel,
   Casino,
   CheckCircle,
@@ -2400,21 +2401,18 @@ export default function LiquidacionesPageV2() {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {[
-              { n: 1, label: '1. Cargar Archivo' },
-              { n: 2, label: '2. Procesando' },
-              { n: 3, label: '3. Guardar' }
+              { n: 1, label: 'Cargar Archivo', icon: CloudUpload },
+              { n: 2, label: 'Procesando', icon: Cached },
+              { n: 3, label: 'Guardar', icon: Save }
             ].map((s) => {
               const isActive = s.n === activeStep;
               const isCompleted = s.n < activeStep;
+              const StepIcon = s.icon;
+              
               return (
                 <Box
                   key={s.n}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setActiveStep(s.n)}
-                  onKeyDown={(e) => (e.key === 'Enter' ? setActiveStep(s.n) : null)}
                   sx={{
-                    cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -2429,21 +2427,41 @@ export default function LiquidacionesPageV2() {
                       borderRadius: '50%',
                       display: 'grid',
                       placeItems: 'center',
-                      fontWeight: 600,
-                      border: `2px solid ${isActive || isCompleted ? theme.palette.primary.main : 'transparent'}`,
-                      bgcolor: isActive || isCompleted ? theme.palette.primary.main : alpha(theme.palette.text.primary, 0.08),
-                      color: isActive || isCompleted ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                      border: isActive || isCompleted 
+                        ? `2px solid ${isCompleted ? theme.palette.success.main : theme.palette.primary.main}` 
+                        : `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: isCompleted 
+                        ? alpha(theme.palette.success.main, 0.12)
+                        : isActive 
+                          ? alpha(theme.palette.primary.main, 0.12)
+                          : alpha(theme.palette.grey[500], 0.04),
+                      color: isCompleted 
+                        ? theme.palette.success.main 
+                        : isActive 
+                          ? theme.palette.primary.main 
+                          : theme.palette.text.secondary,
                       transition: 'all 0.2s ease',
-                      boxShadow: isActive ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.08)}` : 'none'
+                      boxShadow: isActive 
+                        ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.08)}` 
+                        : 'none'
                     }}
                   >
-                    {s.n}
+                    {isCompleted ? (
+                      <CheckCircle sx={{ fontSize: 24 }} />
+                    ) : (
+                      <StepIcon sx={{ fontSize: 24 }} />
+                    )}
                   </Box>
                   <Typography
-                    variant="caption"
+                    variant="body2"
                     sx={{
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive || isCompleted ? theme.palette.primary.main : theme.palette.text.secondary
+                      fontWeight: isActive ? 600 : 500,
+                      color: isCompleted 
+                        ? theme.palette.success.main 
+                        : isActive 
+                          ? theme.palette.primary.main 
+                          : theme.palette.text.secondary,
+                      fontSize: '0.8125rem'
                     }}
                   >
                     {s.label}
