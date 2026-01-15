@@ -264,6 +264,7 @@ export default function useLiquidacionExport({
 
   /**
    * Exportar máquinas en cero (producción = 0) agrupadas por sala
+   * Formato Python Profesional con ExcelJS
    */
   const exportarMaquinasEnCero = useCallback(async () => {
     if (!currentUser?.uid) {
@@ -277,7 +278,7 @@ export default function useLiquidacionExport({
     }
 
     try {
-      addLog('📦 Exportando máquinas en cero...', 'info');
+      addLog('📦 Exportando máquinas en cero (Formato Python)...', 'info');
 
       // Filtrar máquinas con producción en cero
       const maquinasEnCero = consolidatedData.filter(m => {
@@ -290,6 +291,15 @@ export default function useLiquidacionExport({
         return;
       }
 
+      // Importar ExcelJS dinámicamente
+      const ExcelJS = (await import('exceljs')).default;
+
+      // Crear workbook y worksheet
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Máquinas en Cero', {
+        views: [{ state: 'frozen', ySplit: 7 }]
+      });
+
       // Agrupar por establecimiento
       const maquinasPorSala = maquinasEnCero.reduce((acc, maquina) => {
         const sala = maquina.establecimiento || 'Sin establecimiento';
@@ -300,60 +310,164 @@ export default function useLiquidacionExport({
         return acc;
       }, {});
 
-      // Ordenar salas alfabéticamente
       const salasOrdenadas = Object.keys(maquinasPorSala).sort();
+      const totalColumnas = 7;
 
-      // Crear datos para el Excel
-      const excelData = [];
-      salasOrdenadas.forEach((sala, idx) => {
-        // Agregar header de sala
-        if (idx > 0) excelData.push({}); // Fila vacía entre salas
-        excelData.push({
-          'Establecimiento': sala,
-          'Empresa': '',
-          'Serial': '',
-          'NUC': '',
-          'Días Transmitidos': '',
-          'Tipo Apuesta': '',
-          'Novedad': `${maquinasPorSala[sala].length} máquinas`
-        });
+      // Colores corporativos Python
+      const BRAND_COLORS = {
+        titleBg: 'FF0B3040',
+        subtitleBg: 'FF1A5F7A',
+        metricsBg: 'FF334155',
+        dateBg: 'FF475569',
+        headerBg: 'FF0B3040',
+        white: 'FFFFFFFF',
+        textDark: 'FF223344',
+        borderLight: 'FFE2E8F0',
+        borderMedium: 'FFC0CCDA',
+        borderDark: 'FF94A3B8'
+      };
 
-        // Agregar máquinas de la sala
+      // FILA 1: Título principal
+      ws.mergeCells(1, 1, 1, totalColumnas);
+      const titleCell = ws.getCell(1, 1);
+      titleCell.value = 'DR GROUP';
+      titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: BRAND_COLORS.white } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.titleBg } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(1).height = 30;
+
+      // FILA 2: Subtítulo
+      ws.mergeCells(2, 1, 2, totalColumnas);
+      const subCell = ws.getCell(2, 1);
+      subCell.value = 'Reporte de Máquinas Sin Transmitir';
+      subCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: BRAND_COLORS.white } };
+      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.subtitleBg } };
+      subCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      ws.getRow(2).height = 22;
+
+      // FILA 3: Métricas
+      ws.mergeCells(3, 1, 3, totalColumnas);
+      const metricsCell = ws.getCell(3, 1);
+      metricsCell.value = `Total Máquinas: ${maquinasEnCero.length} | Establecimientos Afectados: ${salasOrdenadas.length} | Empresa: ${empresa || 'GENERAL'}`;
+      metricsCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
+      metricsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.metricsBg } };
+      metricsCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      ws.getRow(3).height = 22;
+
+      // FILA 4: Fecha de generación
+      ws.mergeCells(4, 1, 4, totalColumnas);
+      const dateCell = ws.getCell(4, 1);
+      dateCell.value = `Generado: ${new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'medium' })}`;
+      dateCell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: BRAND_COLORS.white } };
+      dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.dateBg } };
+      dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(4).height = 18;
+
+      // FILA 5-6: Espaciadores
+      ws.getRow(5).height = 5;
+      ws.getRow(6).height = 8;
+
+      // FILA 7: Headers de columnas
+      const headers = ['Establecimiento', 'Empresa', 'Serial', 'NUC', 'Días Transmitidos', 'Tipo Apuesta', 'Novedad'];
+      const headerRow = ws.getRow(7);
+      headers.forEach((h, i) => {
+        const cell = headerRow.getCell(i + 1);
+        cell.value = h;
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.headerBg } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+        };
+      });
+      headerRow.height = 28;
+
+      // FILA 8+: Datos agrupados por sala
+      let currentRow = 8;
+      salasOrdenadas.forEach((sala, salaIdx) => {
+        // Header de sala (merged)
+        if (salaIdx > 0) {
+          currentRow++; // Fila vacía entre salas
+        }
+
+        ws.mergeCells(currentRow, 1, currentRow, totalColumnas);
+        const salaHeaderCell = ws.getCell(currentRow, 1);
+        salaHeaderCell.value = `${sala} - ${maquinasPorSala[sala].length} ${maquinasPorSala[sala].length === 1 ? 'máquina' : 'máquinas'}`;
+        salaHeaderCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BRAND_COLORS.textDark } };
+        salaHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        salaHeaderCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        salaHeaderCell.border = {
+          top: { style: 'medium', color: { argb: BRAND_COLORS.borderDark } },
+          left: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+          bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderMedium } },
+          right: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } }
+        };
+        ws.getRow(currentRow).height = 22;
+        currentRow++;
+
+        // Máquinas de la sala
         maquinasPorSala[sala].forEach(maquina => {
-          excelData.push({
-            'Establecimiento': '',
-            'Empresa': maquina.empresa || '—',
-            'Serial': maquina.serial || '—',
-            'NUC': maquina.nuc || '—',
-            'Días Transmitidos': maquina.diasTransmitidos || 0,
-            'Tipo Apuesta': maquina.tipoApuesta || '—',
-            'Novedad': maquina.novedad || 'Sin transmitir'
+          const row = ws.getRow(currentRow);
+          const rowData = [
+            '', // Establecimiento vacío (ya está en header)
+            maquina.empresa || '—',
+            maquina.serial || '—',
+            maquina.nuc || '—',
+            maquina.diasTransmitidos || 0,
+            maquina.tipoApuesta || '—',
+            maquina.novedad || 'Sin transmitir'
+          ];
+
+          rowData.forEach((value, colIdx) => {
+            const cell = row.getCell(colIdx + 1);
+            cell.value = value;
+            cell.font = { name: 'Segoe UI', size: 9, color: { argb: BRAND_COLORS.textDark } };
+            cell.alignment = { 
+              horizontal: colIdx === 4 ? 'center' : 'left', 
+              vertical: 'middle', 
+              wrapText: false,
+              indent: colIdx === 0 ? 2 : 0
+            };
+            cell.border = {
+              top: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+              left: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+              bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderMedium } },
+              right: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } }
+            };
           });
+          row.height = 18;
+          currentRow++;
         });
       });
 
-      // Crear worksheet y workbook
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      
       // Ajustar anchos de columna
-      ws['!cols'] = [
-        { wch: 35 }, // Establecimiento
-        { wch: 20 }, // Empresa
-        { wch: 15 }, // Serial
-        { wch: 15 }, // NUC
-        { wch: 18 }, // Días Transmitidos
-        { wch: 18 }, // Tipo Apuesta
-        { wch: 25 }  // Novedad
+      ws.columns = [
+        { width: 35 }, // Establecimiento
+        { width: 20 }, // Empresa
+        { width: 15 }, // Serial
+        { width: 15 }, // NUC
+        { width: 18 }, // Días Transmitidos
+        { width: 18 }, // Tipo Apuesta
+        { width: 25 }  // Novedad
       ];
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Máquinas en Cero');
-
+      // Generar archivo
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const timestamp = new Date().toLocaleString('es-CO').replace(/[/:]/g, '-').replace(', ', '_');
       const filename = `Maquinas_En_Cero_${empresa || 'General'}_${timestamp}.xlsx`;
-      XLSX.writeFile(wb, filename);
 
-      addLog(`✅ Exportadas ${maquinasEnCero.length} máquinas en cero`, 'success');
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      addLog(`✅ Exportadas ${maquinasEnCero.length} máquinas en cero (Formato Python)`, 'success');
       addNotification(`Exportadas ${maquinasEnCero.length} máquinas en cero`, 'success');
 
       // Log de actividad
@@ -363,6 +477,7 @@ export default function useLiquidacionExport({
           'liquidacion',
           empresa || 'GENERAL',
           {
+            exportFormat: 'python_professional',
             empresa: empresa || 'GENERAL',
             totalMaquinas: maquinasEnCero.length,
             salas: salasOrdenadas.length,
