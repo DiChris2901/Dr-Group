@@ -785,7 +785,9 @@ export default function LiquidacionesPageV2() {
     (data, empresaValue) => {
       const grouped = {};
       data.forEach((row) => {
-        const key = `${row.nuc}_${row.establecimiento}`;
+        // ✅ FIX: Agrupar SOLO por NUC (no por NUC+establecimiento)
+        // Una máquina puede tener múltiples establecimientos pero es la MISMA máquina
+        const key = String(row.nuc).trim();
         if (!grouped[key]) {
           grouped[key] = {
             nuc: row.nuc,
@@ -2472,9 +2474,18 @@ export default function LiquidacionesPageV2() {
           (() => {
             // Calcular cumplimiento de transmisión (solo si hay datos)
             const totalMaquinasContrato = Array.isArray(consolidatedData) ? consolidatedData.length : 0;
+            
+            // ✅ Máquina sin transmitir: producción total = 0 exactamente
+            // NO usar umbral - verificar si es exactamente 0
+            // Producción negativa significa que SÍ transmitió (con pérdidas)
             const maquinasTransmitiendo = Array.isArray(consolidatedData) 
-              ? consolidatedData.filter(m => (m.produccion || 0) > 0).length 
+              ? consolidatedData.filter(m => {
+                  const prod = parseFloat(m.produccion) || 0;
+                  // Transmite si producción != 0 (puede ser positiva o negativa)
+                  return Math.abs(prod) >= 0.01;
+                }).length 
               : 0;
+            
             const maquinasSinTransmitir = totalMaquinasContrato - maquinasTransmitiendo;
             const porcentajeIncumplimiento = totalMaquinasContrato > 0 
               ? ((maquinasSinTransmitir / totalMaquinasContrato) * 100).toFixed(1)

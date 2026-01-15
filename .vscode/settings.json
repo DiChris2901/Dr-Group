@@ -187,5 +187,10 @@
   "[markdown]": {
     "editor.wordWrap": "on",
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "git commit": true,
+    "git push": true,
+    "firebase": true
   }
 }
