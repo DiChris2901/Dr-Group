@@ -2641,52 +2641,6 @@ export default function LiquidacionesPageV2() {
                 </Grid>
               );
             })}
-
-            {/* Fila 2: Banner de Cumplimiento (ancho completo) */}
-            <Grid item xs={12}>
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: 2,
-                  p: 3,
-                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  transition: 'all 0.2s ease',
-                  '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <Box
-                      sx={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 2,
-                        display: 'grid',
-                        placeItems: 'center',
-                        bgcolor: alpha(cumplimientoKpi.color, 0.12),
-                        color: cumplimientoKpi.color
-                      }}
-                    >
-                      <cumplimientoKpi.icon fontSize="large" />
-                    </Box>
-                    <Box>
-                      <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: cumplimientoKpi.color }}>
-                        {cumplimientoKpi.value}
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-                        {cumplimientoKpi.title}
-                      </Typography>
-                      {cumplimientoKpi.subtitle && (
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
-                          {cumplimientoKpi.subtitle}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
           </>
         );
       })()
@@ -2765,6 +2719,79 @@ export default function LiquidacionesPageV2() {
         ))
         )}
       </Grid>
+
+      {/* Fila 3: Banner de Cumplimiento Transmisión (ancho completo) */}
+      {!processing && Array.isArray(consolidatedData) && consolidatedData.length > 0 && (() => {
+        const totalMaquinasContrato = consolidatedData.length;
+        const maquinasTransmitiendo = consolidatedData.filter(m => {
+          const prod = parseFloat(m.produccion) || 0;
+          return Math.abs(prod) >= 0.01;
+        }).length;
+        const porcentajeCumplimiento = totalMaquinasContrato > 0
+          ? ((maquinasTransmitiendo / totalMaquinasContrato) * 100).toFixed(1)
+          : 0;
+        
+        const cumplimientoKpi = {
+          value: `${porcentajeCumplimiento}%`,
+          title: 'Cumplimiento Transmisión',
+          subtitle: `${maquinasTransmitiendo}/${totalMaquinasContrato} transmitiendo`,
+          icon: Assessment,
+          color: porcentajeCumplimiento >= 95
+            ? theme.palette.success.main
+            : porcentajeCumplimiento >= 80
+              ? theme.palette.warning.main
+              : theme.palette.error.main
+        };
+
+        return (
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 3,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 2,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: alpha(cumplimientoKpi.color, 0.12),
+                        color: cumplimientoKpi.color
+                      }}
+                    >
+                      <cumplimientoKpi.icon fontSize="large" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: cumplimientoKpi.color }}>
+                        {cumplimientoKpi.value}
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                        {cumplimientoKpi.title}
+                      </Typography>
+                      {cumplimientoKpi.subtitle && (
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                          {cumplimientoKpi.subtitle}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+        );
+      })()}
 
       {/* Charts */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
