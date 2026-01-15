@@ -2529,8 +2529,8 @@ export default function LiquidacionesPageV2() {
           }
         ];
         
-        // Agregar tarjeta de cumplimiento
-        kpis.push({
+        // Tarjeta de cumplimiento separada
+        const cumplimientoKpi = {
           key: 'cumplimiento',
           title: 'Cumplimiento Transmisión',
           value: `${porcentajeCumplimiento}%`,
@@ -2541,73 +2541,122 @@ export default function LiquidacionesPageV2() {
           icon: Assessment,
           color: maquinasSinTransmitir === 0 ? theme.palette.success.main : theme.palette.error.main,
           isCumplimiento: true
-        });
+        };
 
-        return kpis.map((kpi) => {
-          const TrendIcon = kpi.trend.isPositive ? TrendingUp : TrendingDown;
-          const trendColor = kpi.trend.isPositive ? theme.palette.success.main : theme.palette.error.main;
-          return (
-            <Grid key={kpi.key} item xs={12} sm={6} md={2.4}>
+        return (
+          <>
+            {/* Fila 1: 4 KPIs principales */}
+            {kpis.map((kpi) => {
+              const TrendIcon = kpi.trend.isPositive ? TrendingUp : TrendingDown;
+              const trendColor = kpi.trend.isPositive ? theme.palette.success.main : theme.palette.error.main;
+              return (
+                <Grid key={kpi.key} item xs={12} sm={6} md={3}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      borderRadius: 2,
+                      p: 2,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+                      minHeight: 130
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
+                          {kpi.value}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                          {kpi.title}
+                        </Typography>
+                        {kpi.subtitle && (
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
+                            {kpi.subtitle}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 2,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: alpha(kpi.color, 0.12),
+                          color: kpi.color
+                        }}
+                      >
+                        <kpi.icon fontSize="small" />
+                      </Box>
+                    </Box>
+
+                    <Chip
+                      size="small"
+                      icon={<TrendIcon fontSize="small" />}
+                      label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
+                      sx={{
+                        mt: 2,
+                        bgcolor: alpha(trendColor, 0.12),
+                        color: trendColor,
+                        fontWeight: 600,
+                        '& .MuiChip-icon': { color: trendColor }
+                      }}
+                    />
+                  </Paper>
+                </Grid>
+              );
+            })}
+
+            {/* Fila 2: Banner de Cumplimiento (ancho completo) */}
+            <Grid item xs={12}>
               <Paper
                 elevation={0}
                 sx={{
                   borderRadius: 2,
-                  p: 2,
+                  p: 3,
                   border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   transition: 'all 0.2s ease',
-                  '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
-                  minHeight: 130
+                  '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
-                      {kpi.value}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
-                      {kpi.title}
-                    </Typography>
-                    {kpi.subtitle && (
-                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
-                        {kpi.subtitle}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 2,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: alpha(cumplimientoKpi.color, 0.12),
+                        color: cumplimientoKpi.color
+                      }}
+                    >
+                      <cumplimientoKpi.icon fontSize="large" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: cumplimientoKpi.color }}>
+                        {cumplimientoKpi.value}
                       </Typography>
-                    )}
-                  </Box>
-                  <Box
-                    sx={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 2,
-                      display: 'grid',
-                      placeItems: 'center',
-                      bgcolor: alpha(kpi.color, 0.12),
-                      color: kpi.color
-                    }}
-                  >
-                    <kpi.icon fontSize="small" />
+                      <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                        {cumplimientoKpi.title}
+                      </Typography>
+                      {cumplimientoKpi.subtitle && (
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                          {cumplimientoKpi.subtitle}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                 </Box>
-
-                {!kpi.isCumplimiento && (
-                  <Chip
-                    size="small"
-                    icon={<TrendIcon fontSize="small" />}
-                    label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
-                    sx={{
-                      mt: 2,
-                      bgcolor: alpha(trendColor, 0.12),
-                      color: trendColor,
-                      fontWeight: 600,
-                      '& .MuiChip-icon': { color: trendColor }
-                    }}
-                  />
-                )}
               </Paper>
             </Grid>
-          );
-        });
-          })()
+          </>
+        );
+      })()
         )}
       </Grid>
 
