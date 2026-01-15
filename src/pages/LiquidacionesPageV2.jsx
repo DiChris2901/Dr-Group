@@ -501,7 +501,7 @@ export default function LiquidacionesPageV2() {
 
   const progressPct = activeStep === 1 ? 0 : activeStep === 2 ? 50 : 100;
 
-  const { exportarConsolidado } = useLiquidacionExport({
+  const { exportarConsolidado, exportarMaquinasEnCero } = useLiquidacionExport({
     consolidatedData,
     reporteBySala,
     originalData,
@@ -3852,21 +3852,95 @@ export default function LiquidacionesPageV2() {
               </Box>
             </Box>
 
-            <VirtualTable
-              rows={reporteBySala}
-              height={520}
-              rowHeight={44}
-              emptyLabel="Procesa un archivo para ver el reporte por sala."
-              columns={[
-                { key: 'establecimiento', label: 'Establecimiento', width: 280 },
-                { key: 'totalMaquinas', label: 'Máquinas', width: 100, align: 'right' },
-                { key: 'produccion', label: 'Producción', width: 160, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'derechosExplotacion', label: 'Derechos', width: 160, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'gastosAdministracion', label: 'Gastos', width: 160, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'totalImpuestos', label: 'Total', width: 160, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'promedioEstablecimiento', label: 'Promedio/Maq.', width: 160, align: 'right', format: (v) => formatCurrencyCOP(v) }
-              ]}
-            />
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                maxHeight: 600,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }
+              }}
+            >
+              <Table 
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderColor: theme.palette.divider,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                  },
+                  '& .MuiTableHead-root': {
+                    '& .MuiTableRow-root': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                      '& .MuiTableCell-root': {
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        paddingY: 2,
+                        borderColor: alpha(theme.palette.divider, 0.12),
+                        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.95) : alpha(theme.palette.grey[50], 0.95),
+                        backdropFilter: 'blur(8px)'
+                      }
+                    }
+                  },
+                  '& .MuiTableBody-root': {
+                    '& .MuiTableRow-root': {
+                      '&:hover': { 
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        borderLeft: `3px solid ${theme.palette.primary.main}`,
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                      '& .MuiTableCell-root': {
+                        paddingY: 1.8,
+                        fontSize: '0.85rem',
+                        borderColor: alpha(theme.palette.divider, 0.12)
+                      }
+                    }
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Establecimiento</TableCell>
+                    <TableCell>Empresa</TableCell>
+                    <TableCell align="right">Total Máquinas</TableCell>
+                    <TableCell align="right">Producción</TableCell>
+                    <TableCell align="right">Derechos</TableCell>
+                    <TableCell align="right">Gastos</TableCell>
+                    <TableCell align="right">Total Impuestos</TableCell>
+                    <TableCell align="right">Promedio/Establecimiento</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(reporteBySala) && reporteBySala.length > 0 ? (
+                    reporteBySala.map((row, index) => (
+                      <TableRow key={`sala-${row.establecimiento}-${index}`}>
+                        <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento || 'N/A'}</TableCell>
+                        <TableCell>{row.empresa || 'N/A'}</TableCell>
+                        <TableCell align="right">{row.totalMaquinas || 0}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.produccion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.derechosExplotacion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.gastosAdministracion)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(row.totalImpuestos)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.promedioEstablecimiento)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Procesa un archivo para ver el reporte por sala.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
           )}
         </TabPanel>
@@ -3912,11 +3986,15 @@ export default function LiquidacionesPageV2() {
                         p: 2.5, 
                         borderRadius: 2, 
                         bgcolor: alpha(theme.palette.error.main, 0.08),
-                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 2
                       }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
                           <Warning sx={{ color: theme.palette.error.main, fontSize: 28 }} />
-                          <Box sx={{ flex: 1 }}>
+                          <Box>
                             <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
                               {maquinasEnCero.length} {maquinasEnCero.length === 1 ? 'Máquina' : 'Máquinas'} sin transmitir
                             </Typography>
@@ -3925,52 +4003,148 @@ export default function LiquidacionesPageV2() {
                             </Typography>
                           </Box>
                         </Box>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<ReceiptLong />}
+                          onClick={exportarMaquinasEnCero}
+                          sx={{
+                            borderRadius: 1,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            borderColor: theme.palette.error.main,
+                            color: theme.palette.error.main,
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.error.main, 0.15),
+                              borderColor: theme.palette.error.main,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            }
+                          }}
+                        >
+                          Exportar Excel
+                        </Button>
                       </Box>
 
-                      <Grid container spacing={2}>
-                        {maquinasEnCero.map((maquina, idx) => (
-                          <Grid key={idx} item xs={12} sm={6} md={4} lg={3}>
-                            <Paper
-                              elevation={0}
-                              sx={{
-                                p: 2,
-                                borderRadius: 2,
-                                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                                bgcolor: 'background.paper',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.primary.main, 0.04),
-                                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                                  transform: 'translateY(-2px)',
-                                  borderColor: alpha(theme.palette.primary.main, 0.3)
-                                }
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                                <Casino sx={{ fontSize: 24, color: theme.palette.text.secondary }} />
-                                <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: -0.2 }}>
-                                  {maquina.serial || '—'}
+                      {(() => {
+                        // Agrupar máquinas por establecimiento
+                        const maquinasPorSala = maquinasEnCero.reduce((acc, maquina) => {
+                          const sala = maquina.establecimiento || 'Sin establecimiento';
+                          if (!acc[sala]) {
+                            acc[sala] = [];
+                          }
+                          acc[sala].push(maquina);
+                          return acc;
+                        }, {});
+
+                        // Ordenar salas alfabéticamente
+                        const salasOrdenadas = Object.keys(maquinasPorSala).sort();
+
+                        return salasOrdenadas.map((sala, salaIdx) => (
+                          <Box key={`sala-${salaIdx}`} sx={{ mb: 4 }}>
+                            <Box sx={{ 
+                              mb: 2, 
+                              pb: 1.5, 
+                              borderBottom: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Business sx={{ color: theme.palette.primary.main, fontSize: 22 }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                  {sala}
                                 </Typography>
                               </Box>
-                              <Typography 
-                                variant="body2" 
+                              <Chip 
+                                label={`${maquinasPorSala[sala].length} ${maquinasPorSala[sala].length === 1 ? 'máquina' : 'máquinas'}`}
+                                size="small"
                                 sx={{ 
-                                  color: theme.palette.text.secondary,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical',
-                                  minHeight: 40
+                                  bgcolor: alpha(theme.palette.error.main, 0.1),
+                                  color: theme.palette.error.main,
+                                  fontWeight: 600,
+                                  borderRadius: 1
                                 }}
-                                title={maquina.establecimiento || '—'}
-                              >
-                                {maquina.establecimiento || '—'}
-                              </Typography>
-                            </Paper>
-                          </Grid>
-                        ))}
-                      </Grid>
+                              />
+                            </Box>
+
+                            <Grid container spacing={2}>
+                              {maquinasPorSala[sala].map((maquina, idx) => (
+                                <Grid key={idx} item xs={12} sm={6} md={4} lg={3}>
+                                  <Paper
+                                    elevation={0}
+                                    sx={{
+                                      p: 2,
+                                      borderRadius: 2,
+                                      border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                      bgcolor: 'background.paper',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                      transition: 'all 0.2s ease',
+                                      '&:hover': {
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                        transform: 'translateY(-2px)',
+                                        borderColor: alpha(theme.palette.error.main, 0.3)
+                                      }
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                                      <Casino sx={{ fontSize: 22, color: theme.palette.error.main }} />
+                                      <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                          fontWeight: 600, 
+                                          fontSize: '1rem',
+                                          letterSpacing: -0.2
+                                        }}
+                                      >
+                                        {maquina.serial || '—'}
+                                      </Typography>
+                                    </Box>
+                                    
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        color: theme.palette.text.secondary,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 0.5,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        display: 'block',
+                                        mb: 0.5
+                                      }}
+                                    >
+                                      NUC
+                                    </Typography>
+                                    <Typography 
+                                      variant="body2" 
+                                      sx={{ 
+                                        color: theme.palette.text.primary,
+                                        mb: 1.5
+                                      }}
+                                    >
+                                      {maquina.nuc || '—'}
+                                    </Typography>
+                                    
+                                    <Chip 
+                                      label="Sin transmitir" 
+                                      size="small" 
+                                      sx={{ 
+                                        bgcolor: alpha(theme.palette.error.main, 0.1),
+                                        color: theme.palette.error.main,
+                                        fontWeight: 600,
+                                        fontSize: '0.65rem',
+                                        height: 20,
+                                        borderRadius: 1,
+                                        width: '100%'
+                                      }}
+                                    />
+                                  </Paper>
+                                </Grid>
+                              ))}
+                            </Grid>
+                          </Box>
+                        ));
+                      })()}
                     </Box>
                   );
                 })()}

@@ -262,9 +262,131 @@ export default function useLiquidacionExport({
     }
   }, [consolidatedData, originalData, empresa, addLog, addNotification, logActivity, currentUser, userProfile]);
 
+  /**
+   * Exportar máquinas en cero (producción = 0) agrupadas por sala
+   */
+  const exportarMaquinasEnCero = useCallback(async () => {
+    if (!currentUser?.uid) {
+      addNotification('Sesión no válida. Inicia sesión nuevamente.', 'error');
+      return;
+    }
+
+    if (!consolidatedData || consolidatedData.length === 0) {
+      addNotification('No hay datos para exportar', 'warning');
+      return;
+    }
+
+    try {
+      addLog('📦 Exportando máquinas en cero...', 'info');
+
+      // Filtrar máquinas con producción en cero
+      const maquinasEnCero = consolidatedData.filter(m => {
+        const prod = parseFloat(m.produccion) || 0;
+        return Math.abs(prod) < 0.01;
+      });
+
+      if (maquinasEnCero.length === 0) {
+        addNotification('No hay máquinas en cero para exportar', 'info');
+        return;
+      }
+
+      // Agrupar por establecimiento
+      const maquinasPorSala = maquinasEnCero.reduce((acc, maquina) => {
+        const sala = maquina.establecimiento || 'Sin establecimiento';
+        if (!acc[sala]) {
+          acc[sala] = [];
+        }
+        acc[sala].push(maquina);
+        return acc;
+      }, {});
+
+      // Ordenar salas alfabéticamente
+      const salasOrdenadas = Object.keys(maquinasPorSala).sort();
+
+      // Crear datos para el Excel
+      const excelData = [];
+      salasOrdenadas.forEach((sala, idx) => {
+        // Agregar header de sala
+        if (idx > 0) excelData.push({}); // Fila vacía entre salas
+        excelData.push({
+          'Establecimiento': sala,
+          'Empresa': '',
+          'Serial': '',
+          'NUC': '',
+          'Días Transmitidos': '',
+          'Tipo Apuesta': '',
+          'Novedad': `${maquinasPorSala[sala].length} máquinas`
+        });
+
+        // Agregar máquinas de la sala
+        maquinasPorSala[sala].forEach(maquina => {
+          excelData.push({
+            'Establecimiento': '',
+            'Empresa': maquina.empresa || '—',
+            'Serial': maquina.serial || '—',
+            'NUC': maquina.nuc || '—',
+            'Días Transmitidos': maquina.diasTransmitidos || 0,
+            'Tipo Apuesta': maquina.tipoApuesta || '—',
+            'Novedad': maquina.novedad || 'Sin transmitir'
+          });
+        });
+      });
+
+      // Crear worksheet y workbook
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Ajustar anchos de columna
+      ws['!cols'] = [
+        { wch: 35 }, // Establecimiento
+        { wch: 20 }, // Empresa
+        { wch: 15 }, // Serial
+        { wch: 15 }, // NUC
+        { wch: 18 }, // Días Transmitidos
+        { wch: 18 }, // Tipo Apuesta
+        { wch: 25 }  // Novedad
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Máquinas en Cero');
+
+      const timestamp = new Date().toLocaleString('es-CO').replace(/[/:]/g, '-').replace(', ', '_');
+      const filename = `Maquinas_En_Cero_${empresa || 'General'}_${timestamp}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      addLog(`✅ Exportadas ${maquinasEnCero.length} máquinas en cero`, 'success');
+      addNotification(`Exportadas ${maquinasEnCero.length} máquinas en cero`, 'success');
+
+      // Log de actividad
+      try {
+        await logActivity(
+          'maquinas_en_cero_exportadas',
+          'liquidacion',
+          empresa || 'GENERAL',
+          {
+            empresa: empresa || 'GENERAL',
+            totalMaquinas: maquinasEnCero.length,
+            salas: salasOrdenadas.length,
+            fileName: filename
+          },
+          currentUser.uid,
+          getUserDisplayName(),
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging export:', logError);
+      }
+
+    } catch (error) {
+      console.error('Error exportando máquinas en cero:', error);
+      addLog(`❌ Error exportando: ${error.message}`, 'error');
+      addNotification('Error al exportar máquinas en cero', 'error');
+    }
+  }, [consolidatedData, empresa, addLog, addNotification, logActivity, currentUser, userProfile]);
+
   return {
     exportarConsolidado,
     exportarReporteSala,
-    exportarReporteDiario
+    exportarReporteDiario,
+    exportarMaquinasEnCero
   };
 }
