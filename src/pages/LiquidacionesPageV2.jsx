@@ -2123,17 +2123,21 @@ export default function LiquidacionesPageV2() {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-            <Button variant="outlined" onClick={resetLiquidacion} disabled={processing}>
-              Reiniciar
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Save />}
-              onClick={mostrarConfirmacionGuardado}
-              disabled={!canGuardar}
-            >
-              Guardar
-            </Button>
+            {selectedFile && (
+              <Button variant="outlined" onClick={resetLiquidacion} disabled={processing}>
+                Reiniciar
+              </Button>
+            )}
+            {selectedFile && (
+              <Button
+                variant="outlined"
+                startIcon={<Save />}
+                onClick={mostrarConfirmacionGuardado}
+                disabled={!canGuardar}
+              >
+                Guardar
+              </Button>
+            )}
             <Button
               variant="outlined"
               onClick={goToHistorico}
