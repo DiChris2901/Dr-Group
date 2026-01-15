@@ -171,7 +171,7 @@ function VirtualTable({
               key={col.key}
               variant="caption"
               sx={{
-                fontWeight: 800,
+                fontWeight: 600,
                 color: 'text.secondary',
                 textTransform: 'uppercase',
                 letterSpacing: 0.6,
@@ -212,7 +212,7 @@ function VirtualTable({
                     display: 'flex',
                     alignItems: 'center',
                     borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}`,
-                    bgcolor: index % 2 === 0 ? 'transparent' : (t) => alpha(t.palette.action.hover, 0.25)
+                    bgcolor: index % 2 === 0 ? 'transparent' : (t) => alpha(t.palette.action.hover, 0.08)
                   }}
                 >
                   <Box
@@ -457,14 +457,14 @@ export default function LiquidacionesPageV2() {
 
   const mockMetrics = useMemo(
     () => ({
-      maquinas: { value: 205, trend: 3.5, isPositive: true },
-      produccion: { value: 402_300_000, trend: 12, isPositive: true },
-      impuestos: { value: 48_700_000, trend: -1.2, isPositive: false },
-      promedio: { value: 44_700_000, trend: 0.8, isPositive: true },
-      establecimientos: { value: 9 },
-      derechos: { value: 48_300_000 },
-      gastos: { value: 482_700 },
-      sinCambios: { value: 205, percentage: 100 },
+      maquinas: { value: 0, trend: 0, isPositive: true },
+      produccion: { value: 0, trend: 0, isPositive: true },
+      impuestos: { value: 0, trend: 0, isPositive: false },
+      promedio: { value: 0, trend: 0, isPositive: true },
+      establecimientos: { value: 0 },
+      derechos: { value: 0 },
+      gastos: { value: 0 },
+      sinCambios: { value: 0, percentage: 0 },
       novedades: { value: 0, percentage: 0 }
     }),
     []
@@ -1752,7 +1752,7 @@ export default function LiquidacionesPageV2() {
             borderRadius: 1,
             background: theme.palette.background.paper,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
           }
         }}
       >
@@ -1771,7 +1771,7 @@ export default function LiquidacionesPageV2() {
               <Analytics />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0 }}>
                 🔍 Validación de Liquidación
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -2016,7 +2016,7 @@ export default function LiquidacionesPageV2() {
             >
               SISTEMA • PROCESAMIENTO
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: -0.5, mt: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, mt: 0.5 }}>
               Procesador de Liquidaciones
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
@@ -2073,7 +2073,7 @@ export default function LiquidacionesPageV2() {
 
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               Acciones
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
@@ -2174,7 +2174,7 @@ export default function LiquidacionesPageV2() {
                   height: 36,
                   backgroundColor: alpha(theme.palette.success.main, 0.15),
                   color: theme.palette.success.main,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   fontSize: '1rem',
                   border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
                   boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
@@ -2203,7 +2203,7 @@ export default function LiquidacionesPageV2() {
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: empresa && empresa !== 'GENERAL' ? theme.palette.text.primary : theme.palette.text.secondary,
                   lineHeight: 1.2,
                   fontSize: '0.875rem'
@@ -2247,7 +2247,7 @@ export default function LiquidacionesPageV2() {
                 sx={{
                   height: 20,
                   fontSize: '0.7rem',
-                  fontWeight: 700,
+                  fontWeight: 600,
                   backgroundColor: alpha(theme.palette.success.main, 0.12),
                   color: theme.palette.success.main,
                   border: 'none'
@@ -2288,7 +2288,7 @@ export default function LiquidacionesPageV2() {
             border: `2px dashed ${
               dragActive
                 ? theme.palette.primary.main
-                : alpha(theme.palette.divider, 0.3)
+                : alpha(theme.palette.divider, 0.2)
             }`,
             borderRadius: 2,
             backgroundColor: dragActive
@@ -2301,12 +2301,12 @@ export default function LiquidacionesPageV2() {
             transform: dragActive ? 'scale(1.02)' : 'scale(1)',
             opacity: companiesLoading || (companies && companies.length === 0) ? 0.5 : 1,
             boxShadow: dragActive 
-              ? '0 4px 12px rgba(0,0,0,0.1)' 
+              ? '0 2px 12px rgba(0,0,0,0.08)' 
               : '0 2px 8px rgba(0,0,0,0.06)',
             '&:hover': {
               borderColor: companiesLoading || (companies && companies.length === 0)
-                ? alpha(theme.palette.divider, 0.3)
-                : alpha(theme.palette.primary.main, 0.5),
+                ? alpha(theme.palette.divider, 0.2)
+                : alpha(theme.palette.primary.main, 0.3),
               backgroundColor: companiesLoading || (companies && companies.length === 0)
                 ? alpha(theme.palette.background.paper, 0.6)
                 : alpha(theme.palette.primary.main, 0.04)
@@ -2418,12 +2418,12 @@ export default function LiquidacionesPageV2() {
                       borderRadius: '50%',
                       display: 'grid',
                       placeItems: 'center',
-                      fontWeight: 700,
+                      fontWeight: 600,
                       border: `2px solid ${isActive || isCompleted ? theme.palette.primary.main : 'transparent'}`,
                       bgcolor: isActive || isCompleted ? theme.palette.primary.main : alpha(theme.palette.text.primary, 0.08),
                       color: isActive || isCompleted ? theme.palette.primary.contrastText : theme.palette.text.secondary,
                       transition: 'all 0.2s ease',
-                      boxShadow: isActive ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.18)}` : 'none'
+                      boxShadow: isActive ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.08)}` : 'none'
                     }}
                   >
                     {s.n}
@@ -2547,22 +2547,22 @@ export default function LiquidacionesPageV2() {
           const TrendIcon = kpi.trend.isPositive ? TrendingUp : TrendingDown;
           const trendColor = kpi.trend.isPositive ? theme.palette.success.main : theme.palette.error.main;
           return (
-            <Grid key={kpi.key} item xs={12} sm={6} md={kpi.isCumplimiento ? 12 : 3}>
+            <Grid key={kpi.key} item xs={12} sm={6} md={2.4}>
               <Paper
                 elevation={0}
                 sx={{
                   borderRadius: 2,
-                  p: 2.5,
-                  border: `1px solid ${alpha(kpi.isCumplimiento ? kpi.color : theme.palette.primary.main, 0.6)}`,
+                  p: 2,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   transition: 'all 0.2s ease',
-                  '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderColor: alpha(kpi.isCumplimiento ? kpi.color : theme.palette.primary.main, 0.8) },
-                  ...(kpi.isCumplimiento && { background: alpha(kpi.color, 0.04) })
+                  '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+                  minHeight: 130
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: -0.3 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
                       {kpi.value}
                     </Typography>
                     <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
@@ -2572,37 +2572,6 @@ export default function LiquidacionesPageV2() {
                       <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
                         {kpi.subtitle}
                       </Typography>
-                    )}
-                    {kpi.isCumplimiento && kpi.incumplimiento > 0 && (
-                      <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
-                            borderRadius: 1,
-                            bgcolor: alpha(theme.palette.error.main, 0.12),
-                            border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'error.main' }}>
-                            ⚠️ {kpi.incumplimiento} máquinas sin transmitir ({kpi.porcentajeIncumplimiento}% incumplimiento)
-                          </Typography>
-                        </Box>
-                      </Box>
-                    )}
-                    {kpi.isCumplimiento && kpi.incumplimiento === 0 && (
-                      <Box sx={{ mt: 1.5 }}>
-                        <Chip
-                          size="small"
-                          icon={<CheckCircle fontSize="small" />}
-                          label="✅ 100% de las máquinas transmitiendo correctamente"
-                          sx={{
-                            bgcolor: alpha(theme.palette.success.main, 0.12),
-                            color: 'success.main',
-                            fontWeight: 600
-                          }}
-                        />
-                      </Box>
                     )}
                   </Box>
                   <Box
@@ -2629,7 +2598,7 @@ export default function LiquidacionesPageV2() {
                       mt: 2,
                       bgcolor: alpha(trendColor, 0.12),
                       color: trendColor,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       '& .MuiChip-icon': { color: trendColor }
                     }}
                   />
@@ -2680,11 +2649,12 @@ export default function LiquidacionesPageV2() {
               sx={{
                 borderRadius: 2,
                 p: 2,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 textAlign: 'center',
                 transition: 'all 0.2s ease',
-                '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.6) }
+                '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+                minHeight: 130
               }}
             >
               <Box
@@ -2702,7 +2672,7 @@ export default function LiquidacionesPageV2() {
               >
                 <item.icon fontSize="small" />
               </Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: -0.2 }}>
                 {item.value}
               </Typography>
               <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
@@ -2772,7 +2742,7 @@ export default function LiquidacionesPageV2() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Producción por Establecimiento
               </Typography>
               <BarChartIcon fontSize="small" color="action" />
@@ -2801,7 +2771,7 @@ export default function LiquidacionesPageV2() {
                     <ReTooltip
                       formatter={(v) => formatCurrencyCOP(Number(v) || 0)}
                       labelFormatter={(l) => String(l || '')}
-                      contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
                     />
                     <Bar dataKey="produccion" fill={alpha(theme.palette.primary.main, 0.85)} radius={[6, 6, 0, 0]} />
                   </ReBarChart>
@@ -2823,7 +2793,7 @@ export default function LiquidacionesPageV2() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Estado de Novedades
               </Typography>
               <Analytics fontSize="small" color="action" />
@@ -2848,7 +2818,7 @@ export default function LiquidacionesPageV2() {
                   <RePieChart>
                     <ReTooltip
                       formatter={(v) => `${Number(v) || 0} máquina(s)`}
-                      contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
                     />
                     <Pie
                       data={chartNovedades}
@@ -2889,7 +2859,7 @@ export default function LiquidacionesPageV2() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 Tendencia Diaria
               </Typography>
               <Analytics fontSize="small" color="action" />
@@ -2918,7 +2888,7 @@ export default function LiquidacionesPageV2() {
                     <ReTooltip
                       formatter={(v) => formatCurrencyCOP(Number(v) || 0)}
                       labelFormatter={(l) => String(l || '')}
-                      contentStyle={{ borderRadius: 8, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
                     />
                     <Line
                       type="monotone"
@@ -2954,7 +2924,7 @@ export default function LiquidacionesPageV2() {
           onChange={(_, v) => setActiveTab(v)}
           sx={{
             minHeight: 38,
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 38 },
+            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 38 },
             '& .MuiTabs-indicator': { height: 3, borderRadius: 2 }
           }}
         >
@@ -3281,7 +3251,7 @@ export default function LiquidacionesPageV2() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   Consolidado Detallado
                 </Typography>
                 <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -3362,7 +3332,7 @@ export default function LiquidacionesPageV2() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   Reporte por Sala
                 </Typography>
                 <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -3462,7 +3432,7 @@ export default function LiquidacionesPageV2() {
                       <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
                         Total Impuestos
                       </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main' }}>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'success.main' }}>
                         {formatCurrencyCompact(tarifaFijaResumen.totalImpuestos)}
                       </Typography>
                     </Grid>
@@ -3563,7 +3533,7 @@ export default function LiquidacionesPageV2() {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <History sx={{ color: theme.palette.primary.main }} fontSize="small" />
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               Registro de Actividad
             </Typography>
           </Box>
@@ -3613,7 +3583,7 @@ export default function LiquidacionesPageV2() {
                       label={l.type.toUpperCase()}
                       sx={{
                         height: 20,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         letterSpacing: 0.6,
                         bgcolor:
                           l.type === 'success'
