@@ -18,6 +18,12 @@ import {
   Paper,
   Skeleton,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Tabs,
   Typography,
   alpha,
@@ -3586,27 +3592,140 @@ export default function LiquidacionesPageV2() {
               </Button>
             </Box>
 
-            <VirtualTable
-              rows={consolidatedData}
-              height={520}
-              rowHeight={44}
-              emptyLabel="Procesa un archivo para ver el consolidado."
-              columns={[
-                { key: 'establecimiento', label: 'Establecimiento', width: 240 },
-                { key: 'serial', label: 'Serial', width: 140 },
-                { key: 'nuc', label: 'NUC', width: 120 },
-                { key: 'tipoApuesta', label: 'Tipo', width: 140 },
-                { key: 'produccion', label: 'Producción', width: 140, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'derechosExplotacion', label: 'Derechos', width: 140, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'gastosAdministracion', label: 'Gastos', width: 140, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'totalImpuestos', label: 'Total', width: 140, align: 'right', format: (v) => formatCurrencyCOP(v) },
-                { key: 'diasTransmitidos', label: 'Días', width: 80, align: 'right' },
-                { key: 'primerDia', label: 'Primer día', width: 120 },
-                { key: 'ultimoDia', label: 'Último día', width: 120 },
-                { key: 'novedad', label: 'Novedad', width: 220 },
-                { key: 'tarifa', label: 'Tarifa', width: 200 }
-              ]}
-            />
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                maxHeight: 600,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }
+              }}
+            >
+              <Table 
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderColor: theme.palette.divider,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                  },
+                  '& .MuiTableHead-root': {
+                    '& .MuiTableRow-root': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                      '& .MuiTableCell-root': {
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        paddingY: 2,
+                        borderColor: alpha(theme.palette.divider, 0.12),
+                        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.95) : alpha(theme.palette.grey[50], 0.95),
+                        backdropFilter: 'blur(8px)'
+                      }
+                    }
+                  },
+                  '& .MuiTableBody-root': {
+                    '& .MuiTableRow-root': {
+                      '&:hover': { 
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        borderLeft: `3px solid ${theme.palette.primary.main}`,
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                      '& .MuiTableCell-root': {
+                        paddingY: 1.8,
+                        fontSize: '0.85rem',
+                        borderColor: alpha(theme.palette.divider, 0.12)
+                      }
+                    }
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Empresa</TableCell>
+                    <TableCell>Serial</TableCell>
+                    <TableCell>NUC</TableCell>
+                    <TableCell>Establecimiento</TableCell>
+                    <TableCell>Días Transmitidos</TableCell>
+                    <TableCell>Días del Mes</TableCell>
+                    <TableCell>Primer Día</TableCell>
+                    <TableCell>Último Día</TableCell>
+                    <TableCell>Período</TableCell>
+                    <TableCell>Tipo Apuesta</TableCell>
+                    <TableCell>Tarifa</TableCell>
+                    <TableCell align="right">Producción</TableCell>
+                    <TableCell align="right">Derechos (12%)</TableCell>
+                    <TableCell align="right">Gastos (1%)</TableCell>
+                    <TableCell align="right">Total Impuestos</TableCell>
+                    <TableCell>Novedad</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(consolidatedData) && consolidatedData.length > 0 ? (
+                    consolidatedData.map((row, index) => (
+                      <TableRow 
+                        key={`consolidated-${row.nuc}-${row.establecimiento}-${index}`}
+                        hover
+                      >
+                        <TableCell>{row.empresa || 'N/A'}</TableCell>
+                        <TableCell>{row.serial || 'N/A'}</TableCell>
+                        <TableCell>{row.nuc || 'N/A'}</TableCell>
+                        <TableCell>{row.establecimiento || 'N/A'}</TableCell>
+                        <TableCell>{row.diasTransmitidos || 0}</TableCell>
+                        <TableCell>{row.diasMes || 0}</TableCell>
+                        <TableCell>{row.primerDia || 'N/A'}</TableCell>
+                        <TableCell>{row.ultimoDia || 'N/A'}</TableCell>
+                        <TableCell>{row.periodoTexto || 'N/A'}</TableCell>
+                        <TableCell>{row.tipoApuesta || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={
+                              tarifasOficiales && tarifasOficiales[row.nuc?.toString()] 
+                                ? 'Tarifa Fija' 
+                                : 'Tarifa Variable'
+                            }
+                            color={
+                              tarifasOficiales && tarifasOficiales[row.nuc?.toString()] 
+                                ? 'secondary' 
+                                : 'primary'
+                            }
+                            size="small"
+                            sx={{ 
+                              fontWeight: 500,
+                              fontSize: '0.75rem',
+                              borderRadius: 1
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.produccion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.derechosExplotacion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.gastosAdministracion)}</TableCell>
+                        <TableCell align="right"><strong>{formatCurrencyCOP(row.totalImpuestos)}</strong></TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={row.novedad || 'Sin cambios'}
+                            color={(row.novedad || '').toLowerCase().includes('sin cambios') ? 'success' : 'warning'}
+                            size="small"
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={16} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Procesa un archivo para ver el consolidado detallado.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
           )}
         </TabPanel>
