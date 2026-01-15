@@ -2149,129 +2149,188 @@ export default function LiquidacionesPageV2() {
             </Button>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 1.5, alignItems: 'center' }}>
-          {/* Avatar con logo de empresa */}
-          <Paper
-            elevation={0}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              px: 1.5,
-              py: 1,
-              borderRadius: 2,
-              border: `1px solid ${alpha(empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500], 0.3)}`,
-              backgroundColor: alpha(empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500], 0.06),
-              transition: 'all 0.2s ease'
-            }}
-          >
-            {empresaCompleta?.logoURL ? (
-              <Avatar
-                src={empresaCompleta.logoURL}
-                alt={`Logo de ${empresaCompleta.name}`}
-                sx={{
-                  width: 36,
-                  height: 36,
-                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                  backgroundColor: theme.palette.background.paper,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
-                }}
+
+        {/* Card de Contexto Integrada - Empresa + Archivo */}
+        <Paper
+          elevation={0}
+          sx={{
+            mt: 2.5,
+            p: 2.5,
+            borderRadius: 2,
+            border: `1px solid ${alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.divider) : theme.palette.primary.main, 0.2)}`,
+            backgroundColor: alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500]) : theme.palette.primary.main, 0.04),
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+        >
+          {!selectedFile ? (
+            // Estado inicial: Sin archivo cargado
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CloudUpload 
+                sx={{ 
+                  fontSize: 48, 
+                  color: 'primary.main',
+                  opacity: 0.6
+                }} 
               />
-            ) : empresa && empresa !== 'GENERAL' ? (
-              <Avatar
-                sx={{
-                  width: 36,
-                  height: 36,
-                  backgroundColor: alpha(theme.palette.success.main, 0.15),
-                  color: theme.palette.success.main,
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
-                }}
-              >
-                {empresa.charAt(0).toUpperCase()}
-              </Avatar>
-            ) : (
-              <Avatar
-                sx={{
-                  width: 36,
-                  height: 36,
-                  backgroundColor: alpha(theme.palette.grey[500], 0.15),
-                  color: theme.palette.grey[600],
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  border: `2px solid ${alpha(theme.palette.grey[500], 0.3)}`,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
-                }}
-              >
-                ?
-              </Avatar>
-            )}
-            
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 600,
-                  color: empresa && empresa !== 'GENERAL' ? theme.palette.text.primary : theme.palette.text.secondary,
-                  lineHeight: 1.2,
-                  fontSize: '0.875rem'
-                }}
-              >
-                {empresa || 'GENERAL'}
-              </Typography>
-              {empresaCompleta && (
-                <Box sx={{ mt: 0.25 }}>
-                  <Typography
-                    variant="caption"
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Listo para cargar
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Arrastra un archivo Excel aquí o usa el botón <strong>"Cargar archivo"</strong> arriba
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            // Estado con archivo cargado
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+              {/* Logo y datos de empresa */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {empresaCompleta?.logoURL ? (
+                  <Avatar
+                    src={empresaCompleta.logoURL}
+                    alt={`Logo de ${empresaCompleta.name}`}
                     sx={{
-                      color: theme.palette.text.secondary,
-                      fontWeight: 500,
-                      fontSize: '0.7rem',
-                      display: 'block'
+                      width: 48,
+                      height: 48,
+                      border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                      backgroundColor: theme.palette.background.paper,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }}
+                  />
+                ) : empresa && empresa !== 'GENERAL' ? (
+                  <Avatar
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.success.main, 0.15),
+                      color: theme.palette.success.main,
+                      fontWeight: 600,
+                      fontSize: '1.25rem',
+                      border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                     }}
                   >
-                    NIT: {empresaCompleta.nit}
+                    {empresa.charAt(0).toUpperCase()}
+                  </Avatar>
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.grey[500], 0.15),
+                      color: theme.palette.grey[600],
+                      fontWeight: 600,
+                      fontSize: '1.25rem'
+                    }}
+                  >
+                    ?
+                  </Avatar>
+                )}
+                
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                    {empresa || 'GENERAL'}
                   </Typography>
-                  {empresaCompleta.contractNumber && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: theme.palette.success.main,
-                        fontWeight: 600,
-                        fontSize: '0.7rem'
-                      }}
-                    >
-                      Contrato: {empresaCompleta.contractNumber}
-                    </Typography>
+                  {empresaCompleta && (
+                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                      <Chip
+                        size="small"
+                        label={`NIT: ${empresaCompleta.nit}`}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          bgcolor: alpha(theme.palette.text.secondary, 0.08)
+                        }}
+                      />
+                      {empresaCompleta.contractNumber && (
+                        <Chip
+                          size="small"
+                          label={`Contrato: ${empresaCompleta.contractNumber}`}
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            bgcolor: alpha(theme.palette.success.main, 0.12),
+                            color: 'success.main'
+                          }}
+                        />
+                      )}
+                    </Box>
                   )}
                 </Box>
-              )}
+              </Box>
+
+              {/* Divider vertical */}
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              {/* Información del archivo */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <CloudUpload sx={{ fontSize: 32, color: 'primary.main' }} />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {selectedFile.name}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                    {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                      <Chip
+                        size="small"
+                        label={`${consolidatedData.length} máquinas`}
+                        icon={<Casino sx={{ fontSize: 14 }} />}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.primary.main, 0.12),
+                          color: 'primary.main'
+                        }}
+                      />
+                    )}
+                    {archivoTarifas && (
+                      <Chip
+                        size="small"
+                        label="Tarifas aplicadas"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.info.main, 0.12),
+                          color: 'info.main'
+                        }}
+                      />
+                    )}
+                    {liquidacionGuardadaId && (
+                      <Chip
+                        size="small"
+                        label="Guardada"
+                        icon={<CheckCircle sx={{ fontSize: 14 }} />}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.success.main, 0.12),
+                          color: 'success.main'
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </Box>
             </Box>
-            
-            {empresa && empresa !== 'GENERAL' && (
-              <Chip
-                size="small"
-                label="Detectada"
-                sx={{
-                  height: 20,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  backgroundColor: alpha(theme.palette.success.main, 0.12),
-                  color: theme.palette.success.main,
-                  border: 'none'
-                }}
-              />
-            )}
-          </Paper>
-          
-          {selectedFile && <Chip size="small" label={`Archivo: ${selectedFile.name}`} />}
-          {archivoTarifas && <Chip size="small" color="info" label={`Tarifas: ${archivoTarifas.name}`} />}
-          {liquidacionGuardadaId && <Chip size="small" color="success" label="Guardada" />}
-          {companiesLoading && <Chip size="small" color="warning" label="Cargando empresas…" />}
-          {!companiesLoading && (!companies || companies.length === 0) && <Chip size="small" color="error" label="Sin empresas" />}
-        </Box>
+          )}
+        </Paper>
+
+        {companiesLoading && (
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Chip size="small" color="warning" label="Cargando empresas…" />
+          </Box>
+        )}
+        {!companiesLoading && (!companies || companies.length === 0) && (
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Chip size="small" color="error" label="Sin empresas registradas" />
+          </Box>
+        )}
         {!currentUser?.uid && (
           <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: theme.palette.text.secondary }}>
             Inicia sesión para habilitar exportaciones.
