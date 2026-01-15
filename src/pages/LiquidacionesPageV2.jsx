@@ -2727,6 +2727,7 @@ export default function LiquidacionesPageV2() {
           const prod = parseFloat(m.produccion) || 0;
           return Math.abs(prod) >= 0.01;
         }).length;
+        const maquinasEnCero = totalMaquinasContrato - maquinasTransmitiendo;
         const porcentajeCumplimiento = totalMaquinasContrato > 0
           ? ((maquinasTransmitiendo / totalMaquinasContrato) * 100).toFixed(1)
           : 0;
@@ -2786,6 +2787,32 @@ export default function LiquidacionesPageV2() {
                       )}
                     </Box>
                   </Box>
+                  
+                  {/* Indicador de máquinas en cero */}
+                  {maquinasEnCero > 0 && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2.5,
+                        py: 1.25,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+                      }}
+                    >
+                      <Warning sx={{ fontSize: 20, color: theme.palette.error.main }} />
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.error.main, lineHeight: 1 }}>
+                          {maquinasEnCero}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                          en cero
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
               </Paper>
             </Grid>
@@ -2873,9 +2900,14 @@ export default function LiquidacionesPageV2() {
             ) : (
               <Box sx={{ height: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ReBarChart data={chartProduccionPorEstablecimiento} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <ReBarChart data={chartProduccionPorEstablecimiento} margin={{ top: 8, right: 8, left: 0, bottom: 5 }}>
                     <CartesianGrid stroke={alpha(theme.palette.divider, 0.25)} strokeDasharray="3 3" />
-                    <XAxis dataKey="establecimiento" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={55} />
+                    <XAxis 
+                      dataKey="establecimiento" 
+                      tick={false} 
+                      axisLine={{ stroke: alpha(theme.palette.divider, 0.3) }} 
+                      height={5} 
+                    />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrencyCompact(Number(v) || 0).replace('$ ', '')} />
                     <ReTooltip
                       formatter={(v) => formatCurrencyCOP(Number(v) || 0)}
