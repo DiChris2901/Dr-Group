@@ -2147,16 +2147,27 @@ export default function LiquidacionesPageV2() {
         <Paper
           elevation={0}
           onClick={!selectedFile ? handleSelectFile : undefined}
+          onDragEnter={!selectedFile ? handleDrag : undefined}
+          onDragLeave={!selectedFile ? handleDrag : undefined}
+          onDragOver={!selectedFile ? handleDrag : undefined}
+          onDrop={!selectedFile ? handleDrop : undefined}
           sx={{
             mt: 2.5,
             p: 2.5,
             borderRadius: 2,
-            border: `1px solid ${alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.divider) : theme.palette.primary.main, 0.2)}`,
-            backgroundColor: alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500]) : theme.palette.primary.main, 0.04),
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            border: dragActive && !selectedFile
+              ? `2px dashed ${alpha(theme.palette.primary.main, 0.6)}`
+              : `1px solid ${alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.divider) : theme.palette.primary.main, 0.2)}`,
+            backgroundColor: dragActive && !selectedFile
+              ? alpha(theme.palette.primary.main, 0.12)
+              : alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500]) : theme.palette.primary.main, 0.04),
+            boxShadow: dragActive && !selectedFile
+              ? '0 4px 12px rgba(0,0,0,0.1)'
+              : '0 2px 8px rgba(0,0,0,0.06)',
             cursor: !selectedFile ? 'pointer' : 'default',
             transition: 'all 0.2s ease',
-            ...(!selectedFile && {
+            transform: dragActive && !selectedFile ? 'scale(1.02)' : 'scale(1)',
+            ...(!selectedFile && !dragActive && {
               '&:hover': {
                 backgroundColor: alpha(theme.palette.primary.main, 0.08),
                 borderColor: alpha(theme.palette.primary.main, 0.4),
@@ -2185,7 +2196,7 @@ export default function LiquidacionesPageV2() {
                   Listo para cargar
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Arrastra un archivo Excel aquí o usa el botón <strong>"Cargar archivo"</strong> arriba
+                  Arrastra un archivo Excel aquí o haz clic para seleccionar
                 </Typography>
               </Box>
             </Box>
@@ -2351,84 +2362,7 @@ export default function LiquidacionesPageV2() {
         )}
       </Paper>
 
-      {/* Drag & Drop Zone */}
-      {!processing && !selectedFile && (
-        <Paper
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          sx={{
-            p: 6,
-            mb: 3,
-            textAlign: 'center',
-            border: `2px dashed ${
-              dragActive
-                ? theme.palette.primary.main
-                : alpha(theme.palette.divider, 0.2)
-            }`,
-            borderRadius: 2,
-            backgroundColor: dragActive
-              ? alpha(theme.palette.primary.main, 0.08)
-              : alpha(theme.palette.background.paper, 0.6),
-            transition: 'all 0.3s ease',
-            cursor: companiesLoading || (companies && companies.length === 0)
-              ? 'not-allowed'
-              : 'pointer',
-            transform: dragActive ? 'scale(1.02)' : 'scale(1)',
-            opacity: companiesLoading || (companies && companies.length === 0) ? 0.5 : 1,
-            boxShadow: dragActive 
-              ? '0 2px 12px rgba(0,0,0,0.08)' 
-              : '0 2px 8px rgba(0,0,0,0.06)',
-            '&:hover': {
-              borderColor: companiesLoading || (companies && companies.length === 0)
-                ? alpha(theme.palette.divider, 0.2)
-                : alpha(theme.palette.primary.main, 0.3),
-              backgroundColor: companiesLoading || (companies && companies.length === 0)
-                ? alpha(theme.palette.background.paper, 0.6)
-                : alpha(theme.palette.primary.main, 0.04)
-            }
-          }}
-        >
-          <CloudUpload
-            sx={{
-              fontSize: 64,
-              color: dragActive
-                ? theme.palette.primary.main
-                : alpha(theme.palette.text.secondary, 0.4),
-              mb: 2,
-              transition: 'all 0.3s ease'
-            }}
-          />
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 600,
-              color: theme.palette.text.primary,
-              mb: 1
-            }}
-          >
-            {companiesLoading
-              ? 'Cargando empresas...'
-              : (companies && companies.length === 0)
-              ? 'No hay empresas disponibles'
-              : 'Arrastra aquí el archivo Excel de liquidaciones'}
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.text.secondary,
-              mb: 2
-            }}
-          >
-            {companiesLoading
-              ? 'Esperando datos de empresas...'
-              : (companies && companies.length === 0)
-              ? 'Primero debes crear empresas en el sistema'
-              : 'O haz clic en el botón "Cargar Archivo" para seleccionar manualmente'}
-          </Typography>
-        </Paper>
-      )}
+
 
       {/* Stepper */}
       <Paper
