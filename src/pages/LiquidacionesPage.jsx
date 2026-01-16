@@ -3511,6 +3511,7 @@ export default function LiquidacionesPage() {
           <Tab 
             icon={<Assessment sx={{ fontSize: 20 }} />}
             iconPosition="start"
+            disabled={!consolidatedData || consolidatedData.length === 0}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 Resumen General
@@ -3532,6 +3533,7 @@ export default function LiquidacionesPage() {
           <Tab 
             icon={<TableView sx={{ fontSize: 20 }} />}
             iconPosition="start"
+            disabled={!consolidatedData || consolidatedData.length === 0}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 Consolidado Detallado
@@ -3553,6 +3555,7 @@ export default function LiquidacionesPage() {
           <Tab 
             icon={<Business sx={{ fontSize: 20 }} />}
             iconPosition="start"
+            disabled={!reporteBySala || reporteBySala.length === 0}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 Reporte por Sala
@@ -3574,6 +3577,7 @@ export default function LiquidacionesPage() {
           <Tab 
             icon={<Warning sx={{ fontSize: 20 }} />}
             iconPosition="start"
+            disabled={!consolidatedData || consolidatedData.length === 0}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 Máquinas en Cero
