@@ -2950,52 +2950,38 @@ export default function LiquidacionesPage() {
                       p: 2,
                       border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      textAlign: 'center',
                       transition: 'all 0.2s ease',
                       '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
                       minHeight: 130
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
-                          {kpi.value}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
-                          {kpi.title}
-                        </Typography>
-                        {kpi.subtitle && (
-                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
-                            {kpi.subtitle}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Box
-                        sx={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 2,
-                          display: 'grid',
-                          placeItems: 'center',
-                          bgcolor: alpha(kpi.color, 0.12),
-                          color: kpi.color
-                        }}
-                      >
-                        <kpi.icon fontSize="small" />
-                      </Box>
-                    </Box>
-
-                    <Chip
-                      size="small"
-                      icon={<TrendIcon fontSize="small" />}
-                      label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
+                    <Box
                       sx={{
-                        mt: 2,
-                        bgcolor: alpha(trendColor, 0.12),
-                        color: trendColor,
-                        fontWeight: 600,
-                        '& .MuiChip-icon': { color: trendColor }
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2,
+                        mx: 'auto',
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: alpha(kpi.color, 0.12),
+                        color: kpi.color,
+                        mb: 1
                       }}
-                    />
+                    >
+                      <kpi.icon fontSize="small" />
+                    </Box>
+                    <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
+                      {kpi.value}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      {kpi.title}
+                    </Typography>
+                    {kpi.subtitle && (
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
+                        {kpi.subtitle}
+                      </Typography>
+                    )}
                   </Paper>
                 </Grid>
               );
