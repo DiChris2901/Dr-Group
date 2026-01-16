@@ -2817,119 +2817,12 @@ export default function LiquidacionesPage() {
 
 
 
-      {/* Stepper */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 2,
-          p: 2.5,
-          mb: 3,
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-        }}
-      >
-        <Box sx={{ position: 'relative', maxWidth: 900, mx: 'auto', px: 1 }}>
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 24,
-              left: 30,
-              right: 30,
-              height: 2,
-              bgcolor: alpha(theme.palette.text.primary, 0.12)
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 24,
-              left: 30,
-              height: 2,
-              width: `${progressPct}%`,
-              bgcolor: theme.palette.primary.main,
-              transition: 'width 0.5s ease'
-            }}
-          />
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {[
-              { n: 1, label: 'Cargar Archivo', icon: CloudUpload },
-              { n: 2, label: 'Procesando', icon: Cached },
-              { n: 3, label: 'Guardar', icon: Save }
-            ].map((s) => {
-              const isActive = s.n === activeStep;
-              const isCompleted = s.n < activeStep;
-              const StepIcon = s.icon;
-              
-              return (
-                <Box
-                  key={s.n}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 1,
-                    zIndex: 1
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      border: isActive || isCompleted 
-                        ? `2px solid ${isCompleted ? theme.palette.success.main : theme.palette.primary.main}` 
-                        : `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                      bgcolor: isCompleted 
-                        ? alpha(theme.palette.success.main, 0.12)
-                        : isActive 
-                          ? alpha(theme.palette.primary.main, 0.12)
-                          : alpha(theme.palette.grey[500], 0.04),
-                      color: isCompleted 
-                        ? theme.palette.success.main 
-                        : isActive 
-                          ? theme.palette.primary.main 
-                          : theme.palette.text.secondary,
-                      transition: 'all 0.2s ease',
-                      boxShadow: isActive 
-                        ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.08)}` 
-                        : 'none'
-                    }}
-                  >
-                    {isCompleted ? (
-                      <CheckCircle sx={{ fontSize: 24 }} />
-                    ) : (
-                      <StepIcon sx={{ fontSize: 24 }} />
-                    )}
-                  </Box>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: isActive ? 600 : 500,
-                      color: isCompleted 
-                        ? theme.palette.success.main 
-                        : isActive 
-                          ? theme.palette.primary.main 
-                          : theme.palette.text.secondary,
-                      fontSize: '0.8125rem'
-                    }}
-                  >
-                    {s.label}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-        </Box>
-      </Paper>
-
       {/* KPIs */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {processing && (!originalData || originalData.length === 0) ? (
-          // Skeleton para KPIs durante carga
-          [1, 2, 3, 4].map((i) => (
+      {(processing || (consolidatedData && consolidatedData.length > 0)) && (
+        <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+          {processing && (!originalData || originalData.length === 0) ? (
+            // Skeleton para KPIs durante carga
+            [1, 2, 3, 4].map((i) => (
             <Grid key={`kpi-skeleton-${i}`} item xs={12} sm={6} md={3}>
               <Paper
                 elevation={0}
@@ -2952,9 +2845,9 @@ export default function LiquidacionesPage() {
             </Grid>
           ))
         ) : (
-          (() => {
-            // Calcular cumplimiento de transmisión (solo si hay datos)
-            const totalMaquinasContrato = Array.isArray(consolidatedData) ? consolidatedData.length : 0;
+            (() => {
+              // Calcular cumplimiento de transmisión (solo si hay datos)
+              const totalMaquinasContrato = Array.isArray(consolidatedData) ? consolidatedData.length : 0;
             
             // ✅ Máquina sin transmitir: producción total = 0 exactamente
             // NO usar umbral - verificar si es exactamente 0
@@ -3094,11 +2987,14 @@ export default function LiquidacionesPage() {
       })()
         )}
       </Grid>
+      )}
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {processing && (!originalData || originalData.length === 0) ? (
-          // Skeleton para métricas secundarias durante carga
-          [1, 2, 3, 4].map((i) => (
+      {/* Métricas Secundarias */}
+      {(processing || (consolidatedData && consolidatedData.length > 0)) && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {processing && (!originalData || originalData.length === 0) ? (
+            // Skeleton para métricas secundarias durante carga
+            [1, 2, 3, 4].map((i) => (
             <Grid key={`metric-skeleton-${i}`} item xs={12} sm={6} md={3}>
               <Paper
                 elevation={0}
@@ -3165,7 +3061,8 @@ export default function LiquidacionesPage() {
           </Grid>
         ))
         )}
-      </Grid>
+        </Grid>
+      )}
 
       {/* Fila 3: Banner de Cumplimiento Transmisión (ancho completo) */}
       {!processing && cumplimientoTransmision && (
@@ -3245,7 +3142,8 @@ export default function LiquidacionesPage() {
       )}
 
       {/* Charts */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+      {(processing || (consolidatedData && consolidatedData.length > 0)) && (
+        <Grid container spacing={2.5} sx={{ mb: 3 }}>
         {processing && (!originalData || originalData.length === 0) ? (
           // Skeleton para gráficos durante carga
           <>
@@ -3471,7 +3369,110 @@ export default function LiquidacionesPage() {
         </Grid>
           </>
         )}
-      </Grid>
+        </Grid>
+      )}
+
+      {/* Estado Vacío Central */}
+      {!processing && (!consolidatedData || consolidatedData.length === 0) && (
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            p: { xs: 4, md: 6 },
+            mb: 3,
+            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            textAlign: 'center'
+          }}
+        >
+          <Box
+            sx={{
+              maxWidth: 550,
+              mx: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2.5
+            }}
+          >
+            {/* Ícono ilustrativo */}
+            <Box
+              sx={{
+                width: 100,
+                height: 100,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                color: theme.palette.primary.main
+              }}
+            >
+              <CloudUpload sx={{ fontSize: 56 }} />
+            </Box>
+
+            {/* Contenido textual */}
+            <Box>
+              <Typography
+                variant="overline"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1.2,
+                  color: theme.palette.primary.main,
+                  fontSize: '0.75rem',
+                  display: 'block',
+                  mb: 1
+                }}
+              >
+                INICIO DEL PROCESO
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: -0.3,
+                  color: theme.palette.text.primary,
+                  mb: 1.5
+                }}
+              >
+                No hay liquidación cargada
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  lineHeight: 1.6,
+                  maxWidth: 420,
+                  mx: 'auto'
+                }}
+              >
+                Arrastra un archivo Excel en la zona de carga superior o haz clic en "Listo para cargar" para comenzar.
+              </Typography>
+            </Box>
+
+            {/* Botón de historial */}
+            <Button
+              variant="outlined"
+              startIcon={<History />}
+              onClick={() => navigate('/liquidaciones-historial')}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                py: 1.25,
+                mt: 1,
+                borderColor: alpha(theme.palette.primary.main, 0.3),
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.04)
+                }
+              }}
+            >
+              Ver Historial de Liquidaciones
+            </Button>
+          </Box>
+        </Paper>
+      )}
 
       {/* Tabs + content placeholder */}
       <Paper
