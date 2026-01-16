@@ -2820,7 +2820,20 @@ export default function LiquidacionesPage() {
         )}
       </Paper>
 
-
+      {/* Separador visual entre contexto y métricas */}
+      {(processing || (consolidatedData && consolidatedData.length > 0)) && (
+        <Divider sx={{ my: 3, borderColor: alpha(theme.palette.divider, 0.15) }}>
+          <Typography variant="overline" sx={{ 
+            px: 2, 
+            color: theme.palette.text.secondary,
+            fontWeight: 600,
+            letterSpacing: 1.2,
+            fontSize: '0.7rem'
+          }}>
+            RESUMEN EJECUTIVO
+          </Typography>
+        </Divider>
+      )}
 
       {/* KPIs */}
       {(processing || (consolidatedData && consolidatedData.length > 0)) && (
@@ -3477,6 +3490,21 @@ export default function LiquidacionesPage() {
             </Button>
           </Box>
         </Paper>
+      )}
+
+      {/* Separador visual antes de pestañas */}
+      {consolidatedData && consolidatedData.length > 0 && (
+        <Divider sx={{ my: 3, borderColor: alpha(theme.palette.divider, 0.15) }}>
+          <Typography variant="overline" sx={{ 
+            px: 2, 
+            color: theme.palette.text.secondary,
+            fontWeight: 600,
+            letterSpacing: 1.2,
+            fontSize: '0.7rem'
+          }}>
+            ANÁLISIS DETALLADO
+          </Typography>
+        </Divider>
       )}
 
       {/* Tabs + content placeholder */}
