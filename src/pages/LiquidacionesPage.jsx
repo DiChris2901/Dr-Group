@@ -2659,15 +2659,20 @@ export default function LiquidacionesPage() {
               {/* Logo y datos de empresa */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 {empresaCompleta?.logoURL ? (
-                  <Avatar
+                  <Box
+                    component="img"
                     src={empresaCompleta.logoURL}
                     alt={`Logo de ${empresaCompleta.name}`}
                     sx={{
-                      width: 48,
                       height: 48,
-                      border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                      width: 'auto',
+                      maxWidth: 120,
+                      objectFit: 'contain',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      borderRadius: 1,
+                      p: 0.5,
                       backgroundColor: theme.palette.background.paper,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                     }}
                   />
                 ) : empresa && empresa !== 'GENERAL' ? (
