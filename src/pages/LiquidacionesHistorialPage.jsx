@@ -1,72 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Container,
-  Typography,
-  Card,
-  CardContent,
-  Button,
-  Grid,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  InputAdornment,
-  IconButton,
-  Chip,
-  Menu,
-  MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Pagination,
-  FormControl,
-  InputLabel,
-  Select,
-  Tooltip,
-  Avatar,
-  alpha
+    Avatar,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    Grid,
+    IconButton,
+    InputAdornment,
+    InputLabel,
+    Menu,
+    MenuItem,
+    Pagination,
+    Paper,
+    Select,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    Typography,
+    alpha
 } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 // Admin helpers
-import { isSystemUser } from '../config/systemUsers';
 import {
-  Search,
-  FilterList,
-  Download,
-  Visibility,
-  Delete,
-  Add,
-  GetApp,
-  DateRange,
-  Business,
-  Assessment,
-  Receipt,
-  Timeline,
-  MoreVert,
-  CloudDownload,
-  Archive,
-  Restore,
-  Close,
-  Share as ShareIcon
+    Add,
+    Assessment,
+    Business,
+    Close,
+    CloudDownload,
+    DateRange,
+    Delete,
+    Download,
+    FilterList,
+    GetApp,
+    MoreVert,
+    Receipt,
+    Restore,
+    Search,
+    Share as ShareIcon,
+    Timeline,
+    Visibility
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { endOfMonth, endOfYear, startOfMonth, startOfYear, subMonths } from 'date-fns';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { getDownloadURL, ref } from 'firebase/storage';
+import { motion } from 'framer-motion';
+import ShareToChat from '../components/common/ShareToChat';
+import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
+import { db, storage } from '../config/firebase';
+import { isSystemUser } from '../config/systemUsers';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import { startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
-import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
-import { motion } from 'framer-motion';
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
-import ShareToChat from '../components/common/ShareToChat';
 
 const LiquidacionesHistorialPage = () => {
   const theme = useTheme();

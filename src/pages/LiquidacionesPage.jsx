@@ -1,127 +1,549 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import useLiquidacionLogs from '../hooks/useLiquidacionLogs';
-import useLiquidacionExport from '../hooks/useLiquidacionExport';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Avatar,
   Box,
-  Container,
-  Typography,
-  Card,
-  CardContent,
   Button,
-  Grid,
-  Paper,
-  Tabs,
-  Tab,
-  LinearProgress,
-  Alert,
   Chip,
+  Container,
+  CircularProgress,
+  Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Fab,
+  Grid,
+  IconButton,
+  Paper,
+  Skeleton,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  IconButton,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Checkbox,
-  Divider,
-  CircularProgress,
-  Avatar,
-  FormControlLabel,
-  Radio,
-  Skeleton,
-  alpha
+  Tabs,
+  Typography,
+  alpha,
+  useTheme
 } from '@mui/material';
 import {
-  CloudUpload,
+  AccountCircle,
+  Analytics,
   Assessment,
+  AttachMoney,
+  BarChart as BarChartIcon,
   Business,
-  Receipt,
-  TrendingUp,
-  Download,
-  Refresh,
-  Search,
-  FilterList,
-  GetApp,
-  DeleteForever,
-  Delete,
-  CheckCircle,
-  Warning,
-  Info,
-  Error as ErrorIcon,
+  Cached,
+  Cancel,
   Casino,
-  Timeline,
-  Storage,
-  PieChart,
-  BarChart,
-  DateRange,
-  Save
+  CheckCircle,
+  Close,
+  CloudUpload,
+  DeleteSweep,
+  HelpOutline,
+  History,
+  Notifications,
+  ReceiptLong,
+  Save,
+  Settings,
+  Store,
+  TableView,
+  TrendingDown,
+  TrendingUp,
+  Warning
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
-import { exportarLiquidacionSpectacular, exportarLiquidacionSimple } from '../utils/liquidacionExcelExportSpectacularFixed';
-import { exportarLiquidacionPythonFormat } from '../utils/liquidacionExcelExportPythonFormat';
-import { exportarReporteDiarioSala } from '../utils/liquidacionExcelExportDiarioSala';
+import useLiquidacionExport from '../hooks/useLiquidacionExport';
 import useCompanies from '../hooks/useCompanies';
+import * as XLSX from 'xlsx';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ExportarPorSalaModal from '../components/modals/ExportarPorSalaModal';
 import ReporteDiarioModal from '../components/modals/ReporteDiarioModal';
 import ConfirmarGuardadoModal from '../components/modals/ConfirmarGuardadoModal';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import * as XLSX from 'xlsx';
+import { FixedSizeList as VirtualList } from 'react-window';
+import {
+  Bar,
+  BarChart as ReBarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart as ReLineChart,
+  Pie,
+  PieChart as RePieChart,
+  ResponsiveContainer,
+  Tooltip as ReTooltip,
+  XAxis,
+  YAxis
+} from 'recharts';
 
-const LiquidacionesPage = () => {
+const LOG_COLORS_BY_TYPE = {
+  info: 'info',
+  success: 'success',
+  warning: 'warning',
+  error: 'error'
+};
+
+function formatCurrencyCompact(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '$ 0';
+  // Compact formatting (e.g., 402.3 M)
+  const abs = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  if (abs >= 1_000_000_000) return `${sign}$ ${(abs / 1_000_000_000).toFixed(1)} B`;
+  if (abs >= 1_000_000) return `${sign}$ ${(abs / 1_000_000).toFixed(1)} M`;
+  if (abs >= 1_000) return `${sign}$ ${(abs / 1_000).toFixed(1)} K`;
+  return `${sign}$ ${Math.round(abs).toLocaleString('es-CO')}`;
+}
+
+function formatCurrencyCOP(value) {
+  const n = Number(value) || 0;
+  return n.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+}
+
+function useMeasure() {
+  const ref = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const update = () => {
+      const rect = element.getBoundingClientRect();
+      setSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    };
+
+    update();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(element);
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, size];
+}
+
+function VirtualTable({
+  rows,
+  columns,
+  height = 520,
+  rowHeight = 44,
+  headerHeight = 44,
+  emptyLabel = 'Sin datos para mostrar.'
+}) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const [wrapRef, size] = useMeasure();
+
+  const totalMinWidth = columns.reduce((sum, col) => sum + (col.width || 140), 0);
+  const width = Math.max(size.width || 0, Math.min(totalMinWidth, size.width || totalMinWidth));
+
+  return (
+    <Box
+      ref={wrapRef}
+      sx={{
+        width: '100%',
+        borderRadius: 2,
+        border: (t) => `1px solid ${alpha(t.palette.divider, 0.2)}`,
+        overflow: 'hidden',
+        bgcolor: 'background.paper'
+      }}
+    >
+      <Box
+        sx={{
+          height: headerHeight,
+          display: 'flex',
+          alignItems: 'center',
+          bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
+          borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.2)}`
+        }}
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: columns.map((c) => `${c.width || 140}px`).join(' '),
+            width: totalMinWidth,
+            px: 1.5,
+            columnGap: 0,
+            alignItems: 'center'
+          }}
+        >
+          {columns.map((col) => (
+            <Typography
+              key={col.key}
+              variant="caption"
+              sx={{
+                fontWeight: 600,
+                color: 'text.secondary',
+                textTransform: 'uppercase',
+                letterSpacing: 0.6,
+                pr: 1,
+                textAlign: col.align || 'left',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis'
+              }}
+              title={col.label}
+            >
+              {col.label}
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+
+      {safeRows.length === 0 ? (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {emptyLabel}
+          </Typography>
+        </Box>
+      ) : size.width > 0 ? (
+        <Box sx={{ overflowX: 'auto' }}>
+          <VirtualList
+            height={height}
+            width={Math.max(width, 0)}
+            itemCount={safeRows.length}
+            itemSize={rowHeight}
+          >
+            {({ index, style }) => {
+              const row = safeRows[index];
+              return (
+                <Box
+                  style={style}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}`,
+                    bgcolor: index % 2 === 0 ? 'transparent' : (t) => alpha(t.palette.action.hover, 0.08)
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: columns.map((c) => `${c.width || 140}px`).join(' '),
+                      width: totalMinWidth,
+                      px: 1.5,
+                      alignItems: 'center'
+                    }}
+                  >
+                    {columns.map((col) => {
+                      const rawValue = typeof col.value === 'function' ? col.value(row) : row?.[col.key];
+                      const displayValue = col.format ? col.format(rawValue, row) : rawValue;
+                      const cellText = displayValue === null || displayValue === undefined || displayValue === '' ? '—' : String(displayValue);
+                      return (
+                        <Typography
+                          key={col.key}
+                          variant="body2"
+                          sx={{
+                            pr: 1,
+                            textAlign: col.align || 'left',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={cellText}
+                        >
+                          {cellText}
+                        </Typography>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              );
+            }}
+          </VirtualList>
+        </Box>
+      ) : (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Preparando tabla…
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function TabPanel({ value, index, children }) {
+  if (value !== index) return null;
+  return <Box sx={{ pt: 2 }}>{children}</Box>;
+}
+
+export default function LiquidacionesPage() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
   const { companies, loading: companiesLoading } = useCompanies();
 
-  // Constantes de configuración centralizadas
-  const LIQUIDACION_CONFIG = {
-    MAX_LOGS: 100,              // Límite de logs en UI
-    HEADER_SCAN_ROWS: 15,       // Filas a escanear para detectar headers
-    CONTRACT_SCAN_ROWS: 10,     // Filas a escanear para detectar contrato
-    AUTO_PROCESS_DELAY: 500,    // Delay en ms antes de procesar automáticamente
-    SAMPLE_ROWS_TO_LOG: 5       // Filas de muestra a mostrar en logs
-  };
-
-  // Estados principales
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [empresa, setEmpresa] = useState('');
-  const [empresaCompleta, setEmpresaCompleta] = useState(null); // Estado para empresa completa con logo
-  const [processing, setProcessing] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState(0);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logs, setLogs] = useState([]);
   const [dragActive, setDragActive] = useState(false);
-  
-  // Estados de datos
-  const [originalData, setOriginalData] = useState(null);
+
+  // Datos reales se migrarán en fases (procesamiento/carga). Por ahora se mantienen como placeholders.
+  const [empresa, setEmpresa] = useState('GENERAL');
+  const [empresaCompleta, setEmpresaCompleta] = useState(null); // Estado para empresa completa con logo/NIT/contrato
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [archivoTarifas, setArchivoTarifas] = useState(null);
+  const [tarifasOficiales, setTarifasOficiales] = useState({});
+  const [metricsData, setMetricsData] = useState(null);
+  const [processing, setProcessing] = useState(false);
   const [consolidatedData, setConsolidatedData] = useState(null);
   const [reporteBySala, setReporteBySala] = useState(null);
-  const [metricsData, setMetricsData] = useState(null);
-  
-  // Custom hook para gestión de logs
-  const { logs, addLog, limpiarLogs } = useLiquidacionLogs(LIQUIDACION_CONFIG.MAX_LOGS);
-  
-  // Custom hook para exportaciones
-  const { exportarConsolidado, exportarReporteSala, exportarReporteDiario } = useLiquidacionExport({
+  const [originalData, setOriginalData] = useState(null);
+
+  // Validación (V1-style): procesar → revisar en modal → confirmar para aplicar
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationData, setValidationData] = useState(null);
+  const [pendingLiquidacion, setPendingLiquidacion] = useState(null);
+  const [showTarifasOptions, setShowTarifasOptions] = useState(false);
+  const [liquidacionCoincide, setLiquidacionCoincide] = useState(true);
+  const [procesandoTarifasValidacion, setProcesandoTarifasValidacion] = useState(false);
+
+  const fileInputRef = useRef(null);
+  const tarifasInputRef = useRef(null);
+  const validationTarifasInputRef = useRef(null);
+  const liquidacionCargadaRef = useRef(false); // Para evitar cargas múltiples
+
+  const [showSalaModal, setShowSalaModal] = useState(false);
+  const [showDailyModal, setShowDailyModal] = useState(false);
+
+  // Persistencia Firebase (Guardar + Historial)
+  const [showConfirmarGuardadoModal, setShowConfirmarGuardadoModal] = useState(false);
+  const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
+  const [liquidacionGuardadaId, setLiquidacionGuardadaId] = useState(null);
+
+  const addLog = useCallback((message, type = 'info') => {
+    const safeType = LOG_COLORS_BY_TYPE[type] ? type : 'info';
+    const entry = {
+      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      message: String(message ?? ''),
+      type: safeType,
+      timestamp: new Date()
+    };
+    setLogs((prev) => [entry, ...prev].slice(0, 200));
+  }, []);
+
+  const clearLogs = useCallback(() => {
+    setLogs([]);
+    addLog('🧹 Logs limpiados', 'info');
+  }, [addLog]);
+
+  const derivedMetrics = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    const totalMaquinas = consolidated.length;
+    const totalProduccion = consolidated.reduce((sum, item) => sum + (Number(item?.produccion) || 0), 0);
+    const totalDerechos = consolidated.reduce((sum, item) => sum + (Number(item?.derechosExplotacion) || 0), 0);
+    const totalGastos = consolidated.reduce((sum, item) => sum + (Number(item?.gastosAdministracion) || 0), 0);
+    const totalImpuestos = consolidated.reduce((sum, item) => sum + (Number(item?.totalImpuestos) || 0), 0);
+
+    const reporteSala = Array.isArray(reporteBySala) ? reporteBySala : [];
+    const totalEstablecimientos = reporteSala.length;
+    const promedioPorEstablecimiento = totalEstablecimientos > 0 ? totalProduccion / totalEstablecimientos : 0;
+
+    const sinCambios = consolidated.filter((i) => String(i?.novedad || '').toLowerCase().includes('sin')).length;
+    const conNovedades = totalMaquinas - sinCambios;
+    const pct = (v) => (totalMaquinas > 0 ? Math.round((v / totalMaquinas) * 100) : 0);
+
+    return {
+      maquinas: { value: totalMaquinas, trend: 0, isPositive: true },
+      produccion: { value: totalProduccion, trend: 0, isPositive: true },
+      impuestos: { value: totalImpuestos, trend: 0, isPositive: true },
+      promedio: { value: promedioPorEstablecimiento, trend: 0, isPositive: true },
+      establecimientos: { value: totalEstablecimientos },
+      derechos: { value: totalDerechos },
+      gastos: { value: totalGastos },
+      sinCambios: { value: sinCambios, percentage: pct(sinCambios) },
+      novedades: { value: conNovedades, percentage: pct(conNovedades) }
+    };
+  }, [consolidatedData, reporteBySala]);
+
+  const parseFechaToDate = useCallback((value) => {
+    if (value === null || value === undefined || value === '') return null;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      // Excel serial date (1900 system)
+      const d = new Date((value - 25569) * 86400 * 1000);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
+
+  const chartProduccionPorEstablecimiento = useMemo(() => {
+    const reporte = Array.isArray(reporteBySala) ? reporteBySala : [];
+    if (reporte.length === 0) return [];
+
+    const sorted = [...reporte]
+      .map((r) => ({
+        establecimiento: String(r?.establecimiento || 'Sin nombre'),
+        produccion: Number(r?.produccion) || 0
+      }))
+      .sort((a, b) => b.produccion - a.produccion);
+
+    const maxBars = 12;
+    const head = sorted.slice(0, maxBars);
+    const tail = sorted.slice(maxBars);
+
+    const otros = tail.reduce((sum, item) => sum + item.produccion, 0);
+    if (otros > 0) head.push({ establecimiento: 'Otros', produccion: otros });
+    return head;
+  }, [reporteBySala]);
+
+  const top5Establecimientos = useMemo(() => {
+    return [...(Array.isArray(reporteBySala) ? reporteBySala : [])]
+      .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+      .slice(0, 5);
+  }, [reporteBySala]);
+
+  const topMaquinas = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    return [...consolidated]
+      .sort((a, b) => (b.produccion || 0) - (a.produccion || 0))
+      .slice(0, 5);
+  }, [consolidatedData]);
+
+  const chartNovedades = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    if (consolidated.length === 0) return [];
+
+    const map = new Map();
+    for (const row of consolidated) {
+      const raw = String(row?.novedad || 'Sin cambios').trim();
+      const key = raw || 'Sin cambios';
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [consolidatedData]);
+
+  const chartTendenciaDiaria = useMemo(() => {
+    const rows = Array.isArray(originalData) ? originalData : [];
+    if (rows.length === 0) return [];
+
+    const byDay = new Map();
+    for (const row of rows) {
+      const d = parseFechaToDate(row?.fecha);
+      if (!d) continue;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      const base = Number(row?.baseLiquidacion) || 0;
+      byDay.set(key, (byDay.get(key) || 0) + base);
+    }
+    const entries = Array.from(byDay.entries())
+      .map(([day, produccion]) => ({ day, produccion }))
+      .sort((a, b) => (a.day < b.day ? -1 : 1));
+
+    // Solo últimos 31 días para legibilidad
+    return entries.slice(-31);
+  }, [originalData, parseFechaToDate]);
+
+  // Filtrar datos de tarifa fija
+  const tarifaFijaData = useMemo(() => {
+    const consolidated = Array.isArray(consolidatedData) ? consolidatedData : [];
+    if (consolidated.length === 0) return [];
+    if (!tarifasOficiales || Object.keys(tarifasOficiales).length === 0) return [];
+
+    return consolidated.filter(row => {
+      const nucStr = String(row?.nuc || '').trim();
+      return nucStr && tarifasOficiales[nucStr];
+    });
+  }, [consolidatedData, tarifasOficiales]);
+
+  // Calcular máquinas en cero (memoizado para evitar re-renders)
+  const maquinasEnCeroCount = useMemo(() => {
+    if (!Array.isArray(consolidatedData)) return 0;
+    return consolidatedData.filter(m => {
+      const prod = parseFloat(m.produccion) || 0;
+      return Math.abs(prod) < 0.01;
+    }).length;
+  }, [consolidatedData]);
+
+  // Calcular cumplimiento de transmisión (memoizado)
+  const cumplimientoTransmision = useMemo(() => {
+    if (!Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+      return null;
+    }
+
+    const totalMaquinasContrato = consolidatedData.length;
+    const maquinasTransmitiendo = consolidatedData.filter(m => {
+      const prod = parseFloat(m.produccion) || 0;
+      return Math.abs(prod) >= 0.01;
+    }).length;
+    const maquinasEnCero = totalMaquinasContrato - maquinasTransmitiendo;
+    const porcentajeCumplimiento = totalMaquinasContrato > 0
+      ? ((maquinasTransmitiendo / totalMaquinasContrato) * 100).toFixed(1)
+      : 0;
+    
+    const cumplimientoKpi = {
+      value: `${porcentajeCumplimiento}%`,
+      title: 'Cumplimiento Transmisión',
+      subtitle: `${maquinasTransmitiendo}/${totalMaquinasContrato} transmitiendo`,
+      icon: Assessment,
+      color: porcentajeCumplimiento >= 95
+        ? theme.palette.success.main
+        : porcentajeCumplimiento >= 85
+          ? theme.palette.warning.main
+          : theme.palette.error.main
+    };
+
+    return { maquinasEnCero, cumplimientoKpi };
+  }, [consolidatedData]);
+
+  // Resumen de tarifas fijas
+  const tarifaFijaResumen = useMemo(() => {
+    if (!tarifasOficiales || Object.keys(tarifasOficiales).length === 0) {
+      return { count: 0, totalDerechos: 0, totalGastos: 0, totalImpuestos: 0 };
+    }
+
+    const count = tarifaFijaData.length;
+    const totalDerechos = Object.values(tarifasOficiales).reduce((sum, tarifa) => 
+      sum + (Number(tarifa?.derechosAdicionales) || 0), 0
+    );
+    const totalGastos = Object.values(tarifasOficiales).reduce((sum, tarifa) => 
+      sum + (Number(tarifa?.gastosAdicionales) || 0), 0
+    );
+    const totalImpuestos = totalDerechos + totalGastos;
+
+    return { count, totalDerechos, totalGastos, totalImpuestos };
+  }, [tarifaFijaData, tarifasOficiales]);
+
+  const mockMetrics = useMemo(
+    () => ({
+      maquinas: { value: 0, trend: 0, isPositive: true },
+      produccion: { value: 0, trend: 0, isPositive: true },
+      impuestos: { value: 0, trend: 0, isPositive: false },
+      promedio: { value: 0, trend: 0, isPositive: true },
+      establecimientos: { value: 0 },
+      derechos: { value: 0 },
+      gastos: { value: 0 },
+      sinCambios: { value: 0, percentage: 0 },
+      novedades: { value: 0, percentage: 0 }
+    }),
+    []
+  );
+
+  const metrics = useMemo(() => {
+    if (Array.isArray(consolidatedData) && consolidatedData.length > 0) return derivedMetrics;
+    return mockMetrics;
+  }, [consolidatedData, derivedMetrics, mockMetrics]);
+
+  const progressPct = activeStep === 1 ? 0 : activeStep === 2 ? 50 : 100;
+
+  const { exportarConsolidado, exportarMaquinasEnCero } = useLiquidacionExport({
     consolidatedData,
     reporteBySala,
     originalData,
@@ -132,196 +554,1205 @@ const LiquidacionesPage = () => {
     currentUser,
     userProfile
   });
-  
-  // Estados de UI
-  const [showEstablecimientoSelector, setShowEstablecimientoSelector] = useState(false);
-  const [selectedEstablecimientos, setSelectedEstablecimientos] = useState([]);
-  const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationData, setValidationData] = useState(null);
-  const [tarifasOficiales, setTarifasOficiales] = useState({});
-  const [archivoTarifas, setArchivoTarifas] = useState(null);
-  
-  // Estados para sistema de tarifas y validación
-  const [liquidacionCoincide, setLiquidacionCoincide] = useState(true);
-  const [showTarifasOptions, setShowTarifasOptions] = useState(false);
-  const [procesandoTarifas, setProcesandoTarifas] = useState(false);
-  // Modal exportar por sala
-  const [showSalaModal, setShowSalaModal] = useState(false);
-  // Modal reporte diario
-  const [showDailyModal, setShowDailyModal] = useState(false);
-  // Modal confirmar guardado
-  const [showConfirmarGuardadoModal, setShowConfirmarGuardadoModal] = useState(false);
 
-  // Estados para persistencia Firebase
-  const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
-  const [liquidacionGuardadaId, setLiquidacionGuardadaId] = useState(null);
-  const [historialLiquidaciones, setHistorialLiquidaciones] = useState([]);
-  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const canExportConsolidado = Boolean(currentUser?.uid) && Array.isArray(consolidatedData) && consolidatedData.length > 0;
+  const canExportSala = Boolean(currentUser?.uid) && Array.isArray(reporteBySala) && reporteBySala.length > 0;
+  const canExportDiario = Boolean(currentUser?.uid) && Array.isArray(consolidatedData) && consolidatedData.length > 0 && Array.isArray(originalData) && originalData.length > 0;
 
-  const abrirModalSala = () => {
-    if (!reporteBySala) {
-      addNotification('No hay reporte por sala para exportar', 'warning');
-      return;
-    }
-    setShowSalaModal(true);
-  };
+  const canGuardar =
+    Boolean(currentUser?.uid) &&
+    Boolean(selectedFile) &&
+    Array.isArray(consolidatedData) &&
+    consolidatedData.length > 0 &&
+    Array.isArray(originalData) &&
+    originalData.length > 0;
 
-  // Función para detectar período de liquidación (derivado de la última fecha reporte del archivo ORIGINAL)
-  const detectarPeriodoLiquidacion = () => {
-    if (!originalData || !Array.isArray(originalData) || originalData.length === 0) return 'No detectado';
-    try {
-      // 1. Identificar la clave que representa la fecha de reporte (busca coincidencias flexibles)
-      const posiblesClavesFecha = [
-        'fecha reporte','fecha_reporte','fecha','fecha reporte ', 'fecha  reporte'
-      ];
-      // Tomar la primera fila con contenido para inspeccionar claves
-      const sample = originalData.find(r => r && Object.keys(r).length > 0);
-      if (!sample) return 'No detectado';
-      const claves = Object.keys(sample);
-      let claveFecha = null;
-      for (const c of claves) {
-        const cLower = c.toLowerCase().trim();
-        if (posiblesClavesFecha.some(pk => cLower.includes(pk.replace(/\s+/g,' ').trim()))) {
-          claveFecha = c;
-          break;
+  const getUserDisplayName = useCallback(() => {
+    return userProfile?.name || currentUser?.displayName || currentUser?.email || 'Usuario desconocido';
+  }, [currentUser?.displayName, currentUser?.email, userProfile?.name]);
+
+  const detectarPeriodoLiquidacion = useCallback(() => {
+    const periodos = (Array.isArray(consolidatedData) ? consolidatedData : [])
+      .map((row) => String(row?.periodoTexto || '').trim())
+      .filter(Boolean);
+
+    if (periodos.length === 0) return 'No detectado';
+
+    const counts = new Map();
+    for (const p of periodos) counts.set(p, (counts.get(p) || 0) + 1);
+    let best = periodos[0];
+    let bestCount = 0;
+    counts.forEach((count, key) => {
+      if (count > bestCount) {
+        bestCount = count;
+        best = key;
+      }
+    });
+    return best || 'No detectado';
+  }, [consolidatedData]);
+
+  const validateExcelData = useCallback(
+    (data) => {
+      const errors = [];
+      const warnings = [];
+
+      if (!Array.isArray(data)) {
+        errors.push('Los datos no son un array válido');
+        return { valid: false, errors, warnings };
+      }
+      if (data.length < 2) {
+        errors.push(`Archivo sin datos suficientes (${data.length} fila${data.length === 1 ? '' : 's'})`);
+        return { valid: false, errors, warnings };
+      }
+      if (!data[0] || !Array.isArray(data[0])) {
+        errors.push('Primera fila inválida o ausente');
+        return { valid: false, errors, warnings };
+      }
+
+      const filasConDatos = data.filter(
+        (row) => Array.isArray(row) && row.some((cell) => cell !== null && cell !== undefined && cell !== '')
+      );
+      if (filasConDatos.length < 2) {
+        errors.push('El archivo no contiene filas con datos válidos');
+        return { valid: false, errors, warnings };
+      }
+
+      const columnasEsperadas = data[0].length;
+      const filasInconsistentes = data.filter(
+        (row) =>
+          Array.isArray(row) &&
+          row.length !== columnasEsperadas &&
+          row.some((cell) => cell !== null && cell !== undefined && cell !== '')
+      );
+      if (filasInconsistentes.length > data.length * 0.1) {
+        warnings.push(`${filasInconsistentes.length} filas tienen diferente número de columnas`);
+      }
+
+      const columnasVacias = [];
+      for (let col = 0; col < columnasEsperadas; col++) {
+        const tieneValor = data.some(
+          (row) => Array.isArray(row) && row[col] !== null && row[col] !== undefined && row[col] !== ''
+        );
+        if (!tieneValor) columnasVacias.push(col);
+      }
+      if (columnasVacias.length > 0) {
+        warnings.push(
+          `${columnasVacias.length} columna${columnasVacias.length === 1 ? '' : 's'} completamente vacía${
+            columnasVacias.length === 1 ? '' : 's'
+          }`
+        );
+      }
+
+      return {
+        valid: true,
+        errors: [],
+        warnings,
+        stats: {
+          totalRows: data.length,
+          dataRows: filasConDatos.length - 1,
+          columns: columnasEsperadas,
+          emptyColumns: columnasVacias.length
+        }
+      };
+    },
+    []
+  );
+
+  const readFile = useCallback(async (file) => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  }, []);
+
+  const detectarFilaEncabezados = useCallback(
+    (data) => {
+      const HEADER_SCAN_ROWS = 15;
+      const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion'];
+
+      addLog('🔍 Analizando las primeras filas para encontrar encabezados...', 'info');
+
+      for (let fila = 0; fila < Math.min(HEADER_SCAN_ROWS, data.length); fila++) {
+        const row = data[fila];
+        if (!row) continue;
+        const rowText = row.map((cell) => String(cell || '').toLowerCase().trim());
+        const coincidencias = columnasClave.filter((clave) => rowText.some((cell) => cell.includes(clave)));
+        if (coincidencias.length >= 3) {
+          addLog(
+            `✅ Encabezados detectados en fila ${fila + 1} con ${coincidencias.length} coincidencias: ${coincidencias.join(', ')}`,
+            'success'
+          );
+          return fila;
         }
       }
-      if (!claveFecha) {
-        // fallback: cualquier clave que contenga 'fecha'
-        claveFecha = claves.find(c => c.toLowerCase().includes('fecha'));
-        if (!claveFecha) return 'No detectado';
+
+      addLog('🔍 Búsqueda estricta fallida, probando búsqueda flexible...', 'info');
+      const palabrasEncabezado = [
+        'serial',
+        'nuc',
+        'establecimiento',
+        'contrato',
+        'codigo',
+        'tipo',
+        'fecha',
+        'base',
+        'liquidacion',
+        'produccion',
+        'ingresos',
+        'casino',
+        'sala'
+      ];
+      for (let fila = 0; fila < Math.min(HEADER_SCAN_ROWS, data.length); fila++) {
+        const row = data[fila];
+        if (!row) continue;
+        const rowText = row.map((cell) => String(cell || '').toLowerCase().trim());
+        const coincidencias = palabrasEncabezado.filter((palabra) => rowText.some((cell) => cell.includes(palabra)));
+        if (coincidencias.length >= 4) {
+          addLog(
+            `✅ Encabezados detectados (flexible) en fila ${fila + 1} con ${coincidencias.length} coincidencias: ${coincidencias.join(', ')}`,
+            'success'
+          );
+          return fila;
+        }
       }
-      // 2. Extraer todas las fechas válidas
-      const fechas = [];
-      for (const row of originalData) {
-        if (!row || row[claveFecha] === undefined || row[claveFecha] === null || row[claveFecha] === '') continue;
-        let valor = row[claveFecha];
-        let fechaObj = null;
-        if (typeof valor === 'number') {
-          // Excel serial (asumiendo base 1900)
-            fechaObj = new Date((valor - 25569) * 86400 * 1000);
-        } else if (typeof valor === 'string') {
-          // Normalizar separadores
-          const vTrim = valor.trim();
-          // Intento directo
-          const directo = new Date(vTrim);
-          if (!isNaN(directo.getTime())) {
-            fechaObj = directo;
-          } else {
-            // Intentar DD/MM/YYYY
-            const m = vTrim.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-            if (m) {
-              const d = parseInt(m[1]);
-              const mo = parseInt(m[2]) - 1;
-              let y = parseInt(m[3]);
-              if (y < 100) y += 2000; // normalizar años cortos
-              fechaObj = new Date(y, mo, d);
+
+      if (data[0]) {
+        const primeraFila = data[0].map((cell) => String(cell || '').toLowerCase().trim());
+        const coincidenciasPrimera = palabrasEncabezado.filter((palabra) => primeraFila.some((cell) => cell.includes(palabra)));
+        if (coincidenciasPrimera.length >= 4) {
+          addLog('✅ Primera fila contiene palabras clave, usando como encabezados', 'success');
+          return 0;
+        }
+      }
+
+      addLog('⚠️ No se detectaron encabezados automáticamente, usando fila 2 como fallback', 'warning');
+      return 1;
+    },
+    [addLog]
+  );
+
+  const procesarDatos = useCallback(
+    (data, headerRow) => {
+      const headers = data[headerRow];
+      const rows = data.slice(headerRow + 1);
+
+      const columnMap = {};
+      headers.forEach((header, index) => {
+        const headerLower = String(header || '').toLowerCase().trim();
+
+        if (headerLower.includes('nuc')) columnMap.nuc = index;
+        else if (headerLower.includes('serial')) columnMap.serial = index;
+        else if (headerLower.includes('establecimiento')) columnMap.establecimiento = index;
+        else if (headerLower.includes('tipo') && headerLower.includes('apuesta')) columnMap.tipoApuesta = index;
+        else if (headerLower.includes('fecha') && headerLower.includes('reporte')) columnMap.fecha = index;
+        else if (headerLower.includes('contrato')) columnMap.contrato = index;
+        else if (headerLower.includes('cod') && headerLower.includes('local')) columnMap.codLocal = index;
+        else if (headerLower.includes('código') && headerLower.includes('marca')) columnMap.codigoMarca = index;
+        else if (
+          (headerLower.includes('base') && (headerLower.includes('liquidación') || headerLower.includes('liquidacion'))) ||
+          headerLower === 'base liquidación diaria' ||
+          headerLower === 'base liquidacion diaria' ||
+          headerLower.includes('produccion') ||
+          headerLower.includes('ingresos') ||
+          headerLower.includes('valor') ||
+          headerLower.includes('monto')
+        ) {
+          columnMap.baseLiquidacion = index;
+        } else if (headerLower.includes('sala') || headerLower.includes('casino')) {
+          columnMap.establecimiento = index;
+        } else if (headerLower.includes('categoria') || headerLower.includes('tipo')) {
+          columnMap.tipoApuesta = index;
+        }
+      });
+
+      const columnasEsenciales = ['nuc', 'baseLiquidacion'];
+      const columnasFaltantes = columnasEsenciales.filter((col) => columnMap[col] === undefined);
+      if (columnasFaltantes.length > 0) {
+        addLog(`⚠️ Columnas faltantes: ${columnasFaltantes.join(', ')}`, 'warning');
+      }
+
+      return rows
+        .map((row) => {
+          const obj = {};
+          Object.keys(columnMap).forEach((key) => {
+            obj[key] = row[columnMap[key]] || '';
+          });
+          return obj;
+        })
+        .filter((row) => row.nuc && row.nuc !== '');
+    },
+    [addLog]
+  );
+
+  const formatearFechaSinTimezone = useCallback((fecha) => {
+    try {
+      if (!fecha || isNaN(fecha.getTime())) return '';
+      const dia = String(fecha.getUTCDate()).padStart(2, '0');
+      const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+      const año = fecha.getUTCFullYear();
+      return `${dia}/${mes}/${año}`;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const calcularDiasMes = useCallback((fecha) => {
+    try {
+      if (!fecha) return 31;
+      const fechaObj = new Date(fecha);
+      if (isNaN(fechaObj.getTime())) return 31;
+      const year = fechaObj.getFullYear();
+      const month = fechaObj.getMonth();
+      return new Date(year, month + 1, 0).getDate();
+    } catch {
+      return 31;
+    }
+  }, []);
+
+  const determinarNovedad = useCallback((diasTransmitidos, diasMes) => {
+    try {
+      const dias = parseInt(diasTransmitidos);
+      const totalDias = parseInt(diasMes);
+      if (dias === totalDias) return 'Sin cambios';
+      if (dias < totalDias) return 'Retiro / Adición';
+      return 'Retiro / Adición';
+    } catch {
+      return 'Sin cambios';
+    }
+  }, []);
+
+  const convertirFechaAPeriodo = useCallback((fecha) => {
+    try {
+      if (!fecha) return '';
+      const fechaObj = new Date(fecha);
+      if (isNaN(fechaObj.getTime())) return '';
+      const meses = [
+        'Enero',
+        'Febrero',
+        'Marzo',
+        'Abril',
+        'Mayo',
+        'Junio',
+        'Julio',
+        'Agosto',
+        'Septiembre',
+        'Octubre',
+        'Noviembre',
+        'Diciembre'
+      ];
+      return `${meses[fechaObj.getMonth()]} ${fechaObj.getFullYear()}`;
+    } catch {
+      return '';
+    }
+  }, []);
+
+  const consolidarDatos = useCallback(
+    (data, empresaValue) => {
+      const grouped = {};
+      data.forEach((row) => {
+        // ✅ FIX: Agrupar SOLO por NUC (no por NUC+establecimiento)
+        // Una máquina puede tener múltiples establecimientos pero es la MISMA máquina
+        const key = String(row.nuc).trim();
+        if (!grouped[key]) {
+          grouped[key] = {
+            nuc: row.nuc,
+            serial: row.serial,
+            establecimiento: row.establecimiento,
+            tipoApuesta: row.tipoApuesta,
+            empresa: empresaValue,
+            produccion: 0,
+            diasTransmitidos: 0,
+            fechas: []
+          };
+        }
+
+        let baseLiq = 0;
+        if (row.baseLiquidacion !== undefined && row.baseLiquidacion !== '') {
+          baseLiq = parseFloat(row.baseLiquidacion) || 0;
+        }
+        grouped[key].produccion += baseLiq;
+        grouped[key].diasTransmitidos += 1;
+
+        if (row.fecha && row.fecha !== '') {
+          let fechaObj;
+          if (typeof row.fecha === 'number') fechaObj = new Date((row.fecha - 25569) * 86400 * 1000);
+          else fechaObj = new Date(row.fecha);
+          if (!isNaN(fechaObj.getTime())) grouped[key].fechas.push(fechaObj);
+        }
+      });
+
+      return Object.values(grouped).map((item) => {
+        const derechosExplotacion = item.produccion * 0.12;
+        const gastosAdministracion = derechosExplotacion * 0.01;
+        const totalImpuestos = derechosExplotacion + gastosAdministracion;
+
+        let fechaInicio = null;
+        let fechaFin = null;
+        if (item.fechas.length > 0) {
+          const fechasValidas = item.fechas.filter((f) => !isNaN(f.getTime()));
+          if (fechasValidas.length > 0) {
+            fechaInicio = new Date(Math.min(...fechasValidas.map((f) => f.getTime())));
+            fechaFin = new Date(Math.max(...fechasValidas.map((f) => f.getTime())));
+          }
+        }
+
+        const diasMes = fechaFin ? calcularDiasMes(fechaFin) : 31;
+        const periodoTexto = fechaFin ? convertirFechaAPeriodo(fechaFin) : '';
+        const novedad = determinarNovedad(item.diasTransmitidos, diasMes);
+
+        return {
+          empresa: item.empresa,
+          serial: item.serial,
+          nuc: item.nuc,
+          establecimiento: item.establecimiento,
+          diasTransmitidos: item.diasTransmitidos,
+          diasMes,
+          primerDia: formatearFechaSinTimezone(fechaInicio),
+          ultimoDia: formatearFechaSinTimezone(fechaFin),
+          periodoTexto,
+          tipoApuesta: item.tipoApuesta,
+          produccion: item.produccion,
+          derechosExplotacion,
+          gastosAdministracion,
+          totalImpuestos,
+          novedad
+        };
+      });
+    },
+    [calcularDiasMes, convertirFechaAPeriodo, determinarNovedad, formatearFechaSinTimezone]
+  );
+
+  const generarReporteSala = useCallback((consolidated) => {
+    const grouped = {};
+    consolidated.forEach((item) => {
+      if (!grouped[item.establecimiento]) {
+        grouped[item.establecimiento] = {
+          establecimiento: item.establecimiento,
+          empresa: item.empresa,
+          totalMaquinas: 0,
+          produccion: 0,
+          derechosExplotacion: 0,
+          gastosAdministracion: 0,
+          totalImpuestos: 0
+        };
+      }
+      const grupo = grouped[item.establecimiento];
+      grupo.totalMaquinas += 1;
+      grupo.produccion += item.produccion;
+      grupo.derechosExplotacion += item.derechosExplotacion;
+      grupo.gastosAdministracion += item.gastosAdministracion;
+      grupo.totalImpuestos += item.totalImpuestos;
+    });
+    return Object.values(grouped)
+      .map((item) => ({
+        ...item,
+        promedioEstablecimiento: item.totalMaquinas > 0 ? item.produccion / item.totalMaquinas : 0
+      }))
+      .sort((a, b) => b.produccion - a.produccion);
+  }, []);
+
+  const buscarEmpresaPorContrato = useCallback(
+    (numeroContrato) => {
+      if (!numeroContrato) return null;
+      const numeroContratoNormalizado = numeroContrato.toString().trim().toUpperCase();
+      const empresaEncontrada = (companies || []).find((company) => {
+        if (!company.contractNumber) return false;
+        const contratoEmpresa = company.contractNumber.toString().trim().toUpperCase();
+        return contratoEmpresa === numeroContratoNormalizado;
+      });
+      return empresaEncontrada || null; // Retornar objeto completo o null
+    },
+    [companies]
+  );
+
+  const resetLiquidacion = useCallback(() => {
+    setSelectedFile(null);
+    setArchivoTarifas(null);
+    setTarifasOficiales({});
+    setMetricsData(null);
+    setEmpresa('GENERAL');
+    setEmpresaCompleta(null);
+    setConsolidatedData(null);
+    setReporteBySala(null);
+    setOriginalData(null);
+    setLiquidacionGuardadaId(null);
+    setActiveStep(1);
+    setLogs([]);
+    addLog('🔄 Estado reiniciado. Listo para cargar un nuevo archivo.', 'info');
+  }, [addLog]);
+
+  const cancelarValidacion = useCallback(() => {
+    setShowValidationModal(false);
+    setValidationData(null);
+    setPendingLiquidacion(null);
+    setShowTarifasOptions(false);
+    setLiquidacionCoincide(true);
+    setProcesandoTarifasValidacion(false);
+    resetLiquidacion();
+
+    try {
+      if (currentUser?.uid) {
+        logActivity(
+          'liquidacion_validacion_cancelada',
+          'liquidacion',
+          empresa || 'GENERAL',
+          {
+            empresa: empresa || 'GENERAL'
+          },
+          currentUser.uid,
+          getUserDisplayName(),
+          currentUser.email
+        );
+      }
+    } catch {
+      // best-effort
+    }
+  }, [currentUser?.email, currentUser?.uid, empresa, getUserDisplayName, logActivity, resetLiquidacion]);
+
+  const confirmarValidacion = useCallback(async () => {
+    const payload = validationData;
+    if (!payload || !Array.isArray(payload.consolidated) || payload.consolidated.length === 0) return;
+
+    setConsolidatedData(payload.consolidated);
+    setReporteBySala(payload.reporteSala);
+    setMetricsData(payload.metrics);
+    setActiveStep(3);
+
+    addLog(`📊 ${payload.totalMaquinas} máquinas consolidadas`, 'success');
+    addLog(`🏢 ${payload.totalEstablecimientos} establecimientos procesados`, 'success');
+    addLog('✅ Validación confirmada. Datos listos para exportar/guardar.', 'success');
+    addNotification('Liquidación validada correctamente', 'success');
+
+    setShowValidationModal(false);
+    setShowTarifasOptions(false);
+    setLiquidacionCoincide(true);
+    setProcesandoTarifasValidacion(false);
+    setPendingLiquidacion(null);
+    setValidationData(null);
+    setActiveTab(0);
+
+    try {
+      if (currentUser?.uid) {
+        await logActivity(
+          'liquidacion_validacion_confirmada',
+          'liquidacion',
+          payload.empresaFinal || empresa || 'GENERAL',
+          {
+            empresa: payload.empresaFinal || empresa || 'GENERAL',
+            numeroContrato: payload.numeroContrato || 'No detectado',
+            totalMaquinas: payload.totalMaquinas || 0,
+            totalEstablecimientos: payload.totalEstablecimientos || 0,
+            totalProduccion: payload.totalProduccion || 0,
+            totalImpuestos: payload.totalImpuestos || 0,
+            tieneTarifas: Boolean(archivoTarifas) || Boolean(pendingLiquidacion?.archivoTarifas)
+          },
+          currentUser.uid,
+          getUserDisplayName(),
+          currentUser.email
+        );
+      }
+    } catch (e) {
+      console.warn('Error logging validacion confirmada:', e);
+    }
+  }, [
+    addLog,
+    addNotification,
+    archivoTarifas,
+    currentUser?.email,
+    currentUser?.uid,
+    empresa,
+    getUserDisplayName,
+    logActivity,
+    pendingLiquidacion?.archivoTarifas,
+    validationData
+  ]);
+
+  const handleLiquidacionCoincide = useCallback(() => {
+    setLiquidacionCoincide(true);
+    setShowTarifasOptions(false);
+    confirmarValidacion();
+  }, [confirmarValidacion]);
+
+  const handleLiquidacionNoCoincide = useCallback(() => {
+    setLiquidacionCoincide(false);
+    setShowTarifasOptions(true);
+    addLog('⚠️ Liquidación marcada como no coincidente - Se requiere ajuste de tarifas', 'warning');
+  }, [addLog]);
+
+  const seleccionarArchivoTarifasValidacion = useCallback(() => {
+    validationTarifasInputRef.current?.click();
+  }, []);
+
+  const continuarSinTarifas = useCallback(() => {
+    addLog('➡️ Continuando sin ajustes de tarifas', 'info');
+    confirmarValidacion();
+  }, [addLog, confirmarValidacion]);
+
+  const calcularMetricasBasicas = useCallback((consolidated, reporteSala) => {
+    const consolidatedArr = Array.isArray(consolidated) ? consolidated : [];
+    const reporteArr = Array.isArray(reporteSala) ? reporteSala : [];
+
+    const totalProduccion = consolidatedArr.reduce((sum, item) => sum + (Number(item?.produccion) || 0), 0);
+    const totalDerechos = consolidatedArr.reduce((sum, item) => sum + (Number(item?.derechosExplotacion) || 0), 0);
+    const totalGastos = consolidatedArr.reduce((sum, item) => sum + (Number(item?.gastosAdministracion) || 0), 0);
+
+    return {
+      totalMaquinas: consolidatedArr.length,
+      totalEstablecimientos: reporteArr.length,
+      totalProduccion,
+      totalDerechos,
+      totalGastos,
+      totalImpuestos: totalDerechos + totalGastos
+    };
+  }, []);
+
+  const buildValidationPayload = useCallback(
+    (consolidated, reporteSala, metrics, empresaFinal, numeroContrato) => {
+      const m = metrics || calcularMetricasBasicas(consolidated, reporteSala);
+      return {
+        consolidated,
+        reporteSala,
+        metrics: m,
+        totalMaquinas: Number(m?.totalMaquinas) || (Array.isArray(consolidated) ? consolidated.length : 0),
+        totalEstablecimientos: Number(m?.totalEstablecimientos) || (Array.isArray(reporteSala) ? reporteSala.length : 0),
+        totalProduccion: Number(m?.totalProduccion) || 0,
+        totalDerechos: Number(m?.totalDerechos) || 0,
+        totalGastos: Number(m?.totalGastos) || 0,
+        totalImpuestos: Number(m?.totalImpuestos) || 0,
+        empresaFinal: empresaFinal || 'GENERAL',
+        numeroContrato: numeroContrato || null
+      };
+    },
+    [calcularMetricasBasicas]
+  );
+
+  const aplicarTarifasDesdeArchivo = useCallback(
+    async (tarifasFile, consolidatedBase, empresaFinal) => {
+      if (!tarifasFile) return { consolidated: consolidatedBase, reporteSala: generarReporteSala(consolidatedBase), metrics: calcularMetricasBasicas(consolidatedBase, generarReporteSala(consolidatedBase)), tarifasOficiales: {} };
+
+      addLog('📄 Procesando archivo de tarifas...', 'info');
+
+      let tarifasOficialesCalculadas = {};
+      let consolidatedConTarifas = Array.isArray(consolidatedBase) ? consolidatedBase : [];
+
+      try {
+        const tarifasData = await tarifasFile.arrayBuffer();
+        const workbook = XLSX.read(tarifasData, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        // Detectar encabezados
+        let headerRow = -1;
+        for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+          const row = jsonData[i];
+          if (
+            Array.isArray(row) &&
+            row.some(
+              (cell) =>
+                cell &&
+                typeof cell === 'string' &&
+                (cell.toLowerCase().includes('nuc') || cell.toLowerCase().includes('tarifa'))
+            )
+          ) {
+            headerRow = i;
+            break;
+          }
+        }
+
+        if (headerRow === -1) {
+          addLog('❌ No se encontraron encabezados válidos en el archivo de tarifas', 'error');
+          return {
+            consolidated: consolidatedConTarifas,
+            reporteSala: generarReporteSala(consolidatedConTarifas),
+            metrics: calcularMetricasBasicas(consolidatedConTarifas, generarReporteSala(consolidatedConTarifas)),
+            tarifasOficiales: {}
+          };
+        }
+
+        const headers = jsonData[headerRow];
+        const dataRows = jsonData.slice(headerRow + 1);
+
+        const nucIndex = headers.findIndex((h) => h && h.toString().toLowerCase().includes('nuc'));
+        const tarifaIndex = headers.findIndex((h) => h && h.toString().toLowerCase().includes('tarifa'));
+        const derechosIndex = headers.findIndex((h) => h && h.toString().toLowerCase().includes('derechos'));
+        const gastosIndex = headers.findIndex((h) => h && h.toString().toLowerCase().includes('gastos'));
+
+        if (nucIndex === -1 || tarifaIndex === -1) {
+          addLog('❌ No se encontraron columnas NUC o Tarifa en el archivo de tarifas', 'error');
+          return {
+            consolidated: consolidatedConTarifas,
+            reporteSala: generarReporteSala(consolidatedConTarifas),
+            metrics: calcularMetricasBasicas(consolidatedConTarifas, generarReporteSala(consolidatedConTarifas)),
+            tarifasOficiales: {}
+          };
+        }
+
+        let tarifasEncontradas = 0;
+        dataRows.forEach((row) => {
+          if (!row) return;
+          const nucRaw = row[nucIndex];
+          const tipoRaw = row[tarifaIndex];
+          if (!nucRaw || !tipoRaw) return;
+          if (String(tipoRaw).trim() !== 'Tarifa fija') return;
+
+          const nuc = String(nucRaw).trim();
+          const derechos = parseFloat(row[derechosIndex]) || 0;
+          const gastos = parseFloat(row[gastosIndex]) || 0;
+
+          if (derechos > 0 || gastos > 0) {
+            tarifasOficialesCalculadas[nuc] = {
+              derechosAdicionales: derechos,
+              gastosAdicionales: gastos
+            };
+            tarifasEncontradas++;
+          }
+        });
+
+        if (tarifasEncontradas > 0) {
+          consolidatedConTarifas = consolidatedConTarifas.map((maquina) => {
+            const nucString = String(maquina?.nuc ?? '').trim();
+            const infoTarifa = tarifasOficialesCalculadas[nucString];
+            if (!infoTarifa) {
+              return { ...maquina, tarifa: maquina?.tarifa || 'Cálculo original (sin ajuste)', tipoTarifa: maquina?.tipoTarifa || 'Tarifa variable' };
+            }
+
+            const nuevosDerechos = (Number(maquina?.derechosExplotacion) || 0) + (Number(infoTarifa.derechosAdicionales) || 0);
+            const nuevosGastos = (Number(maquina?.gastosAdministracion) || 0) + (Number(infoTarifa.gastosAdicionales) || 0);
+
+            return {
+              ...maquina,
+              derechosExplotacion: nuevosDerechos,
+              gastosAdministracion: nuevosGastos,
+              totalImpuestos: nuevosDerechos + nuevosGastos,
+              tarifa: 'Tarifa fija (valores sumados)',
+              tipoTarifa: 'Tarifa fija'
+            };
+          });
+          addLog(`✅ ${tarifasEncontradas} tarifas aplicadas correctamente`, 'success');
+          addNotification(`Tarifas aplicadas: ${tarifasEncontradas} NUC`, 'success');
+        } else {
+          addLog('⚠️ No se encontraron tarifas válidas en el archivo', 'warning');
+          addNotification('No se encontraron tarifas válidas', 'warning');
+        }
+      } catch (tarifasError) {
+        addLog(`❌ Error procesando archivo de tarifas: ${tarifasError.message}`, 'error');
+        addNotification('Error procesando archivo de tarifas', 'error');
+      }
+
+      // Recalcular reporte por sala y métricas con tarifas aplicadas
+      const consolidatedFinal = consolidatedConTarifas.map((item) => ({ ...item, empresa: empresaFinal }));
+      const reporteSalaFinal = generarReporteSala(consolidatedFinal);
+      const metricsFinal = calcularMetricasBasicas(consolidatedFinal, reporteSalaFinal);
+
+      return {
+        consolidated: consolidatedFinal,
+        reporteSala: reporteSalaFinal,
+        metrics: metricsFinal,
+        tarifasOficiales: tarifasOficialesCalculadas
+      };
+    },
+    [addLog, addNotification, calcularMetricasBasicas, generarReporteSala]
+  );
+
+  const procesarArchivo = useCallback(
+    async (file, tarifasFile = null, { allowReplace = false, source = 'archivo' } = {}) => {
+      if (!file) return null;
+
+      if (!allowReplace) {
+        if (companiesLoading) {
+          addNotification('Por favor espera a que se carguen las empresas antes de subir archivos...', 'warning');
+          return null;
+        }
+        if (!companies || companies.length === 0) {
+          addNotification('No se encontraron empresas. Verifica tu conexión.', 'error');
+          return null;
+        }
+        if (processing) return null;
+        if (selectedFile || (Array.isArray(consolidatedData) && consolidatedData.length > 0)) {
+          addNotification('Ya hay una liquidación cargada. Usa Reiniciar para cargar otra.', 'warning');
+          return null;
+        }
+      }
+
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv'
+      ];
+      if (file?.type && !validTypes.includes(file.type)) {
+        addNotification('Solo se permiten archivos Excel (.xlsx, .xls) o CSV', 'error');
+        return null;
+      }
+
+      // Si viene del historial y ya hay algo cargado, reiniciar primero
+      if (allowReplace && (selectedFile || (Array.isArray(consolidatedData) && consolidatedData.length > 0))) {
+        resetLiquidacion();
+      }
+
+      setProcessing(true);
+      setSelectedFile(file);
+      addLog(`📁 ${source === 'historial' ? 'Archivo cargado desde historial' : 'Archivo seleccionado'}: ${file.name}`, 'success');
+      setActiveStep(2);
+
+      try {
+        const data = await readFile(file);
+        const validation = validateExcelData(data);
+        if (!validation.valid) {
+          addLog(`❌ Archivo inválido: ${validation.errors.join(', ')}`, 'error');
+          addNotification(`Error: ${validation.errors[0] || 'Archivo inválido'}`, 'error');
+          throw new Error(validation.errors[0] || 'Archivo inválido');
+        }
+        if (validation.warnings.length > 0) {
+          validation.warnings.forEach((w) => addLog(`⚠️ ${w}`, 'warning'));
+        }
+        addLog(`📊 Archivo validado: ${validation.stats.dataRows} filas de datos`, 'info');
+
+        addLog('🏢 Detectando empresa del archivo...', 'info');
+        let numeroContrato = null;
+        const HEADER_SCAN_ROWS = 15;
+        const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
+        for (let i = 1; i < Math.min(HEADER_SCAN_ROWS, data.length); i++) {
+          const fila = data[i];
+          if (fila && fila[0]) {
+            const posibleContrato = fila[0].toString().trim();
+            const posibleContratoLower = posibleContrato.toLowerCase();
+            const esHeader = valoresIgnorados.some(
+              (palabra) => posibleContratoLower === palabra || posibleContratoLower.startsWith(palabra + ' ')
+            );
+            if (esHeader) continue;
+            if (posibleContrato) {
+              numeroContrato = posibleContrato;
+              break;
             }
           }
         }
-        if (fechaObj && !isNaN(fechaObj.getTime())) fechas.push(fechaObj);
-      }
-      if (fechas.length === 0) return 'No detectado';
-      // 3. Tomar la fecha máxima (último día reportado)
-      const fechaFin = new Date(Math.max(...fechas.map(f => f.getTime())));
-      if (isNaN(fechaFin.getTime())) return 'No detectado';
-      // 4. Formatear a "Mes Año" con mayúscula inicial
-      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      return `${meses[fechaFin.getMonth()]} ${fechaFin.getFullYear()}`;
-    } catch (e) {
-      console.warn('Error detectando período liquidación:', e);
-      return 'No detectado';
-    }
-  };
 
-  // Función para mostrar modal de confirmación de guardado
-  const mostrarConfirmacionGuardado = () => {
-    if (!originalData || !consolidatedData) {
+        let empresaObj = null;
+        if (numeroContrato && Array.isArray(companies) && companies.length > 0) {
+          empresaObj = buscarEmpresaPorContrato(numeroContrato);
+          if (empresaObj) {
+            setEmpresa(empresaObj.name);
+            setEmpresaCompleta(empresaObj);
+            addLog(`✅ Empresa detectada: ${empresaObj.name}`, 'success');
+            addLog(`🏭 Logo disponible: ${empresaObj.logoURL ? 'SÍ' : 'NO'}`, empresaObj.logoURL ? 'success' : 'warning');
+          } else {
+            const fallback = `Contrato ${numeroContrato} (No encontrado)`;
+            setEmpresa(fallback);
+            setEmpresaCompleta(null);
+            addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
+          }
+        } else if (numeroContrato) {
+          const fallback = `Contrato ${numeroContrato} (No encontrado)`;
+          setEmpresa(fallback);
+          setEmpresaCompleta(null);
+          addLog(`ℹ️ Empresas no disponibles para validar contrato (${numeroContrato})`, 'info');
+        } else {
+          setEmpresa('Empresa no detectada');
+          setEmpresaCompleta(null);
+          addLog('⚠️ No se pudo detectar número de contrato', 'warning');
+        }
+
+        const headerRow = detectarFilaEncabezados(data);
+        const processedRows = procesarDatos(data, headerRow);
+        setOriginalData(processedRows);
+
+        const empresaFinal =
+          empresaObj?.name || (numeroContrato ? `Contrato ${numeroContrato} (No encontrado)` : 'Empresa no detectada');
+        const consolidatedBase = consolidarDatos(processedRows, empresaFinal);
+
+        // Aplicar tarifas (si llegan) y recalcular
+        let consolidated = consolidatedBase;
+        let reporteSala = generarReporteSala(consolidated);
+        let metrics = calcularMetricasBasicas(consolidated, reporteSala);
+        let tarifas = {};
+
+        if (tarifasFile) {
+          setArchivoTarifas(tarifasFile);
+          const tarifasResult = await aplicarTarifasDesdeArchivo(tarifasFile, consolidatedBase, empresaFinal);
+          consolidated = tarifasResult.consolidated;
+          reporteSala = tarifasResult.reporteSala;
+          metrics = tarifasResult.metrics;
+          tarifas = tarifasResult.tarifasOficiales;
+          setTarifasOficiales(tarifas);
+        } else {
+          setArchivoTarifas(null);
+          setTarifasOficiales({});
+        }
+
+        // Historial: aplicar directamente (sin modal) para navegación rápida.
+        if (source === 'historial') {
+          setConsolidatedData(consolidated);
+          setReporteBySala(reporteSala);
+          setMetricsData(metrics);
+          setActiveStep(3);
+
+          addLog(`📊 ${consolidated.length} máquinas consolidadas`, 'success');
+          addLog(`🏢 ${reporteSala.length} establecimientos procesados`, 'success');
+          addNotification('Liquidación procesada correctamente', 'success');
+        } else {
+          // Archivo nuevo: preparar validación (no fijar datos hasta confirmar)
+          const validacion = buildValidationPayload(consolidated, reporteSala, metrics, empresaFinal, numeroContrato);
+          setPendingLiquidacion({
+            source,
+            empresaFinal,
+            numeroContrato,
+            originalFile: file,
+            archivoTarifas: tarifasFile || null,
+            consolidatedBase,
+            consolidated,
+            reporteSala,
+            metrics,
+            tarifasOficiales: tarifas
+          });
+          setValidationData(validacion);
+          setShowValidationModal(true);
+          setShowTarifasOptions(false);
+          setLiquidacionCoincide(true);
+          addLog('🔍 Validación requerida: revisa los totales antes de continuar', 'info');
+        }
+
+        try {
+          if (currentUser?.uid) {
+            await logActivity(
+              source === 'historial' ? 'liquidacion_historial_procesada' : 'archivo_liquidacion_procesado',
+              'liquidacion',
+              empresaFinal || 'GENERAL',
+              {
+                fileName: file.name || 'sin-nombre',
+                fileSize: file.size || 0,
+                empresa: empresaFinal,
+                numeroContrato: numeroContrato || 'No detectado',
+                totalMaquinas: consolidated.length,
+                totalEstablecimientos: reporteSala.length
+              },
+              currentUser.uid,
+              getUserDisplayName(),
+              currentUser.email
+            );
+          }
+        } catch (logError) {
+          console.error('Error logging liquidacion processing:', logError);
+        }
+
+        return {
+          empresaFinal,
+          numeroContrato,
+          originalData: processedRows,
+          consolidatedData: consolidated,
+          reporteBySala: reporteSala,
+          metricsData: metrics,
+          tarifasOficiales: tarifas
+        };
+      } catch (error) {
+        console.error('Error procesando liquidación:', error);
+        addLog(`❌ Error procesando liquidación: ${error.message}`, 'error');
+        addNotification(`Error procesando liquidación: ${error.message}`, 'error');
+        setSelectedFile(null);
+        setActiveStep(1);
+        throw error;
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [
+      addLog,
+      addNotification,
+      buscarEmpresaPorContrato,
+      companies,
+      companiesLoading,
+      consolidarDatos,
+      consolidatedData,
+      currentUser?.email,
+      currentUser?.uid,
+      detectarFilaEncabezados,
+      aplicarTarifasDesdeArchivo,
+      calcularMetricasBasicas,
+      generarReporteSala,
+      getUserDisplayName,
+      logActivity,
+      procesarDatos,
+      processing,
+      readFile,
+      resetLiquidacion,
+      selectedFile,
+      validateExcelData,
+      buildValidationPayload
+    ]
+  );
+
+  const handleValidationTarifasInputChange = useCallback(
+    async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      if (!pendingLiquidacion) {
+        addNotification('No hay una liquidación pendiente para ajustar', 'warning');
+        return;
+      }
+      if (procesandoTarifasValidacion || processing) return;
+
+      setProcesandoTarifasValidacion(true);
+      addLog('📄 Procesando archivo de tarifas (validación)...', 'info');
+
+      try {
+        const empresaFinal = pendingLiquidacion.empresaFinal || empresa || 'GENERAL';
+        const consolidatedBase = pendingLiquidacion.consolidatedBase || pendingLiquidacion.consolidated || [];
+        const tarifasResult = await aplicarTarifasDesdeArchivo(file, consolidatedBase, empresaFinal);
+
+        setArchivoTarifas(file);
+        setTarifasOficiales(tarifasResult.tarifasOficiales || {});
+
+        const validacionActualizada = buildValidationPayload(
+          tarifasResult.consolidated,
+          tarifasResult.reporteSala,
+          tarifasResult.metrics,
+          empresaFinal,
+          pendingLiquidacion.numeroContrato
+        );
+        setValidationData(validacionActualizada);
+        setPendingLiquidacion((prev) =>
+          prev
+            ? {
+                ...prev,
+                archivoTarifas: file,
+                consolidated: tarifasResult.consolidated,
+                reporteSala: tarifasResult.reporteSala,
+                metrics: tarifasResult.metrics,
+                tarifasOficiales: tarifasResult.tarifasOficiales || {}
+              }
+            : prev
+        );
+
+        setLiquidacionCoincide(true);
+        addLog('✅ Tarifas aplicadas. Confirmando validación...', 'success');
+
+        // Mantener comportamiento de V1: cerrar automáticamente después de aplicar tarifas.
+        setTimeout(() => {
+          confirmarValidacion();
+        }, 900);
+      } catch (error) {
+        console.error('Error aplicando tarifas (validación):', error);
+        addLog(`❌ Error aplicando tarifas: ${error.message}`, 'error');
+        addNotification('Error aplicando tarifas', 'error');
+      } finally {
+        setProcesandoTarifasValidacion(false);
+      }
+    },
+    [
+      addLog,
+      addNotification,
+      aplicarTarifasDesdeArchivo,
+      buildValidationPayload,
+      confirmarValidacion,
+      empresa,
+      pendingLiquidacion,
+      procesandoTarifasValidacion,
+      processing
+    ]
+  );
+
+  const processSelectedFile = useCallback(
+    async (file) => {
+      await procesarArchivo(file, null, { allowReplace: false, source: 'archivo' });
+    },
+    [
+      procesarArchivo
+    ]
+  );
+
+  const handleSelectTarifasFile = useCallback(() => {
+    tarifasInputRef.current?.click();
+  }, []);
+
+  const handleTarifasInputChange = useCallback(
+    async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      if (!Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+        addNotification('Primero procesa una liquidación para aplicar tarifas', 'warning');
+        return;
+      }
+      if (processing) return;
+
+      // Aplicar tarifas sobre el consolidado actual
+      setProcessing(true);
+      try {
+        setArchivoTarifas(file);
+        const empresaFinal = empresa || 'GENERAL';
+        const tarifasResult = await aplicarTarifasDesdeArchivo(file, consolidatedData, empresaFinal);
+        setConsolidatedData(tarifasResult.consolidated);
+        setReporteBySala(tarifasResult.reporteSala);
+        setMetricsData(tarifasResult.metrics);
+        setTarifasOficiales(tarifasResult.tarifasOficiales);
+        addLog('✅ Tarifas aplicadas al consolidado actual', 'success');
+      } catch (error) {
+        console.error('Error aplicando tarifas:', error);
+        addLog(`❌ Error aplicando tarifas: ${error.message}`, 'error');
+        addNotification('Error aplicando tarifas', 'error');
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [addLog, addNotification, aplicarTarifasDesdeArchivo, consolidatedData, empresa, processing]
+  );
+
+  const handleSelectFile = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileInputChange = useCallback(
+    (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (file) processSelectedFile(file);
+    },
+    [processSelectedFile]
+  );
+
+  // Drag & Drop handlers
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // No cambiar estado visual si ya hay archivos procesados
+    if (selectedFile || liquidacionGuardadaId) {
+      return;
+    }
+    
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, [selectedFile, liquidacionGuardadaId]);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    // Validación: Prevenir drop si empresas no están disponibles
+    if (companiesLoading) {
+      addNotification({
+        type: 'warning',
+        title: 'Cargando empresas',
+        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    if (!companies || companies.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Sin empresas disponibles',
+        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
+        icon: 'error'
+      });
+      return;
+    }
+
+    // Prevenir drop si ya hay archivos procesados
+    if (selectedFile || liquidacionGuardadaId) {
+      addNotification({
+        type: 'warning',
+        title: 'Ya hay archivos cargados',
+        message: 'Reinicia la liquidación antes de cargar nuevos archivos.',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      processSelectedFile(file);
+    }
+  }, [selectedFile, liquidacionGuardadaId, companiesLoading, companies, addNotification, processSelectedFile]);
+
+  const abrirModalSala = useCallback(() => {
+    if (!Array.isArray(reporteBySala) || reporteBySala.length === 0) {
+      addNotification('No hay reporte por sala para exportar', 'warning');
+      return;
+    }
+    if (!Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+      addNotification('No hay datos consolidados para filtrar la sala', 'warning');
+      return;
+    }
+    setShowSalaModal(true);
+  }, [addNotification, consolidatedData, reporteBySala]);
+
+  const abrirModalDaily = useCallback(() => {
+    if (!Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+      addNotification('No hay datos para exportar reporte diario', 'warning');
+      return;
+    }
+    if (!Array.isArray(originalData) || originalData.length === 0) {
+      addNotification('No hay archivo original con datos diarios', 'warning');
+      return;
+    }
+    setShowDailyModal(true);
+  }, [addNotification, consolidatedData, originalData]);
+
+  const mostrarConfirmacionGuardado = useCallback(() => {
+    if (!canGuardar) {
       addNotification('No hay datos suficientes para guardar', 'warning');
       return;
     }
     setShowConfirmarGuardadoModal(true);
-  };
+  }, [addNotification, canGuardar]);
 
-  // Función para guardar liquidación en Firebase (con confirmación)
-  const confirmarGuardadoLiquidacion = async (periodoEditado) => {
+  const confirmarGuardadoLiquidacion = useCallback(async () => {
     if (!currentUser?.uid) {
-      addNotification('Debes estar autenticado para guardar liquidaciones', 'warning');
+      addNotification('Debes iniciar sesión para guardar', 'warning');
       return;
     }
+    if (!canGuardar) {
+      addNotification('No hay datos suficientes para guardar', 'warning');
+      return;
+    }
+    if (guardandoLiquidacion) return;
+
+    setGuardandoLiquidacion(true);
+    addLog('💾 Guardando liquidación en Firebase...', 'info');
 
     try {
-      setGuardandoLiquidacion(true);
-      addLog('💾 Guardando solo archivos originales en Firebase...', 'info');
-      
-      // Usar el período editado del modal o detectado automáticamente
-      const periodoDetectado = periodoEditado || detectarPeriodoLiquidacion();
-      
-      // Mostrar qué archivos se van a guardar
-      addLog(`📁 Archivo principal: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
-      if (archivoTarifas) {
-        addLog(`📄 Archivo de tarifas: ${archivoTarifas.name} (${(archivoTarifas.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
-      } else {
-        addLog('📊 Sin archivo de tarifas - usando tarifas del archivo principal', 'info');
-      }
+      const periodoDetectado = detectarPeriodoLiquidacion();
 
       const liquidacionData = {
-        empresa: empresa || 'Sin Empresa',
+        empresa: empresa || 'GENERAL',
         originalData,
         consolidatedData,
         reporteBySala,
         metricsData,
         tarifasOficiales,
         originalFile: selectedFile,
-        archivoTarifas: archivoTarifas, // Incluir archivo de tarifas si existe
-        periodoDetectado: periodoDetectado // Incluir período detectado
+        archivoTarifas: archivoTarifas || null,
+        periodoDetectado: periodoDetectado || null
       };
 
-      // Usar el período editado/confirmado del modal
-      addLog(`📅 Período confirmado: ${periodoDetectado}`, 'info');
-      
-      // Parsear el período para extraer mes y año correctamente
-      let periodoInfo;
-      try {
-        const match = periodoDetectado.match(/(\w+)\s+(\d{4})/);
+      // Opcional: aportar periodoInfo si se puede parsear (el servicio también tiene fallback propio)
+      if (periodoDetectado) {
+        const match = String(periodoDetectado).match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s*(?:de\s*)?(\d{4})/i);
         if (match) {
           const mesTexto = match[1].toLowerCase();
           const año = parseInt(match[2]);
-          
-          periodoInfo = {
+          liquidacionData.periodoInfo = {
             periodoLiquidacion: `${mesTexto}_${año}`,
             mesLiquidacion: mesTexto,
             añoLiquidacion: año,
             fechaProcesamiento: new Date().toISOString().split('T')[0]
           };
-          
-          addLog(`📅 Período parseado correctamente: ${mesTexto} ${año}`, 'success');
-        } else {
-          throw new Error('No se pudo parsear el período');
         }
-        
-        // Agregar información del período a los datos
-        liquidacionData.periodoInfo = periodoInfo;
-        liquidacionData.periodoDetectado = periodoDetectado;
-      } catch (error) {
-        addLog(`⚠️ Error parseando período, usando fallback: ${error.message}`, 'warning');
-        // Fallback a extractPeriodoInfo solo si falla el parseo
-        periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
-        liquidacionData.periodoInfo = periodoInfo;
       }
 
-      const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(
-        liquidacionData, 
-        currentUser.uid
-      );
-
+      const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(liquidacionData, currentUser.uid);
       setLiquidacionGuardadaId(liquidacionId);
       addLog(`✅ Liquidación guardada con ID: ${liquidacionId}`, 'success');
-      addLog(`📦 Archivos guardados: ${archivoTarifas ? '2 archivos' : '1 archivo'} (solo originales)`, 'info');
-      addLog(`💡 Ventaja: Al cargar del historial se procesarán con la lógica más actualizada`, 'info');
       addNotification('Liquidación guardada exitosamente en Firebase', 'success');
 
-      // 💾 LOG DE ACTIVIDAD: Liquidación guardada en Firebase
       try {
         await logActivity(
           'liquidacion_guardada',
@@ -330,23 +1761,18 @@ const LiquidacionesPage = () => {
           {
             empresa: empresa || 'Sin Empresa',
             periodo: periodoDetectado || 'Sin período',
-            registros: consolidatedData?.length || 0,
+            registros: Array.isArray(consolidatedData) ? consolidatedData.length : 0,
             archivoOriginal: selectedFile?.name || null,
-            tieneArchivoTarifas: !!archivoTarifas,
             archivoTarifas: archivoTarifas?.name || null
           },
           currentUser.uid,
-          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          getUserDisplayName(),
           currentUser.email
         );
       } catch (logError) {
         console.error('Error logging liquidacion save:', logError);
       }
 
-      // Actualizar historial
-      await cargarHistorialLiquidaciones();
-      
-      // Cerrar modal
       setShowConfirmarGuardadoModal(false);
     } catch (error) {
       console.error('Error guardando liquidación:', error);
@@ -355,76 +1781,119 @@ const LiquidacionesPage = () => {
     } finally {
       setGuardandoLiquidacion(false);
     }
-  };
+  }, [
+    addLog,
+    addNotification,
+    archivoTarifas,
+    canGuardar,
+    consolidatedData,
+    currentUser?.email,
+    currentUser?.uid,
+    detectarPeriodoLiquidacion,
+    empresa,
+    getUserDisplayName,
+    guardandoLiquidacion,
+    logActivity,
+    metricsData,
+    originalData,
+    reporteBySala,
+    selectedFile,
+    tarifasOficiales
+  ]);
 
-  // Función para cargar historial de liquidaciones
-  const cargarHistorialLiquidaciones = async () => {
-    if (!currentUser?.uid) return;
+  const goToHistorico = useCallback(() => {
+    navigate('/liquidaciones/historico');
+  }, [navigate]);
 
-    try {
-      setCargandoHistorial(true);
-      const historial = await liquidacionPersistenceService.getUserLiquidaciones(currentUser.uid, 10);
-      setHistorialLiquidaciones(historial);
-    } catch (error) {
-      console.error('Error cargando historial:', error);
-      
-      // Si es un error de índices, mostrar mensaje más amigable
-      if (error.message.includes('requires an index')) {
-        addNotification('Los índices de la base de datos se están configurando. El historial estará disponible en unos minutos.', 'warning');
-      } else {
-        addNotification('Error al cargar historial de liquidaciones', 'error');
-      }
-      
-      // En caso de error, dejar el historial vacío pero no romper la app
-      setHistorialLiquidaciones([]);
-    } finally {
-      setCargandoHistorial(false);
+  // Función helper para calcular métricas (usada en carga de historial)
+  const calcularMetricas = useCallback((consolidatedData, reporteSala) => {
+    if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+      return null;
     }
-  };
 
-  // Función para cargar liquidación del historial con procesamiento en tiempo real
-  const cargarLiquidacion = async (liquidacionId) => {
+    if (!reporteSala || !Array.isArray(reporteSala)) {
+      return null;
+    }
+
+    const toNumber = (v) => {
+      if (v === null || v === undefined) return 0;
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[$,%\s]/g, '').replace(/\.(?=.*\.)/g,'').replace(/,/g,'.');
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+      }
+      return 0;
+    };
+
+    const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
+    const totalDerechos = consolidatedData.reduce((sum, item) => sum + toNumber(item.derechosExplotacion), 0);
+    const totalGastos = consolidatedData.reduce((sum, item) => sum + toNumber(item.gastosAdministracion), 0);
+    const totalImpuestos = consolidatedData.reduce((sum, item) => sum + toNumber(item.totalImpuestos), 0);
+
+    const isSinCambios = (estado) => {
+      const norm = (estado || '').toString().trim().toLowerCase();
+      if (!norm || ['sin informacion','sin información',''].includes(norm)) return true;
+      return ['sin cambios', 'sin_cambios', 'sin-cambios', 'ok', 'igual'].includes(norm);
+    };
+
+    const sinCambios = consolidatedData.filter(item => isSinCambios(item.novedad)).length;
+    const conNovedades = consolidatedData.length - sinCambios;
+    const porcentajeSinCambios = consolidatedData.length > 0 ? (sinCambios / consolidatedData.length * 100) : 0;
+    const porcentajeConNovedad = consolidatedData.length > 0 ? (conNovedades / consolidatedData.length * 100) : 0;
+    const promedioEstablecimiento = reporteSala.length > 0 ? totalProduccion / reporteSala.length : 0;
+    
+    return {
+      totalMaquinas: consolidatedData.length,
+      totalEstablecimientos: reporteSala.length,
+      totalProduccion,
+      totalDerechos,
+      totalGastos,
+      totalImpuestos,
+      sinCambios,
+      conNovedades,
+      porcentajeSinCambios,
+      porcentajeConNovedad,
+      promedioEstablecimiento
+    };
+  }, []);
+
+  // ===================== CARGA DESDE HISTORIAL =====================
+  const cargarLiquidacion = useCallback(async (liquidacionId) => {
     if (!currentUser?.uid) return;
 
     try {
       setProcessing(true);
       addLog(`📂 Cargando liquidación ${liquidacionId}...`, 'info');
       
-      // Verificar disponibilidad de empresas (sin esperas largas)
       const empresasDisponibles = companies && companies.length > 0;
       addLog(`🏢 Estado empresas: ${empresasDisponibles ? `${companies.length} disponibles` : 'no disponibles'}`, 'info');
       
       addLog(`⚙️ Descargando y procesando archivos originales...`, 'info');
 
-      // Función de procesamiento que sigue el flujo completo normal
+      // Función de procesamiento completo
       const processFunction = async (originalFile, tarifasFile = null) => {
-        // Leer archivo principal
         const data = await readFile(originalFile);
         addLog('✅ Archivo original leído correctamente', 'success');
         
-        // Validar datos antes de procesar
         const validation = validateExcelData(data);
         if (!validation.valid) {
           addLog(`❌ Validación fallida: ${validation.errors.join(', ')}`, 'error');
           throw new Error(`Archivo inválido: ${validation.errors.join(', ')}`);
         }
         
-        // Mostrar advertencias si existen
         if (validation.warnings.length > 0) {
           validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
         }
         
-        // Mostrar estadísticas
         addLog(`📊 Archivo validado: ${validation.stats.dataRows} filas de datos, ${validation.stats.columns} columnas`, 'info');
         
-        // Extraer número de contrato del archivo (siguiendo lógica original)
         let numeroContrato = null;
         let empresaDetectada = null;
         
         addLog('🔍 Buscando número de contrato en el archivo...', 'info');
         
-        // Buscar en las primeras filas para encontrar el contrato
-        for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.CONTRACT_SCAN_ROWS, data.length); i++) {
+        for (let i = 1; i < Math.min(10, data.length); i++) {
           const fila = data[i];
           if (fila && fila[0]) {
             const posibleContrato = fila[0].toString().trim();
@@ -449,50 +1918,20 @@ const LiquidacionesPage = () => {
           empresaDetectada = 'Empresa no detectada';
         }
         
-        // Detectar encabezados (siguiendo lógica original)
         const headerRow = detectarFilaEncabezados(data);
         addLog(`🔍 Encabezados detectados en fila ${headerRow + 1}`, 'info');
         
-        // Procesar datos (siguiendo lógica original)
         const processedData = procesarDatos(data, headerRow);
-        
-        // Consolidar por NUC (siguiendo lógica original)
         const consolidated = consolidarDatos(processedData);
         
-        // CORREGIR: Actualizar empresa en todos los registros consolidados
         const consolidatedConEmpresa = consolidated.map(item => ({
           ...item,
           empresa: empresaDetectada || 'Empresa no detectada'
         }));
         
-        // Generar reporte por sala (siguiendo lógica original)
         const reporteSala = generarReporteSala(consolidatedConEmpresa);
-        
-        // Calcular métricas (siguiendo lógica original)
         const metrics = calcularMetricas(consolidatedConEmpresa, reporteSala);
         
-        // Debug: Calcular totales paso a paso (siguiendo lógica original)
-        const totalProduccion = consolidatedConEmpresa.reduce((sum, item) => {
-          const produccion = Number(item.produccion) || 0;
-          return sum + produccion;
-        }, 0);
-        
-        const totalDerechos = consolidatedConEmpresa.reduce((sum, item) => {
-          const derechos = Number(item.derechosExplotacion) || 0;
-          return sum + derechos;
-        }, 0);
-        
-        const totalGastos = consolidatedConEmpresa.reduce((sum, item) => {
-          const gastos = Number(item.gastosAdministracion) || 0;
-          return sum + gastos;
-        }, 0);
-        
-        addLog('📊 TOTALES CALCULADOS:', 'info');
-        addLog(`   • Total Producción: ${totalProduccion.toLocaleString()}`, 'info');
-        addLog(`   • Total Derechos: ${totalDerechos.toLocaleString()}`, 'info');
-        addLog(`   • Total Gastos: ${totalGastos.toLocaleString()}`, 'info');
-        
-        // Inicializar variables para procesamiento de tarifas
         let tarifasOficialesCalculadas = {};
         let consolidatedConTarifas = consolidatedConEmpresa;
         let metricasConTarifas = metrics;
@@ -501,13 +1940,11 @@ const LiquidacionesPage = () => {
           addLog('📄 Procesando archivo de tarifas...', 'info');
           
           try {
-            // Procesar archivo de tarifas (siguiendo lógica de procesarArchivoTarifas)
             const tarifasData = await tarifasFile.arrayBuffer();
             const workbook = XLSX.read(tarifasData, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            // Detectar encabezados (siguiendo lógica original)
             let headerRow = -1;
             for (let i = 0; i < Math.min(5, jsonData.length); i++) {
               const row = jsonData[i];
@@ -524,14 +1961,12 @@ const LiquidacionesPage = () => {
               const headers = jsonData[headerRow];
               const dataRows = jsonData.slice(headerRow + 1);
 
-              // Mapear columnas (siguiendo lógica original)
               const nucIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('nuc'));
               const tarifaIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('tarifa'));
               const derechosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('derechos'));
               const gastosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('gastos'));
 
               if (nucIndex !== -1 && tarifaIndex !== -1) {
-                // Procesar tarifas fijas (siguiendo lógica original)
                 let tarífasEncontradas = 0;
 
                 dataRows.forEach((row) => {
@@ -550,7 +1985,6 @@ const LiquidacionesPage = () => {
                   }
                 });
 
-                // Aplicar ajustes a los datos consolidados (siguiendo lógica original)
                 if (tarífasEncontradas > 0) {
                   consolidatedConTarifas = consolidated.map(maquina => {
                     const nucString = maquina.nuc.toString();
@@ -572,11 +2006,9 @@ const LiquidacionesPage = () => {
                     return { ...maquina, tarifa: 'Cálculo original (sin ajuste)' };
                   });
 
-                  // Recalcular totales con tarifas aplicadas
                   const nuevoTotalDerechos = consolidatedConTarifas.reduce((sum, item) => sum + item.derechosExplotacion, 0);
                   const nuevoTotalGastos = consolidatedConTarifas.reduce((sum, item) => sum + item.gastosAdministracion, 0);
                   
-                  // Actualizar métricas con tarifas aplicadas
                   metricasConTarifas = {
                     ...metrics,
                     totalDerechos: nuevoTotalDerechos,
@@ -599,23 +2031,10 @@ const LiquidacionesPage = () => {
           }
         }
 
-        // Calcular totales finales (con tarifas aplicadas si existen)
-        const totalProduccionFinal = consolidatedConTarifas.reduce((sum, item) => {
-          const produccion = Number(item.produccion) || 0;
-          return sum + produccion;
-        }, 0);
-        
-        const totalDerechosFinal = consolidatedConTarifas.reduce((sum, item) => {
-          const derechos = Number(item.derechosExplotacion) || 0;
-          return sum + derechos;
-        }, 0);
-        
-        const totalGastosFinal = consolidatedConTarifas.reduce((sum, item) => {
-          const gastos = Number(item.gastosAdministracion) || 0;
-          return sum + gastos;
-        }, 0);
+        const totalProduccionFinal = consolidatedConTarifas.reduce((sum, item) => (sum + (Number(item.produccion) || 0)), 0);
+        const totalDerechosFinal = consolidatedConTarifas.reduce((sum, item) => (sum + (Number(item.derechosExplotacion) || 0)), 0);
+        const totalGastosFinal = consolidatedConTarifas.reduce((sum, item) => (sum + (Number(item.gastosAdministracion) || 0)), 0);
 
-        // Preparar datos de validación finales (como en procesamiento normal, con tarifas aplicadas)
         const validacion = {
           consolidated: consolidatedConTarifas,
           reporteSala,
@@ -636,24 +2055,16 @@ const LiquidacionesPage = () => {
         };
       };
 
-      // Cargar y procesar usando el servicio optimizado
       const liquidacionCompleta = await liquidacionPersistenceService.loadAndProcessLiquidacion(
         liquidacionId,
         currentUser.uid,
         processFunction
       );
 
-      // Extraer datos procesados
       const { metadata, originalFile, tarifasFile, ...processedData } = liquidacionCompleta;
       
-      // Debug: Mostrar metadatos recibidos (convertir a string para evitar errores de renderizado)
-      addLog(`🔍 DEBUG - Metadatos recibidos:`, 'info');
-      addLog(`   • metadata.empresa: "${typeof metadata.empresa === 'object' ? JSON.stringify(metadata.empresa) : metadata.empresa}"`, 'info');
-      addLog(`   • processedData.empresaDetectada: "${typeof processedData.empresaDetectada === 'object' ? JSON.stringify(processedData.empresaDetectada) : processedData.empresaDetectada}"`, 'info');
-      addLog(`   • Companies disponibles: ${companies.length}`, 'info');
+      addLog(`🔍 Metadatos recibidos desde Firebase`, 'info');
       
-      // Establecer empresa (priorizar metadatos guardados del histórico)
-      // Manejar caso donde empresa puede ser string u objeto
       let empresaMetadata = metadata.empresa;
       if (typeof empresaMetadata === 'object' && empresaMetadata?.nombre) {
         empresaMetadata = empresaMetadata.nombre;
@@ -670,14 +2081,12 @@ const LiquidacionesPage = () => {
       
       let empresaFinal = empresaMetadata || empresaDetectada || 'GENERAL';
       
-      // Si la empresa de metadatos no se encuentra en companies, intentar detectar nuevamente
       if (empresaMetadata && companies.length > 0) {
         const empresaEnMetadatos = companies.find(comp => comp.name === empresaMetadata);
         if (empresaEnMetadatos) {
           empresaFinal = empresaMetadata;
           addLog(`🏢 Empresa restaurada desde metadatos: ${empresaFinal}`, 'success');
         } else {
-          // Si no se encuentra, usar la empresa detectada del procesamiento
           empresaFinal = empresaDetectada || empresaMetadata || 'GENERAL';
           addLog(`⚠️ Empresa de metadatos no encontrada, usando detectada: ${empresaFinal}`, 'warning');
         }
@@ -687,42 +2096,34 @@ const LiquidacionesPage = () => {
       
       setEmpresa(empresaFinal);
       
-      // Establecer empresa completa con logo
       if (companies && companies.length > 0) {
         const empresaCompleta = companies.find(comp => comp.name === empresaFinal);
         if (empresaCompleta) {
           setEmpresaCompleta(empresaCompleta);
           addLog(`🏢 Empresa completa establecida: ${empresaCompleta.name}`, 'success');
-          addLog(`🖼️ Logo empresa: ${empresaCompleta.logo ? 'SÍ disponible' : 'NO disponible'}`, empresaCompleta.logo ? 'success' : 'warning');
         } else {
-          // Intentar búsqueda más flexible
           const empresaFlexible = companies.find(comp => 
             comp.name.toLowerCase().trim() === empresaFinal.toLowerCase().trim()
           );
           if (empresaFlexible) {
             setEmpresaCompleta(empresaFlexible);
-            addLog(`� Empresa establecida: ${empresaFlexible.name}`, 'success');
+            addLog(`🏢 Empresa establecida: ${empresaFlexible.name}`, 'success');
           } else {
             addLog(`⚠️ Empresa "${empresaFinal}" no encontrada en catálogo`, 'warning');
           }
         }
       }
 
-      // Establecer archivo seleccionado
       setSelectedFile(originalFile);
       if (tarifasFile) {
         setArchivoTarifas(tarifasFile);
       }
 
-      // Aplicar datos originales primero
       setOriginalData(processedData.originalData || []);
       
-      // Auto-confirmar validación (como si el usuario hubiera confirmado)
-      // Esto simula el flujo completo sin mostrar el modal
       if (processedData.validationData) {
         const validationData = processedData.validationData;
         
-        // Crear métricas finales (siguiendo lógica de confirmarValidacion)
         const metricasFinales = {
           ...validationData.metrics,
           totalProduccion: validationData.totalProduccion,
@@ -731,8 +2132,6 @@ const LiquidacionesPage = () => {
           totalImpuestos: validationData.totalImpuestos
         };
         
-        // IMPORTANTE: Actualizar empresa y período en datos consolidados antes de aplicar
-        // Obtener el período correcto desde Firebase
         const periodoFirebase = metadata?.fechas?.periodoDetectadoModal || 
                                metadata?.fechas?.periodoLiquidacion ||
                                metadata?.periodoLiquidacion ||
@@ -743,23 +2142,19 @@ const LiquidacionesPage = () => {
         const consolidatedConEmpresa = validationData.consolidated.map(item => ({
           ...item,
           empresa: empresaFinal,
-          // Sobrescribir el período con el valor correcto de Firebase
           periodoTexto: periodoFirebase || item.periodoTexto
         }));
         
         const reporteSalaConEmpresa = validationData.reporteSala.map(sala => ({
           ...sala,
           empresa: empresaFinal,
-          // También actualizar período en reporte por sala si existe
           periodoTexto: periodoFirebase || sala.periodoTexto
         }));
         
-        // Aplicar datos validados con empresa corregida
         setConsolidatedData(consolidatedConEmpresa);
         setReporteBySala(reporteSalaConEmpresa);
         setMetricsData(metricasFinales);
         
-        // Establecer tarifas oficiales si existen
         if (processedData.tarifasOficiales && Object.keys(processedData.tarifasOficiales).length > 0) {
           setTarifasOficiales(processedData.tarifasOficiales);
           addLog(`📋 ${Object.keys(processedData.tarifasOficiales).length} tarifas oficiales cargadas`, 'info');
@@ -768,46 +2163,49 @@ const LiquidacionesPage = () => {
         addLog(`📊 ${validationData.totalMaquinas} máquinas consolidadas`, 'success');
         addLog(`🏢 ${validationData.totalEstablecimientos} establecimientos procesados`, 'success');
         
-        // Establecer ID de liquidación guardada
         setLiquidacionGuardadaId(liquidacionId);
       }
 
-      // CRÍTICO: Establecer validationData para habilitar pestañas de resultados
       if (processedData.validationData) {
         setValidationData(processedData.validationData);
         addLog(`✅ Datos de validación establecidos - pestañas habilitadas`, 'success');
       }
       
-      setActiveTab(0); // Ir a pestaña de resumen
-      addLog('✅ Liquidación cargada y procesada exitosamente', 'success');
-      addNotification(`Liquidación ${metadata.periodoLiquidacion} cargada y procesada`, 'success');
+      addLog(`✅ Liquidación cargada completamente`, 'success');
+      addNotification('Liquidación cargada desde historial', 'success');
+
+      try {
+        await logActivity(
+          'liquidacion_cargada_desde_historial',
+          'liquidacion',
+          liquidacionId,
+          {
+            empresa: empresaFinal,
+            archivo: originalFile?.name || 'archivo_original',
+            tieneTarifas: !!tarifasFile
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging liquidacion load:', logError);
+      }
 
     } catch (error) {
       console.error('Error cargando liquidación:', error);
       addLog(`❌ Error cargando liquidación: ${error.message}`, 'error');
-      addNotification('Error al cargar liquidación', 'error');
+      addNotification('Error al cargar liquidación desde historial', 'error');
     } finally {
       setProcessing(false);
     }
-  };
-
-  
-  // Referencias
-  const fileInputRef = useRef(null);
-  const dropZoneRef = useRef(null);
-
-  // Efectos
-  useEffect(() => {
-    // Cargar historial de liquidaciones cuando el usuario se autentique
-    if (currentUser?.uid) {
-      cargarHistorialLiquidaciones();
-    }
-  }, [currentUser?.uid]);
+  }, [currentUser, userProfile, companies, addLog, addNotification, logActivity, readFile, validateExcelData, buscarEmpresaPorContrato, detectarFilaEncabezados, procesarDatos, consolidarDatos, generarReporteSala, calcularMetricas]);
 
   // Effect para carga automática desde histórico
   useEffect(() => {
     const liquidacionId = searchParams.get('cargar');
-    if (liquidacionId && currentUser?.uid && !processing) {
+    if (liquidacionId && currentUser?.uid && !liquidacionCargadaRef.current) {
+      liquidacionCargadaRef.current = true; // Marcar como cargada inmediatamente
       addLog(`🔄 Carga automática solicitada para liquidación: ${liquidacionId}`, 'info');
       cargarLiquidacion(liquidacionId);
       
@@ -815,1409 +2213,15 @@ const LiquidacionesPage = () => {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchParams, currentUser?.uid]);
+  }, [searchParams, currentUser?.uid, addLog, cargarLiquidacion]);
+  // ===================== FIN CARGA DESDE HISTORIAL =====================
 
-  // Effect para recalcular métricas cuando falten
-  useEffect(() => {
-    if (consolidatedData && consolidatedData.length > 0 && reporteBySala && reporteBySala.length > 0 && !metricsData) {
-      const nuevasMetricas = calcularMetricas(consolidatedData, reporteBySala);
-      setMetricsData(nuevasMetricas);
-    }
-  }, [consolidatedData, reporteBySala, metricsData]);
-
-  // Función para buscar empresa por número de contrato
-  const buscarEmpresaPorContrato = useCallback((numeroContrato) => {
-    if (!companies || companies.length === 0) {
-      return null;
-    }
-
-    // Normalizar el número de contrato del archivo (quitar "Contrato" si está presente)
-    let numeroContratoNormalizado = numeroContrato.toString().trim().toUpperCase();
-    
-    // Si empieza con "Contrato", quitarlo
-    if (numeroContratoNormalizado.startsWith('CONTRATO')) {
-      numeroContratoNormalizado = numeroContratoNormalizado.replace(/^CONTRATO\s*/i, '').trim();
-    }
-
-    // Buscar por número de contrato EXACTO (case-insensitive)
-    const empresaEncontrada = companies.find(company => {
-      if (!company.contractNumber) {
-        return false;
-      }
-      
-      const contratoEmpresa = company.contractNumber.toString().trim().toUpperCase();
-      const contratoArchivo = numeroContratoNormalizado;
-      
-      return contratoEmpresa === contratoArchivo;
-    });
-
-    if (empresaEncontrada) {
-      setEmpresaCompleta(empresaEncontrada); // Guardar empresa completa
-      return empresaEncontrada.name;
-    } else {
-      setEmpresaCompleta(null); // Limpiar empresa completa
-      return null;
-    }
-  }, [companies]);
-
-  // Manejo de archivos
-  const handleFileSelect = (event) => {
-    // 🔒 VALIDACIÓN CRÍTICA: Prevenir carga si empresas no están disponibles
-    if (companiesLoading) {
-      addNotification({
-        type: 'warning',
-        title: 'Cargando empresas',
-        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
-        icon: 'warning',
-        color: 'warning'
-      });
-      // Limpiar el input file para que pueda volver a intentar
-      event.target.value = null;
-      return;
-    }
-
-    if (!companies || companies.length === 0) {
-      addNotification({
-        type: 'error',
-        title: 'Sin empresas disponibles',
-        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
-        icon: 'error',
-        color: 'error'
-      });
-      event.target.value = null;
-      return;
-    }
-    
-    // Prevenir carga si ya hay archivos procesados o viene del histórico
-    if (selectedFile || liquidacionGuardadaId) {
-      addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
-      return;
-    }
-    
-    const file = event.target.files[0];
-    if (file) {
-      processSelectedFile(file);
-    }
-  };
-
-  const processSelectedFile = async (file) => {
-    // Validar tipo de archivo
-    const validTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'text/csv'
-    ];
-    
-    if (!validTypes.includes(file.type)) {
-      addNotification('Error: Solo se permiten archivos Excel (.xlsx, .xls) o CSV', 'error');
-      return;
-    }
-
-    setSelectedFile(file);
-    
-    // Limpiar estados previos para nuevo archivo local
-    setLiquidacionGuardadaId(null);
-    setEmpresa(''); // Limpiar empresa anterior
-    setEmpresaCompleta(null); // Limpiar empresa completa anterior
-    
-    addLog(`📁 Archivo seleccionado: ${file.name}`, 'success');
-    
-    // 🔍 EXTRAER Y VALIDAR EMPRESA INMEDIATAMENTE
-    try {
-      addLog('🏢 Detectando empresa del archivo...', 'info');
-      
-      // Leer archivo para extraer número de contrato
-      const data = await readFile(file);
-      
-      // Validar datos antes de procesar
-      const validation = validateExcelData(data);
-      if (!validation.valid) {
-        addLog(`❌ Archivo inválido: ${validation.errors.join(', ')}`, 'error');
-        addNotification(`Error: ${validation.errors[0]}`, 'error');
-        setEmpresa('Error en archivo');
-        return;
-      }
-      
-      // Mostrar advertencias si existen
-      if (validation.warnings.length > 0) {
-        validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
-      }
-      
-      // Buscar número de contrato en las primeras filas (IGNORAR HEADERS)
-      let numeroContrato = null;
-      const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
-      
-      for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
-        const fila = data[i];
-        
-        if (fila && fila[0]) {
-          const posibleContrato = fila[0].toString().trim();
-          const posibleContratoLower = posibleContrato.toLowerCase();
-          
-          // Ignorar si es un header (palabras como "Contrato", "Contract", etc.)
-          const esHeader = valoresIgnorados.some(palabra => 
-            posibleContratoLower === palabra || 
-            posibleContratoLower.startsWith(palabra + ' ')
-          );
-          
-          if (esHeader) {
-            continue; // Saltar esta fila y continuar buscando
-          }
-          
-          // Si llegamos aquí, es un valor real (no un header)
-          if (posibleContrato && posibleContrato !== '') {
-            numeroContrato = posibleContrato;
-            addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
-            break;
-          }
-        }
-      }
-      
-      // Buscar empresa por contrato ANTES de mostrar el popup
-      if (numeroContrato) {
-        const empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
-        
-        if (empresaDetectada) {
-          setEmpresa(empresaDetectada);
-          addLog(`✅ Empresa detectada: ${empresaDetectada}`, 'success');
-          addNotification({
-            type: 'success',
-            title: 'Empresa detectada',
-            message: `Se detectó la empresa: ${empresaDetectada}`,
-            icon: 'success',
-            color: 'success'
-          });
-        } else {
-          const empresaNoEncontrada = `Contrato ${numeroContrato} (No encontrado)`;
-          setEmpresa(empresaNoEncontrada);
-          addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
-          addNotification({
-            type: 'warning',
-            title: 'Empresa no encontrada',
-            message: `No se encontró empresa para el contrato: ${numeroContrato}`,
-            icon: 'warning',
-            color: 'warning'
-          });
-        }
-      } else {
-        setEmpresa('Empresa no detectada');
-        addLog('⚠️ No se pudo detectar número de contrato en el archivo', 'warning');
-      }
-    } catch (error) {
-      console.error('❌ [DETECCIÓN EMPRESA] Error:', error);
-      setEmpresa('Error al detectar empresa');
-      addLog(`❌ Error al detectar empresa: ${error.message}`, 'error');
-    }
-    
-    // Procesar automáticamente después de detectar empresa
-    setTimeout(() => {
-      procesarLiquidacion(file);
-    }, LIQUIDACION_CONFIG.AUTO_PROCESS_DELAY);
-  };
-
-  // Drag & Drop handlers
-  const handleDrag = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // No cambiar estado visual si ya hay archivos procesados
-    if (selectedFile || liquidacionGuardadaId) {
-      return;
-    }
-    
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  }, [selectedFile, liquidacionGuardadaId]);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    // 🔒 VALIDACIÓN CRÍTICA: Prevenir drop si empresas no están disponibles
-    if (companiesLoading) {
-      addNotification({
-        type: 'warning',
-        title: 'Cargando empresas',
-        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
-        icon: 'warning',
-        color: 'warning'
-      });
-      return;
-    }
-
-    if (!companies || companies.length === 0) {
-      addNotification({
-        type: 'error',
-        title: 'Sin empresas disponibles',
-        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
-        icon: 'error',
-        color: 'error'
-      });
-      return;
-    }
-
-    // Prevenir drop si ya hay archivos procesados o viene del histórico
-    if (selectedFile || liquidacionGuardadaId) {
-      addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
-      return;
-    }
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processSelectedFile(e.dataTransfer.files[0]);
-    }
-  }, [selectedFile, liquidacionGuardadaId, companiesLoading, companies, addNotification]);
-
-  // Consolidar datos por NUC (función que faltaba)
-  // Agrupar por establecimiento (función que faltaba)
-  const agruparPorEstablecimiento = (consolidated) => {
-    const grouped = {};
-    
-    consolidated.forEach(item => {
-      if (!grouped[item.establecimiento]) {
-        grouped[item.establecimiento] = {
-          establecimiento: item.establecimiento,
-          empresa: item.empresa,
-          maquinas: [],
-          totalProduccion: 0,
-          totalMaquinas: 0
-        };
-      }
-      
-      grouped[item.establecimiento].maquinas.push(item);
-      grouped[item.establecimiento].totalProduccion += item.produccion;
-      grouped[item.establecimiento].totalMaquinas += 1;
-    });
-    
-    const result = Object.values(grouped);
-    return result;
-  };
-
-  // Función de procesamiento completo reutilizable
-  const procesarDatosCompletos = async (data, empresaParam = null) => {
-    try {
-      // Detectar empresa si no se proporciona (IGNORAR HEADERS)
-      let empresaDetectada = empresaParam;
-      if (!empresaDetectada) {
-        let numeroContrato = null;
-        const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
-        
-        for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
-          const fila = data[i];
-          if (fila && fila[0]) {
-            const posibleContrato = fila[0].toString().trim();
-            const posibleContratoLower = posibleContrato.toLowerCase();
-            
-            // Ignorar si es un header
-            const esHeader = valoresIgnorados.some(palabra => 
-              posibleContratoLower === palabra || 
-              posibleContratoLower.startsWith(palabra + ' ')
-            );
-            
-            if (esHeader) {
-              continue; // Saltar esta fila
-            }
-            
-            if (posibleContrato && posibleContrato !== '') {
-              numeroContrato = posibleContrato;
-              break;
-            }
-          }
-        }
-        
-        if (numeroContrato) {
-          empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
-        }
-        empresaDetectada = empresaDetectada || 'Empresa no detectada';
-      }
-
-      // Detectar encabezados
-      const headerRow = detectarFilaEncabezados(data);
-      
-      // Procesar datos
-      const processedData = procesarDatos(data, headerRow);
-      
-      // Consolidar por NUC (usa función completa con cálculos)
-      const consolidated = consolidarDatos(processedData);
-      
-      // Agrupar por establecimiento
-      const reporteSala = agruparPorEstablecimiento(consolidated);
-      
-      // Calcular métricas usando la función completa con validación
-      const metrics = calcularMetricas(consolidated, reporteSala);
-
-      return {
-        originalData: processedData,
-        consolidatedData: consolidated,
-        reporteBySala: reporteSala,
-        metricsData: metrics,
-        tarifasOficiales: {} // Se llenarían con archivo de tarifas
-      };
-
-    } catch (error) {
-      console.error('Error en procesarDatosCompletos:', error);
-      throw error;
-    }
-  };
-
-  // Procesamiento principal
-  const procesarLiquidacion = async (archivoManual = null) => {
-    const archivo = archivoManual || selectedFile;
-    
-    if (!archivo) {
-      addNotification('Error: Seleccione un archivo primero', 'error');
-      return;
-    }
-
-    if (companiesLoading) {
-      addNotification('Esperando carga de empresas...', 'warning');
-      return;
-    }
-
-    // Si no hay archivo manual, verificar que el selectedFile esté establecido
-    if (!archivoManual && !selectedFile) {
-      addNotification('Error: No hay archivo seleccionado', 'error');
-      return;
-    }
-
-    setProcessing(true);
-    addLog('⚙️ Iniciando procesamiento automático...', 'info');
-
-    try {
-      // Leer archivo
-      const data = await readFile(archivo);
-      addLog('✅ Archivo leído correctamente', 'success');
-      
-      // Validar datos antes de procesar
-      const validation = validateExcelData(data);
-      if (!validation.valid) {
-        addLog(`❌ Validación fallida: ${validation.errors.join(', ')}`, 'error');
-        throw new Error(`Archivo inválido: ${validation.errors.join(', ')}`);
-      }
-      
-      // Mostrar advertencias si existen
-      if (validation.warnings.length > 0) {
-        validation.warnings.forEach(warning => addLog(`⚠️ ${warning}`, 'warning'));
-      }
-      
-      // Extraer número de contrato del archivo (IGNORAR HEADERS)
-      let numeroContrato = null;
-      let empresaDetectada = null;
-      
-      addLog('🔍 Buscando número de contrato en el archivo...', 'info');
-      
-      // Buscar en las primeras filas para encontrar el contrato (IGNORAR HEADERS)
-      const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
-      
-      for (let i = 1; i < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); i++) {
-        const fila = data[i];
-        if (fila && fila[0]) {
-          const posibleContrato = fila[0].toString().trim();
-          const posibleContratoLower = posibleContrato.toLowerCase();
-          
-          // Ignorar si es un header (palabras como "Contrato", "Contract", etc.)
-          const esHeader = valoresIgnorados.some(palabra => 
-            posibleContratoLower === palabra || 
-            posibleContratoLower.startsWith(palabra + ' ')
-          );
-          
-          if (esHeader) {
-            continue; // Saltar esta fila y continuar buscando
-          }
-          
-          // Si llegamos aquí, es un valor real (no un header)
-          if (posibleContrato && posibleContrato !== '') {
-            numeroContrato = posibleContrato;
-            addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
-            break;
-          }
-        }
-      }
-      
-      if (numeroContrato) {
-        empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
-        if (empresaDetectada) {
-          setEmpresa(empresaDetectada);
-          addLog(`🏢 Empresa detectada: ${empresaDetectada}`, 'success');
-        } else {
-          addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
-          addNotification(`Contrato ${numeroContrato} no encontrado en la base de datos`, 'warning');
-          // Continuar con empresa "Desconocida"
-          setEmpresa(`Contrato ${numeroContrato} (No encontrado)`);
-        }
-      } else {
-        addLog('⚠️ No se pudo detectar número de contrato', 'warning');
-        setEmpresa('Empresa no detectada');
-      }
-      
-      // Detectar encabezados
-      const headerRow = detectarFilaEncabezados(data);
-      addLog(`🔍 Encabezados detectados en fila ${headerRow + 1}`, 'info');
-      
-      // Procesar datos
-      const processedData = procesarDatos(data, headerRow);
-      setOriginalData(processedData);
-      
-      // Consolidar por NUC
-      const consolidated = consolidarDatos(processedData);
-      
-      // Agregar información de empresa a los datos consolidados
-      const consolidatedConEmpresa = consolidated.map(item => ({
-        ...item,
-        empresa: empresaDetectada || empresa || 'Empresa no detectada'
-      }));
-      
-      // Generar reporte por sala
-      const reporteSala = generarReporteSala(consolidatedConEmpresa);
-      
-      // Calcular métricas
-      const metrics = calcularMetricas(consolidatedConEmpresa, reporteSala);
-      
-      // Calcular totales
-      const totalProduccion = consolidatedConEmpresa.reduce((sum, item) => {
-        const produccion = Number(item.produccion) || 0;
-        return sum + produccion;
-      }, 0);
-      
-      const totalDerechos = consolidatedConEmpresa.reduce((sum, item) => {
-        const derechos = Number(item.derechosExplotacion) || 0;
-        return sum + derechos;
-      }, 0);
-      
-      const totalGastos = consolidatedConEmpresa.reduce((sum, item) => {
-        const gastos = Number(item.gastosAdministracion) || 0;
-        return sum + gastos;
-      }, 0);
-      
-      // Preparar datos de validación
-      const validacion = {
-        consolidated: consolidatedConEmpresa,
-        reporteSala,
-        metrics,
-        totalMaquinas: consolidatedConEmpresa.length,
-        totalEstablecimientos: reporteSala.length,
-        totalProduccion: totalProduccion,
-        totalDerechos: totalDerechos,
-        totalGastos: totalGastos,
-        totalImpuestos: totalDerechos + totalGastos
-      };
-      
-      // Mostrar modal de validación
-      setValidationData(validacion);
-      setShowValidationModal(true);
-      
-      // 📊 LOG DE ACTIVIDAD: Archivo procesado exitosamente
-      try {
-        // Detectar período para el log
-        let periodoLog = 'No detectado';
-        try {
-          periodoLog = detectarPeriodoLiquidacion();
-        } catch (periodoError) {
-          console.warn('No se pudo detectar período:', periodoError);
-        }
-        
-        // Usar empresaDetectada que está disponible en este scope
-        const empresaParaLog = empresaDetectada || numeroContrato || 'general';
-        
-        // Crear ID Entidad más descriptivo con empresa y período
-        const entityIdCompleto = periodoLog !== 'No detectado' 
-          ? `${empresaParaLog} - ${periodoLog}`
-          : empresaParaLog;
-        
-        await logActivity(
-          'archivo_liquidacion_procesado',
-          'liquidacion',
-          entityIdCompleto,
-          {
-            fileName: archivo.name || 'sin-nombre',
-            fileSize: archivo.size || 0,
-            empresa: empresaDetectada || 'Empresa no detectada',
-            numeroContrato: numeroContrato || 'No detectado',
-            periodo: periodoLog,
-            totalMaquinas: consolidatedConEmpresa.length || 0,
-            totalEstablecimientos: reporteSala.length || 0,
-            totalProduccion: totalProduccion || 0,
-            totalDerechos: totalDerechos || 0,
-            totalGastos: totalGastos || 0,
-            totalImpuestos: (totalDerechos + totalGastos) || 0
-          },
-          currentUser.uid,
-          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
-          currentUser.email
-        );
-      } catch (logError) {
-        console.error('Error logging liquidacion processing:', logError);
-      }
-      
-    } catch (error) {
-      console.error('Error procesando liquidación:', error);
-      addLog(`❌ Error: ${error.message}`, 'error');
-      addNotification(`Error procesando liquidación: ${error.message}`, 'error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  // Función para leer archivo
-  const readFile = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        try {
-          const data = e.target.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          resolve(jsonData);
-        } catch (error) {
-          reject(new Error('Error leyendo archivo: ' + error.message));
-        }
-      };
-      
-      reader.onerror = () => reject(new Error('Error leyendo archivo'));
-      reader.readAsBinaryString(file);
-    });
-  };
-
-  // Detectar fila de encabezados (mejorado como Python)
-  const detectarFilaEncabezados = (data) => {
-    const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion'];
-    
-    addLog('🔍 Analizando las primeras filas para encontrar encabezados...');
-    
-    // Búsqueda estricta
-    for (let fila = 0; fila < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); fila++) {
-      const row = data[fila];
-      if (!row) continue;
-      
-      const rowText = row.map(cell => String(cell || '').toLowerCase().trim());
-      const coincidencias = columnasClave.filter(clave => 
-        rowText.some(cell => cell.includes(clave))
-      );
-      
-      if (coincidencias.length >= 3) {
-        addLog(`✅ Encabezados detectados en fila ${fila + 1} con ${coincidencias.length} coincidencias: ${coincidencias.join(', ')}`);
-        return fila;
-      }
-    }
-    
-    // Búsqueda flexible
-    addLog('🔍 Búsqueda estricta fallida, probando búsqueda flexible...');
-    const palabrasEncabezado = ['serial', 'nuc', 'establecimiento', 'contrato', 'codigo', 'tipo', 'fecha', 'base', 'liquidacion', 'produccion', 'ingresos', 'casino', 'sala'];
-    
-    for (let fila = 0; fila < Math.min(LIQUIDACION_CONFIG.HEADER_SCAN_ROWS, data.length); fila++) {
-      const row = data[fila];
-      if (!row) continue;
-      
-      const rowText = row.map(cell => String(cell || '').toLowerCase().trim());
-      const coincidencias = palabrasEncabezado.filter(palabra => 
-        rowText.some(cell => cell.includes(palabra))
-      );
-      
-      if (coincidencias.length >= 4) {
-        addLog(`✅ Encabezados detectados (flexible) en fila ${fila + 1} con ${coincidencias.length} coincidencias: ${coincidencias.join(', ')}`);
-        return fila;
-      }
-    }
-    
-    // Análisis de primera fila específicamente
-    if (data[0]) {
-      const primeraFila = data[0].map(cell => String(cell || '').toLowerCase().trim());
-      const coincidenciasPrimera = palabrasEncabezado.filter(palabra => 
-        primeraFila.some(cell => cell.includes(palabra))
-      );
-      
-      if (coincidenciasPrimera.length >= 4) {
-        addLog(`✅ Primera fila contiene ${coincidenciasPrimera.length} palabras clave, usando como encabezados`);
-        return 0;
-      }
-    }
-    
-    // Fallback
-    addLog('⚠️ No se detectaron encabezados automáticamente, usando fila 2 como fallback');
-    return 1;
-  };
-
-  // Validación robusta de datos Excel (prevenir crashes)
-  const validateExcelData = (data) => {
-    const errors = [];
-    const warnings = [];
-
-    // Validación 1: Debe ser un array
-    if (!Array.isArray(data)) {
-      errors.push('Los datos no son un array válido');
-      return { valid: false, errors, warnings };
-    }
-
-    // Validación 2: Debe tener al menos 2 filas (headers + datos)
-    if (data.length < 2) {
-      errors.push(`Archivo sin datos suficientes (${data.length} fila${data.length === 1 ? '' : 's'})`);
-      return { valid: false, errors, warnings };
-    }
-
-    // Validación 3: Primera fila debe existir y ser un array
-    if (!data[0] || !Array.isArray(data[0])) {
-      errors.push('Primera fila inválida o ausente');
-      return { valid: false, errors, warnings };
-    }
-
-    // Validación 4: Verificar que hay datos reales después de headers
-    const filasConDatos = data.filter(row => 
-      Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== '')
-    );
-    
-    if (filasConDatos.length < 2) {
-      errors.push('El archivo no contiene filas con datos válidos');
-      return { valid: false, errors, warnings };
-    }
-
-    // Validación 5: Verificar consistencia de columnas
-    const columnasEsperadas = data[0].length;
-    const filasInconsistentes = data.filter((row, idx) => 
-      Array.isArray(row) && row.length !== columnasEsperadas && row.some(cell => cell !== null && cell !== undefined && cell !== '')
-    );
-    
-    if (filasInconsistentes.length > data.length * 0.1) { // Más del 10% inconsistente
-      warnings.push(`${filasInconsistentes.length} filas tienen diferente número de columnas`);
-    }
-
-    // Validación 6: Verificar si hay columnas completamente vacías
-    const columnasVacias = [];
-    for (let col = 0; col < columnasEsperadas; col++) {
-      const tieneValor = data.some(row => 
-        Array.isArray(row) && row[col] !== null && row[col] !== undefined && row[col] !== ''
-      );
-      if (!tieneValor) {
-        columnasVacias.push(col);
-      }
-    }
-    
-    if (columnasVacias.length > 0) {
-      warnings.push(`${columnasVacias.length} columna${columnasVacias.length === 1 ? '' : 's'} completamente vacía${columnasVacias.length === 1 ? '' : 's'}`);
-    }
-
-    // Validación exitosa
-    return { 
-      valid: true, 
-      errors: [], 
-      warnings,
-      stats: {
-        totalRows: data.length,
-        dataRows: filasConDatos.length - 1, // Excluir headers
-        columns: columnasEsperadas,
-        emptyColumns: columnasVacias.length
-      }
-    };
-  };
-
-  // Procesar datos del archivo
-  const procesarDatos = (data, headerRow) => {
-    const headers = data[headerRow];
-    const rows = data.slice(headerRow + 1);
-    
-    // Mapear columnas basado en el análisis del archivo real
-    const columnMap = {};
-    headers.forEach((header, index) => {
-      const headerLower = String(header || '').toLowerCase().trim();
-      
-      // Mapeo específico basado en el archivo "Liquidación Diaria.xlsx"
-      if (headerLower.includes('nuc')) {
-        columnMap.nuc = index;
-      } else if (headerLower.includes('serial')) {
-        columnMap.serial = index;
-      } else if (headerLower.includes('establecimiento')) {
-        columnMap.establecimiento = index;
-      } else if (headerLower.includes('tipo') && headerLower.includes('apuesta')) {
-        columnMap.tipoApuesta = index;
-      } else if (headerLower.includes('fecha') && headerLower.includes('reporte')) {
-        columnMap.fecha = index;
-      } else if (headerLower.includes('contrato')) {
-        columnMap.contrato = index;
-      } else if (headerLower.includes('cod') && headerLower.includes('local')) {
-        columnMap.codLocal = index;
-      } else if (headerLower.includes('código') && headerLower.includes('marca')) {
-        columnMap.codigoMarca = index;
-      } 
-      // MAPEO PRINCIPAL para la columna de valores monetarios
-      else if (
-        headerLower.includes('base') && (headerLower.includes('liquidación') || headerLower.includes('liquidacion')) ||
-        headerLower === 'base liquidación diaria' ||
-        headerLower === 'base liquidacion diaria' ||
-        headerLower.includes('produccion') || 
-        headerLower.includes('ingresos') ||
-        headerLower.includes('valor') ||
-        headerLower.includes('monto')
-      ) {
-        columnMap.baseLiquidacion = index;
-      }
-      // Mapeos alternativos para compatibilidad
-      else if (headerLower.includes('sala') || headerLower.includes('casino')) {
-        columnMap.establecimiento = index;
-      } else if (headerLower.includes('categoria') || headerLower.includes('tipo')) {
-        columnMap.tipoApuesta = index;
-      }
-    });
-    
-    // Verificar que tenemos las columnas esenciales
-    const columnasEsenciales = ['nuc', 'baseLiquidacion'];
-    const columnasFaltantes = columnasEsenciales.filter(col => columnMap[col] === undefined);
-    
-    if (columnasFaltantes.length > 0) {
-      console.warn('⚠️ Columnas esenciales faltantes:', columnasFaltantes);
-      addLog(`⚠️ Columnas faltantes: ${columnasFaltantes.join(', ')}`, 'warning');
-    }
-    
-    // Convertir filas a objetos
-    const processedRows = rows.map((row, index) => {
-      const obj = {};
-      Object.keys(columnMap).forEach(key => {
-        obj[key] = row[columnMap[key]] || '';
-      });
-      
-      return obj;
-    }).filter(row => row.nuc && row.nuc !== ''); // Filtrar filas válidas
-    
-    return processedRows;
-  };
-
-  // Formatear fecha sin problemas de timezone (DD/MM/YYYY)
-  const formatearFechaSinTimezone = (fecha) => {
-    try {
-      if (!fecha || isNaN(fecha.getTime())) return '';
-      
-      // Usar componentes UTC para evitar problemas de zona horaria
-      const dia = String(fecha.getUTCDate()).padStart(2, '0');
-      const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
-      const año = fecha.getUTCFullYear();
-      
-      return `${dia}/${mes}/${año}`;
-    } catch {
-      return '';
-    }
-  };
-
-  // Calcular días del mes de una fecha
-  const calcularDiasMes = (fecha) => {
-    try {
-      if (!fecha) return 31;
-      const fechaObj = new Date(fecha);
-      if (isNaN(fechaObj.getTime())) return 31;
-      
-      const year = fechaObj.getFullYear();
-      const month = fechaObj.getMonth();
-      return new Date(year, month + 1, 0).getDate();
-    } catch {
-      return 31; // Valor por defecto
-    }
-  };
-
-  // Determinar novedad basado en días transmitidos vs días del mes
-  const determinarNovedad = (diasTransmitidos, diasMes) => {
-    try {
-      const dias = parseInt(diasTransmitidos);
-      const totalDias = parseInt(diasMes);
-      
-      if (dias === totalDias) {
-        return 'Sin cambios';
-      } else if (dias < totalDias) {
-        return 'Retiro / Adición';
-      } else {
-        return 'Retiro / Adición';
-      }
-    } catch {
-  // Fallback: si no podemos determinar, tratamos como sin cambios para no sesgar métricas
-  return 'Sin cambios';
-    }
-  };
-
-  // Convertir fecha a período texto
-  const convertirFechaAPeriodo = (fecha) => {
-    try {
-      if (!fecha) return '';
-      const fechaObj = new Date(fecha);
-      if (isNaN(fechaObj.getTime())) return '';
-      
-      const meses = [
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-      ];
-      
-      return `${meses[fechaObj.getMonth()]} ${fechaObj.getFullYear()}`;
-    } catch {
-      return '';
-    }
-  };
-
-  // Consolidar datos por NUC (memoizado para evitar reprocesamiento)
-  const consolidarDatos = useCallback((data) => {
-    const grouped = {};
-    
-    data.forEach((row, index) => {
-      const key = `${row.nuc}_${row.establecimiento}`;
-      
-      if (!grouped[key]) {
-        grouped[key] = {
-          nuc: row.nuc,
-          serial: row.serial,
-          establecimiento: row.establecimiento,
-          tipoApuesta: row.tipoApuesta,
-          empresa: empresa,
-          produccion: 0,
-          diasTransmitidos: 0,
-          fechas: []
-        };
-      }
-      
-      // Convertir base liquidación a número
-      let baseLiq = 0;
-      if (row.baseLiquidacion !== undefined && row.baseLiquidacion !== '') {
-        baseLiq = parseFloat(row.baseLiquidacion) || 0;
-      }
-      
-      grouped[key].produccion += baseLiq;
-      grouped[key].diasTransmitidos += 1;
-      
-      // Manejar fechas (pueden estar en formato numérico de Excel)
-      if (row.fecha && row.fecha !== '') {
-        let fechaObj;
-        
-        if (typeof row.fecha === 'number') {
-          // Fecha en formato numérico de Excel (días desde 1900-01-01)
-          fechaObj = new Date((row.fecha - 25569) * 86400 * 1000);
-        } else {
-          fechaObj = new Date(row.fecha);
-        }
-        
-        if (!isNaN(fechaObj.getTime())) {
-          grouped[key].fechas.push(fechaObj);
-        }
-      }
-    });
-    
-    // Convertir a array y calcular campos derivados
-    const result = Object.values(grouped).map(item => {
-      const derechosExplotacion = item.produccion * 0.12;
-      const gastosAdministracion = derechosExplotacion * 0.01;
-      const totalImpuestos = derechosExplotacion + gastosAdministracion;
-      
-      // Calcular período
-      let fechaInicio = null;
-      let fechaFin = null;
-      
-      if (item.fechas.length > 0) {
-        const fechasValidas = item.fechas.filter(f => !isNaN(f.getTime()));
-        if (fechasValidas.length > 0) {
-          fechaInicio = new Date(Math.min(...fechasValidas.map(f => f.getTime())));
-          fechaFin = new Date(Math.max(...fechasValidas.map(f => f.getTime())));
-        }
-      }
-
-      // Calcular días del mes basado en la última fecha
-      const diasMes = fechaFin ? calcularDiasMes(fechaFin) : 31;
-      const periodoTexto = fechaFin ? convertirFechaAPeriodo(fechaFin) : '';
-      const novedad = determinarNovedad(item.diasTransmitidos, diasMes);
-      
-      const consolidatedItem = {
-        empresa: item.empresa,
-        serial: item.serial,
-        nuc: item.nuc,
-        establecimiento: item.establecimiento,
-        diasTransmitidos: item.diasTransmitidos,
-        diasMes: diasMes,
-        primerDia: formatearFechaSinTimezone(fechaInicio),
-        ultimoDia: formatearFechaSinTimezone(fechaFin),
-        periodoTexto: periodoTexto,
-        tipoApuesta: item.tipoApuesta,
-        produccion: item.produccion,
-        derechosExplotacion: derechosExplotacion,
-        gastosAdministracion: gastosAdministracion,
-        totalImpuestos: totalImpuestos,
-        novedad: novedad
-      };
-      
-      return consolidatedItem;
-    });
-    
-    return result;
-  }, [empresa]); // Memoizado con dependencia en empresa
-
-  // Generar reporte por sala
-  const generarReporteSala = (consolidatedConEmpresa) => {
-    const grouped = {};
-    
-    consolidatedConEmpresa.forEach(item => {
-      if (!grouped[item.establecimiento]) {
-        grouped[item.establecimiento] = {
-          establecimiento: item.establecimiento,
-          empresa: item.empresa,
-          totalMaquinas: 0,
-          produccion: 0,
-          derechosExplotacion: 0,
-          gastosAdministracion: 0,
-          totalImpuestos: 0
-        };
-      }
-      
-      const grupo = grouped[item.establecimiento];
-      grupo.totalMaquinas += 1;
-      grupo.produccion += item.produccion;
-      grupo.derechosExplotacion += item.derechosExplotacion;
-      grupo.gastosAdministracion += item.gastosAdministracion;
-      grupo.totalImpuestos += item.totalImpuestos;
-    });
-    
-    // Calcular promedio por establecimiento
-    return Object.values(grouped).map(item => ({
-      ...item,
-      promedioEstablecimiento: item.produccion / item.totalMaquinas
-    })).sort((a, b) => b.produccion - a.produccion);
-  };
-
-  // Confirmar validación y finalizar procesamiento
-  const confirmarValidacion = () => {
-    if (validationData) {
-      // Crear métricas finales usando los valores actualizados individuales
-      const metricasFinales = {
-        ...validationData.metrics,
-        totalProduccion: validationData.totalProduccion,
-        totalDerechos: validationData.totalDerechos,
-        totalGastos: validationData.totalGastos,
-        totalImpuestos: validationData.totalImpuestos
-      };
-      
-      // Aplicar datos validados
-      setConsolidatedData(validationData.consolidated);
-      setReporteBySala(validationData.reporteSala);
-      setMetricsData(metricasFinales);
-      
-      addLog(`📊 ${validationData.totalMaquinas} máquinas consolidadas`, 'success');
-      addLog(`🏢 ${validationData.totalEstablecimientos} establecimientos procesados`, 'success');
-      addLog('✅ Procesamiento completado exitosamente', 'success');
-      
-      addNotification('Liquidación procesada correctamente', 'success');
-      
-      // Cambiar a pestaña de resumen
-      setActiveTab(0);
-
-    }
-    
-    // Cerrar modal
-    setShowValidationModal(false);
-    setValidationData(null);
-  };
-
-  // Funciones para manejo de tarifas (basadas en la versión Python)
-  const handleLiquidacionCoincide = () => {
-    setLiquidacionCoincide(true);
-    setShowTarifasOptions(false);
-    addLog('✅ Liquidación marcada como coincidente', 'success');
-    confirmarValidacion();
-  };
-
-  const handleLiquidacionNoCoincide = () => {
-    setLiquidacionCoincide(false);
-    setShowTarifasOptions(true);
-    addLog('⚠️ Liquidación marcada como no coincidente - Se requiere ajuste de tarifas', 'warning');
-  };
-
-  const procesarArchivoTarifas = async (archivo) => {
-    if (!archivo) {
-      addLog('❌ No se proporcionó archivo de tarifas', 'error');
-      return;
-    }
-
-    setProcesandoTarifas(true);
-    addLog('📄 Procesando archivo de tarifas...', 'info');
-
-    try {
-      // Procesamiento optimizado
-      const data = await archivo.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-      // Detectar encabezados rápidamente (solo primeras 5 filas)
-      let headerRow = -1;
-      for (let i = 0; i < Math.min(5, jsonData.length); i++) {
-        const row = jsonData[i];
-        if (Array.isArray(row) && row.some(cell => 
-          cell && typeof cell === 'string' && 
-          (cell.toLowerCase().includes('nuc') || cell.toLowerCase().includes('tarifa'))
-        )) {
-          headerRow = i;
-          break;
-        }
-      }
-
-      if (headerRow === -1) {
-        throw new Error('No se encontraron encabezados válidos (NUC, Tarifa) en el archivo de tarifas');
-      }
-
-      const headers = jsonData[headerRow];
-      const dataRows = jsonData.slice(headerRow + 1);
-
-      // Mapear columnas optimizado
-      const nucIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('nuc'));
-      const tarifaIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('tarifa'));
-      const derechosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('derechos'));
-      const gastosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('gastos'));
-
-      if (nucIndex === -1 || tarifaIndex === -1) {
-        throw new Error('No se encontraron columnas NUC o Tarifa en el archivo. Verifique que el archivo tenga estas columnas.');
-      }
-
-      // Procesamiento rápido - solo tarifas fijas necesarias
-      const nuevasTarifas = {};
-      let tarífasEncontradas = 0;
-
-      dataRows.forEach((row) => {
-        if (row[nucIndex] && row[tarifaIndex] === 'Tarifa fija') {
-          const nuc = row[nucIndex].toString();
-          const derechos = parseFloat(row[derechosIndex]) || 0;
-          const gastos = parseFloat(row[gastosIndex]) || 0;
-          
-          if (derechos > 0 || gastos > 0) {
-            nuevasTarifas[nuc] = {
-              derechosAdicionales: derechos,
-              gastosAdicionales: gastos
-            };
-            tarífasEncontradas++;
-          }
-        }
-      });
-
-      if (tarífasEncontradas === 0) {
-        throw new Error('No se encontraron tarifas válidas en el archivo. Verifique que las columnas contengan datos numéricos.');
-      }
-
-      // Aplicar ajustes optimizado
-      if (validationData?.consolidated) {
-        const datosAjustados = validationData.consolidated.map(maquina => {
-          const nucString = maquina.nuc.toString();
-          
-          if (nuevasTarifas[nucString]) {
-            const infoTarifa = nuevasTarifas[nucString];
-            const nuevosDerechos = maquina.derechosExplotacion + infoTarifa.derechosAdicionales;
-            const nuevosGastos = maquina.gastosAdministracion + infoTarifa.gastosAdicionales;
-            
-            return {
-              ...maquina,
-              derechosExplotacion: nuevosDerechos,
-              gastosAdministracion: nuevosGastos,
-              totalImpuestos: nuevosDerechos + nuevosGastos,
-              tarifa: 'Tarifa fija (valores sumados)'
-            };
-          }
-          
-          return { ...maquina, tarifa: 'Cálculo original (sin ajuste)' };
-        });
-
-        // Recalcular totales rápido
-        const nuevoTotalDerechos = datosAjustados.reduce((sum, item) => sum + item.derechosExplotacion, 0);
-        const nuevoTotalGastos = datosAjustados.reduce((sum, item) => sum + item.gastosAdministracion, 0);
-
-        const nuevasMetricas = {
-          ...validationData.metrics,
-          totalDerechos: nuevoTotalDerechos,
-          totalGastos: nuevoTotalGastos,
-          totalImpuestos: nuevoTotalDerechos + nuevoTotalGastos
-        };
-
-        // Actualizar validation data con ajustes rápido
-        const nuevoValidationData = {
-          ...validationData,
-          consolidated: datosAjustados,
-          metrics: nuevasMetricas
-        };
-
-        setValidationData(nuevoValidationData);
-
-        // Auto-confirmar rápidamente con los valores correctos
-        setTimeout(() => {
-          setConsolidatedData(datosAjustados);
-          setReporteBySala(nuevoValidationData.reporteSala);
-          setMetricsData(nuevasMetricas);
-          
-          addLog(`✅ ${tarífasEncontradas} tarifas aplicadas correctamente`, 'success');
-          setActiveTab(0);
-          setShowValidationModal(false);
-          setValidationData(null);
-        }, 500); // Reducido a 500ms para mayor velocidad
-      }
-
-      setTarifasOficiales(nuevasTarifas);
-      addLog(`✅ Archivo de tarifas procesado: ${tarífasEncontradas} ajustes aplicados`, 'success');
-      setShowTarifasOptions(false);
-      setLiquidacionCoincide(true);
-      
-      // 📄 LOG DE ACTIVIDAD: Archivo de tarifas procesado
-      try {
-        await logActivity(
-          'archivo_tarifas_procesado',
-          'liquidacion',
-          empresa || 'general',
-          {
-            fileName: archivo.name || 'sin-nombre',
-            fileSize: archivo.size || 0,
-            empresa: empresa || 'Empresa no detectada',
-            tarifasEncontradas: tarífasEncontradas || 0,
-            tarifasAplicadas: Object.keys(nuevasTarifas).length || 0
-          },
-          currentUser.uid,
-          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
-          currentUser.email
-        );
-      } catch (logError) {
-        console.error('Error logging tariffs processing:', logError);
-      }
-      
-    } catch (error) {
-      addLog(`❌ Error procesando archivo de tarifas: ${error.message}`, 'error');
-      addNotification('Error al procesar archivo de tarifas', 'error');
-    } finally {
-      setProcesandoTarifas(false);
-    }
-  };
-
-  const seleccionarArchivoTarifas = () => {
-    addLog('📁 Abriendo selector de archivo de tarifas...', 'info');
-    
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.xlsx,.xls,.csv';
-    input.onchange = (e) => {
-      const archivo = e.target.files[0];
-      
-      if (archivo) {
-        // VALIDAR: No debe ser el mismo archivo inicial
-        if (selectedFile && archivo.name === selectedFile.name && archivo.size === selectedFile.size) {
-          addLog('❌ Error: No puede subir el mismo archivo inicial', 'error');
-          addNotification('Error: Debe subir un archivo de tarifas diferente al archivo inicial', 'error');
-          return;
-        }
-        
-        addLog(`📄 Archivo de tarifas seleccionado: ${archivo.name}`, 'info');
-        setArchivoTarifas(archivo);
-        
-        // PROCESAR AUTOMÁTICAMENTE
-        procesarArchivoTarifas(archivo);
-      } else {
-        addLog('❌ No se seleccionó archivo de tarifas', 'warning');
-      }
-    };
-    
-    input.onerror = (error) => {
-      console.error('❌ Error en selector de archivo:', error);
-      addLog('❌ Error abriendo selector de archivo', 'error');
-    };
-    
-    input.click();
-  };
-
-  const continuarSinTarifas = () => {
-    setShowTarifasOptions(false);
-    addLog('➡️ Continuando sin ajustes de tarifas', 'info');
-    confirmarValidacion();
-  };
-
-  // Función auxiliar para calcular métricas
-  const calcularMetrics = (data) => {
-    const totalProduccion = data.reduce((sum, item) => sum + (item.produccion || 0), 0);
-    const totalDerechos = data.reduce((sum, item) => sum + (item.derechosExplotacion || 0), 0);
-    const totalGastos = data.reduce((sum, item) => sum + (item.gastosAdministracion || 0), 0);
-    const totalImpuestos = totalDerechos + totalGastos;
-    
-    return {
-      totalMaquinas: data.length,
-      totalEstablecimientos: new Set(data.map(item => item.establecimiento)).size,
-      totalProduccion,
-      totalDerechos,
-      totalGastos,
-      totalImpuestos
-    };
-  };
-
-  // Cancelar validación
-  const cancelarValidacion = () => {
-    setShowValidationModal(false);
-    setValidationData(null);
-    addLog('❌ Procesamiento cancelado por el usuario', 'warning');
-  };
-
-  // Calcular métricas generales
-  // Calcular métricas (memoizado para evitar recálculos innecesarios)
-  const calcularMetricas = useMemo(() => {
-    return (consolidatedData, reporteSala) => {
-      if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
-        return null;
-      }
-
-      if (!reporteSala || !Array.isArray(reporteSala)) {
-        return null;
-      }
-
-      // Normalización helper
-      const toNumber = (v) => {
-        if (v === null || v === undefined) return 0;
-        if (typeof v === 'number') return isFinite(v) ? v : 0;
-        if (typeof v === 'string') {
-          const cleaned = v.replace(/[$,%\s]/g, '').replace(/\.(?=.*\.)/g,'').replace(/,/g,'.');
-          const n = parseFloat(cleaned);
-          return isNaN(n) ? 0 : n;
-        }
-        return 0;
-      };
-
-      // Asegurar que cada item tenga cálculos financieros básicos si faltan
-      consolidatedData.forEach(item => {
-        const prod = toNumber(item.produccion || item.totalProduccion);
-        if (!item || prod === 0) return;
-        if (typeof item.derechosExplotacion !== 'number' || isNaN(item.derechosExplotacion) || item.derechosExplotacion === 0) {
-          item.derechosExplotacion = prod * 0.12;
-        }
-        if (typeof item.gastosAdministracion !== 'number' || isNaN(item.gastosAdministracion) || item.gastosAdministracion === 0) {
-          item.gastosAdministracion = prod * 0.015;
-        }
-        if (typeof item.totalImpuestos !== 'number' || isNaN(item.totalImpuestos) || item.totalImpuestos === 0) {
-          item.totalImpuestos = toNumber(item.derechosExplotacion) + toNumber(item.gastosAdministracion);
-        }
-      });
-
-      const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
-    const totalDerechos = consolidatedData.reduce((sum, item) => sum + toNumber(item.derechosExplotacion), 0);
-    const totalGastos = consolidatedData.reduce((sum, item) => sum + toNumber(item.gastosAdministracion), 0);
-    const totalImpuestos = consolidatedData.reduce((sum, item) => sum + toNumber(item.totalImpuestos), 0);
-
-    // Posibles variantes de estado novedad
-    const isSinCambios = (estado) => {
-      const norm = (estado || '').toString().trim().toLowerCase();
-      if (!norm || ['sin informacion','sin información',''].includes(norm)) return true; // tratar ausencia como sin cambios
-      return ['sin cambios', 'sin_cambios', 'sin-cambios', 'ok', 'igual'].includes(norm);
-    };
-
-    const sinCambios = consolidatedData.filter(item => isSinCambios(item.novedad)).length;
-    const conNovedades = consolidatedData.length - sinCambios;
-    const porcentajeSinCambios = consolidatedData.length > 0 ? (sinCambios / consolidatedData.length * 100) : 0;
-    const porcentajeConNovedad = consolidatedData.length > 0 ? (conNovedades / consolidatedData.length * 100) : 0;
-    const promedioEstablecimiento = reporteSala.length > 0 ? totalProduccion / reporteSala.length : 0;
-    
-    const metricas = {
-      totalMaquinas: consolidatedData.length,
-      totalEstablecimientos: reporteSala.length,
-      totalProduccion,
-      totalDerechos,
-      totalGastos,
-      totalImpuestos,
-      sinCambios,
-      conNovedades,
-      porcentajeSinCambios,
-      porcentajeConNovedad,
-      promedioEstablecimiento
-    };
-
-    return metricas;
-    };
-  }, []); // Memoizado sin dependencias (función pura)
-
-  // Funciones de exportación (extraídas a custom hook)
-  // exportarConsolidado, exportarReporteSala, exportarReporteDiario 
-  // → Ahora vienen de useLiquidacionExport
-
-  const abrirModalDaily = () => {
-    if (!consolidatedData) {
-      addNotification('No hay datos para exportar reporte diario', 'warning');
-      return;
-    }
-    const establecimientosUnicos = [...new Set(consolidatedData.map(i => i.establecimiento).filter(Boolean))];
-    if (establecimientosUnicos.length === 0) {
-      addNotification('No se detectaron establecimientos en los datos', 'error');
-      return;
-    }
-    if (establecimientosUnicos.length === 1) {
-      // Exportación directa
-      exportarReporteDiario(establecimientosUnicos[0]);
-    } else {
-      setShowDailyModal(true);
-    }
-  };
-
-  // Reiniciar aplicación
-  const reiniciarAplicacion = () => {
-    if (window.confirm('¿Está seguro que desea reiniciar? Se perderán todos los datos cargados.')) {
-      // Resetear estados de archivos y empresa
-      setSelectedFile(null);
-      setEmpresa('');
-      setEmpresaCompleta(null); // Limpiar empresa completa con logo
-      
-      // Resetear estados de datos
-      setOriginalData(null);
-      setConsolidatedData(null);
-      setReporteBySala(null);
-      setMetricsData(null);
-      
-      // Resetear estados de UI
-      setLogs([]);
-      logIdCounter.current = 0;
-      setActiveTab(0);
-      setProcessing(false);
-      setDragActive(false);
-      
-      // Resetear estados de validación y tarifas
-      setShowValidationModal(false);
-      setValidationData(null);
-      setTarifasOficiales({});
-      setArchivoTarifas(null);
-      setLiquidacionCoincide(true);
-      setShowTarifasOptions(false);
-      setProcesandoTarifas(false);
-      
-      // Resetear estados del selector de establecimientos
-      setShowEstablecimientoSelector(false);
-      setSelectedEstablecimientos([]);
-      
-      // Resetear estados de Firebase
-      setGuardandoLiquidacion(false);
-      setLiquidacionGuardadaId(null);
-      setHistorialLiquidaciones([]);
-      setCargandoHistorial(false);
-      setShowConfirmarGuardadoModal(false);
-      
-      // Resetear input de archivo con un pequeño retraso
-      setTimeout(() => {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }, 100);
-      
-      // Forzar re-render después del reset con un pequeño delay
-      setTimeout(() => {
-        addLog('🔄 Aplicación reiniciada correctamente', 'info');
-        addLog('📁 Listo para cargar un nuevo archivo', 'info');
-      }, 150);
-    }
-  };
-
-  // Formatear moneda
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
-  // Renderizar modal de validación dentro del return principal
   return (
     <>
-      {/* Modal de validación - Diseño Sobrio */}
+      {/* Modal de validación (V1-style) */}
       <Dialog
         open={showValidationModal}
-        onClose={() => {}} // Prevenir cierre accidental
+        onClose={() => {}}
         maxWidth="lg"
         fullWidth
         PaperProps={{
@@ -2225,233 +2229,259 @@ const LiquidacionesPage = () => {
             borderRadius: 1,
             background: theme.palette.background.paper,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
           }
         }}
       >
-        <DialogTitle sx={{ 
-          pb: 2,
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
-            ? theme.palette.grey[900]
-            : theme.palette.grey[50],
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          color: 'text.primary'
-        }}>
+        <DialogTitle
+          sx={{
+            pb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main' }}>
               <Assessment />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 700,
-                mb: 0,
-                color: 'text.primary' 
-              }}>
-                🔍 Validación de Liquidación
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0 }}>
+                Validación de Liquidación
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Revise los cálculos antes de finalizar el procesamiento
+                Revisa los cálculos antes de finalizar
               </Typography>
             </Box>
           </Box>
         </DialogTitle>
-        
-        <DialogContent sx={{ p: 3, pt: 5 }}>
+
+        <DialogContent sx={{ p: 3, pt: 4 }}>
+          <input
+            ref={validationTarifasInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={handleValidationTarifasInputChange}
+          />
+
           {validationData && (
-            <Grid container spacing={3}>
-              {/* Resumen de máquinas - Diseño Sobrio */}
+            <Grid container spacing={3} sx={{ mt: 2 }}>
               <Grid item xs={12} md={6}>
-                <Paper sx={{ 
-                  p: 3,
-                  borderRadius: 1,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  background: alpha(theme.palette.primary.main, 0.08),
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{ 
-                    fontWeight: 600, 
-                    color: 'primary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem'
-                  }}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: 0.8, display: 'block', mb: 2 }}
+                  >
                     Información General
                   </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
-                    📊 Resumen de Consolidación
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BarChartIcon sx={{ color: 'primary.main' }} />
+                    Resumen de Consolidación
                   </Typography>
-                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
-                    🎰 Máquinas consolidadas: <strong>{validationData.totalMaquinas}</strong>
-                  </Typography>
-                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
-                    🏢 Establecimientos: <strong>{validationData.totalEstablecimientos}</strong>
-                  </Typography>
-                  <Typography sx={{ color: 'text.primary' }}>
-                    🏢 Empresa: <strong>{empresa || 'No detectada'}</strong>
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                    <Casino sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Máquinas consolidadas: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.totalMaquinas}</Typography>
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                    <Store sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Establecimientos: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.totalEstablecimientos}</Typography>
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Empresa: <Typography component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>{validationData.empresaFinal || empresa || 'No detectada'}</Typography>
+                    </Typography>
+                  </Box>
                 </Paper>
               </Grid>
-              
-              {/* Totales financieros - Diseño Sobrio */}
+
               <Grid item xs={12} md={6}>
-                <Paper sx={{ 
-                  p: 3,
-                  borderRadius: 1,
-                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                  background: alpha(theme.palette.secondary.main, 0.08),
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{ 
-                    fontWeight: 600, 
-                    color: 'secondary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem'
-                  }}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: 0.8, display: 'block', mb: 2 }}
+                  >
                     Información Financiera
                   </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
-                    💰 Totales Financieros
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AttachMoney sx={{ color: 'success.main' }} />
+                    Totales Financieros
                   </Typography>
-                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
-                    Producción: <strong>$ {validationData.totalProduccion.toLocaleString()}</strong>
-                  </Typography>
-                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
-                    Derechos (12%): <strong>$ {validationData.totalDerechos.toLocaleString()}</strong>
-                  </Typography>
-                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
-                    Gastos (1%): <strong>$ {validationData.totalGastos.toLocaleString()}</strong>
-                  </Typography>
-                  <Typography sx={{ color: 'text.primary', fontSize: '1.1em', fontWeight: 600 }}>
-                    <strong>Total Impuestos: $ {validationData.totalImpuestos.toLocaleString()}</strong>
-                  </Typography>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Producción:</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalProduccion)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Derechos (12%):</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalDerechos)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Gastos (1%):</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(validationData.totalGastos)}</Typography>
+                  </Box>
+                  <Divider sx={{ my: 2 }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>Total Impuestos:</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>{formatCurrencyCOP(validationData.totalImpuestos)}</Typography>
+                  </Box>
                 </Paper>
               </Grid>
-              
-              {/* Pregunta de coincidencia de tarifas - Diseño Sobrio */}
+
               {!showTarifasOptions && (
                 <Grid item xs={12}>
-                  <Paper sx={{ 
-                    p: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                    background: alpha(theme.palette.info.main, 0.08),
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                  }}>
-                    <Typography variant="h6" sx={{ color: 'text.primary', textAlign: 'center', mb: 2 }}>
-                      🔍 ¿Los cálculos coinciden con las tarifas oficiales?
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3 }}>
-                      Si tiene un archivo de tarifas oficial para verificar, puede seleccionar "No Coincide" para hacer ajustes.
+                  <Paper
+                    sx={{
+                      p: 3,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+                      <HelpOutline sx={{ color: 'text.secondary' }} />
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        ¿Los cálculos coinciden con las tarifas oficiales?
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3 }}>
+                      Si tienes un archivo de tarifas oficial, selecciona “No Coincide” para ajustar automáticamente.
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                      <Button 
+                      <Button
                         onClick={handleLiquidacionCoincide}
-                        variant="contained"
+                        variant="outlined"
                         size="large"
                         color="success"
-                        sx={{ 
-                          minWidth: 140,
+                        startIcon={<CheckCircle />}
+                        sx={{
+                          minWidth: 160,
                           borderRadius: 1,
                           fontWeight: 600,
-                          textTransform: 'none'
+                          textTransform: 'none',
+                          bgcolor: alpha(theme.palette.success.main, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.success.main, 0.12),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }
                         }}
                       >
-                        ✅ Sí Coincide
+                        Sí Coincide
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleLiquidacionNoCoincide}
-                        variant="contained"
+                        variant="outlined"
                         size="large"
                         color="error"
-                        sx={{ 
-                          minWidth: 140,
+                        startIcon={<Cancel />}
+                        sx={{
+                          minWidth: 160,
                           borderRadius: 1,
                           fontWeight: 600,
-                          textTransform: 'none'
+                          textTransform: 'none',
+                          bgcolor: alpha(theme.palette.error.main, 0.08),
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.error.main, 0.12),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                          }
                         }}
                       >
-                        ❌ No Coincide
+                        No Coincide
                       </Button>
                     </Box>
                   </Paper>
                 </Grid>
               )}
 
-              {/* Opciones de tarifas - Diseño Sobrio */}
               {showTarifasOptions && (
                 <Grid item xs={12}>
-                  <Paper sx={{ 
-                    p: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                    background: alpha(theme.palette.warning.main, 0.08),
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                  }}>
-                    <Typography variant="h6" sx={{ color: 'text.primary', mb: 2 }}>
+                  <Paper
+                    sx={{
+                      p: 3,
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                      background: alpha(theme.palette.warning.main, 0.08),
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ mb: 2 }}>
                       ⚙️ Ajuste de Tarifas Oficiales
                     </Typography>
-                    <Typography variant="body1" sx={{ color: 'text.secondary', mb: 3 }}>
-                      Seleccione un archivo Excel con las tarifas oficiales para ajustar automáticamente los cálculos.
-                      El archivo debe contener columnas "NUC" y "Tarifa".
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+                      Selecciona un Excel de tarifas con columnas “NUC” y “Tarifa fija”.
                     </Typography>
-                    
-                    {procesandoTarifas && (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 2, 
-                        mb: 2,
-                        p: 2,
-                        borderRadius: 1,
-                        background: alpha(theme.palette.info.main, 0.08),
-                        border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-                      }}>
+
+                    {(procesandoTarifasValidacion || processing) && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          mb: 2,
+                          p: 2,
+                          borderRadius: 1,
+                          background: alpha(theme.palette.info.main, 0.08),
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                        }}
+                      >
                         <CircularProgress size={20} color="info" />
-                        <Typography sx={{ color: 'text.primary' }}>Procesando archivo de tarifas...</Typography>
+                        <Typography>Procesando archivo de tarifas…</Typography>
                       </Box>
                     )}
-                    
-                    {liquidacionCoincide && !procesandoTarifas && showTarifasOptions && (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 2, 
-                        mb: 2, 
-                        p: 2, 
-                        borderRadius: 1,
-                        background: alpha(theme.palette.success.main, 0.08),
-                        border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
-                      }}>
-                        <Typography sx={{ color: 'text.primary', textAlign: 'center' }}>
-                          ✅ Tarifas procesadas correctamente. El modal se cerrará automáticamente en unos segundos...
+
+                    {liquidacionCoincide && !procesandoTarifasValidacion && showTarifasOptions && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          mb: 2,
+                          p: 2,
+                          borderRadius: 1,
+                          background: alpha(theme.palette.success.main, 0.08),
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                        }}
+                      >
+                        <Typography sx={{ textAlign: 'center', width: '100%' }}>
+                          ✅ Tarifas aplicadas. Cerrando validación…
                         </Typography>
                       </Box>
                     )}
-                    
+
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <Button 
-                        onClick={seleccionarArchivoTarifas}
+                      <Button
+                        onClick={seleccionarArchivoTarifasValidacion}
                         variant="contained"
-                        disabled={procesandoTarifas}
-                        sx={{ 
-                          borderRadius: 1,
-                          fontWeight: 600,
-                          textTransform: 'none'
-                        }}
+                        disabled={procesandoTarifasValidacion || processing}
+                        sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none' }}
                       >
                         📁 Seleccionar Archivo de Tarifas
                       </Button>
-                      <Button 
+                      <Button
                         onClick={continuarSinTarifas}
                         variant="outlined"
-                        disabled={procesandoTarifas}
-                        sx={{ 
-                          borderRadius: 1,
-                          fontWeight: 500,
-                          textTransform: 'none'
-                        }}
+                        disabled={procesandoTarifasValidacion || processing}
+                        sx={{ borderRadius: 1, fontWeight: 500, textTransform: 'none' }}
                       >
                         ➡️ Continuar Sin Ajustes
                       </Button>
@@ -2459,62 +2489,35 @@ const LiquidacionesPage = () => {
                   </Paper>
                 </Grid>
               )}
-              
-              {/* Advertencia final - Diseño Sobrio */}
-              {!showTarifasOptions && (
-                <Grid item xs={12}>
-                  <Paper sx={{ 
-                    p: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                    background: alpha(theme.palette.info.main, 0.04),
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                  }}>
-                    <Typography variant="body1" sx={{ color: 'text.primary', textAlign: 'center' }}>
-                      ⚠️ <strong>Importante:</strong> Una vez confirmada la validación, los datos estarán listos para exportar.
-                      <br />Revise cuidadosamente los totales antes de continuar.
-                    </Typography>
-                  </Paper>
-                </Grid>
-              )}
             </Grid>
           )}
         </DialogContent>
-        
+
         <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
           <Typography variant="caption" color="text.secondary">
-            Validación de liquidación en proceso
+            Validación de liquidación
           </Typography>
-          <Button 
-            onClick={cancelarValidacion}
-            variant="outlined"
-            sx={{ 
-              borderRadius: 1,
-              fontWeight: 500,
-              textTransform: 'none',
-              px: 3
-            }}
-          >
+          <Button onClick={cancelarValidacion} variant="outlined" sx={{ borderRadius: 1, textTransform: 'none', px: 3 }}>
             ❌ Cancelar
           </Button>
         </DialogActions>
       </Dialog>
 
       <Container maxWidth="xl" sx={{ py: 3 }}>
-      {/* Header - Diseño Sobrio con Gradient Dinámico */}
-      <Paper sx={{ 
-        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        borderRadius: 1,
+      {/* Header */}
+      <Paper sx={{
+        background: theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        borderRadius: 0.6,
         overflow: 'hidden',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        mb: 6,
-        transition: 'box-shadow 0.2s ease',
-        '&:hover': {
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-        }
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+          : '0 4px 20px rgba(0, 0, 0, 0.08)',
+        mb: 3
       }}>
         <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-          <Typography variant="overline" sx={{ 
+          <Typography variant="overline" sx={{
             fontWeight: 600, 
             fontSize: '0.7rem', 
             color: 'rgba(255, 255, 255, 0.8)',
@@ -2522,1656 +2525,2310 @@ const LiquidacionesPage = () => {
           }}>
             SISTEMA • PROCESAMIENTO
           </Typography>
-          <Typography variant="h4" sx={{ 
+          <Typography variant="h4" sx={{
             fontWeight: 700, 
-            mt: 0.5, 
-            mb: 0.5,
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             gap: 1
           }}>
             Procesador de Liquidaciones
-            {liquidacionGuardadaId && (
-              <Chip 
-                label="Sincronizado" 
-                size="small" 
-                sx={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  fontWeight: 500,
-                  '& .MuiChip-icon': { color: 'white' }
-                }}
-                icon={<Storage />}
-              />
-            )}
           </Typography>
           <Typography variant="body1" sx={{ 
             color: 'rgba(255, 255, 255, 0.9)'
           }}>
-            Sistema avanzado de procesamiento y análisis de liquidaciones de máquinas
+            Sistema avanzado para gestión centralizada de recaudos
           </Typography>
         </Box>
       </Paper>
 
-      {/* Sección de Historial de Liquidaciones - Solo si hay datos */}
-      {historialLiquidaciones.length > 0 && (
-        <Card sx={{ 
+      {/* Acciones (Fase 1: exportaciones) */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          p: 2.5,
           mb: 3,
-          borderRadius: 1,
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          transition: 'all 0.2s ease',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            borderColor: alpha(theme.palette.primary.main, 0.8)
-          }
-        }}>
-          <CardContent sx={{ p: 2.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-              <Storage sx={{ color: theme.palette.info.main, fontSize: '1.2rem' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                Liquidaciones Guardadas
-              </Typography>
-              {guardandoLiquidacion && (
-                <CircularProgress size={16} />
-              )}
-              {liquidacionGuardadaId && (
-                <Chip 
-                  label="Guardado" 
-                  size="small" 
-                  color="success" 
-                  variant="outlined"
-                />
-              )}
-            </Box>
-            
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {historialLiquidaciones.slice(0, 5).map((liquidacion) => (
-                <Chip
-                  key={liquidacion.id}
-                  label={`${
-                    typeof liquidacion.empresa === 'string' 
-                      ? liquidacion.empresa 
-                      : liquidacion.empresa?.nombre || liquidacion.empresa?.name || 'Sin Empresa'
-                  } - ${liquidacion.fechas?.periodoDetectadoModal || `${liquidacion.fechas?.mesLiquidacion} ${liquidacion.fechas?.añoLiquidacion}`}`}
-                  onClick={() => cargarLiquidacion(liquidacion.id)}
-                  sx={{
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
-                    }
-                  }}
-                  deleteIcon={liquidacion.id === liquidacionGuardadaId ? <CheckCircle /> : undefined}
-                  onDelete={liquidacion.id === liquidacionGuardadaId ? () => {} : undefined}
-                />
-              ))}
-              {historialLiquidaciones.length > 5 && (
-                <Chip 
-                  label={`+${historialLiquidaciones.length - 5} más`} 
-                  variant="outlined"
-                  size="small"
-                />
-              )}
-            </Box>
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          style={{ display: 'none' }}
+          onChange={handleFileInputChange}
+        />
+        <input
+          ref={tarifasInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: 'none' }}
+          onChange={handleTarifasInputChange}
+        />
 
-            {liquidacionGuardadaId && (
-              <Alert 
-                severity="success" 
-                sx={{ mt: 2, py: 0.5 }}
-                icon={<Storage />}
-              >
-                Esta liquidación está sincronizada con Firebase (ID: {liquidacionGuardadaId.slice(-8)})
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Grid container spacing={3}>
-        {/* Panel de Control - Diseño Sobrio */}
-        <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            height: 'fit-content',
-            borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.primary.main, 0.8)
-            }
-          }}>
-            <CardContent>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'primary.main',
-                letterSpacing: 0.8,
-                fontSize: '0.75rem'
-              }}>
-                Gestión de Archivos
-              </Typography>
-              
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                📁 1. Seleccionar Archivo
-              </Typography>
-              
-              {/* Botón seleccionar archivo - Deshabilitar si ya hay archivos procesados o viene del histórico */}
-              <Button
-                variant="contained"
-                startIcon={companiesLoading ? <CircularProgress size={20} color="inherit" /> : <CloudUpload />}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!!(selectedFile || liquidacionGuardadaId || companiesLoading)} // Deshabilitar si está cargando empresas
-                sx={{ 
-                  mb: 2, 
-                  mr: 1,
-                  borderRadius: 1,
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  background: (selectedFile || liquidacionGuardadaId || companiesLoading)
-                    ? alpha(theme.palette.action.disabled, 0.12)
-                    : undefined,
-                  color: (selectedFile || liquidacionGuardadaId || companiesLoading)
-                    ? theme.palette.action.disabled
-                    : undefined,
-                  '&:disabled': {
-                    background: alpha(theme.palette.action.disabled, 0.12),
-                    color: theme.palette.action.disabled
-                  }
-                }}
-              >
-                {companiesLoading
-                  ? 'Cargando empresas...'
-                  : selectedFile 
-                    ? 'Archivo Ya Seleccionado'
-                    : liquidacionGuardadaId 
-                      ? 'Liquidación del Histórico'
-                      : 'Seleccionar Archivo'
-                }
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Acciones
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+              Carga y procesamiento general
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+            {selectedFile && (
+              <Button variant="outlined" onClick={resetLiquidacion} disabled={processing}>
+                Reiniciar
               </Button>
-              
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".xlsx,.xls,.csv"
-                disabled={!!(selectedFile || liquidacionGuardadaId)} // Deshabilitar si ya hay archivo o viene del histórico
-                style={{ display: 'none' }}
-              />
-              
-              {/* Zona drag & drop - Diseño Sobrio - Deshabilitar si ya hay archivos o cargando */}
-              <Paper
-                ref={dropZoneRef}
-                onDragEnter={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
-                onDragLeave={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
-                onDragOver={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
-                onDrop={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrop}
-                sx={{
-                  p: 3,
-                  border: `2px dashed ${
-                    selectedFile || liquidacionGuardadaId || companiesLoading
-                      ? alpha(theme.palette.action.disabled, 0.3)
-                      : dragActive 
-                        ? alpha(theme.palette.primary.main, 0.8) 
-                        : alpha(theme.palette.primary.main, 0.6)
-                  }`,
-                  backgroundColor: selectedFile || liquidacionGuardadaId || companiesLoading
-                    ? alpha(theme.palette.action.disabled, 0.05)
-                    : dragActive 
-                      ? alpha(theme.palette.primary.main, 0.1) 
-                      : alpha(theme.palette.primary.main, 0.04),
-                  textAlign: 'center',
-                  cursor: selectedFile || liquidacionGuardadaId || companiesLoading ? 'not-allowed' : 'pointer',
-                  mb: 2,
-                  borderRadius: 1,
-                  transition: 'all 0.2s ease',
-                  transform: dragActive ? 'scale(1.02)' : 'scale(1)',
-                  opacity: selectedFile || liquidacionGuardadaId || companiesLoading ? 0.6 : 1
-                }}
+            )}
+            {selectedFile && (
+              <Button
+                variant="outlined"
+                startIcon={<Save />}
+                onClick={mostrarConfirmacionGuardado}
+                disabled={!canGuardar}
               >
-                {companiesLoading ? (
-                  <>
-                    <CircularProgress size={40} sx={{ mb: 1 }} />
-                    <Typography variant="body2" color="textSecondary">
-                      Cargando empresas desde Firestore...
-                    </Typography>
-                  </>
-                ) : (
-                  <>
-                    <CloudUpload sx={{ 
-                      fontSize: 40, 
-                      color: selectedFile || liquidacionGuardadaId
-                        ? alpha(theme.palette.action.disabled, 0.5)
-                        : alpha(theme.palette.text.secondary, 0.7), 
-                      mb: 1 
-                    }} />
-                    <Typography 
-                      variant="body2" 
-                      color={selectedFile || liquidacionGuardadaId ? "textDisabled" : "textSecondary"}
-                    >
-                      {selectedFile
-                        ? 'Archivo ya seleccionado - Reinicia para cargar otro'
-                        : liquidacionGuardadaId
-                          ? 'Liquidación del histórico - No requiere archivos'
-                          : 'También puedes arrastrar archivos Excel/CSV aquí'
-                      }
-                    </Typography>
-                  </>
-                )}
-              </Paper>
-              
-              {selectedFile && (
-                <Alert 
-                  severity="success" 
-                  sx={{ 
-                    mb: 2,
-                    backgroundColor: alpha(theme.palette.success.main, 0.08),
-                    border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      borderColor: alpha(theme.palette.success.main, 0.8)
-                    }
-                  }}
-                >
-                  <strong>Archivo seleccionado:</strong><br />
-                  {selectedFile.name}
-                </Alert>
-              )}
-              
-              {/* Campo empresa - Detectado automáticamente con Avatar y tipografía mejorada */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ 
-                  mb: 1.5, 
-                  fontWeight: 600,
-                  color: theme.palette.text.secondary,
-                  fontSize: '0.9rem'
-                }}>
-                  🏢 Empresa (Detectada automáticamente)
+                Guardar
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        {/* Card de Contexto Integrada - Empresa + Archivo */}
+        <Paper
+          elevation={0}
+          onClick={!selectedFile ? handleSelectFile : undefined}
+          onDragEnter={!selectedFile ? handleDrag : undefined}
+          onDragLeave={!selectedFile ? handleDrag : undefined}
+          onDragOver={!selectedFile ? handleDrag : undefined}
+          onDrop={!selectedFile ? handleDrop : undefined}
+          sx={{
+            mt: 2.5,
+            p: 2.5,
+            borderRadius: 2,
+            border: dragActive && !selectedFile
+              ? `2px dashed ${alpha(theme.palette.primary.main, 0.6)}`
+              : `1px solid ${alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.divider) : theme.palette.primary.main, 0.2)}`,
+            backgroundColor: dragActive && !selectedFile
+              ? alpha(theme.palette.primary.main, 0.12)
+              : alpha(selectedFile ? (empresa && empresa !== 'GENERAL' ? theme.palette.success.main : theme.palette.grey[500]) : theme.palette.primary.main, 0.04),
+            boxShadow: dragActive && !selectedFile
+              ? '0 4px 12px rgba(0,0,0,0.1)'
+              : '0 2px 8px rgba(0,0,0,0.06)',
+            cursor: !selectedFile ? 'pointer' : 'default',
+            transition: 'all 0.2s ease',
+            transform: dragActive && !selectedFile ? 'scale(1.02)' : 'scale(1)',
+            ...(!selectedFile && !dragActive && {
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              }
+            })
+          }}
+        >
+          {!selectedFile ? (
+            // Estado inicial: Sin archivo cargado (clickeable)
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pointerEvents: 'none' }}>
+              <CloudUpload 
+                sx={{ 
+                  fontSize: 48, 
+                  color: 'primary.main',
+                  opacity: 0.6
+                }} 
+              />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Listo para cargar
                 </Typography>
-                
-                <Paper
-                  sx={{
-                    p: 2.5,
-                    borderRadius: 1,
-                    backgroundColor: empresa ? alpha(theme.palette.success.main, 0.04) : alpha(theme.palette.grey[500], 0.04),
-                    border: `1px solid ${empresa ? alpha(theme.palette.success.main, 0.6) : alpha(theme.palette.grey[500], 0.6)}`,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: empresa ? alpha(theme.palette.success.main, 0.08) : alpha(theme.palette.grey[500], 0.08),
-                      borderColor: empresa ? alpha(theme.palette.success.main, 0.8) : alpha(theme.palette.grey[500], 0.8)
-                    }
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    {/* Avatar con logo de la empresa o inicial */}
-                    {empresaCompleta?.logoURL ? (
-
-                      <Avatar
-                        src={empresaCompleta.logoURL}
-                        alt={`Logo de ${empresaCompleta.name}`}
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                          backgroundColor: theme.palette.background.paper,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                        }}
-                      />
-                    ) : empresa && typeof empresa === 'string' ? (
-                      <Avatar
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          backgroundColor: alpha(theme.palette.success.main, 0.15),
-                          color: theme.palette.success.main,
-                          fontWeight: 700,
-                          fontSize: '1.2rem',
-                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                        }}
-                      >
-                        {empresa.charAt(0).toUpperCase()}
-                      </Avatar>
-                    ) : (
-                      <Avatar
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          backgroundColor: alpha(theme.palette.grey[500], 0.15),
-                          color: theme.palette.grey[600],
-                          fontWeight: 600,
-                          fontSize: '1.2rem',
-                          border: `2px solid ${alpha(theme.palette.grey[500], 0.3)}`,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                        }}
-                      >
-                        ?
-                      </Avatar>
-                    )}
-                    
-                    {/* Información de la empresa */}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 700,
-                          fontSize: '1.1rem',
-                          color: empresa ? theme.palette.text.primary : theme.palette.text.secondary,
-                          mb: 0.5,
-                          lineHeight: 1.2
-                        }}
-                      >
-                        {empresa || 'Se detectará del archivo...'}
-                      </Typography>
-                      
-                      {empresaCompleta && (
-                        <Box>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500,
-                              fontSize: '0.85rem',
-                              mb: 0.3
-                            }}
-                          >
-                            NIT: {empresaCompleta.nit}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: theme.palette.success.main,
-                              fontWeight: 600,
-                              fontSize: '0.8rem'
-                            }}
-                          >
-                            Contrato: {empresaCompleta.contractNumber}
-                          </Typography>
-                        </Box>
-                      )}
-                      
-                      {!empresa && (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: theme.palette.text.secondary,
-                            fontStyle: 'italic',
-                            fontSize: '0.85rem'
-                          }}
-                        >
-                          La empresa se detectará automáticamente del número de contrato en el archivo
-                        </Typography>
-                      )}
-                    </Box>
-                    
-                    {/* Indicador de estado */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      {empresa ? (
-                        <Chip
-                          label="Detectada"
-                          color="success"
-                          size="small"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.1)'
-                          }}
-                        />
-                      ) : (
-                        <Chip
-                          label="Pendiente"
-                          color="default"
-                          size="small"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: '0.75rem',
-                            backgroundColor: alpha(theme.palette.grey[500], 0.1),
-                            color: theme.palette.grey[600]
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Arrastra un archivo Excel aquí o haz clic para seleccionar
+                </Typography>
               </Box>
-              
-              {/* Procesamiento automático */}
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                ⚙️ 2. Procesamiento Automático
-              </Typography>
-              
-              {/* Estado del procesamiento automático - Diseño Sobrio */}
-              {!selectedFile ? (
-                <Box sx={{ 
-                  p: 3, 
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.15)}`,
-                  borderRadius: 1,
-                  textAlign: 'center',
-                  mb: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5)
-                }}>
-                  <Typography variant="body1" color="text.secondary">
-                    ⏳ Seleccione un archivo para iniciar el procesamiento automático
-                  </Typography>
-                </Box>
-              ) : processing ? (
-                <Box sx={{ 
-                  p: 3, 
-                  background: alpha(theme.palette.primary.main, 0.08),
-                  borderRadius: 1,
-                  mb: 2,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    borderColor: alpha(theme.palette.primary.main, 0.8)
-                  }
-                }}>
-                  <Typography variant="body1" color="primary" sx={{ mb: 2, textAlign: 'center' }}>
-                    ⚙️ Procesando automáticamente...
-                  </Typography>
-                  <Skeleton variant="rectangular" height={60} sx={{ mb: 2, borderRadius: 1 }} />
-                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
-                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
-                    <Skeleton variant="rectangular" width="33%" height={40} sx={{ borderRadius: 1 }} />
-                  </Box>
-                  <LinearProgress sx={{ borderRadius: 1 }} />
-                </Box>
-              ) : (
-                <Box sx={{ 
-                  p: 3, 
-                  background: alpha(theme.palette.success.main, 0.08),
-                  borderRadius: 1,
-                  textAlign: 'center',
-                  mb: 2,
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    borderColor: alpha(theme.palette.success.main, 0.8)
-                  }
-                }}>
-                  <Typography variant="body1" color="success.main">
-                    ✅ Archivo procesado correctamente
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Botón Guardar Liquidación - Solo para liquidaciones nuevas (no desde histórico) */}
-              {originalData && consolidatedData && !processing && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                    💾 Guardar en Firebase
-                  </Typography>
-                  
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<Save />}
-                    onClick={mostrarConfirmacionGuardado}
-                    disabled={!!(guardandoLiquidacion || liquidacionGuardadaId)}
+            </Box>
+          ) : (
+            // Estado con archivo cargado
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+              {/* Logo y datos de empresa */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {empresaCompleta?.logoURL ? (
+                  <Avatar
+                    src={empresaCompleta.logoURL}
+                    alt={`Logo de ${empresaCompleta.name}`}
                     sx={{
-                      borderRadius: 1,
+                      width: 48,
+                      height: 48,
+                      border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                      backgroundColor: theme.palette.background.paper,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }}
+                  />
+                ) : empresa && empresa !== 'GENERAL' ? (
+                  <Avatar
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.success.main, 0.15),
+                      color: theme.palette.success.main,
                       fontWeight: 600,
-                      textTransform: 'none',
-                      background: liquidacionGuardadaId 
-                        ? alpha(theme.palette.action.disabled, 0.12)
-                        : `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                      color: liquidacionGuardadaId 
-                        ? theme.palette.action.disabled
-                        : 'white',
-                      '&:hover': liquidacionGuardadaId ? {} : {
-                        background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
-                        transform: 'translateY(-1px)'
-                      },
-                      '&:disabled': {
-                        background: alpha(theme.palette.action.disabled, 0.12),
-                        color: theme.palette.action.disabled
-                      },
-                      transition: 'all 0.2s ease'
+                      fontSize: '1.25rem',
+                      border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                     }}
                   >
-                    {guardandoLiquidacion 
-                      ? 'Guardando...' 
-                      : liquidacionGuardadaId 
-                        ? 'Liquidación del Histórico'
-                        : 'Guardar Liquidación'
-                    }
-                  </Button>
-                  
-                  {liquidacionGuardadaId && (
-                    <Box sx={{
-                      mt: 1,
-                      p: 1,
-                      bgcolor: alpha(theme.palette.info.main, 0.1),
-                      borderRadius: 1,
-                      textAlign: 'center',
-                      border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        borderColor: alpha(theme.palette.info.main, 0.8)
-                      }
-                    }}>
-                      <Typography variant="caption" color="info.main" sx={{ fontWeight: 500 }}>
-                        📋 Liquidación cargada desde histórico: {liquidacionGuardadaId.slice(0, 8)}...
-                      </Typography>
+                    {empresa.charAt(0).toUpperCase()}
+                  </Avatar>
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.grey[500], 0.15),
+                      color: theme.palette.grey[600],
+                      fontWeight: 600,
+                      fontSize: '1.25rem'
+                    }}
+                  >
+                    ?
+                  </Avatar>
+                )}
+                
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                    {empresa || 'GENERAL'}
+                  </Typography>
+                  {empresaCompleta && (
+                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                      <Chip
+                        size="small"
+                        label={`NIT: ${empresaCompleta.nit}`}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          bgcolor: alpha(theme.palette.text.secondary, 0.08)
+                        }}
+                      />
+                      {empresaCompleta.contractNumber && (
+                        <Chip
+                          size="small"
+                          label={`Contrato: ${empresaCompleta.contractNumber}`}
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            bgcolor: alpha(theme.palette.success.main, 0.12),
+                            color: 'success.main'
+                          }}
+                        />
+                      )}
                     </Box>
                   )}
                 </Box>
-              )}
+              </Box>
+
+              {/* Divider vertical */}
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+              {/* Información del archivo */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <CloudUpload sx={{ fontSize: 32, color: 'primary.main' }} />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {selectedFile.name}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                    {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                      <Chip
+                        size="small"
+                        label={`${consolidatedData.length} máquinas`}
+                        icon={<Casino sx={{ fontSize: 14 }} />}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.primary.main, 0.12),
+                          color: 'primary.main'
+                        }}
+                      />
+                    )}
+                    {archivoTarifas && (
+                      <Chip
+                        size="small"
+                        label="Tarifas aplicadas"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.info.main, 0.12),
+                          color: 'info.main'
+                        }}
+                      />
+                    )}
+                    {liquidacionGuardadaId && (
+                      <Chip
+                        size="small"
+                        label="Guardada"
+                        icon={<CheckCircle sx={{ fontSize: 14 }} />}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          bgcolor: alpha(theme.palette.success.main, 0.12),
+                          color: 'success.main'
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Paper>
+
+        {companiesLoading && (
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Chip size="small" color="warning" label="Cargando empresas…" />
+          </Box>
+        )}
+        {!companiesLoading && (!companies || companies.length === 0) && (
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Chip size="small" color="error" label="Sin empresas registradas" />
+          </Box>
+        )}
+        {!currentUser?.uid && (
+          <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: theme.palette.text.secondary }}>
+            Inicia sesión para habilitar exportaciones.
+          </Typography>
+        )}
+        {currentUser?.uid && !canExportConsolidado && (
+          <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: theme.palette.text.secondary }}>
+            Carga y procesa un archivo para habilitar exportaciones.
+          </Typography>
+        )}
+      </Paper>
+
+
+
+      {/* Stepper */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          p: 2.5,
+          mb: 3,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
+      >
+        <Box sx={{ position: 'relative', maxWidth: 900, mx: 'auto', px: 1 }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 24,
+              left: 30,
+              right: 30,
+              height: 2,
+              bgcolor: alpha(theme.palette.text.primary, 0.12)
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 24,
+              left: 30,
+              height: 2,
+              width: `${progressPct}%`,
+              bgcolor: theme.palette.primary.main,
+              transition: 'width 0.5s ease'
+            }}
+          />
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {[
+              { n: 1, label: 'Cargar Archivo', icon: CloudUpload },
+              { n: 2, label: 'Procesando', icon: Cached },
+              { n: 3, label: 'Guardar', icon: Save }
+            ].map((s) => {
+              const isActive = s.n === activeStep;
+              const isCompleted = s.n < activeStep;
+              const StepIcon = s.icon;
               
-              {/* Línea separadora */}
-              <Divider sx={{ my: 3 }} />
-              
-              {/* Botón reiniciar */}
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                🔄 3. Reiniciar
-              </Typography>
-              
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={reiniciarAplicacion}
-                color="secondary"
+              return (
+                <Box
+                  key={s.n}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 1,
+                    zIndex: 1
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      display: 'grid',
+                      placeItems: 'center',
+                      border: isActive || isCompleted 
+                        ? `2px solid ${isCompleted ? theme.palette.success.main : theme.palette.primary.main}` 
+                        : `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: isCompleted 
+                        ? alpha(theme.palette.success.main, 0.12)
+                        : isActive 
+                          ? alpha(theme.palette.primary.main, 0.12)
+                          : alpha(theme.palette.grey[500], 0.04),
+                      color: isCompleted 
+                        ? theme.palette.success.main 
+                        : isActive 
+                          ? theme.palette.primary.main 
+                          : theme.palette.text.secondary,
+                      transition: 'all 0.2s ease',
+                      boxShadow: isActive 
+                        ? `0 0 0 6px ${alpha(theme.palette.primary.main, 0.08)}` 
+                        : 'none'
+                    }}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle sx={{ fontSize: 24 }} />
+                    ) : (
+                      <StepIcon sx={{ fontSize: 24 }} />
+                    )}
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: isActive ? 600 : 500,
+                      color: isCompleted 
+                        ? theme.palette.success.main 
+                        : isActive 
+                          ? theme.palette.primary.main 
+                          : theme.palette.text.secondary,
+                      fontSize: '0.8125rem'
+                    }}
+                  >
+                    {s.label}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* KPIs */}
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para KPIs durante carga
+          [1, 2, 3, 4].map((i) => (
+            <Grid key={`kpi-skeleton-${i}`} item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
                 sx={{
-                  borderRadius: 1,
-                  fontWeight: 500,
-                  textTransform: 'none'
+                  borderRadius: 2,
+                  p: 2.5,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                 }}
               >
-                Reiniciar Aplicación
-              </Button>
-            </CardContent>
-          </Card>
-          
-          {/* Log de actividades - Diseño Sobrio */}
-          <Card sx={{ 
-            mt: 2,
-            borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.secondary.main, 0.8)
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="60%" height={40} />
+                    <Skeleton variant="text" width="90%" height={20} sx={{ mt: 0.5 }} />
+                  </Box>
+                  <Skeleton variant="rounded" width={44} height={44} />
+                </Box>
+                <Skeleton variant="rounded" width={80} height={24} sx={{ mt: 2 }} />
+              </Paper>
+            </Grid>
+          ))
+        ) : (
+          (() => {
+            // Calcular cumplimiento de transmisión (solo si hay datos)
+            const totalMaquinasContrato = Array.isArray(consolidatedData) ? consolidatedData.length : 0;
+            
+            // ✅ Máquina sin transmitir: producción total = 0 exactamente
+            // NO usar umbral - verificar si es exactamente 0
+            // Producción negativa significa que SÍ transmitió (con pérdidas)
+            const maquinasTransmitiendo = Array.isArray(consolidatedData) 
+              ? consolidatedData.filter(m => {
+                  const prod = parseFloat(m.produccion) || 0;
+                  // Transmite si producción != 0 (puede ser positiva o negativa)
+                  return Math.abs(prod) >= 0.01;
+                }).length 
+              : 0;
+            
+            const maquinasSinTransmitir = totalMaquinasContrato - maquinasTransmitiendo;
+            const porcentajeIncumplimiento = totalMaquinasContrato > 0 
+              ? ((maquinasSinTransmitir / totalMaquinasContrato) * 100).toFixed(1)
+              : 0;
+            const porcentajeCumplimiento = totalMaquinasContrato > 0
+              ? ((maquinasTransmitiendo / totalMaquinasContrato) * 100).toFixed(1)
+              : 0;
+            
+            const kpis = [
+          {
+            key: 'produccion',
+            title: 'Producción Total',
+            value: formatCurrencyCOP(metrics.produccion.value),
+            trend: metrics.produccion,
+            icon: AttachMoney,
+            color: theme.palette.success.main
+          },
+          {
+            key: 'derechos',
+            title: 'Derechos Explotación',
+            value: formatCurrencyCOP(metrics.derechos.value),
+            trend: metrics.derechos,
+            icon: AttachMoney,
+            color: theme.palette.warning.main
+          },
+          {
+            key: 'gastos',
+            title: 'Gastos Administración',
+            value: formatCurrencyCOP(metrics.gastos.value),
+            trend: metrics.gastos,
+            icon: ReceiptLong,
+            color: theme.palette.secondary.main
+          },
+          {
+            key: 'impuestos',
+            title: 'Total Impuestos',
+            value: formatCurrencyCOP(metrics.impuestos.value),
+            trend: metrics.impuestos,
+            icon: ReceiptLong,
+            color: theme.palette.warning.main
+          }
+        ];
+        
+        // Tarjeta de cumplimiento separada
+        const cumplimientoKpi = {
+          key: 'cumplimiento',
+          title: 'Cumplimiento Transmisión',
+          value: `${porcentajeCumplimiento}%`,
+          subtitle: `${maquinasTransmitiendo}/${totalMaquinasContrato} transmitiendo`,
+          incumplimiento: maquinasSinTransmitir,
+          porcentajeIncumplimiento: porcentajeIncumplimiento,
+          trend: { value: 0, trend: 0, isPositive: maquinasSinTransmitir === 0 },
+          icon: Assessment,
+          color: maquinasSinTransmitir === 0 ? theme.palette.success.main : theme.palette.error.main,
+          isCumplimiento: true
+        };
+
+        return (
+          <>
+            {/* Fila 1: 4 KPIs principales */}
+            {kpis.map((kpi) => {
+              const TrendIcon = kpi.trend.isPositive ? TrendingUp : TrendingDown;
+              const trendColor = kpi.trend.isPositive ? theme.palette.success.main : theme.palette.error.main;
+              return (
+                <Grid key={kpi.key} item xs={12} sm={6} md={3}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      borderRadius: 2,
+                      p: 2,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+                      minHeight: 130
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600, letterSpacing: -0.3 }}>
+                          {kpi.value}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                          {kpi.title}
+                        </Typography>
+                        {kpi.subtitle && (
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
+                            {kpi.subtitle}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 2,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: alpha(kpi.color, 0.12),
+                          color: kpi.color
+                        }}
+                      >
+                        <kpi.icon fontSize="small" />
+                      </Box>
+                    </Box>
+
+                    <Chip
+                      size="small"
+                      icon={<TrendIcon fontSize="small" />}
+                      label={`${kpi.trend.isPositive ? '+' : ''}${kpi.trend.trend}%`}
+                      sx={{
+                        mt: 2,
+                        bgcolor: alpha(trendColor, 0.12),
+                        color: trendColor,
+                        fontWeight: 600,
+                        '& .MuiChip-icon': { color: trendColor }
+                      }}
+                    />
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </>
+        );
+      })()
+        )}
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para métricas secundarias durante carga
+          [1, 2, 3, 4].map((i) => (
+            <Grid key={`metric-skeleton-${i}`} item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 2,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="80%" height={24} />
+                    <Skeleton variant="text" width="60%" height={16} />
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+          ))
+        ) : (
+          [
+          { label: 'Establecimientos', value: String(metrics.establecimientos.value), icon: Business, color: theme.palette.primary.main },
+          { label: 'Máquinas Consolidadas', value: String(metrics.maquinas.value), icon: Casino, color: theme.palette.primary.main },
+          { label: `Sin Cambios (${metrics.sinCambios.percentage}%)`, value: String(metrics.sinCambios.value), icon: CheckCircle, color: theme.palette.success.main },
+          { label: `Con Novedades (${metrics.novedades.percentage}%)`, value: String(metrics.novedades.value), icon: Warning, color: theme.palette.warning.main }
+        ].map((item) => (
+          <Grid key={item.label} item xs={12} sm={6} md={3}>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 2,
+                p: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                textAlign: 'center',
+                transition: 'all 0.2s ease',
+                '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' },
+                minHeight: 130
+              }}
+            >
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 1.5,
+                  mx: 'auto',
+                  display: 'grid',
+                  placeItems: 'center',
+                  bgcolor: alpha(item.color, 0.12),
+                  color: item.color,
+                  mb: 1
+                }}
+              >
+                <item.icon fontSize="small" />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: -0.2 }}>
+                {item.value}
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                {item.label}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))
+        )}
+      </Grid>
+
+      {/* Fila 3: Banner de Cumplimiento Transmisión (ancho completo) */}
+      {!processing && cumplimientoTransmision && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12}>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 2,
+                p: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 2,
+                      display: 'grid',
+                      placeItems: 'center',
+                      bgcolor: alpha(cumplimientoTransmision.cumplimientoKpi.color, 0.12),
+                      color: cumplimientoTransmision.cumplimientoKpi.color
+                    }}
+                  >
+                    <cumplimientoTransmision.cumplimientoKpi.icon fontSize="large" />
+                  </Box>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: cumplimientoTransmision.cumplimientoKpi.color }}>
+                      {cumplimientoTransmision.cumplimientoKpi.value}
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+                      {cumplimientoTransmision.cumplimientoKpi.title}
+                    </Typography>
+                    {cumplimientoTransmision.cumplimientoKpi.subtitle && (
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                        {cumplimientoTransmision.cumplimientoKpi.subtitle}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+                
+                {/* Indicador de máquinas en cero */}
+                {cumplimientoTransmision.maquinasEnCero > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 2,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: alpha(theme.palette.error.main, 0.12),
+                        color: theme.palette.error.main
+                      }}
+                    >
+                      <Warning fontSize="large" />
+                    </Box>
+                    <Box>
+                      <Typography variant="h4" sx={{ fontWeight: 600, letterSpacing: -0.5, color: theme.palette.error.main }}>
+                        {cumplimientoTransmision.maquinasEnCero}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                        {cumplimientoTransmision.maquinasEnCero === 1 ? 'Máquina' : 'Máquinas'} en cero
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Charts */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        {processing && (!originalData || originalData.length === 0) ? (
+          // Skeleton para gráficos durante carga
+          <>
+            <Grid item xs={12} md={6}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  p: 2.5,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  minHeight: 240
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Skeleton variant="text" width="60%" height={28} />
+                  <Skeleton variant="circular" width={24} height={24} />
+                </Box>
+                <Skeleton variant="rectangular" width="100%" height={180} sx={{ borderRadius: 2 }} />
+              </Paper>
+            </Grid>
+            {[1, 2].map((i) => (
+              <Grid key={`chart-skeleton-${i}`} item xs={12} md={3}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 2,
+                    p: 2.5,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    minHeight: 240
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Skeleton variant="text" width="70%" height={28} />
+                    <Skeleton variant="circular" width={24} height={24} />
+                  </Box>
+                  <Skeleton variant="circular" width={140} height={140} sx={{ mx: 'auto', mt: 2 }} />
+                </Paper>
+              </Grid>
+            ))}
+          </>
+        ) : (
+          <>
+            <Grid item xs={12} md={6}>
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 2,
+              p: 2.5,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              minHeight: 240
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Producción por Establecimiento
+              </Typography>
+              <BarChartIcon fontSize="small" color="action" />
+            </Box>
+
+            {chartProduccionPorEstablecimiento.length === 0 ? (
+              <Box
+                sx={{
+                  height: 180,
+                  borderRadius: 2,
+                  border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: theme.palette.text.secondary
+                }}
+              >
+                <Typography variant="body2">Sin datos para graficar</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ height: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ReBarChart data={chartProduccionPorEstablecimiento} margin={{ top: 8, right: 8, left: 0, bottom: 5 }}>
+                    <CartesianGrid stroke={alpha(theme.palette.divider, 0.25)} strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="establecimiento" 
+                      tick={false} 
+                      axisLine={{ stroke: alpha(theme.palette.divider, 0.3) }} 
+                      height={5} 
+                    />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrencyCompact(Number(v) || 0).replace('$ ', '')} />
+                    <ReTooltip
+                      formatter={(v) => formatCurrencyCOP(Number(v) || 0)}
+                      labelFormatter={(l) => String(l || '')}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                    />
+                    <Bar dataKey="produccion" fill={alpha(theme.palette.primary.main, 0.85)} radius={[6, 6, 0, 0]} />
+                  </ReBarChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 2,
+              p: 2.5,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              minHeight: 240
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Estado de Novedades
+              </Typography>
+              <Analytics fontSize="small" color="action" />
+            </Box>
+
+            {chartNovedades.length === 0 ? (
+              <Box
+                sx={{
+                  height: 180,
+                  borderRadius: 2,
+                  border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: theme.palette.text.secondary
+                }}
+              >
+                <Typography variant="body2">Sin datos para graficar</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ height: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <RePieChart>
+                    <ReTooltip
+                      formatter={(v) => `${Number(v) || 0} máquina(s)`}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                    />
+                    <Pie
+                      data={chartNovedades}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {chartNovedades.map((entry, index) => {
+                        const name = String(entry?.name || '').toLowerCase();
+                        const color = name.includes('sin')
+                          ? theme.palette.success.main
+                          : name.includes('retiro')
+                            ? theme.palette.warning.main
+                            : theme.palette.info.main;
+                        return <Cell key={`cell-${index}`} fill={alpha(color, 0.9)} />;
+                      })}
+                    </Pie>
+                  </RePieChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 2,
+              p: 2.5,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              minHeight: 240
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                Tendencia Diaria
+              </Typography>
+              <Analytics fontSize="small" color="action" />
+            </Box>
+
+            {chartTendenciaDiaria.length === 0 ? (
+              <Box
+                sx={{
+                  height: 180,
+                  borderRadius: 2,
+                  border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: theme.palette.text.secondary
+                }}
+              >
+                <Typography variant="body2">Sin fechas diarias detectadas</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ height: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ReLineChart data={chartTendenciaDiaria} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke={alpha(theme.palette.divider, 0.25)} strokeDasharray="3 3" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} minTickGap={12} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrencyCompact(Number(v) || 0).replace('$ ', '')} />
+                    <ReTooltip
+                      formatter={(v) => formatCurrencyCOP(Number(v) || 0)}
+                      labelFormatter={(l) => String(l || '')}
+                      contentStyle={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="produccion"
+                      stroke={alpha(theme.palette.secondary.main, 0.9)}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                    />
+                  </ReLineChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+          </>
+        )}
+      </Grid>
+
+      {/* Tabs + content placeholder */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          p: 2.5,
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          mb: 10
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            minHeight: 48,
+            '& .MuiTab-root': { 
+              textTransform: 'none', 
+              fontWeight: 500,
+              minHeight: 48,
+              px: 2.5,
+              transition: 'all 0.2s ease',
+              '&.Mui-selected': {
+                fontWeight: 600
+              },
+              '&:hover': {
+                bgcolor: alpha(theme.palette.primary.main, 0.04)
+              }
+            },
+            '& .MuiTabs-indicator': { 
+              height: 4, 
+              borderRadius: '4px 4px 0 0'
             }
-          }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          }}
+        >
+          <Tab 
+            icon={<Assessment sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Resumen General
+                {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                  <Chip 
+                    label={consolidatedData.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 0 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<TableView sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Consolidado Detallado
+                {Array.isArray(consolidatedData) && consolidatedData.length > 0 && (
+                  <Chip 
+                    label={consolidatedData.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 1 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<Business sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Reporte por Sala
+                {Array.isArray(reporteBySala) && reporteBySala.length > 0 && (
+                  <Chip 
+                    label={reporteBySala.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 2 ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.08)
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          <Tab 
+            icon={<Warning sx={{ fontSize: 20 }} />}
+            iconPosition="start"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Máquinas en Cero
+                {maquinasEnCeroCount > 0 && (
+                  <Chip 
+                    label={maquinasEnCeroCount} 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      bgcolor: activeTab === 3 ? alpha(theme.palette.error.main, 0.12) : alpha(theme.palette.divider, 0.08),
+                      color: activeTab === 3 ? theme.palette.error.main : theme.palette.text.secondary
+                    }} 
+                  />
+                )}
+              </Box>
+            }
+          />
+          {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+            <Tab label="🏷️ Tarifa Fija" />
+          )}
+        </Tabs>
+
+        <Divider sx={{ mt: 1.5 }} />
+
+        <AnimatePresence mode="wait">
+          {activeTab === 0 && (
+            <motion.div
+              key="resumen"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={0}>
+                {!Array.isArray(consolidatedData) || consolidatedData.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    Procesa un archivo para ver el dashboard ejecutivo.
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {/* Top 5 Establecimientos por Producción */}
+                    <Paper
+                      role="region"
+                      aria-labelledby="top-establecimientos-title"
+                      sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        background: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                      }}
+                    >
+                      <Typography
+                        id="top-establecimientos-title"
+                        variant="overline"
+                        sx={{ fontWeight: 600, color: 'primary.main', letterSpacing: 0.8, fontSize: '0.75rem', display: 'block', mb: 1.5 }}
+                      >
+                        🏆 Top 5 Establecimientos por Producción
+                      </Typography>
+                      {(() => {
+                        if (processing && top5Establecimientos.length === 0) {
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                              {[...Array(5)].map((_, idx) => (
+                                <Box key={idx}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                    <Skeleton variant="text" width="60%" height={20} />
+                                    <Skeleton variant="text" width="30%" height={20} />
+                                  </Box>
+                                  <Skeleton variant="rectangular" width="100%" height={8} sx={{ borderRadius: 0.5 }} />
+                                </Box>
+                              ))}
+                            </Box>
+                          );
+                        }
+                        
+                        const totalProduccionGlobal = metricsData?.totalProduccion || derivedMetrics.produccion?.value || 1;
+                        
+                        return top5Establecimientos.length === 0 ? (
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            No hay datos de establecimientos disponibles.
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {top5Establecimientos.map((sala, idx) => {
+                              const porcentaje = ((sala.produccion || 0) / totalProduccionGlobal) * 100;
+                              return (
+                                <Box key={idx}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, pr: 1 }}>
+                                    <Typography 
+                                      variant="body2" 
+                                      sx={{ 
+                                        fontWeight: 600, 
+                                        fontSize: '0.9rem',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        maxWidth: '60%'
+                                      }}
+                                      title={sala.establecimiento || 'Sin nombre'}
+                                    >
+                                      {sala.establecimiento || 'Sin nombre'}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', flexShrink: 0 }}>
+                                      {formatCurrencyCOP(sala.produccion || 0)} ({porcentaje.toFixed(1)}%)
+                                    </Typography>
+                                  </Box>
+                                  <Box
+                                    sx={{
+                                      width: '100%',
+                                      height: 8,
+                                      borderRadius: 0.5,
+                                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                                      overflow: 'hidden'
+                                    }}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: `${porcentaje}%`,
+                                        height: '100%',
+                                        bgcolor: theme.palette.primary.main,
+                                        transition: 'width 0.3s ease'
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                        );
+                      })()}
+                    </Paper>
+
+                    {/* Alertas y Validaciones */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+                      {/* Alertas */}
+                      <Paper
+                        role="region"
+                        aria-labelledby="alertas-title"
+                        sx={{
+                          p: 3,
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                          background: alpha(theme.palette.warning.main, 0.08),
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <Warning sx={{ fontSize: '1rem', color: 'warning.main' }} />
+                          <Typography
+                            id="alertas-title"
+                            variant="overline"
+                            sx={{ fontWeight: 600, color: 'warning.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                          >
+                            Alertas y Observaciones
+                          </Typography>
+                        </Box>
+                        {(() => {
+                          if (processing && consolidatedData.length === 0) {
+                            return (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {[...Array(3)].map((_, idx) => (
+                                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Skeleton variant="circular" width={6} height={6} />
+                                    <Skeleton variant="text" width="80%" height={20} />
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
+                          }
+                          
+                          const maquinasConNovedades = consolidatedData.filter(m => m.novedad && m.novedad !== 'Sin cambios').length;
+                          const establecimientosSinProduccion = (Array.isArray(reporteBySala) ? reporteBySala : []).filter(s => (s.produccion || 0) === 0).length;
+                          const promedioDiario = (metricsData?.totalProduccion || derivedMetrics.totalProduccion || 0) / 30;
+                          
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: maquinasConNovedades > 0 ? 'warning.main' : 'success.main' }} />
+                                <Typography variant="body2">
+                                  <strong>{maquinasConNovedades}</strong> máquinas con novedades {maquinasConNovedades > 10 && '(requiere seguimiento)'}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: establecimientosSinProduccion > 0 ? 'error.main' : 'success.main' }} />
+                                <Typography variant="body2">
+                                  <strong>{establecimientosSinProduccion}</strong> establecimientos sin producción {establecimientosSinProduccion > 0 && '(verificar operación)'}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'info.main' }} />
+                                <Typography variant="body2">
+                                  Promedio diario estimado: <strong>{formatCurrencyCOP(promedioDiario)}</strong>
+                                </Typography>
+                              </Box>
+                            </Box>
+                          );
+                        })()}
+                      </Paper>
+
+                      {/* Validaciones */}
+                      <Paper
+                        role="region"
+                        aria-labelledby="validaciones-title"
+                        sx={{
+                          p: 3,
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                          background: alpha(theme.palette.success.main, 0.08),
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <CheckCircle sx={{ fontSize: '1rem', color: 'success.main' }} />
+                          <Typography
+                            id="validaciones-title"
+                            variant="overline"
+                            sx={{ fontWeight: 600, color: 'success.main', letterSpacing: 0.8, fontSize: '0.75rem' }}
+                          >
+                            Validaciones Automáticas
+                          </Typography>
+                        </Box>
+                        {(() => {
+                          if (processing && consolidatedData.length === 0) {
+                            return (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {[...Array(4)].map((_, idx) => (
+                                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Skeleton variant="circular" width={18} height={18} />
+                                    <Skeleton variant="text" width="85%" height={20} />
+                                  </Box>
+                                ))}
+                              </Box>
+                            );
+                          }
+                          
+                          const totalMaquinas = consolidatedData.length;
+                          const maquinasConTarifa = consolidatedData.filter(m => m.tarifaOficial && m.tarifaOficial !== 0).length;
+                          const sinTarifa = totalMaquinas - maquinasConTarifa;
+                          const calculosOK = consolidatedData.every(m => 
+                            (m.totalImpuestos || 0) === ((m.derechosExplotacion || 0) + (m.gastosAdministracion || 0))
+                          );
+                          
+                          // Detectar periodo usando la misma función del modal
+                          const periodoDetectado = detectarPeriodoLiquidacion();
+                          
+                          // Detectar posibles duplicados (mismo NUC)
+                          const nucsUnicos = new Set(consolidatedData.map(m => m.nuc).filter(Boolean));
+                          const posiblesDuplicados = totalMaquinas - nucsUnicos.size;
+                          
+                          // Máquinas sin NUC
+                          const sinNUC = consolidatedData.filter(m => !m.nuc || m.nuc === '').length;
+                          
+                          return (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                {calculosOK ? (
+                                  <CheckCircle sx={{ fontSize: 18, color: 'success.main', marginTop: '2px' }} />
+                                ) : (
+                                  <Cancel sx={{ fontSize: 18, color: 'error.main', marginTop: '2px' }} />
+                                )}
+                                <Typography variant="body2">
+                                  Cálculos de impuestos verificados
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                <Assessment sx={{ fontSize: 18, color: 'info.main', marginTop: '2px' }} />
+                                <Typography variant="body2">
+                                  Periodo: <strong>{periodoDetectado}</strong>
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                <BarChartIcon sx={{ fontSize: 18, color: 'primary.main', marginTop: '2px' }} />
+                                <Typography variant="body2">
+                                  Tarifa Fija: <strong>{maquinasConTarifa}</strong> | Variable (12%): <strong>{sinTarifa}</strong>
+                                </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                {posiblesDuplicados === 0 ? (
+                                  <CheckCircle sx={{ fontSize: 18, color: 'success.main', marginTop: '2px' }} />
+                                ) : (
+                                  <Warning sx={{ fontSize: 18, color: 'warning.main', marginTop: '2px' }} />
+                                )}
+                                <Typography variant="body2">
+                                  Duplicados: <strong>{posiblesDuplicados}</strong>
+                                  {posiblesDuplicados > 0 && ' (revisar NUCs)'}
+                                </Typography>
+                              </Box>
+                              
+                              {sinNUC > 0 && (
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                  <Warning sx={{ fontSize: 18, color: 'warning.main', marginTop: '2px' }} />
+                                  <Typography variant="body2" sx={{ color: 'warning.main' }}>
+                                    <strong>{sinNUC}</strong> máquinas sin NUC asignado
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        })()}
+                      </Paper>
+                    </Box>
+                  </Box>
+                )}
+              </TabPanel>
+            </motion.div>
+          )}
+
+          {activeTab === 1 && (
+            <motion.div
+              key="consolidado"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={1}>
+          {processing && (!consolidatedData || consolidatedData.length === 0) ? (
+            // Skeleton durante carga
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                 <Box>
+                  <Skeleton variant="text" width={200} height={28} />
+                  <Skeleton variant="text" width={120} height={20} />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+              </Box>
+              <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                {[...Array(10)].map((_, i) => (
+                  <Box
+                    key={`skeleton-row-${i}`}
+                    sx={{
+                      display: 'flex',
+                      gap: 2,
+                      p: 1.5,
+                      borderBottom: i < 9 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none'
+                    }}
+                  >
+                    <Skeleton variant="text" width="20%" />
+                    <Skeleton variant="text" width="12%" />
+                    <Skeleton variant="text" width="10%" />
+                    <Skeleton variant="text" width="12%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="16%" />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                flexWrap: 'wrap', 
+                gap: 2,
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                bgcolor: theme.palette.background.paper,
+                py: 1.5,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                backdropFilter: 'blur(8px)',
+                backgroundColor: alpha(theme.palette.background.paper, 0.95)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Consolidado Detallado
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    {Array.isArray(consolidatedData) ? `${consolidatedData.length} máquinas consolidadas` : 'Sin datos'}
+                  </Typography>
+                </Box>
+                <Chip 
+                  size="small" 
+                  label={Array.isArray(consolidatedData) ? consolidatedData.length : 0}
+                  sx={{ 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    color: 'primary.main',
+                    fontWeight: 600
+                  }} 
+                />
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ReceiptLong />}
+                onClick={exportarConsolidado}
+                disabled={!canExportConsolidado}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }
+                }}
+              >
+                Exportar Excel
+              </Button>
+            </Box>
+
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                maxHeight: 600,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }
+              }}
+            >
+              <Table 
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderColor: theme.palette.divider,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                  },
+                  '& .MuiTableHead-root': {
+                    '& .MuiTableRow-root': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                      '& .MuiTableCell-root': {
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        paddingY: 2,
+                        borderColor: alpha(theme.palette.divider, 0.12),
+                        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.95) : alpha(theme.palette.grey[50], 0.95),
+                        backdropFilter: 'blur(8px)'
+                      }
+                    }
+                  },
+                  '& .MuiTableBody-root': {
+                    '& .MuiTableRow-root': {
+                      '&:hover': { 
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        borderLeft: `3px solid ${theme.palette.primary.main}`,
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                      '& .MuiTableCell-root': {
+                        paddingY: 1.8,
+                        fontSize: '0.85rem',
+                        borderColor: alpha(theme.palette.divider, 0.12)
+                      }
+                    }
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Empresa</TableCell>
+                    <TableCell>Serial</TableCell>
+                    <TableCell>NUC</TableCell>
+                    <TableCell>Establecimiento</TableCell>
+                    <TableCell>Días Transmitidos</TableCell>
+                    <TableCell>Días del Mes</TableCell>
+                    <TableCell>Primer Día</TableCell>
+                    <TableCell>Último Día</TableCell>
+                    <TableCell>Período</TableCell>
+                    <TableCell>Tipo Apuesta</TableCell>
+                    <TableCell>Tarifa</TableCell>
+                    <TableCell align="right">Producción</TableCell>
+                    <TableCell align="right">Derechos (12%)</TableCell>
+                    <TableCell align="right">Gastos (1%)</TableCell>
+                    <TableCell align="right">Total Impuestos</TableCell>
+                    <TableCell>Novedad</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(consolidatedData) && consolidatedData.length > 0 ? (
+                    consolidatedData.map((row, index) => (
+                      <TableRow 
+                        key={`consolidated-${row.nuc}-${row.establecimiento}-${index}`}
+                        hover
+                      >
+                        <TableCell>{row.empresa || 'N/A'}</TableCell>
+                        <TableCell>{row.serial || 'N/A'}</TableCell>
+                        <TableCell>{row.nuc || 'N/A'}</TableCell>
+                        <TableCell>{row.establecimiento || 'N/A'}</TableCell>
+                        <TableCell>{row.diasTransmitidos || 0}</TableCell>
+                        <TableCell>{row.diasMes || 0}</TableCell>
+                        <TableCell>{row.primerDia || 'N/A'}</TableCell>
+                        <TableCell>{row.ultimoDia || 'N/A'}</TableCell>
+                        <TableCell>{row.periodoTexto || 'N/A'}</TableCell>
+                        <TableCell>{row.tipoApuesta || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={
+                              tarifasOficiales && tarifasOficiales[row.nuc?.toString()] 
+                                ? 'Tarifa Fija' 
+                                : 'Tarifa Variable'
+                            }
+                            color={
+                              tarifasOficiales && tarifasOficiales[row.nuc?.toString()] 
+                                ? 'secondary' 
+                                : 'primary'
+                            }
+                            size="small"
+                            sx={{ 
+                              fontWeight: 500,
+                              fontSize: '0.75rem',
+                              borderRadius: 1
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.produccion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.derechosExplotacion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.gastosAdministracion)}</TableCell>
+                        <TableCell align="right"><strong>{formatCurrencyCOP(row.totalImpuestos)}</strong></TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={row.novedad || 'Sin cambios'}
+                            color={(row.novedad || '').toLowerCase().includes('sin cambios') ? 'success' : 'warning'}
+                            size="small"
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={16} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Procesa un archivo para ver el consolidado detallado.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+          )}
+        </TabPanel>
+            </motion.div>
+          )}
+
+          {activeTab === 2 && (
+            <motion.div
+              key="porSala"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={2}>
+                {processing && (!reporteBySala || reporteBySala.length === 0) ? (
+                  // Skeleton durante carga
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Skeleton variant="text" width={180} height={28} />
+                  <Skeleton variant="text" width={140} height={20} />
+                </Box>
+                <Skeleton variant="rounded" width={100} height={24} />
+              </Box>
+              <Box sx={{ borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+                {[...Array(8)].map((_, i) => (
+                  <Box
+                    key={`skeleton-sala-${i}`}
+                    sx={{
+                      display: 'flex',
+                      gap: 2,
+                      p: 1.5,
+                      borderBottom: i < 7 ? `1px solid ${alpha(theme.palette.divider, 0.1)}` : 'none'
+                    }}
+                  >
+                    <Skeleton variant="text" width="30%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="15%" />
+                    <Skeleton variant="text" width="10%" />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                flexWrap: 'wrap', 
+                gap: 2,
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                bgcolor: theme.palette.background.paper,
+                py: 1.5,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                backdropFilter: 'blur(8px)',
+                backgroundColor: alpha(theme.palette.background.paper, 0.95)
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Reporte por Sala
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    {Array.isArray(reporteBySala) ? `${reporteBySala.length} establecimientos` : 'Sin datos'}
+                  </Typography>
+                </Box>
+                <Chip 
+                  size="small" 
+                  label={Array.isArray(reporteBySala) ? reporteBySala.length : 0}
+                  sx={{ 
+                    bgcolor: alpha(theme.palette.success.main, 0.12),
+                    color: 'success.main',
+                    fontWeight: 600
+                  }} 
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Business />}
+                  onClick={abrirModalSala}
+                  disabled={!canExportSala}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.12),
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }
+                  }}
+                >
+                  Reporte Salas
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<History />}
+                  onClick={abrirModalDaily}
+                  disabled={!canExportDiario}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    bgcolor: alpha(theme.palette.secondary.main, 0.08),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }
+                  }}
+                >
+                  Reporte Diario
+                </Button>
+              </Box>
+            </Box>
+
+            <TableContainer 
+              component={Paper} 
+              sx={{ 
+                maxHeight: 600,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }
+              }}
+            >
+              <Table 
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    borderColor: theme.palette.divider,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                  },
+                  '& .MuiTableHead-root': {
+                    '& .MuiTableRow-root': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                      '& .MuiTableCell-root': {
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        paddingY: 2,
+                        borderColor: alpha(theme.palette.divider, 0.12),
+                        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.95) : alpha(theme.palette.grey[50], 0.95),
+                        backdropFilter: 'blur(8px)'
+                      }
+                    }
+                  },
+                  '& .MuiTableBody-root': {
+                    '& .MuiTableRow-root': {
+                      '&:hover': { 
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        borderLeft: `3px solid ${theme.palette.primary.main}`,
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                      '& .MuiTableCell-root': {
+                        paddingY: 1.8,
+                        fontSize: '0.85rem',
+                        borderColor: alpha(theme.palette.divider, 0.12)
+                      }
+                    }
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Establecimiento</TableCell>
+                    <TableCell>Empresa</TableCell>
+                    <TableCell align="right">Total Máquinas</TableCell>
+                    <TableCell align="right">Producción</TableCell>
+                    <TableCell align="right">Derechos</TableCell>
+                    <TableCell align="right">Gastos</TableCell>
+                    <TableCell align="right">Total Impuestos</TableCell>
+                    <TableCell align="right">Promedio/Establecimiento</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(reporteBySala) && reporteBySala.length > 0 ? (
+                    reporteBySala.map((row, index) => (
+                      <TableRow key={`sala-${row.establecimiento}-${index}`}>
+                        <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento || 'N/A'}</TableCell>
+                        <TableCell>{row.empresa || 'N/A'}</TableCell>
+                        <TableCell align="right">{row.totalMaquinas || 0}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.produccion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.derechosExplotacion)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.gastosAdministracion)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>{formatCurrencyCOP(row.totalImpuestos)}</TableCell>
+                        <TableCell align="right">{formatCurrencyCOP(row.promedioEstablecimiento)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Procesa un archivo para ver el reporte por sala.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+          )}
+        </TabPanel>
+            </motion.div>
+          )}
+
+          {/* Tab Máquinas en Cero */}
+          {activeTab === 3 && (
+            <motion.div
+              key="maquinasEnCero"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={3}>
+                {(() => {
+                  const maquinasEnCero = Array.isArray(consolidatedData) 
+                    ? consolidatedData.filter(m => {
+                        const prod = parseFloat(m.produccion) || 0;
+                        return Math.abs(prod) < 0.01;
+                      })
+                    : [];
+
+                  if (maquinasEnCero.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 8 }}>
+                        <CheckCircle sx={{ fontSize: 64, color: theme.palette.success.main, mb: 2 }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.success.main, mb: 1 }}>
+                          ¡Excelente! Todas las máquinas están transmitiendo
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                          No hay máquinas con producción en cero
+                        </Typography>
+                      </Box>
+                    );
+                  }
+
+                  return (
+                    <Box>
+                      <Box sx={{ 
+                        mb: 3, 
+                        p: 2.5, 
+                        borderRadius: 2, 
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 2
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                          <Warning sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                          <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
+                              {maquinasEnCero.length} {maquinasEnCero.length === 1 ? 'Máquina' : 'Máquinas'} sin transmitir
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                              Revisar conexión, energía eléctrica o estado de las máquinas
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<ReceiptLong />}
+                          onClick={exportarMaquinasEnCero}
+                          sx={{
+                            borderRadius: 1,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                            borderColor: theme.palette.error.main,
+                            color: theme.palette.error.main,
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.error.main, 0.15),
+                              borderColor: theme.palette.error.main,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            }
+                          }}
+                        >
+                          Exportar Excel
+                        </Button>
+                      </Box>
+
+                      {(() => {
+                        // Agrupar máquinas por establecimiento
+                        const maquinasPorSala = maquinasEnCero.reduce((acc, maquina) => {
+                          const sala = maquina.establecimiento || 'Sin establecimiento';
+                          if (!acc[sala]) {
+                            acc[sala] = [];
+                          }
+                          acc[sala].push(maquina);
+                          return acc;
+                        }, {});
+
+                        // Ordenar salas alfabéticamente
+                        const salasOrdenadas = Object.keys(maquinasPorSala).sort();
+
+                        return salasOrdenadas.map((sala, salaIdx) => (
+                          <Box key={`sala-${salaIdx}`} sx={{ mb: 4 }}>
+                            <Box sx={{ 
+                              mb: 2, 
+                              pb: 1.5, 
+                              borderBottom: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Business sx={{ color: theme.palette.primary.main, fontSize: 22 }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                  {sala}
+                                </Typography>
+                              </Box>
+                              <Chip 
+                                label={`${maquinasPorSala[sala].length} ${maquinasPorSala[sala].length === 1 ? 'máquina' : 'máquinas'}`}
+                                size="small"
+                                sx={{ 
+                                  bgcolor: alpha(theme.palette.error.main, 0.1),
+                                  color: theme.palette.error.main,
+                                  fontWeight: 600,
+                                  borderRadius: 1
+                                }}
+                              />
+                            </Box>
+
+                            <Grid container spacing={2}>
+                              {maquinasPorSala[sala].map((maquina, idx) => (
+                                <Grid key={idx} item xs={12} sm={6} md={4} lg={3}>
+                                  <Paper
+                                    elevation={0}
+                                    sx={{
+                                      p: 2,
+                                      borderRadius: 2,
+                                      border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                      bgcolor: 'background.paper',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                      transition: 'all 0.2s ease',
+                                      '&:hover': {
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                        transform: 'translateY(-2px)',
+                                        borderColor: alpha(theme.palette.error.main, 0.3)
+                                      }
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                                      <Casino sx={{ fontSize: 22, color: theme.palette.error.main }} />
+                                      <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                          fontWeight: 600, 
+                                          fontSize: '1rem',
+                                          letterSpacing: -0.2
+                                        }}
+                                      >
+                                        {maquina.serial || '—'}
+                                      </Typography>
+                                    </Box>
+                                    
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        color: theme.palette.text.secondary,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 0.5,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        display: 'block',
+                                        mb: 0.5
+                                      }}
+                                    >
+                                      NUC
+                                    </Typography>
+                                    <Typography 
+                                      variant="body2" 
+                                      sx={{ 
+                                        color: theme.palette.text.primary,
+                                        mb: 1.5
+                                      }}
+                                    >
+                                      {maquina.nuc || '—'}
+                                    </Typography>
+                                    
+                                    <Chip 
+                                      label="Sin transmitir" 
+                                      size="small" 
+                                      sx={{ 
+                                        bgcolor: alpha(theme.palette.error.main, 0.1),
+                                        color: theme.palette.error.main,
+                                        fontWeight: 600,
+                                        fontSize: '0.65rem',
+                                        height: 20,
+                                        borderRadius: 1,
+                                        width: '100%'
+                                      }}
+                                    />
+                                  </Paper>
+                                </Grid>
+                              ))}
+                            </Grid>
+                          </Box>
+                        ));
+                      })()}
+                    </Box>
+                  );
+                })()}
+              </TabPanel>
+            </motion.div>
+          )}
+
+          {/* Tab Tarifa Fija */}
+          {activeTab === 4 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+            <motion.div
+              key="tarifaFija"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TabPanel value={activeTab} index={4}>
+                {!Array.isArray(tarifaFijaData) || tarifaFijaData.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Casino sx={{ fontSize: 64, color: alpha(theme.palette.text.secondary, 0.4), mb: 2 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}>
+                  No hay máquinas con tarifa fija aplicada
+                </Typography>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Las máquinas con tarifas oficiales aparecerán aquí
+                </Typography>
+              </Box>
+            ) : (
+              <>
+                {/* Resumen de tarifa fija */}
+                <Box sx={{ 
+                  mb: 3, 
+                  p: 3, 
+                  background: alpha(theme.palette.secondary.main, 0.08),
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+                }}>
                   <Typography variant="overline" sx={{ 
                     fontWeight: 600, 
                     color: 'secondary.main',
                     letterSpacing: 0.8,
-                    fontSize: '0.75rem'
+                    fontSize: '0.75rem',
+                    display: 'block',
+                    mb: 1
                   }}>
-                    Registro de Actividades
+                    Resumen Tarifa Fija
                   </Typography>
-                  
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    📋 Log de Actividades
-                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Máquinas con Tarifa Fija
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {tarifaFijaResumen.count}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Derechos Fijos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalDerechos)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Gastos Fijos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalGastos)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                        Total Impuestos
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 600, color: 'success.main' }}>
+                        {formatCurrencyCompact(tarifaFijaResumen.totalImpuestos)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
                 </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Chip 
-                    label={`${logs.length} registros`}
-                    size="small"
-                    color={logs.length > 80 ? 'warning' : 'default'}
-                    sx={{ fontWeight: 500 }}
-                  />
-                  {logs.length > 0 && (
-                    <IconButton
-                      size="small"
-                      onClick={limpiarLogs}
-                      sx={{ 
-                        color: 'error.main',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.error.main, 0.08)
+
+                {/* Tabla de máquinas con tarifa fija */}
+                <Box sx={{ height: 550, borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`, bgcolor: theme.palette.background.paper }}>
+                  <VirtualTable
+                    data={tarifaFijaData}
+                    columns={[
+                      { key: 'establecimiento', label: 'Establecimiento', width: 220 },
+                      { key: 'serial', label: 'Serial', width: 120 },
+                      { key: 'nuc', label: 'NUC', width: 100 },
+                      { 
+                        key: 'derechosFijos', 
+                        label: 'Derechos Fijos', 
+                        width: 150, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          const derechos = nucStr && tarifasOficiales[nucStr] 
+                            ? Number(tarifasOficiales[nucStr].derechosAdicionales) || 0 
+                            : 0;
+                          return formatCurrencyCOP(derechos);
                         }
-                      }}
-                      title="Limpiar logs"
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  )}
-                </Box>
-              </Box>
-              
-              <Box sx={{ 
-                maxHeight: 300, 
-                overflow: 'auto',
-                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                borderRadius: 1,
-                p: 1,
-                backgroundColor: alpha(theme.palette.background.default, 0.5),
-                '&::-webkit-scrollbar': {
-                  width: '8px',
-                  height: '8px'
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: alpha(theme.palette.divider, 0.1),
-                  borderRadius: '4px'
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.6)}, ${alpha(theme.palette.secondary.main, 0.6)})`,
-                  borderRadius: '4px',
-                  transition: 'all 0.2s ease'
-                },
-                '&::-webkit-scrollbar-thumb:hover': {
-                  background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.8)}, ${alpha(theme.palette.secondary.main, 0.8)})`
-                }
-              }}>
-                {logs.length === 0 && (
-                  <Typography variant="body2" color="textSecondary">
-                    No hay actividades registradas
-                  </Typography>
-                )}
-                {logs.length > 0 && logs.map(log => (
-                  <Box key={log.id} sx={{ mb: 1, fontSize: '0.875rem' }}>
-                    <span style={{ color: alpha(theme.palette.text.secondary, 0.8) }}>
-                      [{log.timestamp}]
-                    </span>{' '}
-                    <span style={{ 
-                      color: log.type === 'error' ? theme.palette.error.main : 
-                             log.type === 'success' ? theme.palette.success.main : 
-                             theme.palette.text.primary 
-                    }}>
-                      {log.message}
-                    </span>
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        {/* Panel de Resultados - Diseño Sobrio */}
-        <Grid item xs={12} md={8}>
-          <Card sx={{
-            height: 'fit-content',
-            borderRadius: 1,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.primary.main, 0.8)
-            }
-          }}>
-            <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Tabs 
-                value={activeTab} 
-                onChange={(e, newValue) => setActiveTab(newValue)}
-                variant="fullWidth"
-                sx={{
-                  '& .MuiTab-root': {
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    fontSize: '0.875rem',
-                    transition: 'all 0.2s ease'
-                  },
-                  '& .MuiTabs-indicator': {
-                    height: 3,
-                    borderRadius: '3px 3px 0 0',
-                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                  }
-                }}
-              >
-                <Tab 
-                  label="📊 Resumen" 
-                  icon={<PieChart />}
-                  iconPosition="start"
-                />
-                <Tab 
-                  label="📋 Consolidado" 
-                  icon={<Receipt />}
-                  iconPosition="start"
-                />
-                <Tab 
-                  label="🏢 Por Sala" 
-                  icon={<Business />}
-                  iconPosition="start"
-                />
-                {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
-                  <Tab 
-                    label="🏷️ Tarifa Fija" 
-                    icon={<Receipt />}
-                    iconPosition="start"
+                      },
+                      { 
+                        key: 'gastosFijos', 
+                        label: 'Gastos Fijos', 
+                        width: 150, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          const gastos = nucStr && tarifasOficiales[nucStr] 
+                            ? Number(tarifasOficiales[nucStr].gastosAdicionales) || 0 
+                            : 0;
+                          return formatCurrencyCOP(gastos);
+                        }
+                      },
+                      { 
+                        key: 'totalFijo', 
+                        label: 'Total Impuestos Fijos', 
+                        width: 180, 
+                        align: 'right',
+                        format: (_, row) => {
+                          const nucStr = String(row?.nuc || '').trim();
+                          if (!nucStr || !tarifasOficiales[nucStr]) return formatCurrencyCOP(0);
+                          const derechos = Number(tarifasOficiales[nucStr].derechosAdicionales) || 0;
+                          const gastos = Number(tarifasOficiales[nucStr].gastosAdicionales) || 0;
+                          return formatCurrencyCOP(derechos + gastos);
+                        }
+                      }
+                    ]}
                   />
-                )}
-              </Tabs>
+                </Box>
+              </>
+            )}
+          </TabPanel>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+      </Paper>
+
+      <Fab
+        color="primary"
+        onClick={() => setLogsOpen((v) => !v)}
+        sx={{
+          position: 'fixed',
+          left: 24,
+          bottom: 24,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
+        }}
+        aria-label="Registro de actividad"
+      >
+        <History />
+      </Fab>
+
+      <Box
+        sx={{
+          position: 'fixed',
+          left: 24,
+          bottom: 90,
+          width: 420,
+          maxWidth: 'calc(100vw - 48px)',
+          borderRadius: 2,
+          bgcolor: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          overflow: 'hidden',
+          transform: logsOpen ? 'translateY(0)' : 'translateY(16px)',
+          opacity: logsOpen ? 1 : 0,
+          pointerEvents: logsOpen ? 'auto' : 'none',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <History sx={{ color: theme.palette.primary.main }} fontSize="small" />
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              Registro de Actividad
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <IconButton size="small" aria-label="Limpiar logs" onClick={clearLogs} disabled={logs.length === 0}>
+              <DeleteSweep fontSize="small" />
+            </IconButton>
+            <IconButton size="small" aria-label="Cerrar" onClick={() => setLogsOpen(false)}>
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+        <Divider />
+        <Box
+          sx={{
+            p: 1.5,
+            maxHeight: 320,
+            overflow: 'auto'
+          }}
+        >
+          {logs.length === 0 ? (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, p: 0.5 }}>
+              No hay actividades registradas.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {logs.map((l) => (
+                <Box
+                  key={l.id}
+                  sx={{
+                    p: 1,
+                    borderRadius: 1.5,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    bgcolor:
+                      l.type === 'success'
+                        ? alpha(theme.palette.success.main, 0.08)
+                        : l.type === 'warning'
+                          ? alpha(theme.palette.warning.main, 0.08)
+                          : l.type === 'error'
+                            ? alpha(theme.palette.error.main, 0.08)
+                            : alpha(theme.palette.info.main, 0.06)
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                    <Chip
+                      size="small"
+                      label={l.type.toUpperCase()}
+                      sx={{
+                        height: 20,
+                        fontWeight: 600,
+                        letterSpacing: 0.6,
+                        bgcolor:
+                          l.type === 'success'
+                            ? alpha(theme.palette.success.main, 0.12)
+                            : l.type === 'warning'
+                              ? alpha(theme.palette.warning.main, 0.12)
+                              : l.type === 'error'
+                                ? alpha(theme.palette.error.main, 0.12)
+                                : alpha(theme.palette.info.main, 0.12),
+                        color:
+                          l.type === 'success'
+                            ? theme.palette.success.main
+                            : l.type === 'warning'
+                              ? theme.palette.warning.main
+                              : l.type === 'error'
+                                ? theme.palette.error.main
+                                : theme.palette.info.main
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                      {l.timestamp instanceof Date ? l.timestamp.toLocaleTimeString('es-CO') : ''}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ mt: 0.75 }}>
+                    {l.message}
+                  </Typography>
+                </Box>
+              ))}
             </Box>
-            
-            <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <AnimatePresence mode="wait">
-                {/* Pestaña Resumen - Diseño Sobrio */}
-                {activeTab === 0 && (
-                  <motion.div
-                    key="resumen"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {!metricsData ? (
-                      <Box sx={{ textAlign: 'center', py: 6 }}>
-                        <Assessment sx={{ 
-                          fontSize: 60, 
-                          color: alpha(theme.palette.text.secondary, 0.7), 
-                          mb: 2 
-                        }} />
-                        <Typography variant="h6" color="textSecondary">
-                          Resumen de datos aparecerá aquí después del procesamiento
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Grid container spacing={3}>
-                        {/* Métricas principales - Diseño Sobrio */}
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                            background: alpha(theme.palette.primary.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.primary.main, 0.8),
-                              background: alpha(theme.palette.primary.main, 0.12)
-                            }
-                          }}>
-                            <Casino sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.primary.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {metricsData.totalMaquinas}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Máquinas Consolidadas
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
-                            background: alpha(theme.palette.secondary.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.secondary.main, 0.8),
-                              background: alpha(theme.palette.secondary.main, 0.12)
-                            }
-                          }}>
-                            <Business sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.secondary.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {metricsData.totalEstablecimientos}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Total Establecimientos
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-                            background: alpha(theme.palette.success.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.success.main, 0.8),
-                              background: alpha(theme.palette.success.main, 0.12)
-                            }
-                          }}>
-                            <TrendingUp sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.success.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {formatCurrency(metricsData.totalProduccion)}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Total Producción
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
-                            background: alpha(theme.palette.warning.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.warning.main, 0.8),
-                              background: alpha(theme.palette.warning.main, 0.12)
-                            }
-                          }}>
-                            <Assessment sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.warning.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {formatCurrency(metricsData.totalDerechos)}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Derechos de Explotación
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
-                            background: alpha(theme.palette.info.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.info.main, 0.8),
-                              background: alpha(theme.palette.info.main, 0.12)
-                            }
-                          }}>
-                            <Receipt sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.info.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {formatCurrency(metricsData.totalGastos)}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Gastos de Administración
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
-                            background: alpha(theme.palette.error.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.error.main, 0.8),
-                              background: alpha(theme.palette.error.main, 0.12)
-                            }
-                          }}>
-                            <Storage sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.error.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 700,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {formatCurrency(metricsData.totalImpuestos)}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 600,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.5
-                            }}>
-                              TOTAL IMPUESTOS
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        {/* Estadísticas de novedades - Diseño Sobrio */}
-                        <Grid item xs={12}>
-                          <Typography variant="overline" sx={{ 
-                            fontWeight: 600, 
-                            color: 'text.secondary',
-                            letterSpacing: 0.8,
-                            fontSize: '0.75rem'
-                          }}>
-                            Análisis Detallado
-                          </Typography>
-                          <Typography variant="h6" sx={{ mt: 1, mb: 3, fontWeight: 600 }}>
-                            📈 Estadísticas de Novedades
-                          </Typography>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-                            background: alpha(theme.palette.success.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.success.main, 0.8),
-                              background: alpha(theme.palette.success.main, 0.12)
-                            }
-                          }}>
-                            <CheckCircle sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.success.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {metricsData.sinCambios}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Sin Cambios ({metricsData.porcentajeSinCambios?.toFixed(1) || '0.0'}%)
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
-                            background: alpha(theme.palette.warning.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderColor: alpha(theme.palette.warning.main, 0.8),
-                              background: alpha(theme.palette.warning.main, 0.12)
-                            }
-                          }}>
-                            <Warning sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.warning.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {metricsData.conNovedades}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Con Novedades ({(100 - (metricsData.porcentajeSinCambios || 0)).toFixed(1)}%)
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                        
-                        <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ 
-                            p: 3, 
-                            textAlign: 'center',
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                            background: alpha(theme.palette.info.main, 0.08),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              background: alpha(theme.palette.info.main, 0.12)
-                            }
-                          }}>
-                            <BarChart sx={{ 
-                              fontSize: 32, 
-                              mb: 1.5, 
-                              color: theme.palette.info.main 
-                            }} />
-                            <Typography variant="h4" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              mb: 0.5
-                            }}>
-                              {formatCurrency(metricsData.promedioEstablecimiento)}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Promedio/Establecimiento
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      </Grid>
-                    )}
-                  </motion.div>
-                )}
-                
-                {/* Pestaña Consolidado - Diseño Sobrio */}
-                {activeTab === 1 && (
-                  <motion.div
-                    key="consolidado"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {!consolidatedData ? (
-                      <Box sx={{ textAlign: 'center', py: 6 }}>
-                        <Receipt sx={{ 
-                          fontSize: 60, 
-                          color: alpha(theme.palette.text.secondary, 0.7), 
-                          mb: 2 
-                        }} />
-                        <Typography variant="h6" color="textSecondary">
-                          Datos consolidados aparecerán aquí después del procesamiento
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          mb: 3 
-                        }}>
-                          <Box>
-                            <Typography variant="overline" sx={{ 
-                              fontWeight: 600, 
-                              color: 'primary.main',
-                              letterSpacing: 0.8,
-                              fontSize: '0.75rem'
-                            }}>
-                              Información Detallada
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              📋 Datos Consolidados por Máquina
-                            </Typography>
-                          </Box>
-                          <Button
-                            variant="contained"
-                            startIcon={<Download />}
-                            size="small"
-                            onClick={exportarConsolidado}
-                            disabled={!consolidatedData}
-                            sx={{
-                              borderRadius: 1,
-                              fontWeight: 600,
-                              textTransform: 'none'
-                            }}
-                          >
-                            Exportar Consolidado
-                          </Button>
-                        </Box>
-                        
-                        <TableContainer 
-                          component={Paper} 
-                          sx={{ 
-                            maxHeight: 600,
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              borderColor: alpha(theme.palette.primary.main, 0.8),
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }
-                          }}
-                        >
-                          <Table 
-                            stickyHeader
-                            sx={{
-                              '& .MuiTableCell-root': {
-                                borderColor: theme.palette.divider,
-                                borderBottom: `1px solid ${theme.palette.divider}`
-                              },
-                              '& .MuiTableHead-root': {
-                                '& .MuiTableRow-root': {
-                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                                  '& .MuiTableCell-root': {
-                                    fontWeight: 600,
-                                    fontSize: '0.875rem',
-                                    paddingY: 2,
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              },
-                              '& .MuiTableBody-root': {
-                                '& .MuiTableRow-root': {
-                                  '&:hover': { backgroundColor: theme.palette.action.hover },
-                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
-                                  '& .MuiTableCell-root': {
-                                    paddingY: 1.8,
-                                    fontSize: '0.85rem',
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              }
-                            }}
-                          >
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Empresa</TableCell>
-                                <TableCell>Serial</TableCell>
-                                <TableCell>NUC</TableCell>
-                                <TableCell>Establecimiento</TableCell>
-                                <TableCell>Días Transmitidos</TableCell>
-                                <TableCell>Días del Mes</TableCell>
-                                <TableCell>Primer Día</TableCell>
-                                <TableCell>Último Día</TableCell>
-                                <TableCell>Período</TableCell>
-                                <TableCell>Tipo Apuesta</TableCell>
-                                <TableCell>Tarifa</TableCell>
-                                <TableCell>Producción</TableCell>
-                                <TableCell>Derechos (12%)</TableCell>
-                                <TableCell>Gastos (1%)</TableCell>
-                                <TableCell>Total Impuestos</TableCell>
-                                <TableCell>Novedad</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {consolidatedData.map((row, index) => (
-                                <TableRow 
-                                  key={`consolidated-${row.nuc}-${row.establecimiento}-${index}`} 
-                                  hover
-                                  sx={{
-                                    '&:hover': {
-                                      backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                                      borderLeft: `3px solid ${theme.palette.primary.main}`,
-                                      transition: 'all 0.2s ease'
-                                    }
-                                  }}
-                                >
-                                  <TableCell>{row.empresa}</TableCell>
-                                  <TableCell>{row.serial}</TableCell>
-                                  <TableCell>{row.nuc}</TableCell>
-                                  <TableCell>{row.establecimiento}</TableCell>
-                                  <TableCell>{row.diasTransmitidos}</TableCell>
-                                  <TableCell>{row.diasMes}</TableCell>
-                                  <TableCell>{row.primerDia}</TableCell>
-                                  <TableCell>{row.ultimoDia}</TableCell>
-                                  <TableCell>{row.periodoTexto}</TableCell>
-                                  <TableCell>{row.tipoApuesta}</TableCell>
-                                  <TableCell>
-                                    <Chip 
-                                      label={
-                                        tarifasOficiales && tarifasOficiales[row.nuc.toString()] 
-                                          ? 'Tarifa Fija' 
-                                          : 'Tarifa Variable'
-                                      }
-                                      color={
-                                        tarifasOficiales && tarifasOficiales[row.nuc.toString()] 
-                                          ? 'secondary' 
-                                          : 'primary'
-                                      }
-                                      size="small"
-                                      sx={{ 
-                                        fontWeight: 500,
-                                        fontSize: '0.75rem'
-                                      }}
-                                    />
-                                  </TableCell>
-                                  <TableCell>{formatCurrency(row.produccion)}</TableCell>
-                                  <TableCell>{formatCurrency(row.derechosExplotacion)}</TableCell>
-                                  <TableCell>{formatCurrency(row.gastosAdministracion)}</TableCell>
-                                  <TableCell><strong>{formatCurrency(row.totalImpuestos)}</strong></TableCell>
-                                  <TableCell>
-                                    <Chip 
-                                      label={row.novedad}
-                                      color={row.novedad === 'Sin cambios' ? 'success' : 'warning'}
-                                      size="small"
-                                    />
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-                
-                {/* Pestaña Por Sala - Diseño Sobrio */}
-                {activeTab === 2 && (
-                  <motion.div
-                    key="sala"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {!reporteBySala ? (
-                      <Box sx={{ textAlign: 'center', py: 6 }}>
-                        <Business sx={{ 
-                          fontSize: 60, 
-                          color: alpha(theme.palette.text.secondary, 0.7), 
-                          mb: 2 
-                        }} />
-                        <Typography variant="h6" color="textSecondary">
-                          Reporte por establecimiento aparecerá aquí después del procesamiento
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          mb: 3 
-                        }}>
-                          <Box>
-                            <Typography variant="overline" sx={{ 
-                              fontWeight: 600, 
-                              color: 'secondary.main',
-                              letterSpacing: 0.8,
-                              fontSize: '0.75rem'
-                            }}>
-                              Información por Ubicación
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              🏢 Reporte por Establecimiento
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', gap: 1.5 }}>
-                            <Button
-                              variant="contained"
-                              startIcon={<Download />}
-                              size="small"
-                              onClick={abrirModalSala}
-                              disabled={!reporteBySala}
-                              sx={{
-                                borderRadius: 1,
-                                fontWeight: 600,
-                                textTransform: 'none'
-                              }}
-                            >
-                              Exportar por Sala
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              startIcon={<DateRange />}
-                              size="small"
-                              onClick={abrirModalDaily}
-                              disabled={!consolidatedData}
-                              sx={{
-                                borderRadius: 1,
-                                fontWeight: 500,
-                                textTransform: 'none'
-                              }}
-                            >
-                              Reporte Diario
-                            </Button>
-                          </Box>
-                        </Box>
-                        
-                        <TableContainer 
-                          component={Paper} 
-                          sx={{ 
-                            maxHeight: 600,
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              borderColor: alpha(theme.palette.primary.main, 0.8),
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }
-                          }}
-                        >
-                          <Table 
-                            stickyHeader
-                            sx={{
-                              '& .MuiTableCell-root': {
-                                borderColor: theme.palette.divider,
-                                borderBottom: `1px solid ${theme.palette.divider}`
-                              },
-                              '& .MuiTableHead-root': {
-                                '& .MuiTableRow-root': {
-                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                                  '& .MuiTableCell-root': {
-                                    fontWeight: 600,
-                                    fontSize: '0.875rem',
-                                    paddingY: 2,
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              },
-                              '& .MuiTableBody-root': {
-                                '& .MuiTableRow-root': {
-                                  '&:hover': { 
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                                    borderLeft: `3px solid ${theme.palette.primary.main}`,
-                                    transition: 'all 0.2s ease'
-                                  },
-                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
-                                  '& .MuiTableCell-root': {
-                                    paddingY: 1.8,
-                                    fontSize: '0.85rem',
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              }
-                            }}
-                          >
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Establecimiento</TableCell>
-                                <TableCell>Empresa</TableCell>
-                                <TableCell>Total Máquinas</TableCell>
-                                <TableCell>Producción</TableCell>
-                                <TableCell>Derechos</TableCell>
-                                <TableCell>Gastos</TableCell>
-                                <TableCell>Total Impuestos</TableCell>
-                                <TableCell>Promedio/Establecimiento</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {reporteBySala.map((row, index) => (
-                                <TableRow key={`sala-${row.establecimiento}-${index}`}>
-                                  <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento}</TableCell>
-                                  <TableCell>{row.empresa}</TableCell>
-                                  <TableCell>{row.totalMaquinas}</TableCell>
-                                  <TableCell>{formatCurrency(row.produccion)}</TableCell>
-                                  <TableCell>{formatCurrency(row.derechosExplotacion)}</TableCell>
-                                  <TableCell>{formatCurrency(row.gastosAdministracion)}</TableCell>
-                                  <TableCell sx={{ fontWeight: 600 }}>{formatCurrency(row.totalImpuestos)}</TableCell>
-                                  <TableCell>{formatCurrency(row.promedioEstablecimiento)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      </>
-                    )}
-                  </motion.div>
-                )}
+          )}
+        </Box>
+      </Box>
 
-                {/* Pestaña Tarifa Fija - Solo si hay tarifas oficiales */}
-                {activeTab === 3 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
-                  <motion.div
-                    key="tarifaFija"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {!consolidatedData ? (
-                      <Box sx={{ textAlign: 'center', py: 6 }}>
-                        <Receipt sx={{ 
-                          fontSize: 60, 
-                          color: alpha(theme.palette.text.secondary, 0.7), 
-                          mb: 2 
-                        }} />
-                        <Typography variant="h6" color="textSecondary">
-                          Información de tarifa fija aparecerá aquí después del procesamiento
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          mb: 3 
-                        }}>
-                          <Box>
-                            <Typography variant="overline" sx={{ 
-                              fontWeight: 600, 
-                              color: 'secondary.main',
-                              letterSpacing: 0.8,
-                              fontSize: '0.75rem'
-                            }}>
-                              Máquinas con Tarifa Oficial
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              🏷️ Máquinas con Tarifa Fija
-                            </Typography>
-                          </Box>
-                        </Box>
-                        
-                        <TableContainer 
-                          component={Paper} 
-                          sx={{ 
-                            maxHeight: 600,
-                            borderRadius: 1,
-                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              borderColor: alpha(theme.palette.secondary.main, 0.8),
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }
-                          }}
-                        >
-                          <Table 
-                            stickyHeader
-                            sx={{
-                              '& .MuiTableCell-root': {
-                                borderColor: theme.palette.divider,
-                                borderBottom: `1px solid ${theme.palette.divider}`
-                              },
-                              '& .MuiTableHead-root': {
-                                '& .MuiTableRow-root': {
-                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                                  '& .MuiTableCell-root': {
-                                    fontWeight: 600,
-                                    fontSize: '0.875rem',
-                                    paddingY: 2,
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              },
-                              '& .MuiTableBody-root': {
-                                '& .MuiTableRow-root': {
-                                  '&:hover': { 
-                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                                    borderLeft: `3px solid ${theme.palette.primary.main}`,
-                                    transition: 'all 0.2s ease'
-                                  },
-                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
-                                  '& .MuiTableCell-root': {
-                                    paddingY: 1.8,
-                                    fontSize: '0.85rem',
-                                    borderColor: theme.palette.divider
-                                  }
-                                }
-                              }
-                            }}
-                          >
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>Establecimiento</TableCell>
-                                <TableCell>Serial</TableCell>
-                                <TableCell>NUC</TableCell>
-                                <TableCell>Derechos Fijos</TableCell>
-                                <TableCell>Gastos Fijos</TableCell>
-                                <TableCell>Total Impuestos Fijos</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {consolidatedData
-                                .filter(row => tarifasOficiales && tarifasOficiales[row.nuc.toString()])
-                                .map((row, index) => (
-                                  <TableRow 
-                                    key={`tarifa-fija-${row.nuc}-${index}`} 
-                                    hover
-                                    sx={{
-                                      '&:hover': {
-                                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                                        borderLeft: `3px solid ${theme.palette.primary.main}`,
-                                        transition: 'all 0.2s ease'
-                                      }
-                                    }}
-                                  >
-                                    <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento}</TableCell>
-                                    <TableCell>{row.serial}</TableCell>
-                                    <TableCell>{row.nuc}</TableCell>
-                                    <TableCell>{formatCurrency(tarifasOficiales[row.nuc.toString()]?.derechosAdicionales || 0)}</TableCell>
-                                    <TableCell>{formatCurrency(tarifasOficiales[row.nuc.toString()]?.gastosAdicionales || 0)}</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>
-                                      {formatCurrency(
-                                        (tarifasOficiales[row.nuc.toString()]?.derechosAdicionales || 0) +
-                                        (tarifasOficiales[row.nuc.toString()]?.gastosAdicionales || 0)
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                        
-                        {/* Resumen de tarifa fija */}
-                        <Box sx={{ 
-                          mt: 3, 
-                          p: 3, 
-                          background: theme => alpha(theme.palette.secondary.main, 0.08),
-                          borderRadius: 2,
-                          border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
-                        }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                            📊 Resumen Tarifa Fija
-                          </Typography>
-                          <Grid container spacing={3}>
-                            <Grid item xs={12} sm={4}>
-                              <Typography variant="body2" color="textSecondary">
-                                Total Máquinas con Tarifa Fija
-                              </Typography>
-                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
-                                {consolidatedData.filter(row => tarifasOficiales && tarifasOficiales[row.nuc.toString()]).length}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={4}>
-                              <Typography variant="body2" color="textSecondary">
-                                Total Derechos Fijos
-                              </Typography>
-                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
-                                {formatCurrency(
-                                  Object.values(tarifasOficiales).reduce((sum, tarifa) => sum + (tarifa.derechosAdicionales || 0), 0)
-                                )}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={4}>
-                              <Typography variant="body2" color="textSecondary">
-                                Total Gastos Fijos
-                              </Typography>
-                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
-                                {formatCurrency(
-                                  Object.values(tarifasOficiales).reduce((sum, tarifa) => sum + (tarifa.gastosAdicionales || 0), 0)
-                                )}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                        </Box>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-  {/* Modal Exportar por Sala */}
-    <ExportarPorSalaModal
-      open={showSalaModal}
-      onClose={() => setShowSalaModal(false)}
-      reporteBySala={reporteBySala}
-      consolidatedData={consolidatedData}
-      empresa={empresa}
-      addLog={addLog}
-      addNotification={addNotification}
-    />
-    
-    {/* Modal Reporte Diario */}
-    <ReporteDiarioModal
-      open={showDailyModal}
-      onClose={() => setShowDailyModal(false)}
-      consolidatedData={consolidatedData}
-      originalData={originalData}
-      empresa={empresa}
-      addLog={addLog}
-      addNotification={addNotification}
-    />
+      {/* Modales de exportación (reutilizados tal cual) */}
+      <ExportarPorSalaModal
+        open={showSalaModal}
+        onClose={() => setShowSalaModal(false)}
+        reporteBySala={reporteBySala}
+        consolidatedData={consolidatedData}
+        empresa={empresa}
+        addLog={addLog}
+        addNotification={addNotification}
+      />
+      <ReporteDiarioModal
+        open={showDailyModal}
+        onClose={() => setShowDailyModal(false)}
+        consolidatedData={consolidatedData}
+        originalData={originalData}
+        empresa={empresa}
+        addLog={addLog}
+        addNotification={addNotification}
+      />
 
-    {/* Modal Confirmar Guardado */}
-    <ConfirmarGuardadoModal
-      open={showConfirmarGuardadoModal}
-      onClose={() => setShowConfirmarGuardadoModal(false)}
-      onConfirm={confirmarGuardadoLiquidacion}
-      periodoDetectado={detectarPeriodoLiquidacion()}
-      loading={guardandoLiquidacion}
-    />
+      <ConfirmarGuardadoModal
+        open={showConfirmarGuardadoModal}
+        onClose={() => setShowConfirmarGuardadoModal(false)}
+        onConfirm={confirmarGuardadoLiquidacion}
+        periodoDetectado={detectarPeriodoLiquidacion()}
+        loading={guardandoLiquidacion}
+      />
     </Container>
     </>
   );
-};
-
-// Memoizar componente para evitar re-renders innecesarios
-export default React.memo(LiquidacionesPage);
+}

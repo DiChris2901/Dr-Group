@@ -54,7 +54,7 @@ import OrphanFilesPage from './pages/OrphanFilesPage';
 
 // Módulo de Liquidaciones
 import LiquidacionesPage from './pages/LiquidacionesPage';
-import LiquidacionesPageV2 from './pages/LiquidacionesPageV2';
+import LiquidacionesPageV1 from './pages/LiquidacionesPageV1';
 import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
 import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
 import LiquidacionesEstadisticasPage from './pages/LiquidacionesEstadisticasPage';
@@ -229,11 +229,11 @@ const DashboardLayout = () => {
         }
       />
       <Route 
-        path="/liquidaciones-v2" 
+        path="/liquidaciones-v1" 
         element={
           <ProtectedRoute requiredPermission="liquidaciones">
-            <MainLayout title="Liquidaciones V2 (Nueva Versión)" breadcrumbs={['Liquidaciones', 'V2']}>
-              <LiquidacionesPageV2 />
+            <MainLayout title="Liquidaciones V1 (Versión Antigua)" breadcrumbs={['Liquidaciones', 'V1']}>
+              <LiquidacionesPageV1 />
             </MainLayout>
           </ProtectedRoute>
         }
