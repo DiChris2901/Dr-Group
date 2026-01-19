@@ -23,6 +23,8 @@ import {
   Chip,
   Alert,
   Skeleton,
+  IconButton,
+  Tooltip as MuiTooltip,
   alpha,
   useTheme
 } from '@mui/material';
@@ -1550,45 +1552,35 @@ const LiquidacionesEstadisticasPage = () => {
                           {Math.round(row.maquinasPromedioMensual).toLocaleString()}
                         </TableCell>
                         <TableCell align="right" sx={{ fontSize: 13 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<FileDownload />}
-                              onClick={() => handleExportarDetalleSalaExcel(row.sala)}
-                              sx={{
-                                borderRadius: 1,
-                                fontWeight: 600,
-                                textTransform: 'none',
-                                borderColor: alpha(theme.palette.secondary.main, 0.6),
-                                color: 'text.primary',
-                                '&:hover': {
-                                  borderColor: alpha(theme.palette.secondary.main, 0.8),
-                                  backgroundColor: alpha(theme.palette.secondary.main, 0.04)
-                                }
-                              }}
-                            >
-                              Exportar
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<VisibilityIcon />}
-                              onClick={() => abrirDetalleSalaPorMes(row.sala)}
-                              sx={{
-                                borderRadius: 1,
-                                fontWeight: 600,
-                                textTransform: 'none',
-                                borderColor: alpha(theme.palette.primary.main, 0.6),
-                                color: 'text.primary',
-                                '&:hover': {
-                                  borderColor: alpha(theme.palette.primary.main, 0.8),
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                                }
-                              }}
-                            >
-                              Ver detalle
-                            </Button>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5, flexWrap: 'nowrap' }}>
+                            <MuiTooltip title="Exportar Excel">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleExportarDetalleSalaExcel(row.sala)}
+                                sx={{
+                                  color: theme.palette.secondary.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.secondary.main, 0.08)
+                                  }
+                                }}
+                              >
+                                <FileDownload fontSize="small" />
+                              </IconButton>
+                            </MuiTooltip>
+                            <MuiTooltip title="Ver detalle por mes">
+                              <IconButton
+                                size="small"
+                                onClick={() => abrirDetalleSalaPorMes(row.sala)}
+                                sx={{
+                                  color: theme.palette.primary.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                                  }
+                                }}
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            </MuiTooltip>
                           </Box>
                         </TableCell>
                       </TableRow>
@@ -1709,25 +1701,20 @@ const LiquidacionesEstadisticasPage = () => {
                                   ${Math.round(m.impuestosRango).toLocaleString()}
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontSize: 12 }}>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<VisibilityIcon />}
-                                    onClick={() => abrirDetalleMaquinaPorMes(m)}
-                                    sx={{
-                                      borderRadius: 1,
-                                      fontWeight: 600,
-                                      textTransform: 'none',
-                                      borderColor: alpha(theme.palette.primary.main, 0.6),
-                                      color: 'text.primary',
-                                      '&:hover': {
-                                        borderColor: alpha(theme.palette.primary.main, 0.8),
-                                        backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                                      }
-                                    }}
-                                  >
-                                    Ver detalle
-                                  </Button>
+                                  <MuiTooltip title="Ver detalle por mes">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => abrirDetalleMaquinaPorMes(m)}
+                                      sx={{
+                                        color: theme.palette.primary.main,
+                                        '&:hover': {
+                                          backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                                        }
+                                      }}
+                                    >
+                                      <VisibilityIcon fontSize="small" />
+                                    </IconButton>
+                                  </MuiTooltip>
                                 </TableCell>
                               </TableRow>
                             ))}

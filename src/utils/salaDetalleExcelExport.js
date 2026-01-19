@@ -301,15 +301,13 @@ export const exportarDetalleSalaExcel = async ({
       });
     }
 
-    const periodoInicio = periodos.length ? periodos[0] : '';
-    const periodoFin = periodos.length ? periodos[periodos.length - 1] : '';
-
     const maquinasRango = Array.from(acc.values())
       .map((m) => {
-        const inicio = toNumber(m.produccionPorPeriodo?.[periodoInicio]);
-        const fin = toNumber(m.produccionPorPeriodo?.[periodoFin]);
-        const cambioInicioFinPct = inicio > 0 ? ((fin - inicio) / inicio) * 100 : null;
-        return { ...m, cambioInicioFinPct };
+        // Calcular promedio mensual de producción
+        const totalMeses = periodos.length;
+        const promedioMensual = totalMeses > 0 ? m.produccionRango / totalMeses : 0;
+        
+        return { ...m, promedioMensual };
       })
       .sort((a, b) => (b.produccionRango || 0) - (a.produccionRango || 0));
 
@@ -409,7 +407,7 @@ export const exportarDetalleSalaExcel = async ({
       ...monthCols,
       { header: 'Producción (rango)', key: 'prodRango', width: 18 },
       { header: 'Impuestos (rango)', key: 'impRango', width: 18 },
-      { header: '% cambio (inicio→fin)', key: 'cambio', width: 18 }
+      { header: 'Producción (prom. mensual)', key: 'promedio', width: 20 }
     ];
 
     const metricsLineMaq = `Empresa: ${empresaLabel} | Sala: ${salaLabel} | Periodo: ${tipoPeriodoLabel} | Máquinas: ${maquinasRango.length} | Producción (rango): $${Math.round(totalProduccionMaquinas).toLocaleString('es-CO')} | Impuestos (rango): $${Math.round(totalImpuestosMaquinas).toLocaleString('es-CO')}`;
@@ -466,22 +464,9 @@ export const exportarDetalleSalaExcel = async ({
       applyZebraFill(row.getCell(colIndex), zebra);
       colIndex++;
 
-      if (m.cambioInicioFinPct === null) {
-        row.getCell(colIndex).value = 'N/A';
-        row.getCell(colIndex).style = fmtNumber;
-      } else {
-        row.getCell(colIndex).value = m.cambioInicioFinPct / 100;
-        row.getCell(colIndex).style = {
-          ...fmtPercent,
-          font: {
-            ...(fmtPercent.font || {}),
-            bold: true,
-            color: {
-              argb: m.cambioInicioFinPct >= 0 ? CHANGE_COLORS.positive : CHANGE_COLORS.negative
-            }
-          }
-        };
-      }
+      // Promedio mensual
+      row.getCell(colIndex).value = Math.round(toNumber(m.promedioMensual));
+      row.getCell(colIndex).style = fmtMoney;
       applyZebraFill(row.getCell(colIndex), zebra);
 
       row.height = 18;
@@ -497,9 +482,8 @@ export const exportarDetalleSalaExcel = async ({
         }
       });
 
-      const totalInicio = periodos.length ? toNumber(totalByPeriodo[periodos[0]]) : 0;
-      const totalFin = periodos.length ? toNumber(totalByPeriodo[periodos[periodos.length - 1]]) : 0;
-      const totalCambioPct = totalInicio > 0 ? ((totalFin - totalInicio) / totalInicio) * 100 : null;
+      // Promedio general mensual
+      const promedioGeneralMensual = periodos.length > 0 ? totalProduccionMaquinas / periodos.length : 0;
 
       const totalRow = wsMaq.getRow(maqRowIndex);
       let colIndex = 1;
@@ -530,22 +514,9 @@ export const exportarDetalleSalaExcel = async ({
       totalRow.getCell(colIndex).style = fmtTotalMoney;
       colIndex++;
 
-      if (totalCambioPct === null) {
-        totalRow.getCell(colIndex).value = 'N/A';
-        totalRow.getCell(colIndex).style = fmtTotalNumber;
-      } else {
-        totalRow.getCell(colIndex).value = totalCambioPct / 100;
-        totalRow.getCell(colIndex).style = {
-          ...fmtTotalPercent,
-          font: {
-            ...(fmtTotalPercent.font || {}),
-            bold: true,
-            color: {
-              argb: totalCambioPct >= 0 ? CHANGE_COLORS.positive : CHANGE_COLORS.negative
-            }
-          }
-        };
-      }
+      // Promedio mensual general
+      totalRow.getCell(colIndex).value = Math.round(promedioGeneralMensual);
+      totalRow.getCell(colIndex).style = fmtTotalMoney;
 
       totalRow.height = 20;
     }
