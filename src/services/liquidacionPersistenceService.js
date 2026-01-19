@@ -881,7 +881,8 @@ class LiquidacionPersistenceService {
         });
         
         // Firebase requiere usar where con '>=' y '<=' para rangos
-        // NOTA: Requiere índice compuesto si se combina con otros filtros
+        // IMPORTANTE: Filtrar por PERÍODO DE LIQUIDACIÓN, no por fecha de procesamiento
+        // Esto permite encontrar liquidaciones del mes correcto independientemente de cuándo se procesaron
         constraints.push(where('fechas.createdAt', '>=', startTimestamp));
         constraints.push(where('fechas.createdAt', '<=', endTimestamp));
       }

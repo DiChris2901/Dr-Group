@@ -262,34 +262,44 @@ const LiquidacionesHistorialPage = () => {
       const ahora = new Date();
       
       if (periodoFiltro === 'thisMonth') {
-        filtrosFirebase.startDate = startOfMonth(ahora);
-        filtrosFirebase.endDate = endOfMonth(ahora);
+        // Buscar liquidaciones del PERÍODO del mes actual
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        filtrosFirebase.mes = meses[ahora.getMonth()];
+        filtrosFirebase.año = ahora.getFullYear();
       } else if (periodoFiltro === 'lastMonth') {
+        // Buscar liquidaciones del PERÍODO del mes anterior
         const mesAnterior = subMonths(ahora, 1);
-        filtrosFirebase.startDate = startOfMonth(mesAnterior);
-        filtrosFirebase.endDate = endOfMonth(mesAnterior);
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        filtrosFirebase.mes = meses[mesAnterior.getMonth()];
+        filtrosFirebase.año = mesAnterior.getFullYear();
       } else if (periodoFiltro === 'last3Months') {
+        // Para rangos múltiples, usar filtro por fecha de procesamiento
         const hace3Meses = subMonths(ahora, 3);
         filtrosFirebase.startDate = startOfMonth(hace3Meses);
         filtrosFirebase.endDate = endOfMonth(ahora);
       } else if (periodoFiltro === 'last6Months') {
+        // Para rangos múltiples, usar filtro por fecha de procesamiento
         const hace6Meses = subMonths(ahora, 6);
         filtrosFirebase.startDate = startOfMonth(hace6Meses);
         filtrosFirebase.endDate = endOfMonth(ahora);
       } else if (periodoFiltro === 'thisYear') {
-        filtrosFirebase.startDate = startOfYear(ahora);
-        filtrosFirebase.endDate = endOfYear(ahora);
+        // Filtrar por año del período
+        filtrosFirebase.año = ahora.getFullYear();
       } else if (periodoFiltro === 'allTime') {
         // NO aplicar filtro de fechas - traer TODAS las liquidaciones
         // (No establecer startDate ni endDate)
       } else if (periodoFiltro === 'month' && filtrosAplicar.periodoMes) {
         // Mes específico seleccionado por el usuario
-        filtrosFirebase.startDate = startOfMonth(filtrosAplicar.periodoMes);
-        filtrosFirebase.endDate = endOfMonth(filtrosAplicar.periodoMes);
+        const fechaSeleccionada = new Date(filtrosAplicar.periodoMes);
+        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        filtrosFirebase.mes = meses[fechaSeleccionada.getMonth()];
+        filtrosFirebase.año = fechaSeleccionada.getFullYear();
       }
       
-      console.log('📅 Filtros de fecha calculados:', {
+      console.log('📅 Filtros de período calculados:', {
         periodoFiltro,
+        mes: filtrosFirebase.mes || 'todos',
+        año: filtrosFirebase.año || 'todos',
         startDate: filtrosFirebase.startDate?.toLocaleDateString?.('es-CO'),
         endDate: filtrosFirebase.endDate?.toLocaleDateString?.('es-CO')
       });
