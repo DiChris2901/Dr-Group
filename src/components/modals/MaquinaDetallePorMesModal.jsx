@@ -336,7 +336,6 @@ const MaquinaDetallePorMesModal = ({
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      </DialogTitle>
 
       <DialogContent sx={{ p: 3, pt: 5 }}>
         <Box sx={{ mt: 3 }}>
