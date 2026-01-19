@@ -297,15 +297,15 @@ const LiquidacionesEstadisticasPage = () => {
           return;
         }
 
-        // Solo necesitamos ventana máxima anual (12 meses). Agregamos un buffer por seguridad.
-        const hace15Meses = new Date();
-        hace15Meses.setMonth(hace15Meses.getMonth() - 15);
+        // Ventana amplia de 24 meses para asegurar cobertura completa incluso con gaps
+        const hace24Meses = new Date();
+        hace24Meses.setMonth(hace24Meses.getMonth() - 24);
 
         // ===== MODO TODAS LAS EMPRESAS =====
         if (empresaSeleccionada === 'todas') {
           const q = query(
             collection(db, 'liquidaciones'),
-            where('fechas.createdAt', '>=', hace15Meses),
+            where('fechas.createdAt', '>=', hace24Meses),
             orderBy('fechas.createdAt', 'desc')
           );
 
@@ -315,29 +315,25 @@ const LiquidacionesEstadisticasPage = () => {
             ...docSnap.data()
           }));
 
-          // ORDENAR PRIMERO por periodo (descendente) antes de limitar
-          const docsOrdenados = [...allDocs].sort((a, b) => {
-            const pa = a?.fechas?.periodoLiquidacion;
-            const pb = b?.fechas?.periodoLiquidacion;
-            const sa = periodoLiquidacionScore(pa);
-            const sb = periodoLiquidacionScore(pb);
+          // Identificar los últimos N periodos únicos
+          const periodosUnicos = [...new Set(
+            allDocs
+              .map(doc => doc?.fechas?.periodoLiquidacion)
+              .filter(p => p)
+          )].sort((a, b) => {
+            const sa = periodoLiquidacionScore(a);
+            const sb = periodoLiquidacionScore(b);
             if (sa === null && sb === null) return 0;
             if (sa === null) return 1;
             if (sb === null) return -1;
             return sb - sa; // Descendente (más reciente primero)
-          });
+          }).slice(0, monthsToShow); // Tomar solo los últimos N periodos
 
-          // Seleccionar meses únicos (máximo monthsToShow)
-          const vistos = new Set();
-          const mensualSeleccionado = [];
-          for (const liq of docsOrdenados) {
+          // Tomar TODOS los documentos de esos periodos (no solo 1 por periodo)
+          const mensualSeleccionado = allDocs.filter(liq => {
             const periodo = liq?.fechas?.periodoLiquidacion;
-            if (!periodo) continue;
-            if (vistos.has(periodo)) continue;
-            vistos.add(periodo);
-            mensualSeleccionado.push(liq);
-            if (mensualSeleccionado.length >= monthsToShow) break;
-          }
+            return periodo && periodosUnicos.includes(periodo);
+          });
 
           setLiquidaciones(mensualSeleccionado);
           setLiquidacionesPorSala([]);
@@ -366,7 +362,7 @@ const LiquidacionesEstadisticasPage = () => {
           const qMensual = query(
             collection(db, 'liquidaciones'),
             where('empresa.normalizado', '==', empresaNorm),
-            where('fechas.createdAt', '>=', hace15Meses),
+            where('fechas.createdAt', '>=', hace24Meses),
             orderBy('fechas.createdAt', 'desc'),
             limit(24)
           );
@@ -376,7 +372,7 @@ const LiquidacionesEstadisticasPage = () => {
           console.warn('⚠️ Query por empresa.normalizado falló, usando fallback por nombre:', e);
           const qFallback = query(
             collection(db, 'liquidaciones'),
-            where('fechas.createdAt', '>=', hace15Meses),
+            where('fechas.createdAt', '>=', hace24Meses),
             orderBy('fechas.createdAt', 'desc'),
             limit(300)
           );
