@@ -39,7 +39,8 @@ import {
   TableHead,
   TableRow,
   Autocomplete,
-  Tooltip
+  Tooltip,
+  Menu
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -75,7 +76,8 @@ import {
   CloudUpload as CloudUploadIcon,
   CheckCircle as CheckCircleIcon,
   History as HistoryIcon,
-  Share as ShareIcon
+  Share as ShareIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -140,6 +142,10 @@ const SalasPage = () => {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareCompanyDialogOpen, setShareCompanyDialogOpen] = useState(false);
+  
+  // Estados para menú de acciones de tarjeta
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuSalaId, setMenuSalaId] = useState(null);
   
   // Estados de selección
   const [selectedSala, setSelectedSala] = useState(null);
@@ -890,6 +896,19 @@ const SalasPage = () => {
   const handleCloseShareCompanyDialog = () => {
     setShareCompanyDialogOpen(false);
     setCompanyToShare(null);
+  };
+  
+  // Abrir menú de acciones
+  const handleOpenMenu = (event, salaId) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuSalaId(salaId);
+  };
+  
+  // Cerrar menú de acciones
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
+    setMenuSalaId(null);
   };
 
   // Limpiar filtros
@@ -1815,36 +1834,35 @@ const SalasPage = () => {
                       </Typography>
                     }
                     action={
-                      <Box>
-                        <Tooltip title="Ver detalles">
-                          <IconButton onClick={() => handleOpenView(sala)} size="small">
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Compartir en chat">
-                          <IconButton onClick={() => handleShareSala(sala)} size="small" color="primary">
-                            <ShareIcon />
-                          </IconButton>
-                        </Tooltip>
-                        {salasConHistorial.has(sala.id) && (
-                          <Tooltip title="Ver historial de cambios">
-                            <IconButton onClick={() => handleOpenHistory(sala)} size="small" color="info">
-                              <HistoryIcon />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        <Tooltip title="Editar sala">
-                          <IconButton onClick={() => handleOpenEdit(sala)} size="small">
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar sala">
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Ver detalles" arrow>
                           <IconButton 
-                            onClick={() => handleOpenDelete(sala)}
-                            color="error"
+                            onClick={() => handleOpenView(sala)} 
                             size="small"
+                            sx={{
+                              bgcolor: alpha(theme.palette.primary.main, 0.08),
+                              color: theme.palette.primary.main,
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.15)
+                              }
+                            }}
                           >
-                            <DeleteIcon />
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Más opciones" arrow>
+                          <IconButton 
+                            onClick={(e) => handleOpenMenu(e, sala.id)}
+                            size="small"
+                            sx={{
+                              bgcolor: alpha(theme.palette.text.secondary, 0.06),
+                              color: theme.palette.text.secondary,
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.text.secondary, 0.12)
+                              }
+                            }}
+                          >
+                            <MoreVertIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -2058,6 +2076,107 @@ const SalasPage = () => {
           </Box>
         </motion.div>
       )}
+
+      {/* Menú desplegable de acciones de sala */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleCloseMenu}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 1.5,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            mt: 0.5,
+            minWidth: 180
+          }
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            const sala = salas.find(s => s.id === menuSalaId);
+            if (sala) handleShareSala(sala);
+            handleCloseMenu();
+          }}
+          sx={{
+            gap: 1.5,
+            py: 1,
+            '&:hover': {
+              bgcolor: alpha(theme.palette.info.main, 0.08)
+            }
+          }}
+        >
+          <ShareIcon fontSize="small" sx={{ color: theme.palette.info.main }} />
+          <Typography variant="body2">Compartir en chat</Typography>
+        </MenuItem>
+        
+        <MenuItem
+          onClick={() => {
+            const sala = salas.find(s => s.id === menuSalaId);
+            if (sala) handleOpenEdit(sala);
+            handleCloseMenu();
+          }}
+          sx={{
+            gap: 1.5,
+            py: 1,
+            '&:hover': {
+              bgcolor: alpha(theme.palette.primary.main, 0.08)
+            }
+          }}
+        >
+          <EditIcon fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+          <Typography variant="body2">Editar sala</Typography>
+        </MenuItem>
+        
+        {menuSalaId && salasConHistorial.has(menuSalaId) && (
+          <MenuItem
+            onClick={() => {
+              const sala = salas.find(s => s.id === menuSalaId);
+              if (sala) handleOpenHistory(sala);
+              handleCloseMenu();
+            }}
+            sx={{
+              gap: 1.5,
+              py: 1,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.info.main, 0.08)
+              }
+            }}
+          >
+            <HistoryIcon fontSize="small" sx={{ color: theme.palette.info.main }} />
+            <Typography variant="body2">Ver historial</Typography>
+          </MenuItem>
+        )}
+        
+        <Divider sx={{ my: 0.5 }} />
+        
+        <MenuItem
+          onClick={() => {
+            const sala = salas.find(s => s.id === menuSalaId);
+            if (sala) handleOpenDelete(sala);
+            handleCloseMenu();
+          }}
+          sx={{
+            gap: 1.5,
+            py: 1,
+            color: theme.palette.error.main,
+            '&:hover': {
+              bgcolor: alpha(theme.palette.error.main, 0.08)
+            }
+          }}
+        >
+          <DeleteIcon fontSize="small" />
+          <Typography variant="body2">Eliminar sala</Typography>
+        </MenuItem>
+      </Menu>
 
       {/* Modal Agregar Sala */}
       <AddSalaModal
