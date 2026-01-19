@@ -1,176 +1,503 @@
-# 🎯 DR Group Dashboard
+# DR Group Dashboard 🎯
 
-Dashboard para control de compromisos financieros empresariales desarrollado con React, Material-UI y Firebase.
+## 🚀 Descripción
 
-## 📋 Descripción
+Dashboard empresarial completo para gestión de compromisos financieros y liquidaciones de máquinas de apuesta desarrollado con React + Vite + Firebase. Sistema de alto rendimiento con arquitectura empresarial robusta, diseño sobrio profesional y control de acceso granular basado en roles.
 
-Este sistema permite llevar control de compromisos fijos mensuales (recurrentes y únicos) de las empresas del grupo DR. Incluye funcionalidades para filtrar información, agregar compromisos, gestionar pagos y sus correspondientes comprobantes.
+**Características destacadas:**
+- Dashboard web responsive con React 18 + Vite
+- App móvil nativa con React Native + Expo  
+- Sistema de liquidaciones por salas con estadísticas avanzadas
+- Control de asistencias con geolocalización
+- Gestión multi-empresa con permisos granulares
+- Exportación Excel con formato profesional (ExcelJS)
+- Sistema de chat en tiempo real
+- Recursos Humanos completo
 
-## ✨ Características Principales
+---
 
-- 🔐 **Autenticación segura** con Firebase (solo correos autorizados)
-- 📊 **Dashboard interactivo** con métricas en tiempo real
-- 💼 **Gestión multi-empresa** con filtros personalizables
-- 📁 **Manejo de comprobantes** con Firebase Storage
-- 👥 **Sistema de roles** y permisos granulares
-- 📱 **Diseño responsivo** con Material-UI
-- 🌙 **Tema claro/oscuro** personalizable
-- 🔔 **Alertas automáticas** de compromisos próximos a vencer
-- 📈 **Reportes y análisis** exportables
+## ✨ Funcionalidades Principales
+
+### 💼 **Dashboard Empresarial**
+- **Métricas ejecutivas** en tiempo real
+- **Gráficos interactivos** con Recharts
+- **Sistema de alertas** inteligente con centro de notificaciones
+- **Búsqueda global** unificada en toda la aplicación
+- **Filtros avanzados** por empresa, fecha y periodo
+- **Calendario integrado** con eventos y compromisos
+
+### 💰 **Gestión Financiera**
+- **Compromisos mensuales** con renovación automática
+- **Pagos y comprobantes** con almacenamiento en Firebase Storage
+- **Ingresos empresariales** con clasificación detallada
+- **Reportes configurables** por empresa y rango de fechas
+- **Historial completo** de transacciones
+- **Cuentas bancarias** con conciliación
+
+### 🎰 **Sistema de Liquidaciones**
+- **Liquidaciones por sala** con cálculo automático
+- **Estadísticas comparativas** (trimestral, semestral, anual)
+- **Detalle por máquina** con histórico de producción
+- **Búsqueda global** por Serial/NUC
+- **Exportación Excel** con formato Python profesional
+- **Histórico de periodos** con filtros avanzados
+- **Cambios de sala** con auditoría completa
+
+### 👥 **Gestión de Recursos Humanos**
+- **Control de asistencias** con GPS y timestamps
+- **Registro de entrada/salida** automático
+- **Breaks y almuerzos** con cálculo de duración
+- **Horas trabajadas** calculadas desde timestamps
+- **Liquidaciones de nómina** integradas
+- **Solicitudes de empleados** con aprobación
+
+### 📱 **App Móvil (React Native + Expo)**
+- **Login con auto-registro** de entrada
+- **Control de jornada laboral** en tiempo real
+- **Breaks y almuerzos** con contador en vivo
+- **Diseño sobrio** Material You Expressive
+- **Colores dinámicos** personalizables por usuario
+- **Geolocalización** y datos del dispositivo
+
+### 🔐 **Seguridad y Permisos**
+- **Autenticación Firebase** (solo correos autorizados)
+- **Sistema de roles** (ADMIN, USER, VIEWER)
+- **Permisos granulares** por módulo y empresa
+- **Auditoría completa** con activity logs
+- **Validación de acceso** en frontend y backend
+
+### 💬 **Chat Empresarial**
+- **Mensajería en tiempo real** con Firestore
+- **Grupos de chat** predefinidos
+- **Compartir archivos** y documentos
+- **Indicadores de escritura** y presencia
+- **Notificaciones** de mensajes no leídos
+
+### 📊 **Reportes y Exportación**
+- **Exportación Excel** con formato Python profesional
+- **Generación PDF** con jsPDF
+- **Envío por email** con EmailJS
+- **Estadísticas consolidadas** por empresa
+- **Gráficos de tendencias** operativas
+
+---
 
 ## 🛠️ Stack Tecnológico
 
-- **Frontend**: React 18 + Vite
-- **UI Framework**: Material-UI (MUI) v5
-- **Backend**: Firebase (Firestore + Storage + Auth)
-- **Animaciones**: Framer Motion
-- **Routing**: React Router DOM
-- **Utilidades**: date-fns para manejo de fechas
+### **Frontend Web**
+- **React 18.2.0** - Biblioteca de UI con hooks
+- **Vite 5.4.21** - Build tool optimizado
+- **Material-UI v5** - Componentes con diseño sobrio empresarial
+- **Emotion** - Styled components (MUI)
+- **Framer Motion 10.16.16** - Animaciones avanzadas
+- **React Router DOM 6.20.1** - Navegación SPA
+- **Recharts 2.12.7** - Gráficos interactivos
+- **date-fns 4.1.0** - Manejo de fechas
+
+### **Frontend Móvil**
+- **React Native 0.81.5** - Framework móvil
+- **Expo 54.0.23** - Plataforma de desarrollo
+- **React Navigation 7.x** - Navegación móvil
+- **React Native Paper v5** - Material Design 3
+- **Expo Location** - Geolocalización
+- **AsyncStorage** - Persistencia local
+
+### **Backend & Database**
+- **Firebase 10.7.1 / 12.5.0** - Plataforma completa
+- **Firestore** - Base de datos NoSQL en tiempo real
+- **Firebase Storage** - Almacenamiento de archivos
+- **Firebase Authentication** - Gestión de usuarios
+- **Firebase Hosting** - Deploy de producción
+- **Security Rules** - Protección de datos
+
+### **Utilidades y Herramientas**
+- **ExcelJS 4.4.0** - Exportación Excel profesional
+- **jsPDF 3.0.3** - Generación de PDFs
+- **EmailJS 4.4.1** - Envío de correos
+- **Google Generative AI 0.24.1** - IA integrada
+- **ESLint + Prettier** - Código limpio
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+Dr-Group/
+├── src/                                    # Dashboard Web
+│   ├── components/
+│   │   ├── admin/                         # Herramientas de administración
+│   │   ├── auth/                          # Autenticación
+│   │   ├── charts/                        # Gráficos y visualizaciones
+│   │   ├── chat/                          # Sistema de chat
+│   │   ├── commitments/                   # Gestión de compromisos
+│   │   ├── common/                        # Componentes reutilizables
+│   │   ├── companies/                     # Gestión de empresas
+│   │   ├── dashboard/                     # Dashboard principal
+│   │   ├── incomes/                       # Gestión de ingresos
+│   │   ├── layout/                        # Layout y navegación
+│   │   ├── liquidaciones/                 # Liquidaciones por salas
+│   │   ├── modals/                        # Modales especializados
+│   │   ├── notes/                         # Sistema de notas
+│   │   ├── notifications/                 # Notificaciones
+│   │   ├── payments/                      # Gestión de pagos
+│   │   ├── rrhh/                          # Recursos Humanos
+│   │   ├── settings/                      # Configuraciones
+│   │   └── storage/                       # Gestión de archivos
+│   ├── context/                           # Context providers
+│   ├── hooks/                             # Custom hooks especializados
+│   ├── pages/                             # Páginas principales
+│   ├── services/                          # Servicios y lógica de negocio
+│   ├── utils/                             # Utilidades y helpers
+│   ├── theme/                             # Configuración de tema MUI
+│   └── config/                            # Configuración Firebase
+├── mobile/                                 # App Móvil (React Native)
+│   ├── src/
+│   │   ├── screens/                       # Pantallas de la app
+│   │   │   ├── auth/                      # Login con auto-registro
+│   │   │   └── dashboard/                 # Control de jornada
+│   │   ├── contexts/                      # AuthContext, ThemeContext
+│   │   ├── components/                    # Componentes sobrios
+│   │   ├── navigation/                    # Stack Navigator
+│   │   ├── services/                      # Firebase config
+│   │   └── utils/                         # Utilidades móvil
+│   ├── design-system.json                 # Tokens de diseño Material You
+│   ├── material-theme.json                # Paleta completa de colores
+│   └── eas.json                           # Configuración EAS Build
+├── docs/                                   # Documentación del sistema
+│   ├── DISENO_SOBRIO_NOTAS.md            # Sistema minimalista empresarial
+│   ├── MODAL_DESIGN_SYSTEM.md            # Patrones para modales
+│   ├── MODAL_PDF_VIEWER_DESIGN.md        # Visores PDF avanzados
+│   └── EXCEL_EXPORT_DESIGN_SYSTEM.md     # Formato Python para Excel
+├── .github/
+│   └── copilot-instructions.md            # Instrucciones para Copilot
+├── firebase.json                          # Configuración Firebase
+├── firestore.rules                        # Reglas de seguridad
+├── storage.rules                          # Reglas de Storage
+└── package.json                           # Dependencias del proyecto
+```
+
+---
 
 ## 🚀 Instalación y Configuración
 
-### Prerrequisitos
+### **Prerrequisitos**
+- Node.js 18+ instalado
+- npm o yarn instalado
+- Git configurado
+- Proyecto Firebase creado y configurado
+- Visual Studio Code (recomendado)
 
-- Node.js 18+ 
-- npm/pnpm (recomendado pnpm para ARM64)
-- Cuenta de Firebase con proyecto configurado
+### **Instalación del Dashboard Web**
 
-### 🏗️ Soporte Multi-Arquitectura
-- ✅ **Windows x64**: Compatible completo
-- ✅ **Windows ARM64**: Optimizado con pnpm
-- ✅ **macOS Intel/Apple Silicon**: Compatible completo
-- ✅ **Linux x64/ARM64**: Compatible completo
+```powershell
+# Clonar repositorio
+git clone https://github.com/DiChris2901/Dr-Group.git
+cd Dr-Group
 
-### Pasos de Instalación
-
-#### Opción 1: Instalación Estándar (x64)
-```bash
-git clone [url-del-repo]
-cd dr-group-dashboard
+# Instalar dependencias
 npm install
+
+# Configurar Firebase
+# Copia tu configuración en src/config/firebase.js
+
+# Ejecutar en desarrollo
 npm run dev
+
+# Compilar para producción
+npm run build
+
+# Deploy a Firebase Hosting
+firebase deploy --only hosting
 ```
 
-#### Opción 2: Instalación ARM64 Optimizada
-```bash
-git clone [url-del-repo]
-cd dr-group-dashboard
+### **Instalación de la App Móvil**
 
-# Usar script automático
-setup-arm64.bat
+```powershell
+# Navegar al directorio móvil
+Set-Location mobile
 
-# O manualmente
-pnpm install
-pnpm dev
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desarrollo
+npx expo start
+
+# Escanear QR con Expo Go
+
+# Build APK de producción (requiere EAS CLI)
+eas build --platform android --profile production
+
+# Publicar actualización OTA
+eas update --branch production --message "Descripción"
 ```
 
-3. **Configurar Firebase**
-   - Copia `.env.example` a `.env`
-   - Completa las variables de Firebase desde tu proyecto en Firebase Console
-   ```bash
-   cp .env.example .env
-   ```
+### **Configuración Firebase**
 
-4. **Configurar Firestore Rules** (en Firebase Console)
-   ```javascript
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       // Reglas de seguridad personalizadas
-       match /{document=**} {
-         allow read, write: if request.auth != null;
-       }
-     }
-   }
-   ```
+1. **Crear proyecto** en Firebase Console
+2. **Habilitar servicios:**
+   - Authentication (Email/Password)
+   - Firestore Database
+   - Storage
+   - Hosting
+3. **Configurar Security Rules:**
+   - Copiar `firestore.rules` al proyecto
+   - Copiar `storage.rules` al proyecto
+4. **Agregar configuración:**
+   - Dashboard Web: `src/config/firebase.js`
+   - App Móvil: `mobile/src/services/firebase.js`
 
-5. **Ejecutar en desarrollo**
-   ```bash
-   npm run dev
-   ```
+---
 
-## 📂 Estructura del Proyecto
+## 🎨 Sistema de Diseño
 
+### **Dashboard Web - Diseño Sobrio Empresarial**
+
+El sistema sigue estrictamente los principios definidos en `docs/DISENO_SOBRIO_NOTAS.md`:
+
+- **Border Radius:** 8-16px (profesional, no orgánico)
+- **Sombras:** Sutiles (0 2px 8px rgba(0,0,0,0.06))
+- **Transiciones:** Simples (0.2s ease)
+- **Tipografía:** Pesos equilibrados (400-600)
+- **Colores:** Sistema de paleta MUI consistente
+- **Efectos:** Minimalistas, sin glassmorphism
+
+### **App Móvil - Material You Expressive**
+
+Implementa Material Design 3 con tokens personalizados:
+
+- **Border Radius:** 24-48px (orgánico, táctil)
+- **Elevation:** Tonal (sin sombras negras)
+- **Tipografía:** Roboto Flex con Width Axis 110%
+- **Espaciado:** Generoso (32px gaps)
+- **Surface Colors:** Sistema de elevación por color
+- **Haptics:** Feedback táctil en acciones principales
+
+---
+
+## 🔐 Seguridad y Permisos
+
+### **Sistema de Roles**
+
+- **SUPER_ADMIN:** Acceso total al sistema
+- **ADMIN:** Gestión completa + usuarios
+- **USER:** Operaciones estándar
+- **VIEWER:** Solo lectura
+
+### **Permisos Granulares**
+
+```javascript
+Permissions by Module:
+├── dashboard                    // Dashboard principal
+├── compromisos                  // Ver compromisos
+│   └── compromisos.ver_todos   // Ver todos (sin filtro empresa)
+├── pagos                        // Gestión de pagos
+├── ingresos                     // Gestión de ingresos
+├── liquidaciones                // Sistema de liquidaciones
+│   ├── liquidaciones.procesar  // Procesar liquidaciones
+│   ├── liquidaciones.estadisticas
+│   └── liquidaciones.historico
+├── facturacion                  // Módulo de facturación
+│   └── facturacion.cuentas_cobro
+├── asistencias                  // Control de asistencias
+├── usuarios                     // Gestión de usuarios
+├── auditoria                    // Logs del sistema
+└── storage                      // Gestión de archivos
 ```
-src/
-├── components/
-│   ├── auth/           # Autenticación y login
-│   ├── dashboard/      # Dashboard principal
-│   ├── commitments/    # Gestión de compromisos
-│   ├── reports/        # Reportes y análisis
-│   └── users/          # Gestión de usuarios
-├── config/
-│   └── firebase.js     # Configuración de Firebase
-├── hooks/              # Custom hooks
-├── context/            # React Context providers
-├── utils/              # Utilidades y helpers
-└── App.jsx            # Componente principal
+
+### **Firestore Security Rules**
+
+```javascript
+// Reglas de acceso granular
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Los usuarios solo ven sus propias empresas
+    match /commitments/{commitmentId} {
+      allow read: if request.auth != null 
+        && request.auth.uid in resource.data.allowedUsers;
+    }
+    
+    // Solo admins pueden gestionar usuarios
+    match /users/{userId} {
+      allow write: if request.auth != null 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+  }
+}
 ```
+
+---
+
+## 📱 Uso de la App Móvil
+
+### **Flujo de Usuario**
+
+1. **Login → Auto-registro de entrada**
+   - Captura de ubicación GPS
+   - Registro de dispositivo
+   - Inicio de jornada automático
+
+2. **Control de Jornada**
+   - Contador de tiempo trabajado en vivo
+   - Botones: Break, Almuerzo, Finalizar
+   - Estados: Trabajando, Break, Almuerzo
+
+3. **Breaks y Almuerzos**
+   - Inicio/fin con timestamps
+   - Cálculo automático de duración
+   - Resta del tiempo trabajado
+
+4. **Finalización de Jornada**
+   - Cálculo de horas trabajadas
+   - Registro de salida con timestamp
+   - Logout automático
+
+### **Deployment Móvil**
+
+**OTA (Over-The-Air):** Para cambios de código JS/assets
+```powershell
+Set-Location mobile
+eas update --branch production --message "Fix: Corrección horas trabajadas"
+```
+
+**APK Completo:** Para cambios nativos/permisos
+```powershell
+Set-Location mobile
+eas build --platform android --profile production
+```
+
+---
+
+## 📊 Colecciones de Firestore
+
+```javascript
+firestore/
+├── users/                          // Usuarios del sistema
+│   └── {uid}/
+│       ├── name, email, role
+│       ├── photoURL, department
+│       └── permissions: {}
+├── companies/                      // Empresas
+├── commitments/                    // Compromisos financieros
+├── payments/                       // Pagos realizados
+├── incomes/                        // Ingresos empresariales
+├── liquidaciones/                  // Liquidaciones consolidadas
+│   └── {empresaNorm}_{periodo}
+├── liquidaciones_por_sala/         // Liquidaciones por sala
+│   └── {salaId}_{periodo}
+├── asistencias/                    // Control de asistencias
+│   └── {uid}_{YYYY-MM-DD}
+│       ├── entrada: { hora, ubicacion, dispositivo }
+│       ├── breaks: []
+│       ├── almuerzo: {}
+│       └── salida: { hora }
+├── activity_logs/                  // Auditoría del sistema
+├── notifications/                  // Notificaciones
+├── chat_messages/                  // Mensajes de chat
+└── userSettings/                   // Configuraciones de usuario
+    └── {uid}/theme/
+```
+
+---
 
 ## 🔧 Scripts Disponibles
 
-- `npm run dev` - Ejecutar en modo desarrollo
-- `npm run build` - Construir para producción
-- `npm run preview` - Previsualizar build de producción
+### **Dashboard Web**
 
-## 🔐 Sistema de Autenticación
+```json
+{
+  "dev": "vite --port 5173",              // Desarrollo
+  "build": "vite build",                   // Compilación producción
+  "preview": "vite preview",               // Preview build
+  "lint": "eslint . --ext js,jsx"          // Linter
+}
+```
 
-- Solo correos electrónicos autorizados pueden acceder
-- No hay opción de registro público
-- Los usuarios deben ser creados por el administrador
-- Foto de perfil aparece en el menú y login
+### **App Móvil**
 
-## 👥 Roles y Permisos
+```json
+{
+  "start": "expo start",                   // Servidor desarrollo
+  "android": "expo start --android",       // Android directo
+  "ios": "expo start --ios",               // iOS directo
+  "web": "expo start --web"                // Web preview
+}
+```
 
-- **Administrador**: Acceso completo a todas las funcionalidades
-- **Usuario**: Permisos personalizables por empresa
-- **Solo Lectura**: Visualización sin capacidad de descarga de comprobantes
+---
 
-## 📊 Base de Datos (Firestore)
+## 🎯 Próximas Características
 
-### Colecciones Principales
+### **Dashboard Web**
+- [ ] Sistema de notificaciones push en tiempo real
+- [ ] Integración con APIs bancarias
+- [ ] Módulo de inventario de máquinas
+- [ ] Dashboard de analytics avanzado
+- [ ] Sistema de backup automático
+- [ ] Multi-idioma (i18n)
 
-- `users` - Información de usuarios, roles y permisos
-- `companies` - Datos de empresas del grupo
-- `commitments` - Compromisos financieros
-- `payments` - Pagos realizados
-- `files` - Metadatos de archivos y comprobantes
+### **App Móvil**
+- [ ] Notificaciones push nativas
+- [ ] Modo offline con sincronización
+- [ ] Solicitud de permisos (vacaciones, días libres)
+- [ ] Chat integrado en la app
+- [ ] Perfil de usuario editable
+- [ ] Biometría para login
 
-## 🎨 Personalización
+---
 
-El dashboard está basado en la plantilla Horizon v1.0.0 y utiliza un tema personalizado de Material-UI que incluye:
+## 👥 Contribución
 
-- Colores corporativos de DR Group
-- Tipografía Roboto
-- Componentes personalizados
-- Animaciones con Framer Motion
+Este es un proyecto privado para DR Group. Para contribuir:
 
-## 🚀 Despliegue
+1. Crear feature branch desde `main`
+2. Seguir convenciones de código establecidas
+3. Consultar `.github/copilot-instructions.md` para reglas
+4. Hacer commit con mensajes descriptivos
+5. Push y solicitar revisión de código
 
-El proyecto está configurado para desplegarse en Firebase Hosting con Google Cloud:
+### **Convenciones de Commits**
 
-1. **Construir el proyecto**
-   ```bash
-   npm run build
-   ```
+```
+feat: Nueva funcionalidad
+fix: Corrección de bug
+docs: Cambios en documentación
+style: Formato, punto y coma, etc.
+refactor: Refactorización de código
+test: Agregar tests
+chore: Mantenimiento
+```
 
-2. **Desplegar a Firebase**
-   ```bash
-   firebase deploy
-   ```
-
-## 📝 Notas de Desarrollo
-
-- Usar siempre componentes funcionales con hooks
-- Implementar loading states para mejor UX
-- Seguir patrones de Material-UI para consistencia
-- Mantener las reglas de Firestore actualizadas
-- Optimizar imágenes antes de subirlas a Storage
-
-## 🤝 Contribución
-
-Este es un proyecto privado para DR Group. Las contribuciones deben seguir los estándares de código establecidos y ser revisadas antes de la integración.
+---
 
 ## 📄 Licencia
 
-Proyecto privado - Todos los derechos reservados DR Group © 2025
+Proyecto privado para **DR Group**. Todos los derechos reservados.
+
+**No distribuir sin autorización.**
+
+---
+
+## 📞 Contacto y Soporte
+
+**Proyecto:** DR Group Dashboard  
+**Versión:** 2.0.0 (Enero 2026)  
+**Desarrollador:** Diego Rueda  
+**Empresa:** DR Group  
+
+**URLs:**
+- **Dashboard:** https://dr-group-cd21b.web.app
+- **Firebase Console:** https://console.firebase.google.com/project/dr-group-cd21b
+
+---
+
+## 📚 Documentación Adicional
+
+- [Diseño Sobrio Empresarial](docs/DISENO_SOBRIO_NOTAS.md)
+- [Sistema de Modales](docs/MODAL_DESIGN_SYSTEM.md)
+- [Exportación Excel](docs/EXCEL_EXPORT_DESIGN_SYSTEM.md)
+- [Instrucciones Copilot](.github/copilot-instructions.md)
+
+---
+
+⭐ **Desarrollado con dedicación para DR Group** ⭐

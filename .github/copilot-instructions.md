@@ -9,6 +9,7 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 ### 🧠 PROCESO MENTAL OBLIGATORIO:
 
 #### **PASO 0: MAPEO AUTOMÁTICO DEL PROYECTO (OBLIGATORIO AL INICIO)**
+- **SINCRONIZAR CON GITHUB PRIMERO**: Ejecutar git fetch + git status + git pull si hay cambios
 - **EJECUTAR INMEDIATAMENTE**: Analizar estructura completa del proyecto
 - **Identificar contexto**: ¿Es dashboard web (src/) o app móvil (mobile/src/)?
 - **Mapear src/components/**, src/pages/, src/hooks/, src/context/ (Dashboard)
@@ -45,6 +46,7 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - Asegurar compliance con reglas de diseño
 
 ### 🚫 COMPORTAMIENTOS PROHIBIDOS:
+- **NUNCA** proceder sin sincronizar con GitHub primero
 - **NUNCA** proceder sin mapear el proyecto primero
 - **NUNCA** asumir estructura sin verificar
 - **NUNCA** implementar sin leer contexto completo
@@ -61,6 +63,7 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **NUNCA** dejar logs de debugging (console.log, console.error temporales) en el código al finalizar
 
 ### ✅ COMPORTAMIENTOS OBLIGATORIOS:
+- **SIEMPRE** sincronizar con GitHub antes de iniciar (git fetch + git pull si hay cambios)
 - **SIEMPRE** iniciar con mapeo completo del proyecto
 - **SIEMPRE** detectar el sistema operativo del usuario (Windows vs Linux/macOS)
 - **SIEMPRE** identificar si la tarea es para Dashboard Web o APK móvil
@@ -153,6 +156,7 @@ Al completar el deployment, reportar:
 - **Si detectas comportamiento inconsistente**: Re-leer .github/copilot-instructions.md inmediatamente
 - **Antes de implementaciones complejas**: Validar contra las reglas críticas obligatoriamente
 - **Al cambiar de contexto**: Reconfirmar metodología completa (8 pasos + finalización)
+- **Si no has sincronizado con GitHub**: Detener inmediatamente y ejecutar git fetch + git pull
 - **Si no has mapeado el proyecto**: Detener inmediatamente y ejecutar mapeo completo
 - **Si trabajas en APK móvil**: Recordar comandos `Set-Location mobile;` y diseño sobrio
 - **Al completar implementación**: SIEMPRE ejecutar protocolo de finalización obligatorio
@@ -1211,6 +1215,55 @@ Mapea el proyecto DR Group: analiza estructura, dependencias, conexiones entre a
 ```
 
 ### **🔍 PROCESO DE MAPEO SISTEMÁTICO:**
+
+#### **FASE 0: SINCRONIZACIÓN CON GITHUB (OBLIGATORIO PRIMERO)**
+
+**⚠️ EJECUTAR SIEMPRE ANTES DEL MAPEO:**
+
+1. **Verificar estado del repositorio:**
+```powershell
+# Windows PowerShell
+git fetch origin
+git status
+```
+
+2. **Detectar cambios remotos:**
+```powershell
+# Comparar local vs remoto
+git log HEAD..origin/main --oneline
+```
+
+3. **Sincronizar automáticamente si hay cambios:**
+```powershell
+# Si hay commits en GitHub que no están en local
+git pull origin main --rebase
+
+# Si hay conflictos, informar al usuario antes de proceder
+```
+
+**📋 PROTOCOLO DE SINCRONIZACIÓN:**
+- ✅ **Si no hay cambios remotos** → Proceder con el mapeo normalmente
+- ✅ **Si hay cambios remotos sin conflictos** → Pull automático + Informar cambios sincronizados + Proceder con mapeo
+- ⚠️ **Si hay conflictos** → Detener mapeo + Mostrar conflictos + Pedir instrucciones al usuario
+
+**🎯 SALIDA ESPERADA AL INICIAR:**
+```
+🔄 SINCRONIZANDO CON GITHUB...
+
+✅ Repositorio actualizado (Ya estás al día con 'origin/main')
+
+O
+
+✅ Cambios sincronizados desde GitHub:
+   - 7e762a0: Fix: Estadísticas ahora consolidan todas las empresas
+   - bd24177: Fix: Búsqueda global de máquinas carga contexto
+   
+📍 Listo para iniciar mapeo del proyecto.
+```
+
+**🚨 NUNCA OMITIR ESTA FASE:** Esto previene desincronización entre local y producción.
+
+---
 
 #### **FASE 1: ANÁLISIS ESTRUCTURAL**
 - **src/components/** → Inventario completo de componentes por categoría
