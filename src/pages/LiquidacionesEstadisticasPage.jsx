@@ -140,8 +140,15 @@ const LiquidacionesEstadisticasPage = () => {
     setDetalleSalaMesModalOpen(true);
   };
 
-  const abrirDetalleMaquinaPorMes = (machine) => {
+  const abrirDetalleMaquinaPorMes = (machine, salaAsociada = null) => {
     if (!machine) return;
+    
+    // Si viene de búsqueda global, necesitamos establecer la sala primero
+    if (salaAsociada) {
+      setSalaDetalleSeleccionada(salaAsociada);
+      setMostrarDetalleMaquinas(true);
+    }
+    
     setDetalleMaquinaMesSelection({
       serial: machine.serial || 'N/A',
       nuc: machine.nuc || 'N/A',
@@ -1785,7 +1792,7 @@ const LiquidacionesEstadisticasPage = () => {
                                     <MuiTooltip title="Ver detalle por mes">
                                       <IconButton
                                         size="small"
-                                        onClick={() => abrirDetalleMaquinaPorMes(m.maquinaOriginal)}
+                                        onClick={() => abrirDetalleMaquinaPorMes(m.maquinaOriginal, m.sala)}
                                         sx={{
                                           color: theme.palette.primary.main,
                                           '&:hover': {
