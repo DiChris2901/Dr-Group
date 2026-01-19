@@ -28,17 +28,16 @@ import { es } from 'date-fns/locale';
 import { format, isValid } from 'date-fns';
 
 const FILTERS = [
-  { value: 'thisMonth', label: 'Este mes', icon: TodayIcon },
   { value: 'lastMonth', label: 'Mes pasado', icon: DateRangeIcon },
   { value: 'last3Months', label: 'Últimos 3 meses', icon: DateRangeIcon },
   { value: 'last6Months', label: 'Últimos 6 meses', icon: DateRangeIcon },
-  { value: 'thisYear', label: 'Todo el año', icon: DateRangeIcon },
+  { value: 'thisYear', label: 'Últimos 12 meses', icon: DateRangeIcon },
   { value: 'allTime', label: 'Todos los meses', icon: DateRangeIcon },
   { value: 'month', label: 'Seleccionar mes…', icon: CalendarMonthIcon }
 ];
 
 export default function HistoricoPeriodoFilter({
-  value = 'thisMonth',
+  value = 'lastMonth',
   monthDate = null,
   onChange,
   onMonthChange
@@ -56,15 +55,14 @@ export default function HistoricoPeriodoFilter({
     
     // Mapear los valores a textos descriptivos
     const labelMap = {
-      'thisMonth': 'Este mes',
       'lastMonth': 'Mes pasado',
       'last3Months': 'Últimos 3 meses',
       'last6Months': 'Últimos 6 meses',
-      'thisYear': 'Todo el año',
+      'thisYear': 'Últimos 12 meses',
       'allTime': 'Todos los meses'
     };
     
-    return labelMap[value] || 'Este mes';
+    return labelMap[value] || 'Mes pasado';
   }, [value, monthDate]);
 
   useEffect(() => {

@@ -80,7 +80,7 @@ const LiquidacionesHistorialPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [periodoFiltro, setPeriodoFiltro] = useState('thisMonth');
+  const [periodoFiltro, setPeriodoFiltro] = useState('lastMonth');
   const [periodoMes, setPeriodoMes] = useState(startOfMonth(new Date()));
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -88,7 +88,7 @@ const LiquidacionesHistorialPage = () => {
   // Filtros aplicados (los que realmente se usan para consultar Firebase)
   const [appliedFilters, setAppliedFilters] = useState({
     empresa: 'todas',
-    periodoFiltro: 'thisMonth',
+    periodoFiltro: 'lastMonth',
     periodoMes: startOfMonth(new Date())
   });
   const [filtersApplied, setFiltersApplied] = useState(false); // Bandera para controlar si se han aplicado filtros
@@ -257,37 +257,25 @@ const LiquidacionesHistorialPage = () => {
         filtrosFirebase.empresa = filtrosAplicar.empresa;
       }
       
-      // ✅ Filtro por periodo - calcular fechas según el tipo de filtro
-      const periodoFiltro = filtrosAplicar.periodoFiltro || 'thisMonth';
+      // ✅ Filtro por periodo - SIEMPRE filtra por mes/año del período de liquidación
+      const periodoFiltro = filtrosAplicar.periodoFiltro || 'lastMonth';
       const ahora = new Date();
+      const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
       
-      if (periodoFiltro === 'thisMonth') {
-        // Buscar liquidaciones del PERÍODO del mes actual
-        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        filtrosFirebase.mes = meses[ahora.getMonth()];
-        filtrosFirebase.año = ahora.getFullYear();
-      } else if (periodoFiltro === 'lastMonth') {
-        // Buscar liquidaciones del PERÍODO del mes anterior
+      if (periodoFiltro === 'lastMonth') {
+        // Buscar liquidaciones del PERÍODO del mes anterior (por defecto)
         const mesAnterior = subMonths(ahora, 1);
-        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
         filtrosFirebase.mes = meses[mesAnterior.getMonth()];
         filtrosFirebase.año = mesAnterior.getFullYear();
       } else if (periodoFiltro === 'last3Months') {
-        // Para rangos múltiples, usar filtro por fecha de procesamiento
-        const hace3Meses = subMonths(ahora, 3);
-        filtrosFirebase.startDate = startOfMonth(hace3Meses);
-        filtrosFirebase.endDate = endOfMonth(ahora);
+        // NO filtrar en Firebase - traer todo y filtrar en cliente
+        // (Los últimos 3 meses pueden cruzar años: Oct, Nov, Dic 2025 + Ene 2026)
       } else if (periodoFiltro === 'last6Months') {
-        // Para rangos múltiples, usar filtro por fecha de procesamiento
-        const hace6Meses = subMonths(ahora, 6);
-        filtrosFirebase.startDate = startOfMonth(hace6Meses);
-        filtrosFirebase.endDate = endOfMonth(ahora);
+        // NO filtrar en Firebase - traer todo y filtrar en cliente
       } else if (periodoFiltro === 'thisYear') {
-        // Filtrar por año del período
-        filtrosFirebase.año = ahora.getFullYear();
+        // NO filtrar en Firebase - traer todo y filtrar en cliente (últimos 12 meses)
       } else if (periodoFiltro === 'allTime') {
         // NO aplicar filtro de fechas - traer TODAS las liquidaciones
-        // (No establecer startDate ni endDate)
       } else if (periodoFiltro === 'month' && filtrosAplicar.periodoMes) {
         // Mes específico seleccionado por el usuario
         const fechaSeleccionada = new Date(filtrosAplicar.periodoMes);
@@ -374,11 +362,40 @@ const LiquidacionesHistorialPage = () => {
         };
       });
 
-      setLiquidaciones(liquidacionesMapeadas);
+      // ✅ Filtrado en cliente para rangos de múltiples meses
+      let liquidacionesFiltradas = liquidacionesMapeadas;
       
-      console.log('✅ Liquidaciones mapeadas y cargadas:', liquidacionesMapeadas.length);
+      if (periodoFiltro === 'last3Months') {
+        // Filtrar últimos 3 meses por período
+        const hace3Meses = subMonths(ahora, 3);
+        liquidacionesFiltradas = liquidacionesMapeadas.filter(liq => {
+          const fechaPeriodo = new Date(liq.metadatosCompletos.fechas?.añoLiquidacion, 
+                                        meses.indexOf(liq.metadatosCompletos.fechas?.mesLiquidacion?.toLowerCase()));
+          return fechaPeriodo >= startOfMonth(hace3Meses) && fechaPeriodo <= endOfMonth(ahora);
+        });
+      } else if (periodoFiltro === 'last6Months') {
+        // Filtrar últimos 6 meses por período
+        const hace6Meses = subMonths(ahora, 6);
+        liquidacionesFiltradas = liquidacionesMapeadas.filter(liq => {
+          const fechaPeriodo = new Date(liq.metadatosCompletos.fechas?.añoLiquidacion, 
+                                        meses.indexOf(liq.metadatosCompletos.fechas?.mesLiquidacion?.toLowerCase()));
+          return fechaPeriodo >= startOfMonth(hace6Meses) && fechaPeriodo <= endOfMonth(ahora);
+        });
+      } else if (periodoFiltro === 'thisYear') {
+        // Filtrar últimos 12 meses por período
+        const hace12Meses = subMonths(ahora, 12);
+        liquidacionesFiltradas = liquidacionesMapeadas.filter(liq => {
+          const fechaPeriodo = new Date(liq.metadatosCompletos.fechas?.añoLiquidacion, 
+                                        meses.indexOf(liq.metadatosCompletos.fechas?.mesLiquidacion?.toLowerCase()));
+          return fechaPeriodo >= startOfMonth(hace12Meses) && fechaPeriodo <= endOfMonth(ahora);
+        });
+      }
+
+      setLiquidaciones(liquidacionesFiltradas);
+      
+      console.log('✅ Liquidaciones mapeadas y cargadas:', liquidacionesFiltradas.length);
       console.log('📊 Resumen por usuario procesador:');
-      const usuariosProcesadores = liquidacionesMapeadas.reduce((acc, liq) => {
+      const usuariosProcesadores = liquidacionesFiltradas.reduce((acc, liq) => {
         acc[liq.procesadoPor] = (acc[liq.procesadoPor] || 0) + 1;
         return acc;
       }, {});
@@ -387,7 +404,7 @@ const LiquidacionesHistorialPage = () => {
       });
       
       // Debug: Contar liquidaciones de Recreativos Tiburón específicamente
-      const recreativosTiburon = liquidacionesMapeadas.filter(l => 
+      const recreativosTiburon = liquidacionesFiltradas.filter(l => 
         l.empresa.toLowerCase().includes('recreativos') && 
         l.empresa.toLowerCase().includes('tiburón')
       );
@@ -400,10 +417,10 @@ const LiquidacionesHistorialPage = () => {
         console.log(`   → ${liq.periodo} - Procesado por: ${liq.procesadoPor} - ID: ${liq.id.substring(0, 30)}...`);
       });
       
-      if (liquidacionesMapeadas.length === 0) {
+      if (liquidacionesFiltradas.length === 0) {
         addNotification('No se encontraron liquidaciones guardadas', 'info');
       } else {
-        addNotification(`${liquidacionesMapeadas.length} liquidaciones cargadas`, 'success');
+        addNotification(`${liquidacionesFiltradas.length} liquidaciones cargadas`, 'success');
       }
 
     } catch (error) {
@@ -1125,16 +1142,14 @@ const LiquidacionesHistorialPage = () => {
                   {/* ✅ Siempre mostrar chip de período cuando hay filtros aplicados */}
                   <Chip
                     label={`Período: ${
-                      periodoFiltro === 'thisMonth' 
-                        ? 'Este mes' 
-                        : periodoFiltro === 'lastMonth' 
+                      periodoFiltro === 'lastMonth' 
                           ? 'Mes pasado'
                           : periodoFiltro === 'last3Months'
                             ? 'Últimos 3 meses'
                             : periodoFiltro === 'last6Months'
                               ? 'Últimos 6 meses'
                               : periodoFiltro === 'thisYear'
-                                ? 'Todo el año'
+                                ? 'Últimos 12 meses'
                                 : periodoFiltro === 'allTime'
                                   ? 'Todos los meses'
                                   : periodoFiltro === 'month' && periodoMes
@@ -1145,7 +1160,7 @@ const LiquidacionesHistorialPage = () => {
                     color="secondary"
                     variant="outlined"
                     onDelete={() => {
-                      handlePeriodoFiltroChange('thisMonth');
+                      handlePeriodoFiltroChange('lastMonth');
                     }}
                     sx={{ borderRadius: 2 }}
                   />
