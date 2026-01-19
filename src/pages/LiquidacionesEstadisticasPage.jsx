@@ -430,30 +430,36 @@ const LiquidacionesEstadisticasPage = () => {
           return;
         }
 
-        // Consultar TODAS las salas de TODOS los periodos (no filtrar por último mes)
+        // Consultar TODAS las salas de TODOS los periodos EN PARALELO (optimización performance)
         const historico = [];
         const todasLasSalas = new Set();
 
-        for (const periodo of periodosIncluidos) {
-          try {
-            const qPeriodo = query(
-              collection(db, 'liquidaciones_por_sala'),
-              where('empresa.normalizado', '==', empresaNorm),
-              where('fechas.periodoLiquidacion', '==', periodo)
-            );
-            const snapPeriodo = await getDocs(qPeriodo);
-            snapPeriodo.docs.forEach((docSnap) => {
-              const doc = { id: docSnap.id, ...docSnap.data() };
-              historico.push(doc);
-              const salaNombre = doc?.sala?.nombre;
-              if (typeof salaNombre === 'string' && salaNombre.trim()) {
-                todasLasSalas.add(salaNombre);
-              }
-            });
-          } catch (e) {
+        // Ejecutar todas las queries simultáneamente en lugar de secuencialmente
+        const queryPromises = periodosIncluidos.map(periodo =>
+          getDocs(query(
+            collection(db, 'liquidaciones_por_sala'),
+            where('empresa.normalizado', '==', empresaNorm),
+            where('fechas.periodoLiquidacion', '==', periodo)
+          )).catch(e => {
             console.error(`❌ Error consultando periodo ${periodo}:`, e);
-          }
-        }
+            return null; // Retornar null en caso de error para no romper Promise.all
+          })
+        );
+
+        const snapshots = await Promise.all(queryPromises);
+
+        // Procesar todos los snapshots
+        snapshots.forEach((snapPeriodo) => {
+          if (!snapPeriodo) return; // Ignorar queries que fallaron
+          snapPeriodo.docs.forEach((docSnap) => {
+            const doc = { id: docSnap.id, ...docSnap.data() };
+            historico.push(doc);
+            const salaNombre = doc?.sala?.nombre;
+            if (typeof salaNombre === 'string' && salaNombre.trim()) {
+              todasLasSalas.add(salaNombre);
+            }
+          });
+        });
 
         setSalasDisponibles(Array.from(todasLasSalas).sort());
 

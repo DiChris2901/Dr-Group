@@ -20,7 +20,13 @@ import {
   Alert,
   alpha
 } from '@mui/material';
-import { Close as CloseIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { 
+  Close as CloseIcon, 
+  Visibility as VisibilityIcon,
+  Business as BusinessIcon,
+  Store as StoreIcon,
+  Devices as DevicesIcon
+} from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import {
   ResponsiveContainer,
@@ -156,10 +162,10 @@ const MaquinaDetallePorMesModal = ({
       .sort((a, b) => {
         const sa = periodoScore(a);
         const sb = periodoScore(b);
-        if (sa === null && sb === null) return String(a).localeCompare(String(b));
-        if (sa === null) return -1;
-        if (sb === null) return 1;
-        return sa - sb;
+        if (sa === null && sb === null) return String(b).localeCompare(String(a));
+        if (sa === null) return 1;
+        if (sb === null) return -1;
+        return sb - sa; // Descendente: más reciente primero
       });
 
     const docsSala = liquidacionesPorSala.filter((d) => {
@@ -194,8 +200,10 @@ const MaquinaDetallePorMesModal = ({
     });
 
     return computed.map((r, idx) => {
-      if (idx === 0) return { ...r, cambioPct: null };
-      const prev = computed[idx - 1];
+      // En orden descendente, el último elemento es el más antiguo (no tiene con qué comparar)
+      if (idx === computed.length - 1) return { ...r, cambioPct: null };
+      // El mes anterior cronológicamente está en idx + 1 (porque está ordenado descendente)
+      const prev = computed[idx + 1];
       const base = prev?.produccion || 0;
       if (!base) return { ...r, cambioPct: null };
       return { ...r, cambioPct: ((r.produccion - base) / base) * 100 };
@@ -209,6 +217,7 @@ const MaquinaDetallePorMesModal = ({
     const totalImpuestos = rows.reduce((acc, r) => acc + (r.impuestos || 0), 0);
     const totalDerechos = rows.reduce((acc, r) => acc + (r.derechosExplotacion || 0), 0);
     const totalGastos = rows.reduce((acc, r) => acc + (r.gastosAdministracion || 0), 0);
+    const avgProduccion = totalProduccion / rows.length;
 
     const ultimo = rows[rows.length - 1];
     return {
@@ -216,6 +225,7 @@ const MaquinaDetallePorMesModal = ({
       totalImpuestos,
       totalDerechos,
       totalGastos,
+      avgProduccion,
       ultimoPeriodo: ultimo?.periodoLabel,
       ultimoProduccion: ultimo?.produccion || 0
     };
@@ -285,25 +295,47 @@ const MaquinaDetallePorMesModal = ({
         borderBottom: `1px solid ${theme.palette.divider}`,
         color: 'text.primary'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+          <Avatar sx={{ 
+            bgcolor: 'primary.main', 
+            color: 'primary.contrastText',
+            width: 40,
+            height: 40
+          }}>
             <VisibilityIcon />
           </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>
               Detalle por mes de la máquina
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Empresa: {empresaNombre || 'N/A'} · Sala: {salaNombre || 'N/A'}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-              {machineLabel}
-            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.7 }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {empresaNombre || 'N/A'}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>•</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <StoreIcon sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.7 }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {salaNombre || 'N/A'}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>•</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <DevicesIcon sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.7 }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  {machineLabel}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         </Box>
         <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
           <CloseIcon />
         </IconButton>
+      </DialogTitle>
       </DialogTitle>
 
       <DialogContent sx={{ p: 3, pt: 5 }}>
@@ -439,7 +471,8 @@ const MaquinaDetallePorMesModal = ({
                       { label: 'Producción (rango)', value: resumen.totalProduccion, color: theme.palette.secondary.main },
                       { label: 'Impuestos (rango)', value: resumen.totalImpuestos, color: theme.palette.secondary.main },
                       { label: 'Derechos (rango)', value: resumen.totalDerechos, color: theme.palette.secondary.main },
-                      { label: 'Gastos adm. (rango)', value: resumen.totalGastos, color: theme.palette.secondary.main }
+                      { label: 'Gastos adm. (rango)', value: resumen.totalGastos, color: theme.palette.secondary.main },
+                      { label: 'Producción (prom. mensual)', value: resumen.avgProduccion, color: theme.palette.info.main }
                     ].map((item) => (
                       <Box
                         key={item.label}

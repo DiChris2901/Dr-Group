@@ -20,7 +20,12 @@ import {
   Alert,
   alpha
 } from '@mui/material';
-import { Close as CloseIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { 
+  Close as CloseIcon, 
+  Visibility as VisibilityIcon,
+  Business as BusinessIcon,
+  Store as StoreIcon
+} from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import {
   ResponsiveContainer,
@@ -119,10 +124,10 @@ const SalaDetallePorMesModal = ({
       .sort((a, b) => {
         const sa = periodoScore(a);
         const sb = periodoScore(b);
-        if (sa === null && sb === null) return String(a).localeCompare(String(b));
-        if (sa === null) return -1;
-        if (sb === null) return 1;
-        return sa - sb;
+        if (sa === null && sb === null) return String(b).localeCompare(String(a));
+        if (sa === null) return 1;
+        if (sb === null) return -1;
+        return sb - sa; // Descendente: más reciente primero
       });
 
     const docsSala = liquidacionesPorSala.filter((d) => {
@@ -157,8 +162,10 @@ const SalaDetallePorMesModal = ({
     });
 
     return computed.map((r, idx) => {
-      if (idx === 0) return { ...r, cambioPct: null };
-      const prev = computed[idx - 1];
+      // En orden descendente, el último elemento es el más antiguo (no tiene con qué comparar)
+      if (idx === computed.length - 1) return { ...r, cambioPct: null };
+      // El mes anterior cronológicamente está en idx + 1 (porque está ordenado descendente)
+      const prev = computed[idx + 1];
       const base = prev?.produccion || 0;
       if (!base) return { ...r, cambioPct: null };
       return { ...r, cambioPct: ((r.produccion - base) / base) * 100 };
@@ -170,11 +177,13 @@ const SalaDetallePorMesModal = ({
     const totalProduccion = rows.reduce((acc, r) => acc + (r.produccion || 0), 0);
     const totalImpuestos = rows.reduce((acc, r) => acc + (r.impuestos || 0), 0);
     const avgMaquinas = rows.reduce((acc, r) => acc + (r.maquinas || 0), 0) / rows.length;
+    const avgProduccion = totalProduccion / rows.length;
     const ultimo = rows[rows.length - 1];
     return {
       totalProduccion,
       totalImpuestos,
       avgMaquinas,
+      avgProduccion,
       ultimoPeriodo: ultimo?.periodoLabel,
       ultimoProduccion: ultimo?.produccion || 0
     };
@@ -240,17 +249,34 @@ const SalaDetallePorMesModal = ({
         borderBottom: `1px solid ${theme.palette.divider}`,
         color: 'text.primary'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+          <Avatar sx={{ 
+            bgcolor: 'primary.main', 
+            color: 'primary.contrastText',
+            width: 40,
+            height: 40
+          }}>
             <VisibilityIcon />
           </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>
               Detalle por mes de la sala
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Empresa: {empresaNombre || 'N/A'} · Sala: {salaNombre || 'N/A'}
-            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.7 }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {empresaNombre || 'N/A'}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }}>•</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <StoreIcon sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.7 }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                  {salaNombre || 'N/A'}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         </Box>
         <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
@@ -454,6 +480,30 @@ const SalaDetallePorMesModal = ({
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {Math.round(resumen.avgMaquinas).toLocaleString()}
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.info.main, 0.04),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 600,
+                          color: 'text.secondary',
+                          letterSpacing: 0.5,
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        Producción (prom. mensual)
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                        ${Math.round(resumen.avgProduccion).toLocaleString()}
                       </Typography>
                     </Box>
 
