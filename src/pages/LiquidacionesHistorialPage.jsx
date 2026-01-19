@@ -427,6 +427,36 @@ const LiquidacionesHistorialPage = () => {
     return matchesSearch;
   });
 
+  // ✅ ORDENAR POR PERIODO - Más reciente primero
+  // Extraer año y mes del periodo para ordenar correctamente
+  const liquidacionesOrdenadas = [...liquidacionesFiltradas].sort((a, b) => {
+    // Función auxiliar para convertir periodo a fecha comparable
+    const parsePeriodo = (periodo) => {
+      if (!periodo) return new Date(0); // Fechas sin periodo al final
+      
+      // Formato esperado: "Agosto 2025" o "Mayo 2025"
+      const meses = {
+        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
+        'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
+        'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+      };
+      
+      const partes = periodo.toLowerCase().split(' ');
+      const mesTexto = partes[0];
+      const año = parseInt(partes[1]) || 0;
+      const mes = meses[mesTexto] || 0;
+      
+      // Retornar fecha del primer día del mes para comparar
+      return new Date(año, mes - 1, 1);
+    };
+    
+    const fechaA = parsePeriodo(a.periodo);
+    const fechaB = parsePeriodo(b.periodo);
+    
+    // Ordenar descendente (más reciente primero)
+    return fechaB - fechaA;
+  });
+
   // Debug: Ver resultado del filtrado
   if (liquidaciones.length > 0) {
     console.log('🔍 Estado del filtro:');
@@ -434,6 +464,12 @@ const LiquidacionesHistorialPage = () => {
     console.log(`   - Filtro empresa: "${filterEmpresa}"`);
     console.log(`   - Búsqueda: "${searchTerm}"`);
     console.log(`   - Liquidaciones filtradas: ${liquidacionesFiltradas.length}`);
+    console.log(`   - Liquidaciones ordenadas por periodo: ${liquidacionesOrdenadas.length}`);
+    
+    if (liquidacionesOrdenadas.length > 0) {
+      console.log(`   - Primera liquidación (más reciente): ${liquidacionesOrdenadas[0].periodo}`);
+      console.log(`   - Última liquidación (más antigua): ${liquidacionesOrdenadas[liquidacionesOrdenadas.length - 1].periodo}`);
+    }
     
     if (liquidacionesFiltradas.length === 0 && liquidaciones.length > 0) {
       console.error('⚠️ PROBLEMA: Hay liquidaciones pero el filtro las está ocultando todas');
@@ -443,9 +479,9 @@ const LiquidacionesHistorialPage = () => {
   }
 
   // Paginación
-  const totalPages = Math.ceil(liquidacionesFiltradas.length / itemsPerPage);
+  const totalPages = Math.ceil(liquidacionesOrdenadas.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const liquidacionesPaginadas = liquidacionesFiltradas.slice(startIndex, startIndex + itemsPerPage);
+  const liquidacionesPaginadas = liquidacionesOrdenadas.slice(startIndex, startIndex + itemsPerPage);
 
   // Debug: Ver paginación
   if (liquidaciones.length > 0) {
@@ -458,6 +494,7 @@ const LiquidacionesHistorialPage = () => {
     
     if (liquidacionesPaginadas.length > 0) {
       console.log('✅ Primera liquidación paginada:', liquidacionesPaginadas[0]);
+      console.log(`   → Periodo: ${liquidacionesPaginadas[0].periodo}`);
     } else {
       console.error('❌ PROBLEMA: liquidacionesPaginadas está vacío');
     }
@@ -1417,8 +1454,8 @@ const LiquidacionesHistorialPage = () => {
               {/* Información de resultados */}
               <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="textSecondary">
-                  Mostrando {liquidacionesPaginadas.length} de {liquidacionesFiltradas.length} liquidaciones
-                  {liquidacionesFiltradas.length !== liquidaciones.length && 
+                  Mostrando {liquidacionesPaginadas.length} de {liquidacionesOrdenadas.length} liquidaciones
+                  {liquidacionesOrdenadas.length !== liquidaciones.length && 
                     ` (filtrado de ${liquidaciones.length} total)`
                   }
                 </Typography>

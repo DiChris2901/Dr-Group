@@ -255,23 +255,12 @@ const LiquidacionesEstadisticasPage = () => {
           }));
 
         setEmpresas(empresasData);
-        console.log('✅ Empresas cargadas:', empresasData.length);
       } catch (error) {
         console.error('Error cargando empresas:', error);
       }
     };
     cargarEmpresas();
   }, []);
-
-  // ===== DEBUG: Mostrar estado actual =====
-  useEffect(() => {
-    console.log('📊 Estado actual:');
-    console.log('   - Empresas:', empresas.length);
-    console.log('   - Empresa seleccionada:', empresaSeleccionada);
-    console.log('   - Salas disponibles:', salasDisponibles.length);
-    console.log('   - Sala seleccionada:', salaSeleccionada);
-    console.log('   - Liquidaciones:', liquidaciones.length);
-  }, [empresas, empresaSeleccionada, salasDisponibles, salaSeleccionada, liquidaciones]);
 
   // ===== CARGAR LIQUIDACIONES (últimos 24 meses) =====
   useEffect(() => {
@@ -307,21 +296,44 @@ const LiquidacionesEstadisticasPage = () => {
           );
 
           const snapshot = await getDocs(q);
-          const data = snapshot.docs.map((docSnap) => ({
+          const allDocs = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...docSnap.data()
           }));
 
-          setLiquidaciones(data);
+          // ORDENAR PRIMERO por periodo (descendente) antes de limitar
+          const docsOrdenados = [...allDocs].sort((a, b) => {
+            const pa = a?.fechas?.periodoLiquidacion;
+            const pb = b?.fechas?.periodoLiquidacion;
+            const sa = periodoLiquidacionScore(pa);
+            const sb = periodoLiquidacionScore(pb);
+            if (sa === null && sb === null) return 0;
+            if (sa === null) return 1;
+            if (sb === null) return -1;
+            return sb - sa; // Descendente (más reciente primero)
+          });
+
+          // Seleccionar meses únicos (máximo monthsToShow)
+          const vistos = new Set();
+          const mensualSeleccionado = [];
+          for (const liq of docsOrdenados) {
+            const periodo = liq?.fechas?.periodoLiquidacion;
+            if (!periodo) continue;
+            if (vistos.has(periodo)) continue;
+            vistos.add(periodo);
+            mensualSeleccionado.push(liq);
+            if (mensualSeleccionado.length >= monthsToShow) break;
+          }
+
+          setLiquidaciones(mensualSeleccionado);
           setLiquidacionesPorSala([]);
           setSalasDisponibles([]);
           setSalaDetalleSeleccionada('');
           setPeriodosLiquidacionIncluidos([]);
           setPeriodoLiquidacionUltimo('');
-          console.log('✅ Liquidaciones (todas las empresas) cargadas:', data.length);
 
           liquidacionesCacheRef.current.set(cacheKey, {
-            liquidaciones: data,
+            liquidaciones: mensualSeleccionado,
             liquidacionesPorSala: [],
             salasDisponibles: [],
             salaDetalleSeleccionada: '',
@@ -355,6 +367,7 @@ const LiquidacionesEstadisticasPage = () => {
             limit(300)
           );
           const snapFallback = await getDocs(qFallback);
+          
           mensualDocs = snapFallback.docs
             .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
             .filter((liq) => {
@@ -364,12 +377,25 @@ const LiquidacionesEstadisticasPage = () => {
             });
         }
 
+        // ORDENAR PRIMERO por periodo (descendente) antes de limitar
+        const docsOrdenados = [...mensualDocs].sort((a, b) => {
+          const pa = a?.fechas?.periodoLiquidacion;
+          const pb = b?.fechas?.periodoLiquidacion;
+          const sa = periodoLiquidacionScore(pa);
+          const sb = periodoLiquidacionScore(pb);
+          if (sa === null && sb === null) return 0;
+          if (sa === null) return 1;
+          if (sb === null) return -1;
+          return sb - sa; // Descendente (más reciente primero)
+        });
+
         // Seleccionar meses únicos (máximo monthsToShow)
         const vistos = new Set();
         const mensualSeleccionado = [];
-        for (const liq of mensualDocs) {
+        for (const liq of docsOrdenados) {
           const periodo = liq?.fechas?.periodoLiquidacion;
-          if (!periodo || vistos.has(periodo)) continue;
+          if (!periodo) continue;
+          if (vistos.has(periodo)) continue;
           vistos.add(periodo);
           mensualSeleccionado.push(liq);
           if (mensualSeleccionado.length >= monthsToShow) break;
@@ -438,15 +464,12 @@ const LiquidacionesEstadisticasPage = () => {
         }
 
         setLiquidacionesPorSala(historico);
-        console.log('✅ Empresa mensual (docs):', mensualSeleccionado.length);
-        console.log('✅ Salas únicas encontradas:', todasLasSalas.size);
-        console.log('✅ Histórico por sala (docs):', historico.length);
 
         liquidacionesCacheRef.current.set(cacheKey, {
           liquidaciones: mensualSeleccionado,
           liquidacionesPorSala: historico,
-          salasDisponibles: Array.from(new Set(salaNombres)).sort(),
-          salaDetalleSeleccionada: Array.from(new Set(salaNombres)).sort()[0] || '',
+          salasDisponibles: Array.from(todasLasSalas).sort(),
+          salaDetalleSeleccionada: Array.from(todasLasSalas).sort()[0] || '',
           periodosLiquidacionIncluidos: periodosIncluidos,
           periodoLiquidacionUltimo: periodoUltimoComputed
         });
@@ -578,8 +601,6 @@ const LiquidacionesEstadisticasPage = () => {
   const datosEstadisticos = useMemo(() => {
     if (!liquidaciones.length) return null;
 
-    console.log('🔍 Procesando liquidaciones:', liquidaciones.length);
-
     // Función para agrupar por período
     // Requisito negocio: Trimestral/Semestral/Anual = últimos 3/6/12 meses (sin Q1/Q2/etc.)
     const agruparPorPeriodo = (tipo) => {
@@ -595,6 +616,7 @@ const LiquidacionesEstadisticasPage = () => {
         const ym = extraerYearMonthPeriodo(liq);
         if (!ym) return;
         const monthKey = `${ym.year}-${String(ym.monthIndex + 1).padStart(2, '0')}`;
+        
         if (!mensual[monthKey]) {
           mensual[monthKey] = {
             year: ym.year,
@@ -674,16 +696,14 @@ const LiquidacionesEstadisticasPage = () => {
       parsed.sort((a, b) => a.p.score - b.p.score);
       const latest = parsed[parsed.length - 1].p;
 
-      const monthsToInclude = [];
-      for (let i = monthsToShow - 1; i >= 0; i--) {
-        let score = latest.score - i;
-        const year = Math.floor(score / 12);
-        const monthIndex = score % 12;
-        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-        if (mensual[key]) monthsToInclude.push(key);
-      }
-
-      console.log('📅 Meses a mostrar:', monthsToInclude);
+      // Incluir los últimos N meses que TENGAN DATOS (no necesariamente consecutivos)
+      // Ordenar todos los meses disponibles y tomar los últimos N
+      const sortedMonths = parsed.sort((a, b) => b.p.score - a.p.score); // Descendente
+      
+      const monthsToInclude = sortedMonths
+        .slice(0, monthsToShow)
+        .map(x => x.key)
+        .reverse(); // Revertir para tener orden ascendente
 
       // 3) Devolver por mes (cada key = YYYY-MM)
       const agrupado = {};
@@ -709,7 +729,6 @@ const LiquidacionesEstadisticasPage = () => {
         };
       });
 
-      console.log('✅ Meses con datos:', Object.keys(agrupado));
       return agrupado;
     };
 
