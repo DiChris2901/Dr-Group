@@ -26,7 +26,9 @@ import {
   IconButton,
   Tooltip as MuiTooltip,
   alpha,
-  useTheme
+  useTheme,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import {
   TrendingUp,
@@ -40,7 +42,9 @@ import {
   CheckCircle,
   Info,
   Visibility as VisibilityIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import {
@@ -98,6 +102,7 @@ const LiquidacionesEstadisticasPage = () => {
   const [rowsPerPageSalas, setRowsPerPageSalas] = useState(10);
   const [pageMaquinas, setPageMaquinas] = useState(0);
   const [rowsPerPageMaquinas, setRowsPerPageMaquinas] = useState(10);
+  const [searchMaquina, setSearchMaquina] = useState(''); // Búsqueda por NUC o Serial
 
   // Cache en memoria (evita re-queries al alternar pestañas/volver a selección previa)
   const liquidacionesCacheRef = useRef(new Map());
@@ -604,6 +609,69 @@ const LiquidacionesEstadisticasPage = () => {
       maquinas
     };
   }, [empresaSeleccionada, liquidacionesPorSala, periodosLiquidacionIncluidos, salaDetalleSeleccionada]);
+
+  // Búsqueda global de máquinas en todas las salas
+  const maquinasGlobales = useMemo(() => {
+    if (empresaSeleccionada === 'todas') return [];
+    if (!searchMaquina.trim()) return [];
+    if (!Array.isArray(liquidacionesPorSala) || liquidacionesPorSala.length === 0) return [];
+
+    const searchLower = searchMaquina.toLowerCase().trim();
+    const maquinasUnicas = new Map(); // Agrupar por serial+nuc+sala (sin período)
+
+    // Recorrer todas las liquidaciones y buscar máquinas que coincidan
+    liquidacionesPorSala.forEach((liq) => {
+      const sala = liq?.sala?.nombre || 'N/A';
+      const maquinas = Array.isArray(liq?.datosConsolidados) ? liq.datosConsolidados : [];
+
+      maquinas.forEach((m) => {
+        const serial = m?.serial || m?.Serial || 'N/A';
+        const nucRaw = m?.nuc ?? m?.NUC ?? null;
+        const nuc = nucRaw != null ? String(nucRaw) : 'N/A';
+        const tipoApuesta = m?.tipoApuesta || m?.tipo_apuesta || m?.tipo || 'N/A';
+
+        const serialMatch = serial.toLowerCase().includes(searchLower);
+        const nucMatch = nuc.toLowerCase().includes(searchLower);
+
+        if (serialMatch || nucMatch) {
+          // Clave única por máquina+sala (agrupando todos los períodos)
+          const key = `${serial}_${nuc}_${sala}`;
+          
+          // Solo tomar el primer registro para tener los datos básicos
+          if (!maquinasUnicas.has(key)) {
+            maquinasUnicas.set(key, {
+              id: key,
+              serial,
+              nuc,
+              tipoApuesta,
+              sala,
+              // Objeto original para pasarlo al modal
+              maquinaOriginal: m
+            });
+          }
+        }
+      });
+    });
+
+    // Convertir a array y ordenar por sala
+    const resultados = Array.from(maquinasUnicas.values());
+    resultados.sort((a, b) => a.sala.localeCompare(b.sala));
+    
+    return resultados;
+  }, [empresaSeleccionada, liquidacionesPorSala, searchMaquina]);
+
+  // Filtrar máquinas por búsqueda dentro de una sala específica (detalle)
+  const maquinasFiltradas = useMemo(() => {
+    if (!detalleMaquinasSala?.maquinas) return [];
+    if (!searchMaquina.trim()) return detalleMaquinasSala.maquinas;
+    
+    const searchLower = searchMaquina.toLowerCase().trim();
+    return detalleMaquinasSala.maquinas.filter((m) => {
+      const serialMatch = m.serial?.toLowerCase().includes(searchLower);
+      const nucMatch = m.nuc?.toString().toLowerCase().includes(searchLower);
+      return serialMatch || nucMatch;
+    });
+  }, [detalleMaquinasSala, searchMaquina]);
 
   // ===== PROCESAMIENTO DE DATOS =====
   const datosEstadisticos = useMemo(() => {
@@ -1606,6 +1674,156 @@ const LiquidacionesEstadisticasPage = () => {
         </motion.div>
       )}
 
+      {/* BÚSQUEDA GLOBAL DE MÁQUINAS */}
+      {empresaSeleccionada !== 'todas' && salasDisponibles.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 1.0 }}
+        >
+          <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                Búsqueda de Máquinas
+              </Typography>
+              
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Buscar máquina por NUC o Serial en todas las salas..."
+                value={searchMaquina}
+                onChange={(e) => {
+                  setSearchMaquina(e.target.value);
+                  setPageMaquinas(0);
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchMaquina && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSearchMaquina('');
+                          setPageMaquinas(0);
+                        }}
+                        sx={{
+                          color: 'text.secondary',
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.error.main, 0.08),
+                            color: theme.palette.error.main
+                          }
+                        }}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: 'background.paper',
+                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
+                    }
+                  }
+                }}
+              />
+
+              {/* Resultados de búsqueda global */}
+              {searchMaquina.trim() && (
+                <Box sx={{ mt: 3 }}>
+                  {maquinasGlobales.length === 0 ? (
+                    <Alert severity="info" icon={<Info />} sx={{ borderRadius: 1 }}>
+                      No se encontraron máquinas que coincidan con "{searchMaquina}".
+                    </Alert>
+                  ) : (
+                    <>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {maquinasGlobales.length} {maquinasGlobales.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
+                      </Typography>
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.08) }}>
+                              <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Serial</TableCell>
+                              <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>NUC</TableCell>
+                              <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Tipo</TableCell>
+                              <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Sala</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 600, fontSize: 12 }}>Acciones</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {maquinasGlobales
+                              .slice(pageMaquinas * rowsPerPageMaquinas, pageMaquinas * rowsPerPageMaquinas + rowsPerPageMaquinas)
+                              .map((m, idx) => (
+                                <TableRow
+                                  key={m.id}
+                                  sx={{
+                                    backgroundColor: idx % 2 === 0 ? alpha(theme.palette.primary.main, 0.02) : 'transparent',
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.06)
+                                    }
+                                  }}
+                                >
+                                  <TableCell sx={{ fontSize: 12, fontWeight: 500 }}>{m.serial}</TableCell>
+                                  <TableCell sx={{ fontSize: 12 }}>{m.nuc}</TableCell>
+                                  <TableCell sx={{ fontSize: 12 }}>{m.tipoApuesta}</TableCell>
+                                  <TableCell sx={{ fontSize: 12, color: theme.palette.primary.main, fontWeight: 500 }}>
+                                    {m.sala}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ fontSize: 12 }}>
+                                    <MuiTooltip title="Ver detalle por mes">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => abrirDetalleMaquinaPorMes(m.maquinaOriginal)}
+                                        sx={{
+                                          color: theme.palette.primary.main,
+                                          '&:hover': {
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                                          }
+                                        }}
+                                      >
+                                        <VisibilityIcon fontSize="small" />
+                                      </IconButton>
+                                    </MuiTooltip>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      
+                      <TablePagination
+                        component="div"
+                        count={maquinasGlobales.length}
+                        page={pageMaquinas}
+                        onPageChange={(e, newPage) => setPageMaquinas(newPage)}
+                        rowsPerPage={rowsPerPageMaquinas}
+                        onRowsPerPageChange={(e) => {
+                          setRowsPerPageMaquinas(Number(e.target.value));
+                          setPageMaquinas(0);
+                        }}
+                        rowsPerPageOptions={[10, 25, 50]}
+                      />
+                    </>
+                  )}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* DETALLE POR MÁQUINA (opcional) */}
       {empresaSeleccionada !== 'todas' && salasDisponibles.length > 0 && (
         <motion.div
@@ -1617,7 +1835,7 @@ const LiquidacionesEstadisticasPage = () => {
             <CardContent>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
                 <Typography variant="h6" fontWeight={600} sx={{ flex: '1 1 auto' }}>
-                  Detalle por Máquina
+                  Detalle por Máquina (por Sala)
                 </Typography>
                 <Button
                   variant={mostrarDetalleMaquinas ? 'outlined' : 'contained'}
@@ -1654,9 +1872,14 @@ const LiquidacionesEstadisticasPage = () => {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Período último: {formatPeriodoLiquidacionLabel(detalleMaquinasSala.periodoUltimo) || 'N/A'} · Sala: {detalleMaquinasSala.sala}
                   </Typography>
+
                   {detalleMaquinasSala.maquinas.length === 0 ? (
                     <Alert severity="info" icon={<Info />} sx={{ borderRadius: 1 }}>
                       No hay máquinas disponibles para esta sala en el rango actual.
+                    </Alert>
+                  ) : maquinasFiltradas.length === 0 ? (
+                    <Alert severity="warning" icon={<Info />} sx={{ borderRadius: 1 }}>
+                      No se encontraron máquinas que coincidan con "{searchMaquina}".
                     </Alert>
                   ) : (
                     <TableContainer>
@@ -1674,7 +1897,7 @@ const LiquidacionesEstadisticasPage = () => {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {detalleMaquinasSala.maquinas
+                          {maquinasFiltradas
                             .slice(pageMaquinas * rowsPerPageMaquinas, pageMaquinas * rowsPerPageMaquinas + rowsPerPageMaquinas)
                             .map((m, idx) => (
                               <TableRow
@@ -1725,7 +1948,7 @@ const LiquidacionesEstadisticasPage = () => {
 
                   <TablePagination
                     component="div"
-                    count={detalleMaquinasSala.maquinas.length}
+                    count={maquinasFiltradas.length}
                     page={pageMaquinas}
                     onPageChange={(e, newPage) => setPageMaquinas(newPage)}
                     rowsPerPage={rowsPerPageMaquinas}
