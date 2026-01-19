@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Avatar,
@@ -2204,16 +2205,24 @@ export default function LiquidacionesPage() {
   // Effect para carga automática desde histórico
   useEffect(() => {
     const liquidacionId = searchParams.get('cargar');
-    if (liquidacionId && currentUser?.uid && !liquidacionCargadaRef.current) {
-      liquidacionCargadaRef.current = true; // Marcar como cargada inmediatamente
-      addLog(`🔄 Carga automática solicitada para liquidación: ${liquidacionId}`, 'info');
-      cargarLiquidacion(liquidacionId);
-      
-      // Limpiar parámetro URL después de iniciar la carga
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
+    
+    // ⚠️ CRÍTICO: Esperar a que companies esté cargado antes de procesar
+    if (!companiesLoading && companies && companies.length > 0) {
+      if (liquidacionId && currentUser?.uid && !liquidacionCargadaRef.current) {
+        liquidacionCargadaRef.current = true; // Marcar como cargada inmediatamente
+        addLog(`🔄 Carga automática solicitada para liquidación: ${liquidacionId}`, 'info');
+        addLog(`🏢 Empresas disponibles: ${companies.length}`, 'info');
+        cargarLiquidacion(liquidacionId);
+        
+        // Limpiar parámetro URL después de iniciar la carga
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    } else if (liquidacionId && currentUser?.uid && companiesLoading) {
+      addLog(`⏳ Esperando carga de empresas...`, 'info');
     }
-  }, [searchParams, currentUser?.uid, addLog, cargarLiquidacion]);
+  }, [searchParams, currentUser?.uid, companies, companiesLoading, addLog]);
+  // ⚠️ NO incluir cargarLiquidacion en las dependencias para evitar loop infinito
   // ===================== FIN CARGA DESDE HISTORIAL =====================
 
   return (
@@ -4706,124 +4715,134 @@ export default function LiquidacionesPage() {
 
       </Paper>
 
-      <Fab
-        color="primary"
-        onClick={() => setLogsOpen((v) => !v)}
-        sx={{
-          position: 'fixed',
-          left: 24,
-          bottom: 24,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
-        }}
-        aria-label="Registro de actividad"
-      >
-        <History />
-      </Fab>
+    </Container>
 
-      <Box
-        sx={{
-          position: 'fixed',
-          left: 24,
-          bottom: 90,
-          width: 420,
-          maxWidth: 'calc(100vw - 48px)',
-          borderRadius: 2,
-          bgcolor: theme.palette.background.paper,
-          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-          transform: logsOpen ? 'translateY(0)' : 'translateY(16px)',
-          opacity: logsOpen ? 1 : 0,
-          pointerEvents: logsOpen ? 'auto' : 'none',
-          transition: 'all 0.2s ease'
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <History sx={{ color: theme.palette.primary.main }} fontSize="small" />
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Registro de Actividad
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton size="small" aria-label="Limpiar logs" onClick={clearLogs} disabled={logs.length === 0}>
-              <DeleteSweep fontSize="small" />
-            </IconButton>
-            <IconButton size="small" aria-label="Cerrar" onClick={() => setLogsOpen(false)}>
-              <Close fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-        <Divider />
-        <Box
-          sx={{
-            p: 1.5,
-            maxHeight: 320,
-            overflow: 'auto'
-          }}
-        >
-          {logs.length === 0 ? (
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, p: 0.5 }}>
-              No hay actividades registradas.
-            </Typography>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {logs.map((l) => (
-                <Box
-                  key={l.id}
-                  sx={{
-                    p: 1,
-                    borderRadius: 1.5,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                    bgcolor:
-                      l.type === 'success'
-                        ? alpha(theme.palette.success.main, 0.08)
-                        : l.type === 'warning'
-                          ? alpha(theme.palette.warning.main, 0.08)
-                          : l.type === 'error'
-                            ? alpha(theme.palette.error.main, 0.08)
-                            : alpha(theme.palette.info.main, 0.06)
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                    <Chip
-                      size="small"
-                      label={l.type.toUpperCase()}
+      {/* FAB y Panel de Logs - Renderizado como Portal para evitar conflictos con el layout */}
+      {ReactDOM.createPortal(
+        <>
+          <Fab
+            color="primary"
+            onClick={() => setLogsOpen((v) => !v)}
+            sx={{
+              position: 'fixed',
+              left: 320,
+              bottom: 24,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              zIndex: 1300
+            }}
+            aria-label="Registro de actividad"
+          >
+            <History />
+          </Fab>
+
+          <Box
+            sx={{
+              position: 'fixed',
+              left: 320,
+              bottom: 90,
+              width: 420,
+              maxWidth: 'calc(100vw - 48px)',
+              borderRadius: 2,
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              transform: logsOpen ? 'translateY(0)' : 'translateY(16px)',
+              opacity: logsOpen ? 1 : 0,
+              pointerEvents: logsOpen ? 'auto' : 'none',
+              transition: 'all 0.2s ease',
+              zIndex: 1300
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <History sx={{ color: theme.palette.primary.main }} fontSize="small" />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  Registro de Actividad
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <IconButton size="small" aria-label="Limpiar logs" onClick={clearLogs} disabled={logs.length === 0}>
+                  <DeleteSweep fontSize="small" />
+                </IconButton>
+                <IconButton size="small" aria-label="Cerrar" onClick={() => setLogsOpen(false)}>
+                  <Close fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+            <Divider />
+            <Box
+              sx={{
+                p: 1.5,
+                maxHeight: 320,
+                overflow: 'auto'
+              }}
+            >
+              {logs.length === 0 ? (
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, p: 0.5 }}>
+                  No hay actividades registradas.
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {logs.map((l) => (
+                    <Box
+                      key={l.id}
                       sx={{
-                        height: 20,
-                        fontWeight: 600,
-                        letterSpacing: 0.6,
+                        p: 1,
+                        borderRadius: 1.5,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor:
                           l.type === 'success'
-                            ? alpha(theme.palette.success.main, 0.12)
+                            ? alpha(theme.palette.success.main, 0.08)
                             : l.type === 'warning'
-                              ? alpha(theme.palette.warning.main, 0.12)
+                              ? alpha(theme.palette.warning.main, 0.08)
                               : l.type === 'error'
-                                ? alpha(theme.palette.error.main, 0.12)
-                                : alpha(theme.palette.info.main, 0.12),
-                        color:
-                          l.type === 'success'
-                            ? theme.palette.success.main
-                            : l.type === 'warning'
-                              ? theme.palette.warning.main
-                              : l.type === 'error'
-                                ? theme.palette.error.main
-                                : theme.palette.info.main
+                                ? alpha(theme.palette.error.main, 0.08)
+                                : alpha(theme.palette.info.main, 0.06)
                       }}
-                    />
-                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                      {l.timestamp instanceof Date ? l.timestamp.toLocaleTimeString('es-CO') : ''}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ mt: 0.75 }}>
-                    {l.message}
-                  </Typography>
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                        <Chip
+                          size="small"
+                          label={l.type.toUpperCase()}
+                          sx={{
+                            height: 20,
+                            fontWeight: 600,
+                            letterSpacing: 0.6,
+                            bgcolor:
+                              l.type === 'success'
+                                ? alpha(theme.palette.success.main, 0.12)
+                                : l.type === 'warning'
+                                  ? alpha(theme.palette.warning.main, 0.12)
+                                  : l.type === 'error'
+                                    ? alpha(theme.palette.error.main, 0.12)
+                                    : alpha(theme.palette.info.main, 0.12),
+                            color:
+                              l.type === 'success'
+                                ? theme.palette.success.main
+                                : l.type === 'warning'
+                                  ? theme.palette.warning.main
+                                  : l.type === 'error'
+                                    ? theme.palette.error.main
+                                    : theme.palette.info.main
+                          }}
+                        />
+                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                          {l.timestamp instanceof Date ? l.timestamp.toLocaleTimeString('es-CO') : ''}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ mt: 0.75 }}>
+                        {l.message}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Box>
-              ))}
+              )}
             </Box>
-          )}
-        </Box>
-      </Box>
+          </Box>
+        </>,
+        document.body
+      )}
 
       {/* Modales de exportación (reutilizados tal cual) */}
       <ExportarPorSalaModal
@@ -4852,7 +4871,6 @@ export default function LiquidacionesPage() {
         periodoDetectado={detectarPeriodoLiquidacion()}
         loading={guardandoLiquidacion}
       />
-    </Container>
     </>
   );
 }
