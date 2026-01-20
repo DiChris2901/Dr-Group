@@ -535,9 +535,10 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
             </Box>
             <Box sx={{ 
               display: 'flex',
-              flexWrap: 'wrap',
-              gap: 0.75,
-              px: 1 
+              flexWrap: 'nowrap',
+              gap: 0.5,
+              px: 1,
+              overflow: 'hidden'
             }}>
               {recentPages.map((page, index) => {
                 // Buscar el ícono y la categoría desde menuItems/adminMenuItems
@@ -575,7 +576,10 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.2, delay: index * 0.03 }}
-                    style={{ flex: '1 1 auto' }}
+                    style={{ 
+                      flex: '1 1 0',
+                      minWidth: 0
+                    }}
                   >
                     <Tooltip 
                       title={
@@ -599,9 +603,11 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
+                          justifyContent: 'center',
                           gap: 0.2,
                           py: 0.5,
                           px: 0.5,
+                          height: '100%',
                           borderRadius: 1.5,
                           bgcolor: isActive 
                             ? alpha(pageInfo.categoryColor, 0.15) 
