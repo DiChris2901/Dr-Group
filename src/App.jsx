@@ -26,7 +26,6 @@ import CommitmentsPage from './pages/CommitmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import ClientesPage from './pages/ClientesPage';
 import DataPage from './pages/DataPage';
-import DueCommitmentsPage from './pages/DueCommitmentsPage';
 import NewCommitmentPage from './pages/NewCommitmentPage';
 import NewPaymentPage from './pages/NewPaymentPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -128,16 +127,6 @@ const DashboardLayout = () => {
           <ProtectedRoute requiredPermission="compromisos">
             <MainLayout title="Nuevo Compromiso" breadcrumbs={['Compromisos', 'Nuevo']}>
               <NewCommitmentPage />
-            </MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/commitments/due" 
-        element={
-          <ProtectedRoute requiredPermission="compromisos">
-            <MainLayout title="Compromisos Próximos a Vencer" breadcrumbs={['Compromisos', 'Próximos a Vencer']}>
-              <DueCommitmentsPage />
             </MainLayout>
           </ProtectedRoute>
         }

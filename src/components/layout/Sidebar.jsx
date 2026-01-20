@@ -269,8 +269,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'compromisos',
       submenu: [
         { title: 'Ver Todos', icon: Assignment, path: '/commitments', permission: 'compromisos.ver_todos' },
-        { title: 'Agregar Nuevo', icon: AttachMoney, path: '/commitments/new', permission: 'compromisos.agregar_nuevo' },
-        { title: 'Próximos a Vencer', icon: Notifications, path: '/commitments/due', permission: 'compromisos.proximos_vencer' }
+        { title: 'Agregar Nuevo', icon: AttachMoney, path: '/commitments/new', permission: 'compromisos.agregar_nuevo' }
       ]
     },
     {
@@ -534,7 +533,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 Recientes
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Box sx={{ 
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.75,
+              px: 1 
+            }}>
               {recentPages.map((page, index) => {
                 // Buscar el ícono y la categoría desde menuItems/adminMenuItems
                 const getPageInfo = (path) => {
@@ -595,40 +599,36 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: 0.3,
+                          gap: 0.2,
                           py: 0.5,
-                          px: 0.75,
-                          borderRadius: 1,
+                          px: 0.5,
+                          borderRadius: 1.5,
                           bgcolor: isActive 
-                            ? alpha(pageInfo.categoryColor, 0.12) 
-                            : alpha(theme.palette.background.paper, 0.4),
-                          border: `1px solid ${alpha(
-                            isActive ? pageInfo.categoryColor : theme.palette.divider, 
-                            isActive ? 0.3 : 0.1
-                          )}`,
+                            ? alpha(pageInfo.categoryColor, 0.15) 
+                            : alpha(theme.palette.background.paper, 0.5),
+                          border: `1px solid ${alpha(pageInfo.categoryColor, isActive ? 0.4 : 0.2)}`,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
                           '&:hover': {
-                            bgcolor: alpha(pageInfo.categoryColor, 0.15),
-                            borderColor: alpha(pageInfo.categoryColor, 0.4),
+                            bgcolor: alpha(pageInfo.categoryColor, 0.2),
+                            borderColor: alpha(pageInfo.categoryColor, 0.6),
                             transform: 'translateY(-2px)',
+                            boxShadow: `0 4px 12px ${alpha(pageInfo.categoryColor, 0.2)}`
                           }
                         }}
                       >
                         <PageIcon sx={{ 
-                          fontSize: '1rem',
-                          color: isActive 
-                            ? pageInfo.categoryColor
-                            : alpha(theme.palette.text.secondary, 0.6)
+                          fontSize: 18,
+                          color: pageInfo.categoryColor,
                         }} />
                         {pageInfo.category && (
                           <Typography
                             variant="caption"
                             sx={{
-                              fontSize: '0.55rem',
+                              fontSize: '0.5rem',
                               fontWeight: 600,
-                              letterSpacing: 0.5,
-                              color: alpha(pageInfo.categoryColor, 0.7),
+                              letterSpacing: 0.3,
+                              color: pageInfo.categoryColor,
                               textTransform: 'uppercase',
                               lineHeight: 1,
                               textAlign: 'center',
@@ -640,17 +640,17 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                         <Typography
                           variant="caption"
                           sx={{
-                            fontSize: '0.7rem',
+                            fontSize: '0.65rem',
                             fontWeight: isActive ? 600 : 500,
-                            color: isActive
-                              ? 'text.primary'
-                              : alpha(theme.palette.text.secondary, 0.8),
+                            color: 'text.primary',
                             textAlign: 'center',
-                            lineHeight: 1.2,
+                            lineHeight: 1.1,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '100%',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            width: '100%',
                           }}
                         >
                           {page.title}
