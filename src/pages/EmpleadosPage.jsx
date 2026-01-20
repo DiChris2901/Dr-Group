@@ -154,7 +154,10 @@ const EmpleadosPage = () => {
     tipoCuenta: 'Ahorros',
     numeroCuenta: '',
     certificadoBancarioURL: '',
-    documentoIdentidadURL: ''
+    documentoIdentidadURL: '',
+    retirado: false,
+    fechaRetiro: '',
+    motivoRetiro: ''
   });
 
   const [contratoFile, setContratoFile] = useState(null);
@@ -250,15 +253,23 @@ const EmpleadosPage = () => {
   };
 
   // Calcular tiempo en la empresa
-  const calcularTiempoEnEmpresa = (fechaInicioContrato) => {
+  const calcularTiempoEnEmpresa = (fechaInicioContrato, fechaRetiro = null) => {
     if (!fechaInicioContrato) return 'No disponible';
     
     const [year, month, day] = fechaInicioContrato.split('-').map(Number);
     const fechaInicio = new Date(year, month - 1, day);
-    const hoy = new Date();
     
-    let años = hoy.getFullYear() - fechaInicio.getFullYear();
-    let meses = hoy.getMonth() - fechaInicio.getMonth();
+    // Si hay fecha de retiro, calcular hasta esa fecha, sino hasta hoy
+    let fechaFin;
+    if (fechaRetiro) {
+      const [yearRetiro, monthRetiro, dayRetiro] = fechaRetiro.split('-').map(Number);
+      fechaFin = new Date(yearRetiro, monthRetiro - 1, dayRetiro);
+    } else {
+      fechaFin = new Date();
+    }
+    
+    let años = fechaFin.getFullYear() - fechaInicio.getFullYear();
+    let meses = fechaFin.getMonth() - fechaInicio.getMonth();
     
     if (meses < 0) {
       años--;
@@ -760,7 +771,10 @@ const EmpleadosPage = () => {
       tipoCuenta: empleado.tipoCuenta || 'Ahorros',
       numeroCuenta: empleado.numeroCuenta || '',
       certificadoBancarioURL: empleado.certificadoBancarioURL || '',
-      documentoIdentidadURL: empleado.documentoIdentidadURL || ''
+      documentoIdentidadURL: empleado.documentoIdentidadURL || '',
+      retirado: empleado.retirado || false,
+      fechaRetiro: empleado.fechaRetiro || '',
+      motivoRetiro: empleado.motivoRetiro || ''
     });
     setEditDialogOpen(true);
   };
@@ -1037,9 +1051,19 @@ const EmpleadosPage = () => {
                         {empleado.nombres?.charAt(0)}{empleado.apellidos?.charAt(0)}
                       </Avatar>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="h6" gutterBottom sx={{ mb: 0.5, fontWeight: 600 }}>
-                          {empleado.nombres} {empleado.apellidos}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, flex: 1 }}>
+                            {empleado.nombres} {empleado.apellidos}
+                          </Typography>
+                          {empleado.retirado && (
+                            <Chip 
+                              label="RETIRADO" 
+                              size="small" 
+                              color="warning"
+                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                            />
+                          )}
+                        </Box>
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                           CC: {formatearNumeroDocumento(empleado.numeroDocumento || '')}
                         </Typography>
@@ -1095,9 +1119,9 @@ const EmpleadosPage = () => {
                     {/* Tiempo en la Empresa */}
                     {empleado.fechaInicioContrato && (
                       <Box display="flex" alignItems="center">
-                        <AccessTimeIcon sx={{ fontSize: 18, mr: 1.5, color: 'success.main' }} />
+                        <AccessTimeIcon sx={{ fontSize: 18, mr: 1.5, color: empleado.retirado ? 'warning.main' : 'success.main' }} />
                         <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                          {calcularTiempoEnEmpresa(empleado.fechaInicioContrato)}
+                          {calcularTiempoEnEmpresa(empleado.fechaInicioContrato, empleado.retirado ? empleado.fechaRetiro : null)}
                         </Typography>
                       </Box>
                     )}
@@ -2162,6 +2186,83 @@ const EmpleadosPage = () => {
               </Paper>
             </Grid>
 
+            {/* Estado de Retiro */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'warning.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
+              }}>
+                <InfoIcon />
+                Estado Laboral
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.retirado || false}
+                    onChange={(e) => {
+                      handleFormChange('retirado', e.target.checked);
+                      if (!e.target.checked) {
+                        handleFormChange('fechaRetiro', '');
+                        handleFormChange('motivoRetiro', '');
+                      }
+                    }}
+                    color="warning"
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography>Empleado retirado</Typography>
+                    {formData.retirado && (
+                      <Chip 
+                        label="RETIRADO" 
+                        size="small" 
+                        color="warning"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    )}
+                  </Box>
+                }
+              />
+            </Grid>
+
+            {formData.retirado && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Fecha de Retiro *"
+                    type="date"
+                    value={formData.fechaRetiro || ''}
+                    onChange={(e) => handleFormChange('fechaRetiro', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    required={formData.retirado}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth required={formData.retirado}>
+                    <InputLabel>Motivo de Retiro *</InputLabel>
+                    <Select
+                      value={formData.motivoRetiro || ''}
+                      onChange={(e) => handleFormChange('motivoRetiro', e.target.value)}
+                      label="Motivo de Retiro *"
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <MenuItem value="Terminación de contrato">Terminación de contrato</MenuItem>
+                      <MenuItem value="Retiro voluntario">Retiro voluntario</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </>
+            )}
+
             {/* Información Bancaria */}
             <Grid item xs={12} sx={{ mt: 2 }}>
               <Typography variant="h6" sx={{ 
@@ -2355,11 +2456,21 @@ const EmpleadosPage = () => {
             <Box>
               Detalles de {selectedEmpleado?.nombres} {selectedEmpleado?.apellidos}
             </Box>
-            <Chip
-              label="Empleado"
-              color="primary"
-              size="small"
-            />
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                label="Empleado"
+                color="primary"
+                size="small"
+              />
+              {selectedEmpleado?.retirado && (
+                <Chip
+                  label="RETIRADO"
+                  color="warning"
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
+              )}
+            </Box>
           </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -2696,6 +2807,59 @@ const EmpleadosPage = () => {
                   </Grid>
                 )}
               </Grid>
+
+              {/* Estado Laboral (si está retirado) */}
+              {selectedEmpleado.retirado && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <Typography variant="h6" sx={{ mb: 2, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <InfoIcon />
+                    Estado Laboral
+                  </Typography>
+                  
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12}>
+                      <Card 
+                        variant="outlined" 
+                        sx={{ 
+                          p: 2, 
+                          bgcolor: alpha(theme.palette.warning.main, 0.04),
+                          borderColor: alpha(theme.palette.warning.main, 0.2)
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <Chip 
+                            label="EMPLEADO RETIRADO" 
+                            color="warning"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </Box>
+                        
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                              <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                              Fecha de Retiro
+                            </Typography>
+                            <Typography variant="body1" fontWeight="medium">
+                              {formatDate(selectedEmpleado.fechaRetiro)}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                              Motivo de Retiro
+                            </Typography>
+                            <Typography variant="body1" fontWeight="medium">
+                              {selectedEmpleado.motivoRetiro || 'No especificado'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </>
+              )}
 
               {/* Información Bancaria */}
               <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'secondary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
