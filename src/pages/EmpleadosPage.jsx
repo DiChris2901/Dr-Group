@@ -1147,18 +1147,42 @@ const EmpleadosPage = () => {
         }}
       >
         <DialogTitle sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          color: 'white',
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5
+          justifyContent: 'space-between',
+          p: 2.5
         }}>
-          <PersonIcon />
-          <Box component="span" sx={{ fontWeight: 600, fontSize: '1.25rem' }}>
-            Agregar Nuevo Empleado
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar
+              sx={{
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: 'primary.main',
+                width: 40,
+                height: 40
+              }}
+            >
+              <PersonIcon />
+            </Avatar>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+              Agregar Nuevo Empleado
+            </Typography>
           </Box>
+          <IconButton
+            onClick={() => setAddDialogOpen(false)}
+            size="small"
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.text.secondary, 0.08)
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          <Box sx={{ mt: 2 }}>
           <Grid container spacing={2}>
             {/* Información Personal */}
             <Grid item xs={12}>
@@ -1667,13 +1691,24 @@ const EmpleadosPage = () => {
               </Paper>
             </Grid>
           </Grid>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, gap: 1 }}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          gap: 1.5,
+          bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900',
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}>
           <Button
             onClick={() => setAddDialogOpen(false)}
             startIcon={<CancelIcon />}
             disabled={saving}
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 500
+            }}
           >
             Cancelar
           </Button>
@@ -1682,7 +1717,12 @@ const EmpleadosPage = () => {
             variant="contained"
             startIcon={<SaveIcon />}
             disabled={saving}
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+            }}
           >
             {saving ? 'Guardando...' : 'Guardar Empleado'}
           </Button>
@@ -1703,18 +1743,42 @@ const EmpleadosPage = () => {
         }}
       >
         <DialogTitle sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          color: 'white',
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5
+          justifyContent: 'space-between',
+          p: 2.5
         }}>
-          <EditIcon />
-          <Box component="span" sx={{ fontWeight: 600, fontSize: '1.25rem' }}>
-            Editar Empleado
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar
+              sx={{
+                bgcolor: alpha(theme.palette.secondary.main, 0.1),
+                color: 'secondary.main',
+                width: 40,
+                height: 40
+              }}
+            >
+              <EditIcon />
+            </Avatar>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+              Editar Empleado
+            </Typography>
           </Box>
+          <IconButton
+            onClick={() => setEditDialogOpen(false)}
+            size="small"
+            sx={{
+              color: 'text.secondary',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.text.secondary, 0.08)
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          <Box sx={{ mt: 2 }}>
           {/* Mismo contenido que el modal de agregar */}
           <Grid container spacing={2}>
             {/* Copiar estructura del modal de agregar */}
@@ -2416,13 +2480,24 @@ const EmpleadosPage = () => {
               </Paper>
             </Grid>
           </Grid>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, gap: 1 }}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          gap: 1.5,
+          bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900',
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}>
           <Button
             onClick={() => setEditDialogOpen(false)}
             startIcon={<CancelIcon />}
             disabled={saving}
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 500
+            }}
           >
             Cancelar
           </Button>
@@ -2431,7 +2506,12 @@ const EmpleadosPage = () => {
             variant="contained"
             startIcon={<SaveIcon />}
             disabled={saving}
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+            }}
           >
             {saving ? 'Guardando...' : 'Actualizar'}
           </Button>
@@ -2451,29 +2531,60 @@ const EmpleadosPage = () => {
           }
         }}
       >
-        <DialogTitle>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
+        <DialogTitle sx={{
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          p: 2.5
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar
+              sx={{
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                color: 'info.main',
+                width: 40,
+                height: 40
+              }}
+            >
+              <VisibilityIcon />
+            </Avatar>
             <Box>
-              Detalles de {selectedEmpleado?.nombres} {selectedEmpleado?.apellidos}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Chip
-                label="Empleado"
-                color="primary"
-                size="small"
-              />
-              {selectedEmpleado?.retirado && (
-                <Chip
-                  label="RETIRADO"
-                  color="warning"
-                  size="small"
-                  sx={{ fontWeight: 600 }}
-                />
-              )}
+              <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
+                Detalles de {selectedEmpleado?.nombres} {selectedEmpleado?.apellidos}
+              </Typography>
             </Box>
           </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Chip
+              label="Empleado"
+              color="primary"
+              size="small"
+              sx={{ fontWeight: 500 }}
+            />
+            {selectedEmpleado?.retirado && (
+              <Chip
+                label="RETIRADO"
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
+            <IconButton
+              onClick={() => setViewDialogOpen(false)}
+              size="small"
+              sx={{
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.text.secondary, 0.08)
+                }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3, pt: 3 }}>
           {selectedEmpleado && (
             <>
               {/* Información Personal en Grid Horizontal */}
@@ -2930,11 +3041,21 @@ const EmpleadosPage = () => {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          bgcolor: theme.palette.mode === 'light' ? 'grey.50' : 'grey.900',
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}>
           <Button
             onClick={() => setViewDialogOpen(false)}
             variant="contained"
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+            }}
           >
             Cerrar
           </Button>
