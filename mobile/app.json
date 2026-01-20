@@ -26,15 +26,10 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS",
-        "NOTIFICATIONS",
         "VIBRATE",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT",
-        "REQUEST_INSTALL_PACKAGES",
-        "INTERNET",
-        "WRITE_EXTERNAL_STORAGE"
+        "INTERNET"
       ],
       "edgeToEdgeEnabled": true
     },

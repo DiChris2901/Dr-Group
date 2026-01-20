@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - DR Group Asistencia</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 { color: #004A98; margin-bottom: 10px; }
+        h2 { color: #004A98; margin-top: 30px; border-bottom: 2px solid #004A98; padding-bottom: 5px; }
+        h3 { color: #555; margin-top: 20px; }
+        .last-updated { color: #666; font-size: 14px; margin-bottom: 30px; }
+        ul { margin-left: 20px; }
+        li { margin-bottom: 8px; }
+        .contact { background: #f5f5f5; padding: 15px; border-radius: 8px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>Política de Privacidad</h1>
+    <p class="last-updated"><strong>Última actualización:</strong> 20 de enero de 2026</p>
+
+    <p>Esta Política de Privacidad describe cómo DR Group ("nosotros", "nuestro" o "la empresa") recopila, usa y protege la información personal de los usuarios de la aplicación móvil DR Group Asistencia (en adelante, "la App").</p>
+
+    <h2>1. Información que Recopilamos</h2>
+    
+    <h3>1.1 Información de Autenticación</h3>
+    <ul>
+        <li><strong>Correo electrónico:</strong> Para identificación y acceso a la cuenta</li>
+        <li><strong>Contraseña:</strong> Encriptada mediante Firebase Authentication</li>
+        <li><strong>Nombre completo:</strong> Para identificación del empleado</li>
+        <li><strong>Foto de perfil:</strong> Opcional, para personalización de la cuenta</li>
+    </ul>
+
+    <h3>1.2 Datos de Ubicación</h3>
+    <ul>
+        <li><strong>Ubicación GPS precisa:</strong> Recopilada al iniciar y finalizar jornada laboral</li>
+        <li><strong>Propósito:</strong> Registrar el lugar desde donde se marca entrada/salida</li>
+        <li><strong>Frecuencia:</strong> Solo durante eventos de registro (entrada/salida)</li>
+        <li><strong>Almacenamiento:</strong> Guardada en Firebase Firestore de forma segura</li>
+    </ul>
+
+    <h3>1.3 Datos Laborales</h3>
+    <ul>
+        <li><strong>Horas de entrada y salida:</strong> Timestamp de inicio y fin de jornada</li>
+        <li><strong>Duración de breaks:</strong> Registro de pausas durante la jornada</li>
+        <li><strong>Duración de almuerzos:</strong> Tiempo de descanso de almuerzo</li>
+        <li><strong>Horas trabajadas:</strong> Cálculo automático de tiempo efectivo laborado</li>
+        <li><strong>Historial de asistencias:</strong> Registro completo de días trabajados</li>
+    </ul>
+
+    <h3>1.4 Información del Dispositivo</h3>
+    <ul>
+        <li><strong>Modelo del dispositivo:</strong> Para optimización de la app</li>
+        <li><strong>Sistema operativo:</strong> Android y su versión</li>
+        <li><strong>Token de notificaciones:</strong> Para enviar alertas push</li>
+        <li><strong>Datos biométricos:</strong> Huella digital o Face ID (opcional, almacenados localmente en el dispositivo)</li>
+    </ul>
+
+    <h2>2. Cómo Usamos la Información</h2>
+
+    <p>La información recopilada se utiliza exclusivamente para:</p>
+    <ul>
+        <li>✅ <strong>Control de asistencias:</strong> Registrar entrada, salida y descansos</li>
+        <li>✅ <strong>Cálculo de horas trabajadas:</strong> Generar reportes de tiempo laborado</li>
+        <li>✅ <strong>Notificaciones:</strong> Enviar alertas sobre estado de jornada</li>
+        <li>✅ <strong>Autenticación segura:</strong> Verificar identidad del empleado</li>
+        <li>✅ <strong>Soporte técnico:</strong> Resolver problemas reportados por usuarios</li>
+    </ul>
+
+    <p><strong>❌ NO usamos la información para:</strong></p>
+    <ul>
+        <li>Publicidad personalizada</li>
+        <li>Venta a terceros</li>
+        <li>Seguimiento fuera de horarios laborales</li>
+        <li>Compartir con empresas externas</li>
+    </ul>
+
+    <h2>3. Compartición de Datos</h2>
+
+    <p>Tus datos personales <strong>NO son vendidos ni compartidos</strong> con terceros comerciales.</p>
+
+    <h3>3.1 Proveedores de Servicios Utilizados</h3>
+    <ul>
+        <li><strong>Firebase (Google):</strong> Almacenamiento, autenticación y notificaciones push
+            <br><em>Política de privacidad: <a href="https://firebase.google.com/support/privacy" target="_blank">https://firebase.google.com/support/privacy</a></em>
+        </li>
+        <li><strong>Google Play Services:</strong> Servicios de ubicación y notificaciones
+            <br><em>Política de privacidad: <a href="https://policies.google.com/privacy" target="_blank">https://policies.google.com/privacy</a></em>
+        </li>
+    </ul>
+
+    <h3>3.2 Acceso Interno</h3>
+    <ul>
+        <li><strong>Administradores de DR Group:</strong> Tienen acceso a datos de asistencias para reportes laborales</li>
+        <li><strong>Soporte técnico:</strong> Puede acceder temporalmente para resolver problemas</li>
+    </ul>
+
+    <h2>4. Seguridad de los Datos</h2>
+
+    <p>Implementamos medidas de seguridad robustas:</p>
+    <ul>
+        <li>🔐 <strong>Encriptación en tránsito:</strong> Todas las comunicaciones usan HTTPS/SSL</li>
+        <li>🔐 <strong>Encriptación en reposo:</strong> Firebase Firestore encripta datos almacenados</li>
+        <li>🔐 <strong>Autenticación biométrica:</strong> Opcional para mayor seguridad</li>
+        <li>🔐 <strong>Reglas de seguridad Firebase:</strong> Control de acceso estricto por roles</li>
+        <li>🔐 <strong>Contraseñas encriptadas:</strong> Firebase Authentication usa bcrypt</li>
+    </ul>
+
+    <h2>5. Retención de Datos</h2>
+
+    <ul>
+        <li><strong>Datos activos:</strong> Mientras el empleado esté activo en DR Group</li>
+        <li><strong>Historial de asistencias:</strong> Se conserva durante 5 años para cumplimiento legal laboral</li>
+        <li><strong>Datos de ubicación:</strong> Solo GPS de eventos de registro (entrada/salida), no seguimiento continuo</li>
+    </ul>
+
+    <h2>6. Derechos del Usuario</h2>
+
+    <p>Tienes derecho a:</p>
+    <ul>
+        <li>✅ <strong>Acceso:</strong> Solicitar una copia de tus datos personales</li>
+        <li>✅ <strong>Corrección:</strong> Actualizar información incorrecta en tu perfil</li>
+        <li>✅ <strong>Eliminación:</strong> Solicitar borrado de tu cuenta y datos asociados</li>
+        <li>✅ <strong>Exportación:</strong> Recibir tus datos en formato legible (Excel/PDF)</li>
+        <li>✅ <strong>Oposición:</strong> Rechazar ciertos usos de tus datos (sujeto a obligaciones laborales)</li>
+    </ul>
+
+    <p><strong>Para ejercer estos derechos, contacta a:</strong> rrhh@drgroup.com</p>
+
+    <h2>7. Uso de Ubicación</h2>
+
+    <h3>7.1 Permiso de Ubicación</h3>
+    <p>La App solicita acceso a la ubicación GPS <strong>solo cuando la app está abierta y visible</strong> en estos momentos:</p>
+    <ul>
+        <li>Inicias sesión (registrar entrada)</li>
+        <li>Finalizas jornada (registrar salida)</li>
+    </ul>
+
+    <p><strong>NO rastreamos ubicación en segundo plano</strong> ni fuera de estos eventos. La app NO pide el permiso de ubicación en segundo plano (ACCESS_BACKGROUND_LOCATION).</p>
+
+    <h3>7.2 Precisión de Ubicación</h3>
+    <ul>
+        <li><strong>Nivel requerido:</strong> GPS preciso (para verificar presencia física)</li>
+        <li><strong>Almacenamiento:</strong> Solo coordenadas (latitud/longitud) sin historial de movimiento</li>
+    </ul>
+
+    <h2>8. Notificaciones Push</h2>
+
+    <p>Enviamos notificaciones para:</p>
+    <ul>
+        <li>🔔 Recordatorios de finalizar jornada</li>
+        <li>🔔 Alertas de estado (trabajando, break, almuerzo)</li>
+        <li>🔔 Actualizaciones de la app</li>
+    </ul>
+
+    <p><strong>Puedes desactivar las notificaciones</strong> en la configuración de Android sin afectar el funcionamiento básico de la app.</p>
+
+    <h2>9. Uso de SDKs de Terceros</h2>
+
+    <p>La App utiliza los siguientes SDKs:</p>
+    <ul>
+        <li><strong>Firebase SDK:</strong> Autenticación, base de datos, notificaciones
+            <br><em>Proveedor: Google LLC</em>
+            <br><em>Política: <a href="https://firebase.google.com/support/privacy" target="_blank">https://firebase.google.com/support/privacy</a></em>
+        </li>
+        <li><strong>Expo SDK:</strong> Framework de React Native para funcionalidades nativas
+            <br><em>Proveedor: Expo (650 Industries, Inc.)</em>
+            <br><em>Política: <a href="https://expo.dev/privacy" target="_blank">https://expo.dev/privacy</a></em>
+        </li>
+        <li><strong>React Native:</strong> Framework de desarrollo multiplataforma
+            <br><em>Proveedor: Meta Platforms, Inc.</em>
+            <br><em>Política: <a href="https://www.facebook.com/privacy/policy" target="_blank">https://www.facebook.com/privacy/policy</a></em>
+        </li>
+    </ul>
+
+    <h3>9.1 Permisos de Android Utilizados</h3>
+    <p>La App solicita únicamente los siguientes permisos necesarios para su funcionamiento:</p>
+    <ul>
+        <li>✅ <strong>ACCESS_FINE_LOCATION:</strong> Ubicación GPS precisa (solo al iniciar/finalizar jornada)</li>
+        <li>✅ <strong>ACCESS_COARSE_LOCATION:</strong> Ubicación aproximada (backup del GPS)</li>
+        <li>✅ <strong>POST_NOTIFICATIONS:</strong> Enviar notificaciones push</li>
+        <li>✅ <strong>VIBRATE:</strong> Vibración para feedback táctil</li>
+        <li>✅ <strong>USE_BIOMETRIC:</strong> Autenticación biométrica (huella/Face ID)</li>
+        <li>✅ <strong>INTERNET:</strong> Conexión a Firebase</li>
+    </ul>
+
+    <p><strong>❌ La App NO solicita:</strong></p>
+    <ul>
+        <li>Acceso a cámara o fotos</li>
+        <li>Acceso a almacenamiento externo</li>
+        <li>Ubicación en segundo plano</li>
+        <li>Instalar otros paquetes</li>
+        <li>Leer o modificar contactos</li>
+        <li>Acceso a SMS o llamadas</li>
+    </ul>
+
+    <h2>10. Menores de Edad</h2>
+
+    <p>Esta App está diseñada para <strong>empleados mayores de 18 años</strong>. No recopilamos intencionalmente información de menores de edad. Si detectamos que un menor ha proporcionado datos, eliminaremos su cuenta inmediatamente.</p>
+
+    <h2>11. Cambios a Esta Política</h2>
+
+    <p>Podemos actualizar esta Política de Privacidad ocasionalmente. Los cambios se notificarán mediante:</p>
+    <ul>
+        <li>Notificación push en la app</li>
+        <li>Banner informativo al iniciar sesión</li>
+        <li>Actualización de la fecha "Última actualización" en esta página</li>
+    </ul>
+
+    <h2>12. Cumplimiento Legal</h2>
+
+    <p>Esta App cumple con:</p>
+    <ul>
+        <li>✅ <strong>GDPR:</strong> Reglamento General de Protección de Datos (UE)</li>
+        <li>✅ <strong>Ley de Protección de Datos Personales de Colombia</strong> (Ley 1581 de 2012)</li>
+        <li>✅ <strong>Google Play Developer Policies</strong></li>
+    </ul>
+
+    <h2>13. Transferencia Internacional de Datos</h2>
+
+    <p>Los datos se almacenan en servidores de Firebase ubicados en:</p>
+    <ul>
+        <li><strong>Región primaria:</strong> Estados Unidos (us-central1)</li>
+        <li><strong>Medidas de protección:</strong> Cláusulas contractuales estándar de la UE</li>
+    </ul>
+
+    <div class="contact">
+        <h2>14. Contacto</h2>
+        <p>Para preguntas sobre esta Política de Privacidad o ejercer tus derechos, contacta a:</p>
+        <p>
+            <strong>DR Group</strong><br>
+            Email: <a href="mailto:administracion@organizacionrdj.com">administracion@organizacionrdj.com</a><br>
+            Teléfono: +57 (305) 700-2736<br>
+            Colombia
+        </p>
+    </div>
+
+    <hr style="margin-top: 40px; border: none; border-top: 1px solid #ddd;">
+    <p style="text-align: center; color: #999; font-size: 12px;">
+        © 2026 DR Group. Todos los derechos reservados.
+    </p>
+</body>
+</html>
