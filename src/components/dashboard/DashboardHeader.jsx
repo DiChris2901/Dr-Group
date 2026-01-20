@@ -1039,36 +1039,6 @@ const DashboardHeader = ({ onOpenSettings }) => {
               primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
             />
           </MenuItem>
-
-          <Divider sx={{ my: 1 }} />
-
-          <MenuItem 
-            onClick={() => {
-              if (onOpenSettings) onOpenSettings();
-              handleMoreMenuClose();
-            }}
-            sx={{
-              borderRadius: 1.5,
-              px: 2,
-              py: 1.5,
-              transition: 'all 0.2s',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-                transform: 'translateX(4px)',
-                '& .MuiListItemIcon-root': {
-                  color: theme.palette.secondary.main,
-                }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.secondary.main }}>
-              <SettingsIcon sx={{ fontSize: 21 }} />
-            </ListItemIcon>
-            <ListItemText 
-              primary="Configuración Avanzada" 
-              primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
-            />
-          </MenuItem>
         </Box>
       </Menu>
     </Box>

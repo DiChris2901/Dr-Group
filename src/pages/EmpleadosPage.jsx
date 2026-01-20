@@ -1156,7 +1156,7 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
                 color: 'primary.main',
                 width: 40,
                 height: 40
@@ -1752,7 +1752,7 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.secondary.main, 0.1),
+                bgcolor: alpha(theme.palette.secondary.main, 0.08),
                 color: 'secondary.main',
                 width: 40,
                 height: 40
@@ -2541,8 +2541,8 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.info.main, 0.1),
-                color: 'info.main',
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                color: 'primary.main',
                 width: 40,
                 height: 40
               }}
