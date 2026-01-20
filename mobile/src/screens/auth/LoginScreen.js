@@ -301,9 +301,27 @@ export default function LoginScreen() {
               </Text>
             </Surface>
 
-            <Text style={{ textAlign: 'center', marginTop: 24, opacity: 0.5, fontSize: 12, color: theme.colors.onSurface }}>
-              v{Constants.expoConfig?.version ?? '1.0.0'}
-            </Text>
+            {/* 🔢 Versión de la App */}
+            <View style={{ alignItems: 'center', marginTop: 24, gap: 4 }}>
+              <Text style={{ 
+                fontSize: 11, 
+                fontWeight: '600',
+                letterSpacing: 1.2,
+                textTransform: 'uppercase',
+                color: theme.colors.onSurfaceVariant,
+                opacity: 0.6
+              }}>
+                DR Group Mobile
+              </Text>
+              <Text style={{ 
+                fontSize: 13, 
+                fontWeight: '500',
+                color: theme.colors.primary,
+                opacity: 0.8
+              }}>
+                Versión {Constants.expoConfig?.version ?? '1.0.0'}
+              </Text>
+            </View>
 
           </Animated.View>
         </View>
