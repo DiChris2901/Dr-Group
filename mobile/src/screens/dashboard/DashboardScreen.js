@@ -48,7 +48,8 @@ export default function DashboardScreen() {
     registrarAlmuerzo, 
     finalizarAlmuerzo, 
     finalizarJornada,
-    signOut
+    signOut,
+    isStartingSession // 🔒 Estado de procesamiento del inicio
   } = useAuth();
   
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
@@ -56,6 +57,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [novedadesVisible, setNovedadesVisible] = useState(false);
   const [novedadInitialType, setNovedadInitialType] = useState(null);
+  const [localLoading, setLocalLoading] = useState(false); // 🔒 Loading local adicional
 
   // ✅ Memoizar función de formateo para evitar recrearla
   const formatMs = useMemo(() => (ms) => {
@@ -66,11 +68,28 @@ export default function DashboardScreen() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }, []);
 
-  // ✅ Manejador seguro para iniciar jornada
+  // ✅ Manejador seguro para iniciar jornada con protección contra múltiples taps
   const handleIniciarJornada = async () => {
+    // 🔒 CAPA 2: Validación UI inmediata (prevenir doble tap)
+    if (localLoading || isStartingSession) {
+      console.log('⚠️ Ya se está procesando, ignorando toque duplicado');
+      return; // Salir silenciosamente sin alertar al usuario
+    }
+
     try {
+      setLocalLoading(true); // 🔒 Activar loading local inmediatamente
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // ✅ Feedback táctil inmediato
+      
       await iniciarJornada();
+      
+      // ✅ Feedback de éxito
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
+      // Si el error es por procesamiento duplicado, ignorar (ya hay candado activo)
+      if (error.message.includes('Ya se está procesando')) {
+        return; // No mostrar alerta, es protección interna
+      }
+      
       // Si el error es por jornada finalizada, ofrecer reapertura (sin loguear error)
       if (error.message.includes('Ya finalizaste tu jornada')) {
         Alert.alert(
@@ -92,7 +111,10 @@ export default function DashboardScreen() {
         // Otros errores (ej. horario temprano, sin conexión)
         console.log('Error al iniciar jornada:', error.message);
         Alert.alert('No se pudo iniciar', error.message);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); // ✅ Feedback de error
       }
+    } finally {
+      setLocalLoading(false); // 🔓 Liberar loading local
     }
   };
 
@@ -356,6 +378,7 @@ export default function DashboardScreen() {
       <FloatingActionBar
         status={activeSession?.estadoActual || 'off'}
         onPressStart={handleIniciarJornada}
+        isLoading={localLoading || isStartingSession} // 🔒 Pasar estado de loading
         onPressBreak={() => registrarBreak()}
         onPressLunch={() => registrarAlmuerzo()}
         onPressEnd={() => finalizarJornada()}

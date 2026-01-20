@@ -9,7 +9,8 @@ export default function FloatingActionBar({
   onPressLunch,
   onPressEnd,
   onPressResume,
-  breaksCount = 0
+  breaksCount = 0,
+  isLoading = false // 🔒 Estado de loading para deshabilitar botón
 }) {
   const theme = usePaperTheme();
   const { triggerHaptic } = useAppTheme();
@@ -23,14 +24,32 @@ export default function FloatingActionBar({
     return (
       <View style={styles.container}>
         <TouchableOpacity 
-          style={[styles.largeButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => handlePress(onPressStart, 'medium')}
-          activeOpacity={0.9}
+          style={[
+            styles.largeButton, 
+            { 
+              backgroundColor: isLoading ? theme.colors.surfaceDisabled : theme.colors.primary,
+              opacity: isLoading ? 0.6 : 1
+            }
+          ]}
+          onPress={() => !isLoading && handlePress(onPressStart, 'medium')} // 🔒 Prevenir acción si está loading
+          activeOpacity={isLoading ? 1 : 0.9} // No mostrar efecto press si está disabled
+          disabled={isLoading} // 🔒 Deshabilitar botón durante procesamiento
         >
-          <Icon source="hand-wave" size={24} color={theme.colors.onPrimary} />
-          <Text variant="titleMedium" style={{ color: theme.colors.onPrimary, fontWeight: 'bold', marginLeft: 8 }}>
-            Iniciar Jornada
-          </Text>
+          {isLoading ? (
+            <>
+              <Icon source="loading" size={24} color={theme.colors.onSurfaceVariant} />
+              <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: 'bold', marginLeft: 8 }}>
+                Iniciando jornada...
+              </Text>
+            </>
+          ) : (
+            <>
+              <Icon source="hand-wave" size={24} color={theme.colors.onPrimary} />
+              <Text variant="titleMedium" style={{ color: theme.colors.onPrimary, fontWeight: 'bold', marginLeft: 8 }}>
+                Iniciar Jornada
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     );

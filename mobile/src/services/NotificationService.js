@@ -111,6 +111,11 @@ class NotificationService {
    */
   async scheduleNotification({ title, body, seconds = 0, data = {} }) {
     try {
+      // ✅ Usar trigger con date para mostrar inmediatamente o con segundos
+      const trigger = seconds > 0 
+        ? { type: 'timeInterval', seconds, repeats: false }
+        : { type: 'date', date: new Date() };
+      
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title,
@@ -118,7 +123,7 @@ class NotificationService {
           data,
           sound: true,
         },
-        trigger: seconds > 0 ? { seconds } : null,
+        trigger,
       });
       return id;
     } catch (error) {
@@ -156,10 +161,11 @@ class NotificationService {
    * @param {Date} horaInicio - Hora de inicio del estado
    */
   async updateStateNotification(estado, horaInicio) {
-    // 1. Cancelar notificación anterior si existe
-    if (this.persistentNotificationId) {
-      await this.cancelNotification(this.persistentNotificationId);
-      this.persistentNotificationId = null;
+    // 1. Cancelar notificaciones anteriores
+    try {
+      await Notifications.dismissAllNotificationsAsync();
+    } catch (e) {
+      console.log('Error dismissing previous notifications:', e);
     }
 
     // 2. Definir contenido según estado
@@ -186,7 +192,8 @@ class NotificationService {
 
     // 3. Mostrar nueva notificación persistente
     try {
-      this.persistentNotificationId = await Notifications.scheduleNotificationAsync({
+      // ✅ Usar scheduleNotificationAsync con trigger date para mostrar inmediatamente
+      await Notifications.scheduleNotificationAsync({
         content: {
           title,
           body,
@@ -194,10 +201,12 @@ class NotificationService {
           priority: Notifications.AndroidNotificationPriority.HIGH,
           autoDismiss: false, // Android: No se borra al tocarla
           sound: false, // Silenciosa para no molestar al actualizar
-          data: { estado }, // ✅ Datos para navegación
+          data: { estado, isPersistent: true }, // ✅ Datos para navegación
         },
-        trigger: null, // Mostrar inmediatamente
+        trigger: { type: 'date', date: new Date() }, // ✅ Mostrar inmediatamente
       });
+      
+      // Nota: Las notificaciones se gestionan con dismissAllNotificationsAsync cuando sea necesario
     } catch (error) {
       console.error('Error updating state notification:', error);
     }
@@ -207,9 +216,11 @@ class NotificationService {
    * Cancela la notificación persistente actual
    */
   async clearStateNotification() {
-    if (this.persistentNotificationId) {
-      await this.cancelNotification(this.persistentNotificationId);
-      this.persistentNotificationId = null;
+    try {
+      // ✅ Limpiar todas las notificaciones presentadas (drawer de notificaciones)
+      await Notifications.dismissAllNotificationsAsync();
+    } catch (error) {
+      console.error('Error clearing state notification:', error);
     }
   }
 
