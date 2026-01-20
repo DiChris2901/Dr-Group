@@ -49,6 +49,8 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [noteForm, setNoteForm] = useState({ title: '', content: '', color: '#1976d2' });
+  const [initialNoteForm, setInitialNoteForm] = useState({ title: '', content: '', color: '#1976d2' });
+  const [confirmCloseDialogOpen, setConfirmCloseDialogOpen] = useState(false);
 
   const recentNotes = getRecentNotes(4);
 
@@ -61,26 +63,56 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
     { name: 'Gris', value: '#616161' }
   ];
 
+  // Detectar si hay cambios sin guardar
+  const hasUnsavedChanges = () => {
+    return (
+      noteForm.title !== initialNoteForm.title ||
+      noteForm.content !== initialNoteForm.content ||
+      noteForm.color !== initialNoteForm.color
+    );
+  };
+
   const handleOpenNoteModal = (note = null) => {
+    const initialForm = note ? {
+      title: note.title || '',
+      content: note.content || '',
+      color: note.color || '#1976d2'
+    } : { title: '', content: '', color: '#1976d2' };
+
     if (note) {
       setEditingNote(note);
-      setNoteForm({
-        title: note.title || '',
-        content: note.content || '',
-        color: note.color || '#1976d2'
-      });
     } else {
       setEditingNote(null);
-      setNoteForm({ title: '', content: '', color: '#1976d2' });
     }
+    
+    setNoteForm(initialForm);
+    setInitialNoteForm(initialForm);
     setNoteModalOpen(true);
     onClose();
+  };
+
+  const handleAttemptClose = () => {
+    if (hasUnsavedChanges()) {
+      setConfirmCloseDialogOpen(true);
+    } else {
+      handleCloseNoteModal();
+    }
+  };
+
+  const handleConfirmClose = () => {
+    setConfirmCloseDialogOpen(false);
+    handleCloseNoteModal();
+  };
+
+  const handleCancelClose = () => {
+    setConfirmCloseDialogOpen(false);
   };
 
   const handleCloseNoteModal = () => {
     setNoteModalOpen(false);
     setEditingNote(null);
     setNoteForm({ title: '', content: '', color: '#1976d2' });
+    setInitialNoteForm({ title: '', content: '', color: '#1976d2' });
   };
 
   const handleSaveNote = async () => {
@@ -131,26 +163,42 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h6" fontWeight="bold">
+        <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" fontWeight="600" sx={{ letterSpacing: '-0.01em' }}>
               Mis Notas
             </Typography>
             <Chip
               label={notesCount}
               size="small"
-              color="primary"
-              sx={{ minWidth: 24 }}
+              sx={{ 
+                minWidth: 24,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                color: 'white',
+                fontWeight: 600
+              }}
             />
           </Box>
           
           <Button
             fullWidth
             startIcon={<AddIcon />}
-            variant="contained"
-            size="small"
             onClick={() => handleOpenNoteModal()}
-            sx={{ mt: 1, borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              color: 'white',
+              textTransform: 'none',
+              fontWeight: 600,
+              py: 1.25,
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+              '&:hover': {
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                transform: 'translateY(-1px)'
+              },
+              transition: 'all 0.2s ease'
+            }}
           >
             Nueva Nota
           </Button>
@@ -179,9 +227,17 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               >
                 <ListItem
                   sx={{
-                    borderLeft: `4px solid ${note.color || '#1976d2'}`,
-                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
-                    cursor: 'pointer'
+                    py: 2,
+                    px: 2.5,
+                    borderLeft: `6px solid ${note.color || '#1976d2'}`,
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    '&:hover': { 
+                      bgcolor: alpha(theme.palette.primary.main, 0.04),
+                      boxShadow: `inset 0 0 0 1px ${alpha(note.color || '#1976d2', 0.2)}`,
+                      transform: 'translateX(2px)'
+                    }
                   }}
                   onClick={() => handleOpenNoteModal(note)}
                 >
@@ -189,7 +245,16 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         {note.title && (
-                          <Typography variant="subtitle2" fontWeight="600" noWrap>
+                          <Typography 
+                            variant="subtitle2" 
+                            fontWeight="600" 
+                            noWrap
+                            sx={{ 
+                              color: 'text.primary',
+                              letterSpacing: '-0.01em',
+                              mb: 0.5
+                            }}
+                          >
                             {note.title}
                           </Typography>
                         )}
@@ -197,16 +262,26 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
                           variant="body2" 
                           color="text.secondary"
                           sx={{ 
-                            mt: 0.5,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            lineHeight: 1.5,
+                            fontSize: '0.875rem'
                           }}
                         >
                           {note.content || 'Sin contenido'}
                         </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
+                        <Typography 
+                          variant="caption" 
+                          color="text.disabled" 
+                          sx={{ 
+                            mt: 1, 
+                            display: 'block',
+                            fontSize: '0.75rem',
+                            textTransform: 'lowercase'
+                          }}
+                        >
                           {formatDistanceToNow(note.updatedAt, { addSuffix: true, locale: es })}
                         </Typography>
                       </Box>
@@ -216,7 +291,17 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
                           e.stopPropagation();
                           handleDeleteNote(note.id);
                         }}
-                        sx={{ ml: 1, opacity: 0.6, '&:hover': { opacity: 1, color: 'error.main' } }}
+                        sx={{ 
+                          ml: 1, 
+                          opacity: 0.5,
+                          transition: 'all 0.2s ease',
+                          '&:hover': { 
+                            opacity: 1, 
+                            color: 'error.main',
+                            bgcolor: alpha(theme.palette.error.main, 0.08),
+                            transform: 'scale(1.1)'
+                          } 
+                        }}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -230,14 +315,24 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
         </MenuList>
 
         {notesCount > 4 && (
-          <Box sx={{ p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ p: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
             <Button
               fullWidth
               startIcon={<AllNotesIcon />}
-              size="small"
               onClick={() => {
                 setAllNotesModalOpen(true);
                 onClose();
+              }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 500,
+                color: 'text.secondary',
+                py: 1,
+                borderRadius: 1.5,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  color: 'primary.main'
+                }
               }}
             >
               Ver todas las notas ({notesCount})
@@ -249,7 +344,7 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
       {/* Modal para crear/editar nota */}
       <Dialog
         open={noteModalOpen}
-        onClose={handleCloseNoteModal}
+        onClose={handleAttemptClose}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -284,20 +379,39 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               {editingNote ? <EditIcon /> : <AddIcon />}
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 700,
-                mb: 0,
-                color: 'text.primary' 
-              }}>
-                {editingNote ? 'Editar Nota' : 'Nueva Nota'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 700,
+                  mb: 0,
+                  color: 'text.primary' 
+                }}>
+                  {editingNote ? 'Editar Nota' : 'Nueva Nota'}
+                </Typography>
+                {hasUnsavedChanges() && (
+                  <Chip
+                    size="small"
+                    label="Sin guardar"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.warning.main, 0.15),
+                      color: 'warning.main',
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                      '& .MuiChip-label': {
+                        px: 1
+                      }
+                    }}
+                  />
+                )}
+              </Box>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {editingNote ? 'Actualiza la información de tu nota' : 'Crea una nueva nota rápida'}
               </Typography>
             </Box>
           </Box>
           <IconButton 
-            onClick={handleCloseNoteModal} 
+            onClick={handleAttemptClose} 
             sx={{ color: 'text.secondary' }}
           >
             <CloseIcon />
@@ -510,7 +624,7 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           borderTop: `1px solid ${theme.palette.divider}`
         }}>
           <Button 
-            onClick={handleCloseNoteModal}
+            onClick={handleAttemptClose}
             sx={{
               borderRadius: 1,
               textTransform: 'none',
@@ -534,6 +648,143 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
             }}
           >
             {editingNote ? 'Actualizar' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de confirmación para cambios sin guardar */}
+      <Dialog
+        open={confirmCloseDialogOpen}
+        onClose={handleCancelClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          display: 'flex', 
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ 
+              bgcolor: alpha(theme.palette.warning.main, 0.15),
+              color: 'warning.main',
+              width: 40,
+              height: 40
+            }}>
+              ⚠️
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700, 
+                mb: 0,
+                color: 'text.primary'
+              }}>
+                Cambios sin guardar
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Tienes cambios pendientes
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          <Box sx={{ mt: 2 }}>
+            <Box
+              component={motion.div}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+              background: alpha(theme.palette.warning.main, 0.04),
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2
+            }}
+          >
+            <Box sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              bgcolor: alpha(theme.palette.warning.main, 0.15),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Typography sx={{ fontSize: '1.5rem' }}>⚠️</Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2" sx={{ 
+                color: 'text.primary',
+                fontWeight: 500,
+                mb: 0.5
+              }}>
+                Has realizado cambios en esta nota que aún no se han guardado.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                Si cierras este modal sin guardar, perderás todos los cambios realizados. ¿Deseas descartarlos?
+              </Typography>
+            </Box>
+          </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderTop: `1px solid ${theme.palette.divider}`,
+          gap: 1.5
+        }}>
+          <Button 
+            onClick={handleCancelClose}
+            sx={{
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 3,
+              color: 'text.primary',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.primary.main, 0.04)
+              }
+            }}
+          >
+            Seguir editando
+          </Button>
+          <Button
+            onClick={handleConfirmClose}
+            variant="contained"
+            color="warning"
+            sx={{
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}
+          >
+            Descartar cambios
           </Button>
         </DialogActions>
       </Dialog>

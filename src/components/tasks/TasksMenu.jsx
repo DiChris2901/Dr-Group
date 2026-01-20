@@ -242,9 +242,9 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="h6" fontWeight="bold">
+        <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" fontWeight="600" sx={{ letterSpacing: '-0.01em' }}>
               Mis Tareas
             </Typography>
             <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -252,26 +252,35 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
                 <Chip
                   label={`${highPriorityPendingCount} alta`}
                   size="small"
-                  color="error"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
+                  sx={{ 
+                    fontSize: '0.7rem', 
+                    height: 20,
+                    bgcolor: alpha(theme.palette.error.main, 0.15),
+                    color: 'error.main',
+                    fontWeight: 600
+                  }}
                 />
               )}
               <Chip
                 label={pendingTasksCount}
                 size="small"
-                color="primary"
-                sx={{ minWidth: 24 }}
+                sx={{ 
+                  minWidth: 24,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                  color: 'white',
+                  fontWeight: 600
+                }}
               />
             </Box>
           </Box>
           
           {/* Barra de progreso */}
-          <Box sx={{ mb: 1 }}>
+          <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" fontWeight="500">
                 Progreso: {getCompletionRate()}%
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" fontWeight="500">
                 {completedTasksCount}/{pendingTasksCount + completedTasksCount}
               </Typography>
             </Box>
@@ -280,8 +289,12 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
               value={getCompletionRate()} 
               sx={{ 
                 borderRadius: 1,
-                height: 6,
-                bgcolor: alpha(theme.palette.primary.main, 0.1)
+                height: 7,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                '& .MuiLinearProgress-bar': {
+                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                  borderRadius: 1
+                }
               }}
             />
           </Box>
@@ -289,10 +302,22 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
           <Button
             fullWidth
             startIcon={<AddIcon />}
-            variant="contained"
-            size="small"
             onClick={() => handleOpenTaskModal()}
-            sx={{ borderRadius: 2 }}
+            sx={{ 
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              color: 'white',
+              textTransform: 'none',
+              fontWeight: 600,
+              py: 1.25,
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+              '&:hover': {
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                transform: 'translateY(-1px)'
+              },
+              transition: 'all 0.2s ease'
+            }}
           >
             Nueva Tarea
           </Button>
@@ -321,10 +346,19 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
               >
                 <ListItem
                   sx={{
-                    borderLeft: `4px solid ${getPriorityColor(task.priority)}`,
-                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+                    py: 2,
+                    px: 2.5,
+                    borderLeft: `6px solid ${getPriorityColor(task.priority)}`,
+                    transition: 'all 0.2s ease',
                     cursor: 'pointer',
-                    opacity: task.completed ? 0.7 : 1
+                    opacity: task.completed ? 0.6 : 1,
+                    position: 'relative',
+                    '&:hover': { 
+                      bgcolor: alpha(theme.palette.primary.main, 0.04),
+                      boxShadow: `inset 0 0 0 1px ${alpha(getPriorityColor(task.priority), 0.2)}`,
+                      transform: 'translateX(2px)',
+                      opacity: task.completed ? 0.7 : 1
+                    }
                   }}
                   onClick={() => handleOpenTaskModal(task)}
                 >
@@ -337,6 +371,12 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
                       }}
                       size="small"
                       color="primary"
+                      sx={{
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'scale(1.1)'
+                        }
+                      }}
                     />
                   </ListItemIcon>
                   
@@ -348,7 +388,9 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
                         noWrap
                         sx={{ 
                           textDecoration: task.completed ? 'line-through' : 'none',
-                          flex: 1
+                          flex: 1,
+                          color: 'text.primary',
+                          letterSpacing: '-0.01em'
                         }}
                       >
                         {task.title}
@@ -359,7 +401,17 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
                           e.stopPropagation();
                           handleDeleteTask(task.id);
                         }}
-                        sx={{ ml: 1, opacity: 0.6, '&:hover': { opacity: 1, color: 'error.main' } }}
+                        sx={{ 
+                          ml: 1, 
+                          opacity: 0.5,
+                          transition: 'all 0.2s ease',
+                          '&:hover': { 
+                            opacity: 1, 
+                            color: 'error.main',
+                            bgcolor: alpha(theme.palette.error.main, 0.08),
+                            transform: 'scale(1.1)'
+                          } 
+                        }}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -417,14 +469,24 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
         </MenuList>
 
         {tasks.length > 5 && (
-          <Box sx={{ p: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ p: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
             <Button
               fullWidth
               startIcon={<TaskIcon />}
-              size="small"
               onClick={() => {
                 setAllTasksModalOpen(true);
                 onClose();
+              }}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 500,
+                color: 'text.secondary',
+                py: 1,
+                borderRadius: 1.5,
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  color: 'primary.main'
+                }
               }}
             >
               Ver todas las tareas ({tasks.length})
@@ -440,33 +502,65 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 2 }
+          sx: { 
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+          }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          {editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
+        <DialogTitle sx={{ 
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${theme.palette.divider}`
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar sx={{ 
+              bgcolor: alpha(theme.palette.primary.main, 0.15),
+              color: 'primary.main'
+            }}>
+              <TaskIcon />
+            </Avatar>
+            <Typography variant="h6" fontWeight="600" sx={{ letterSpacing: '-0.01em' }}>
+              {editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
+            </Typography>
+          </Box>
           <IconButton
             onClick={handleCloseTaskModal}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
+            sx={{ 
+              '&:hover': { 
+                bgcolor: alpha(theme.palette.error.main, 0.08),
+                color: 'error.main'
+              }
+            }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Título *"
-            fullWidth
-            variant="outlined"
-            value={taskForm.title}
-            onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-            sx={{ mb: 2 }}
-          />
+        <DialogContent sx={{ p: 3, pt: 2 }}>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              autoFocus
+              label="Título *"
+              fullWidth
+              variant="outlined"
+              value={taskForm.title}
+              onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+              sx={{ 
+                mb: 2.5,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
           
           <TextField
-            margin="dense"
             label="Descripción"
             fullWidth
             multiline
@@ -474,16 +568,24 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
             variant="outlined"
             value={taskForm.description}
             onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-            sx={{ mb: 2 }}
+            sx={{ 
+              mb: 2.5,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2
+              }
+            }}
           />
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <FormControl fullWidth>
               <InputLabel>Prioridad</InputLabel>
               <Select
                 value={taskForm.priority}
                 label="Prioridad"
                 onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                sx={{
+                  borderRadius: 2
+                }}
               >
                 {priorities.map((priority) => (
                   <MenuItem key={priority.value} value={priority.value}>
@@ -502,13 +604,35 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
               value={taskForm.dueDate}
               onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
               InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 200 }}
+              sx={{ 
+                minWidth: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
             />
+          </Box>
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={handleCloseTaskModal}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderTop: `1px solid ${theme.palette.divider}`,
+          gap: 1.5
+        }}>
+          <Button 
+            onClick={handleCloseTaskModal}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500,
+              borderRadius: 2,
+              px: 3
+            }}
+          >
             Cancelar
           </Button>
           <Button
@@ -516,6 +640,16 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
             variant="contained"
             startIcon={<SaveIcon />}
             disabled={!taskForm.title.trim()}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 2,
+              px: 3,
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+              '&:hover': {
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`
+              }
+            }}
           >
             {editingTask ? 'Actualizar' : 'Guardar'}
           </Button>
