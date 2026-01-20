@@ -119,10 +119,10 @@ const UpdateBanner = () => {
     >
       <View style={[styles.banner, { 
         borderLeftColor: primaryColor,
-        backgroundColor: primaryColor + '10', // 6% opacidad
+        backgroundColor: '#FFFFFF', // Fondo sólido blanco
       }]}>
         {/* Ícono */}
-        <View style={[styles.iconContainer, { backgroundColor: primaryColor + '15' }]}>
+        <View style={[styles.iconContainer, { backgroundColor: primaryColor + '18' }]}>
           <MaterialCommunityIcons 
             name={isDownloading ? "download" : "update"} 
             size={24} 
