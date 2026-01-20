@@ -58,12 +58,15 @@ export const useContractExpirationAlerts = () => {
       
       const daysUntilExpiration = differenceInDays(expirationDate, today);
 
-      // Periodos de alerta: 365, 180, 90, 30, 0 días
+      // Periodos de alerta: 6 meses, 3 meses, 2 meses, 1 mes, 15 días, 1 semana, 3 días, día del evento
       const alertPeriods = [
-        { days: 365, label: '1 año', severity: 'info' },
         { days: 180, label: '6 meses', severity: 'info' },
-        { days: 90, label: '3 meses', severity: 'warning' },
+        { days: 90, label: '3 meses', severity: 'info' },
+        { days: 60, label: '2 meses', severity: 'warning' },
         { days: 30, label: '1 mes', severity: 'warning' },
+        { days: 15, label: '15 días', severity: 'warning' },
+        { days: 7, label: '1 semana', severity: 'warning' },
+        { days: 3, label: '3 días', severity: 'error' },
         { days: 0, label: 'hoy', severity: 'error' }
       ];
 

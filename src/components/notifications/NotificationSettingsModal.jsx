@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  FormGroup,
   FormControlLabel,
   Checkbox,
   Typography,
@@ -14,14 +13,10 @@ import {
   Alert,
   IconButton,
   Divider,
-  Chip,
-  Grid,
   Paper,
-  Avatar,
   Switch,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  ToggleButton,
+  ToggleButtonGroup,
   alpha
 } from '@mui/material';
 import {
@@ -31,16 +26,7 @@ import {
   Notifications as NotificationsIcon,
   Settings as SettingsIcon,
   CheckCircle as CheckCircleIcon,
-  Send as SendIcon,
-  ExpandMore as ExpandMoreIcon,
-  People as PeopleIcon,
-  Assignment as AssignmentIcon,
-  Warning as WarningIcon,
-  Payment as PaymentIcon,
-  TrendingUp as TrendingUpIcon,
-  Assessment as AssessmentIcon,
-  Security as SecurityIcon,
-  Business as BusinessIcon
+  Event as EventIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { doc, updateDoc, getFirestore, getDoc } from 'firebase/firestore';
@@ -61,47 +47,14 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
   const theme = useTheme();
   
   const [settings, setSettings] = useState({
+    notificationChannel: 'email', // 'email' o 'telegram'
     emailEnabled: true,
     telegramEnabled: false,
     telegramChatId: '',
-    // 👥 Gestión de Usuarios
-    userCreated: true,
-    userUpdated: true,
-    roleChanged: true,
-    // 📅 Compromisos Próximos a Vencer
-    commitments15Days: true,
-    commitments7Days: true,
-    commitments2Days: true,
-    commitmentsDueToday: true,
-    // 🚨 Compromisos Críticos
-    commitmentOverdue: true,
-    commitmentHighValue: true,
-    commitmentCompleted: true,
-    // 📋 Contratos de Empresas (NUEVO)
-    contract365Days: true,
-    contract180Days: true,
-    contract90Days: true,
-    contract30Days: true,
-    contractDueToday: true,
-    contractExpired: true,
-    // 💳 Pagos
-    paymentRegistered: true,
-    paymentPartial: false,
-    // 📈 Ingresos
-    incomeReceived: true,
-    bankBalanceLow: false,
-    // 📊 Reportes y Resúmenes
-    weeklySummary: true,
-    monthlySummary: true,
-    cashFlowAlert: false,
-    // 🔐 Seguridad
-    criticalPermissionChange: true,
-    suspiciousAccess: false,
-    dataExport: false,
-    // 📋 Otros
-    newCommitments: true,
-    automaticEvents: true,
-    calendarEventsEnabled: true // 🆕 Eventos del calendario
+    customEventsEnabled: true, // Eventos personalizados del calendario
+    coljuegosEnabled: true, // Décimo día hábil
+    uiafEnabled: true, // Día 10
+    parafiscalesEnabled: true // Tercer día hábil
   });
   
   const [loading, setLoading] = useState(false);
@@ -120,14 +73,33 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         
         if (userData.exists() && userData.data().notificationSettings) {
           const userSettings = userData.data().notificationSettings;
-          setSettings(prev => ({
-            ...prev,
-            ...userSettings,
-            // Asegurar que nuevos campos tengan valores por defecto si no existen
-            calendarEventsEnabled: userSettings.calendarEventsEnabled !== undefined 
-              ? userSettings.calendarEventsEnabled 
+          
+          // Determinar el canal activo
+          let channel = 'email';
+          if (userSettings.telegramEnabled && userSettings.telegramChatId) {
+            channel = 'telegram';
+          } else if (userSettings.emailEnabled) {
+            channel = 'email';
+          }
+          
+          setSettings({
+            notificationChannel: channel,
+            emailEnabled: channel === 'email',
+            telegramEnabled: channel === 'telegram',
+            telegramChatId: userSettings.telegramChatId || '',
+            customEventsEnabled: userSettings.customEventsEnabled !== undefined 
+              ? userSettings.customEventsEnabled 
+              : true,
+            coljuegosEnabled: userSettings.coljuegosEnabled !== undefined 
+              ? userSettings.coljuegosEnabled 
+              : true,
+            uiafEnabled: userSettings.uiafEnabled !== undefined 
+              ? userSettings.uiafEnabled 
+              : true,
+            parafiscalesEnabled: userSettings.parafiscalesEnabled !== undefined 
+              ? userSettings.parafiscalesEnabled 
               : true
-          }));
+          });
         }
       } catch (error) {
         console.error('Error cargando configuración:', error);
@@ -141,10 +113,21 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
     }
   }, [user, open]);
 
-  const handleCheckboxChange = (field) => (event) => {
+  const handleChannelChange = (event, newChannel) => {
+    if (!newChannel) return; // Siempre debe haber un canal seleccionado
+    
     setSettings(prev => ({
       ...prev,
-      [field]: event.target.checked
+      notificationChannel: newChannel,
+      emailEnabled: newChannel === 'email',
+      telegramEnabled: newChannel === 'telegram'
+    }));
+  };
+
+  const handleCustomEventsToggle = (event) => {
+    setSettings(prev => ({
+      ...prev,
+      customEventsEnabled: event.target.checked
     }));
   };
 
@@ -157,11 +140,6 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
     
     if (settings.telegramEnabled && !settings.telegramChatId) {
       setError('Por favor ingresa tu Chat ID de Telegram');
-      return;
-    }
-
-    if (!settings.emailEnabled && !settings.telegramEnabled) {
-      setError('Debes activar al menos un canal de notificación');
       return;
     }
 
@@ -201,126 +179,96 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         addNotification({
           type: 'info',
           title: 'Enviando Prueba',
-          message: 'Enviando correo de prueba...',
-          icon: 'email'
+          message: 'Enviando correo de prueba...'
         });
-
-        await sendTestNotification(
-          user?.email || currentUser?.email || 'test@drgroup.com',
-          user?.displayName || user?.name || 'Usuario de Prueba'
-        );
-
-        const isDemoMode = !import.meta.env.VITE_EMAILJS_SERVICE_ID || 
-                          import.meta.env.VITE_EMAILJS_SERVICE_ID === 'tu-service-id-aqui';
+        
+        await sendTestNotification(user.email, user.displayName);
         
         addNotification({
           type: 'success',
-          title: isDemoMode ? '🎭 Demo - Email Simulado' : '✅ Email Enviado',
-          message: isDemoMode 
-            ? 'Email simulado enviado (configura EmailJS para envío real)'
-            : 'El correo de prueba fue enviado correctamente',
-          icon: 'email'
+          title: 'Correo Enviado',
+          message: 'Revisa tu bandeja de entrada'
         });
       } catch (error) {
-        console.error('Error enviando email de prueba:', error);
         addNotification({
           type: 'error',
-          title: '❌ Error en Email',
-          message: error.message || 'Error al enviar el correo de prueba',
-          icon: 'email'
+          title: 'Error',
+          message: error.message
         });
       }
     } else if (channel === 'telegram') {
-      // Verificar que haya Chat ID configurado
       if (!settings.telegramChatId) {
-        addNotification({
-          type: 'warning',
-          title: '⚠️ Chat ID requerido',
-          message: 'Por favor configura tu Chat ID de Telegram primero',
-          icon: 'telegram'
-        });
+        setError('Por favor ingresa tu Chat ID primero');
         return;
       }
-
+      
       try {
-        // Enviar mensaje de prueba por Telegram
-        await sendTelegramTest(
-          settings.telegramChatId,
-          user?.displayName || user?.email || 'Usuario'
-        );
-
         addNotification({
-          type: 'success',
-          title: '✅ Telegram Enviado',
-          message: `Mensaje de prueba enviado a ${settings.telegramChatId}`,
-          icon: 'telegram'
+          type: 'info',
+          title: 'Enviando Prueba',
+          message: 'Enviando mensaje a Telegram...'
         });
+        
+        const isValid = await verifyChatId(settings.telegramChatId);
+        
+        if (isValid) {
+          await sendTelegramTest(settings.telegramChatId, user.displayName);
+          
+          addNotification({
+            type: 'success',
+            title: 'Mensaje Enviado',
+            message: 'Revisa tu chat de Telegram'
+          });
+        } else {
+          addNotification({
+            type: 'error',
+            title: 'Chat ID Inválido',
+            message: 'Verifica tu Chat ID'
+          });
+        }
       } catch (error) {
-        console.error('Error enviando mensaje de Telegram:', error);
         addNotification({
           type: 'error',
-          title: '❌ Error en Telegram',
-          message: error.message || 'Error al enviar el mensaje de prueba',
-          icon: 'telegram'
+          title: 'Error',
+          message: error.message
         });
       }
     }
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         sx: {
           borderRadius: 2,
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`
+          boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
         }
       }}
     >
-      {/* HEADER SOBRIO CON DISEÑO EMPRESARIAL */}
       <DialogTitle sx={{ 
-        pb: 2,
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        background: theme.palette.mode === 'dark' 
-          ? theme.palette.grey[900]
-          : theme.palette.grey[50],
-        borderBottom: `1px solid ${theme.palette.divider}`
+        pb: 3,
+        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+        color: 'white'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ 
-            bgcolor: 'primary.main', 
-            width: 48,
-            height: 48
-          }}>
-            <SettingsIcon />
-          </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700,
-              color: 'text.primary' 
-            }}>
-              Configuración de Notificaciones
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {user?.displayName || user?.email || 'Email + Telegram'}
-            </Typography>
-          </Box>
+        <Box display="flex" alignItems="center" gap={1}>
+          <NotificationsIcon />
+          <Typography variant="h6" fontWeight={600}>
+            Configuración de Notificaciones
+          </Typography>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 3 }}>
-        {/* ALERTS */}
+      <DialogContent sx={{ pt: 4 }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -328,458 +276,233 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
+          <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
             ✅ Configuración guardada exitosamente
           </Alert>
         )}
 
-        {/* CANALES DE NOTIFICACIÓN */}
+        {/* Canal de Notificación */}
         <Paper elevation={0} sx={{ 
-          p: 3, 
-          mb: 3, 
+          p: 2.5, 
+          mt: 2,
+          mb: 3,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50'
+          bgcolor: alpha(theme.palette.primary.main, 0.02)
         }}>
-          <Typography variant="overline" sx={{
-            fontWeight: 600,
-            color: 'primary.main',
-            letterSpacing: 0.8,
-            fontSize: '0.75rem'
-          }}>
-            CANALES DE COMUNICACIÓN
+          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+            📢 Canal de Notificación
+          </Typography>
+          
+          <ToggleButtonGroup
+            value={settings.notificationChannel}
+            exclusive
+            onChange={handleChannelChange}
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="email" sx={{ py: 1.5 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <EmailIcon />
+                <Typography variant="body2" fontWeight={500}>
+                  Email
+                </Typography>
+              </Box>
+            </ToggleButton>
+            <ToggleButton value="telegram" sx={{ py: 1.5 }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <TelegramIcon />
+                <Typography variant="body2" fontWeight={500}>
+                  Telegram
+                </Typography>
+              </Box>
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Selecciona el canal donde recibirás las notificaciones automáticas del sistema
           </Typography>
 
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            {/* EMAIL CHANNEL */}
-            <Grid item xs={12} md={6}>
-              <Paper sx={{
-                p: 2.5,
-                borderRadius: 2,
-                border: settings.emailEnabled 
-                  ? `2px solid ${theme.palette.primary.main}`
-                  : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                background: settings.emailEnabled
-                  ? alpha(theme.palette.primary.main, 0.04)
-                  : 'transparent',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
-                }
-              }}
-              onClick={() => setSettings(prev => ({ ...prev, emailEnabled: !prev.emailEnabled }))}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EmailIcon sx={{ 
-                      fontSize: 28, 
-                      color: settings.emailEnabled ? 'primary.main' : 'text.disabled' 
-                    }} />
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Email
-                    </Typography>
-                  </Box>
-                  <Switch 
-                    checked={settings.emailEnabled}
-                    color="primary"
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setSettings(prev => ({ ...prev, emailEnabled: e.target.checked }))}
-                  />
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  📧 Formal · Registro permanente
-                </Typography>
-
-                {settings.emailEnabled && (
-                  <Button
-                    fullWidth
-                    size="small"
-                    variant="outlined"
-                    startIcon={<SendIcon />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTestNotification('email');
-                    }}
-                    disabled={emailLoading}
-                  >
-                    {emailLoading ? 'Enviando...' : '▶ Prueba'}
-                  </Button>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* TELEGRAM CHANNEL */}
-            <Grid item xs={12} md={6}>
-              <Paper sx={{
-                p: 2.5,
-                borderRadius: 2,
-                border: settings.telegramEnabled 
-                  ? `2px solid ${theme.palette.info.main}`
-                  : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                background: settings.telegramEnabled
-                  ? alpha(theme.palette.info.main, 0.04)
-                  : 'transparent',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  borderColor: theme.palette.info.main,
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
-                }
-              }}
-              onClick={() => setSettings(prev => ({ ...prev, telegramEnabled: !prev.telegramEnabled }))}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TelegramIcon sx={{ 
-                      fontSize: 28, 
-                      color: settings.telegramEnabled ? 'info.main' : 'text.disabled' 
-                    }} />
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Telegram
-                    </Typography>
-                  </Box>
-                  <Switch 
-                    checked={settings.telegramEnabled}
-                    color="info"
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setSettings(prev => ({ ...prev, telegramEnabled: e.target.checked }))}
-                  />
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  ⚡ Instantáneo · Siempre visible
-                </Typography>
-
-                {settings.telegramEnabled && settings.telegramChatId && (
-                  <Button
-                    fullWidth
-                    size="small"
-                    variant="outlined"
-                    color="info"
-                    startIcon={<SendIcon />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTestNotification('telegram');
-                    }}
-                    disabled={telegramSending}
-                  >
-                    {telegramSending ? 'Enviando...' : '▶ Prueba'}
-                  </Button>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
-
-          {/* TELEGRAM CONFIGURATION */}
-          {settings.telegramEnabled && (
-            <Box sx={{ mt: 2 }}>
-              <Alert 
-                severity="info" 
-                sx={{ mb: 2 }}
-                action={
-                  <Button 
-                    size="small" 
-                    onClick={handleShowInstructions}
-                  >
-                    {showChatIdInstructions ? 'Ocultar' : 'Ver Guía'}
-                  </Button>
-                }
-              >
-                Necesitas tu Chat ID de Telegram para recibir notificaciones
+          {/* Configuración Email */}
+          {settings.notificationChannel === 'email' && (
+            <Box>
+              <Alert severity="info" icon={<EmailIcon />} sx={{ mb: 1.5 }}>
+                Recibirás notificaciones en: <strong>{user?.email}</strong>
               </Alert>
+              
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => handleTestNotification('email')}
+                disabled={emailLoading}
+                startIcon={<EmailIcon />}
+                sx={{ borderRadius: 1 }}
+              >
+                {emailLoading ? 'Enviando...' : 'Enviar Prueba a Email'}
+              </Button>
+            </Box>
+          )}
 
-              {showChatIdInstructions && (
-                <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    📱 Cómo Obtener tu Chat ID:
-                  </Typography>
-                  <Box component="ol" sx={{ pl: 2, m: 0 }}>
-                    <li>
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        Abre Telegram y busca: <strong>@DrGroup_notifications_bot</strong>
-                      </Typography>
-                    </li>
-                    <li>
-                      <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Typography variant="body2" component="span">
-                          Envía el comando:
-                        </Typography>
-                        <Chip label="/start" size="small" />
-                      </Box>
-                    </li>
-                    <li>
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        <strong>El bot te responderá automáticamente</strong> con tu Chat ID 🤖
-                      </Typography>
-                    </li>
-                    <li>
-                      <Typography variant="body2">
-                        Copia el número y pégalo en el campo de abajo ✅
-                      </Typography>
-                    </li>
-                  </Box>
-                </Paper>
-              )}
-
+          {/* Configuración Telegram */}
+          {settings.notificationChannel === 'telegram' && (
+            <Box>
               <TextField
                 fullWidth
                 label="Chat ID de Telegram"
                 value={settings.telegramChatId}
                 onChange={(e) => setSettings(prev => ({ ...prev, telegramChatId: e.target.value }))}
-                placeholder="Ej: 7821863320"
-                helperText="Envía /start a @DrGroup_notifications_bot para obtener tu Chat ID"
+                placeholder="Ej: 123456789"
                 variant="outlined"
                 size="small"
+                sx={{ mb: 1.5 }}
+                helperText={
+                  <Typography 
+                    variant="caption" 
+                    sx={{ cursor: 'pointer', color: 'primary.main' }}
+                    onClick={handleShowInstructions}
+                  >
+                    {showChatIdInstructions ? '▼ Ocultar instrucciones' : '▶ ¿Cómo obtener mi Chat ID?'}
+                  </Typography>
+                }
               />
+
+              {showChatIdInstructions && (
+                <Alert severity="info" sx={{ mb: 1.5, fontSize: '0.85rem' }}>
+                  <Typography variant="caption" component="div" sx={{ mb: 1 }}>
+                    <strong>Pasos para obtener tu Chat ID:</strong>
+                  </Typography>
+                  <ol style={{ margin: 0, paddingLeft: '20px' }}>
+                    <li>Abre Telegram y busca el bot: <strong>@userinfobot</strong></li>
+                    <li>Inicia conversación con /start</li>
+                    <li>El bot te enviará tu Chat ID (número)</li>
+                    <li>Copia y pega ese número aquí</li>
+                  </ol>
+                </Alert>
+              )}
+              
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => handleTestNotification('telegram')}
+                disabled={telegramSending || !settings.telegramChatId}
+                startIcon={<TelegramIcon />}
+                sx={{ borderRadius: 1 }}
+              >
+                {telegramSending ? 'Enviando...' : 'Enviar Prueba a Telegram'}
+              </Button>
             </Box>
           )}
         </Paper>
 
         <Divider sx={{ my: 3 }} />
 
-        {/* TIPOS DE NOTIFICACIONES CON ACCORDIONS */}
-        <Typography variant="overline" sx={{
-          fontWeight: 600,
-          color: 'secondary.main',
-          letterSpacing: 0.8,
-          fontSize: '0.75rem',
-          display: 'block',
-          mb: 2
+        {/* Configuración de Eventos */}
+        <Paper elevation={0} sx={{ 
+          p: 2.5,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+          bgcolor: alpha(theme.palette.secondary.main, 0.02)
         }}>
-          🔔 TIPOS DE NOTIFICACIONES
-        </Typography>
+          <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+            🗓️ Eventos a Notificar
+          </Typography>
 
-        {/* ACCORDION 1: Gestión de Usuarios */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.success.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <PeopleIcon sx={{ color: 'success.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Gestión de Usuarios
+          {/* Eventos Gubernamentales */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontWeight: 600 }}>
+              EVENTOS GUBERNAMENTALES
+            </Typography>
+            
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  🏛️ Coljuegos
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Creación, actualización y cambios de roles
+                  Décimo día hábil de cada mes
                 </Typography>
               </Box>
-              <Chip label={`${[settings.userCreated, settings.userUpdated, settings.roleChanged].filter(Boolean).length}/3`} size="small" color="success" />
+              <Switch
+                checked={settings.coljuegosEnabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, coljuegosEnabled: e.target.checked }))}
+                color="primary"
+                size="small"
+              />
             </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.userCreated} onChange={handleCheckboxChange('userCreated')} />} label="✅ Nuevo usuario creado" />
-              <FormControlLabel control={<Checkbox checked={settings.userUpdated} onChange={handleCheckboxChange('userUpdated')} />} label="✏️ Usuario actualizado" />
-              <FormControlLabel control={<Checkbox checked={settings.roleChanged} onChange={handleCheckboxChange('roleChanged')} />} label="🔄 Cambio de rol" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
 
-        {/* ACCORDION 2: Compromisos Próximos */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <AssignmentIcon sx={{ color: 'primary.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Compromisos Próximos a Vencer
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  📊 UIAF
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Recordatorios antes del vencimiento
+                  Día 10 de cada mes
                 </Typography>
               </Box>
-              <Chip label={`${[settings.commitments15Days, settings.commitments7Days, settings.commitments2Days, settings.commitmentsDueToday].filter(Boolean).length}/4`} size="small" color="primary" />
+              <Switch
+                checked={settings.uiafEnabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, uiafEnabled: e.target.checked }))}
+                color="primary"
+                size="small"
+              />
             </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.commitments15Days} onChange={handleCheckboxChange('commitments15Days')} />} label="📅 15 días antes" />
-              <FormControlLabel control={<Checkbox checked={settings.commitments7Days} onChange={handleCheckboxChange('commitments7Days')} />} label="⏰ 7 días antes" />
-              <FormControlLabel control={<Checkbox checked={settings.commitments2Days} onChange={handleCheckboxChange('commitments2Days')} />} label="🔔 2 días antes" />
-              <FormControlLabel control={<Checkbox checked={settings.commitmentsDueToday} onChange={handleCheckboxChange('commitmentsDueToday')} />} label="🔴 El día del vencimiento" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
 
-        {/* ACCORDION 3: Compromisos Críticos */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.error.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <WarningIcon sx={{ color: 'error.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 600, fontSize: '0.875rem' }}>
-                  Compromisos Críticos <Chip label="NUEVO" size="small" color="error" sx={{ ml: 1, height: 18 }} />
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Vencidos, alto valor y completados
-                </Typography>
-              </Box>
-              <Chip label={`${[settings.commitmentOverdue, settings.commitmentHighValue, settings.commitmentCompleted].filter(Boolean).length}/3`} size="small" color="error" />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.commitmentOverdue} onChange={handleCheckboxChange('commitmentOverdue')} />} label="❌ Compromiso Vencido (diario)" />
-              <FormControlLabel control={<Checkbox checked={settings.commitmentHighValue} onChange={handleCheckboxChange('commitmentHighValue')} />} label="💎 Alto Valor (>$50M)" />
-              <FormControlLabel control={<Checkbox checked={settings.commitmentCompleted} onChange={handleCheckboxChange('commitmentCompleted')} />} label="✅ Compromiso Completado" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* ACCORDION 4: Contratos de Empresas (NUEVO) */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <BusinessIcon sx={{ color: 'primary.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 600, fontSize: '0.875rem' }}>
-                  Contratos de Empresas <Chip label="NUEVO" size="small" color="primary" sx={{ ml: 1, height: 18 }} />
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Vencimientos y renovaciones de contratos
-                </Typography>
-              </Box>
-              <Chip label={`${[settings.contract365Days, settings.contract180Days, settings.contract90Days, settings.contract30Days, settings.contractDueToday, settings.contractExpired].filter(Boolean).length}/6`} size="small" color="primary" />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.contract365Days} onChange={handleCheckboxChange('contract365Days')} />} label="📄 Contrato vence en 1 año" />
-              <FormControlLabel control={<Checkbox checked={settings.contract180Days} onChange={handleCheckboxChange('contract180Days')} />} label="📋 Contrato vence en 6 meses" />
-              <FormControlLabel control={<Checkbox checked={settings.contract90Days} onChange={handleCheckboxChange('contract90Days')} />} label="📌 Contrato vence en 3 meses" />
-              <FormControlLabel control={<Checkbox checked={settings.contract30Days} onChange={handleCheckboxChange('contract30Days')} />} label="⚠️ Contrato vence en 30 días" />
-              <FormControlLabel control={<Checkbox checked={settings.contractDueToday} onChange={handleCheckboxChange('contractDueToday')} />} label="🔴 Contrato vence HOY" />
-              <FormControlLabel control={<Checkbox checked={settings.contractExpired} onChange={handleCheckboxChange('contractExpired')} />} label="❌ Contrato Vencido (diario)" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* ACCORDION 5: Pagos */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.info.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <PaymentIcon sx={{ color: 'info.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Pagos
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  💼 Parafiscales
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Registros y abonos parciales
+                  Tercer día hábil de cada mes
                 </Typography>
               </Box>
-              <Chip label={`${[settings.paymentRegistered, settings.paymentPartial].filter(Boolean).length}/2`} size="small" color="info" />
+              <Switch
+                checked={settings.parafiscalesEnabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, parafiscalesEnabled: e.target.checked }))}
+                color="primary"
+                size="small"
+              />
             </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.paymentRegistered} onChange={handleCheckboxChange('paymentRegistered')} />} label="💸 Pago Registrado" />
-              <FormControlLabel control={<Checkbox checked={settings.paymentPartial} onChange={handleCheckboxChange('paymentPartial')} />} label="💰 Pago Parcial (Abono)" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
+          </Box>
 
-        {/* ACCORDION 6: Ingresos */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.success.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <TrendingUpIcon sx={{ color: 'success.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Ingresos
+          <Divider sx={{ my: 2 }} />
+
+          {/* Eventos Personalizados */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontWeight: 600 }}>
+              EVENTOS PERSONALIZADOS
+            </Typography>
+            
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="body2" fontWeight={500}>
+                  📅 Eventos del Calendario
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Consignaciones y saldos bancarios
+                  Eventos que tú creas manualmente
                 </Typography>
               </Box>
-              <Chip label={`${[settings.incomeReceived, settings.bankBalanceLow].filter(Boolean).length}/2`} size="small" color="success" />
+              <Switch
+                checked={settings.customEventsEnabled}
+                onChange={handleCustomEventsToggle}
+                color="secondary"
+                size="small"
+              />
             </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.incomeReceived} onChange={handleCheckboxChange('incomeReceived')} />} label="📈 Ingreso Recibido" />
-              <FormControlLabel control={<Checkbox checked={settings.bankBalanceLow} onChange={handleCheckboxChange('bankBalanceLow')} />} label="⚠️ Saldo Bancario Bajo" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
+          </Box>
+        </Paper>
 
-        {/* ACCORDION 7: Reportes */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <AssessmentIcon sx={{ color: 'secondary.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Reportes y Resúmenes
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Análisis periódicos y alertas
-                </Typography>
-              </Box>
-              <Chip label={`${[settings.weeklySummary, settings.monthlySummary, settings.cashFlowAlert].filter(Boolean).length}/3`} size="small" color="secondary" />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.weeklySummary} onChange={handleCheckboxChange('weeklySummary')} />} label="📧 Resumen Semanal (Lunes)" />
-              <FormControlLabel control={<Checkbox checked={settings.monthlySummary} onChange={handleCheckboxChange('monthlySummary')} />} label="📅 Resumen Mensual" />
-              <FormControlLabel control={<Checkbox checked={settings.cashFlowAlert} onChange={handleCheckboxChange('cashFlowAlert')} />} label="💰 Alerta Flujo de Caja" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
+        {/* Información sobre notificaciones automáticas */}
+        <Alert severity="info" icon={<CheckCircleIcon />} sx={{ mt: 3 }}>
+          <Typography variant="body2" fontWeight={600} gutterBottom>
+            ℹ️ Notificaciones de Contratos
+          </Typography>
+          <Typography variant="caption" component="div" color="text.secondary">
+            Los contratos próximos a vencer se notifican automáticamente con 8 alertas progresivas (6 meses, 3 meses, 2 meses, 1 mes, 15 días, 1 semana, 3 días y el día del vencimiento).
+          </Typography>
+        </Alert>
 
-        {/* ACCORDION 8: Seguridad */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.warning.main, 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <SecurityIcon sx={{ color: 'warning.main' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Seguridad
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Permisos críticos y accesos
-                </Typography>
-              </Box>
-              <Chip label={`${[settings.criticalPermissionChange, settings.suspiciousAccess, settings.dataExport].filter(Boolean).length}/3`} size="small" color="warning" />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.criticalPermissionChange} onChange={handleCheckboxChange('criticalPermissionChange')} />} label="🛡️ Cambio de Permiso Crítico" />
-              <FormControlLabel control={<Checkbox checked={settings.suspiciousAccess} onChange={handleCheckboxChange('suspiciousAccess')} />} label="🚨 Acceso Sospechoso" />
-              <FormControlLabel control={<Checkbox checked={settings.dataExport} onChange={handleCheckboxChange('dataExport')} />} label="📥 Exportación de Datos" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* ACCORDION 9: Otros */}
-        <Accordion sx={{ mb: 1, border: `1px solid ${alpha(theme.palette.grey[500], 0.2)}`, borderRadius: 1, '&:before': { display: 'none' } }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.grey[500], 0.04) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-              <NotificationsIcon sx={{ color: 'grey.600' }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  Otros
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Eventos adicionales del sistema
-                </Typography>
-              </Box>
-              <Chip label={`${[settings.newCommitments, settings.automaticEvents, settings.calendarEventsEnabled].filter(Boolean).length}/3`} size="small" />
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails>
-            <FormGroup>
-              <FormControlLabel control={<Checkbox checked={settings.newCommitments} onChange={handleCheckboxChange('newCommitments')} />} label="✨ Nuevos compromisos" />
-              <FormControlLabel control={<Checkbox checked={settings.automaticEvents} onChange={handleCheckboxChange('automaticEvents')} />} label="🤖 Eventos automáticos" />
-              <FormControlLabel control={<Checkbox checked={settings.calendarEventsEnabled} onChange={handleCheckboxChange('calendarEventsEnabled')} />} label="📅 Eventos del calendario" />
-            </FormGroup>
-          </AccordionDetails>
-        </Accordion>
-
-        <Alert severity="info" icon={<NotificationsIcon />} sx={{ mt: 3 }}>
+        <Alert severity="info" icon={<NotificationsIcon />} sx={{ mt: 2 }}>
           📱 Las notificaciones se envían a las 9:00 AM (Colombia) solo en días hábiles.
         </Alert>
       </DialogContent>
@@ -791,7 +514,7 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         <Button
           variant="contained"
           onClick={handleSave}
-          disabled={loading || (!settings.emailEnabled && !settings.telegramEnabled)}
+          disabled={loading}
           startIcon={loading ? <CheckCircleIcon /> : <SettingsIcon />}
         >
           {loading ? 'Guardando...' : '⚙️ Guardar Configuración'}

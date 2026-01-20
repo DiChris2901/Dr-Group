@@ -15,13 +15,16 @@ import {
   Chip,
   Stack,
   Alert,
-  useTheme
+  useTheme,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import {
   Event as EventIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -35,7 +38,9 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
     title: '',
     description: '',
     priority: 'medium', // low, medium, high
-    subType: 'personal' // personal, business, reminder
+    subType: 'personal', // personal, business, reminder
+    notifyMe: false, // Si debe enviar notificación
+    notifyDaysBefore: 1 // Días antes de notificar: 1, 3, 7, 15
   });
 
   // Cargar datos del evento cuando se está editando
@@ -45,14 +50,18 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
         title: editingEvent.title || '',
         description: editingEvent.description || '',
         priority: editingEvent.priority || 'medium',
-        subType: editingEvent.subType || 'personal'
+        subType: editingEvent.subType || 'personal',
+        notifyMe: editingEvent.notifyMe || false,
+        notifyDaysBefore: editingEvent.notifyDaysBefore || 1
       });
     } else {
       setEventData({
         title: '',
         description: '',
         priority: 'medium',
-        subType: 'personal'
+        subType: 'personal',
+        notifyMe: false,
+        notifyDaysBefore: 1
       });
     }
   }, [editingEvent]);
@@ -110,7 +119,9 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
       title: '',
       description: '',
       priority: 'medium',
-      subType: 'personal'
+      subType: 'personal',
+      notifyMe: false,
+      notifyDaysBefore: 1
     });
     setErrors({});
     onClose();
@@ -210,6 +221,54 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
             rows={3}
             placeholder="Detalles adicionales del evento..."
           />
+
+          {/* Notificaciones */}
+          <Box sx={{ 
+            border: `1px solid ${theme.palette.divider}`, 
+            borderRadius: 1, 
+            p: 2,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+          }}>
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <NotificationsIcon color="action" fontSize="small" />
+              <Typography variant="subtitle2" fontWeight={600}>
+                Notificaciones
+              </Typography>
+            </Box>
+            
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={eventData.notifyMe}
+                  onChange={(e) => setEventData(prev => ({ ...prev, notifyMe: e.target.checked }))}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Notificarme de este evento
+                </Typography>
+              }
+            />
+
+            {eventData.notifyMe && (
+              <FormControl fullWidth size="small" sx={{ mt: 2 }}>
+                <InputLabel>Recordarme</InputLabel>
+                <Select
+                  value={eventData.notifyDaysBefore}
+                  label="Recordarme"
+                  onChange={handleInputChange('notifyDaysBefore')}
+                >
+                  <MenuItem value={1}>1 día antes</MenuItem>
+                  <MenuItem value={3}>3 días antes</MenuItem>
+                  <MenuItem value={7}>1 semana antes</MenuItem>
+                  <MenuItem value={15}>15 días antes</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+          </Box>
+
+          {/* 
 
           {/* Información adicional */}
           <Alert severity="info" sx={{ borderRadius: 1 }}>

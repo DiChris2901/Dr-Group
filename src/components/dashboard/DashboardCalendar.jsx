@@ -49,6 +49,7 @@ import { es } from 'date-fns/locale';
 import { useColombianHolidays } from '../../hooks/useColombianHolidays';
 import { useCommitments } from '../../hooks/useCommitments';
 import { useContractExpirationAlerts } from '../../hooks/useContractExpirationAlerts';
+import { useAutomaticEventNotifications } from '../../hooks/useAutomaticEventNotifications';
 import CalendarEventDetails from './CalendarEventDetails';
 import AddEventModal from './AddEventModal';
 import { useAuth } from '../../context/AuthContext';
@@ -144,6 +145,9 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
   const { showToast } = useToast();
   const { sendCustomNotification: sendEmailNotification } = useEmailNotifications();
   const { sendCustomNotification: sendTelegramNotification } = useTelegramNotifications();
+  
+  // 🔔 Activar notificaciones automáticas de eventos gubernamentales
+  useAutomaticEventNotifications();
 
   // 🔄 Cargar eventos desde Firestore y limpiar eventos antiguos
   useEffect(() => {

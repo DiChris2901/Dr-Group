@@ -1395,7 +1395,18 @@ exports.smartCommitmentReminders = onSchedule({
       const userData = userDoc.data();
       const settings = userData.notificationSettings;
       
+      // Validación básica de Telegram
       if (!settings || !settings.telegramEnabled || !settings.telegramChatId) {
+        continue;
+      }
+
+      // 🔴 NUEVO: Validación de granularidad (Nov 2023)
+      // El usuario solicitó restringir notificaciones a: Coljuegos, UIAF, Parafiscales, Vencimientos y Eventos.
+      // El "Reporte Diario Financiero" (este reporte) no está en la lista permitida.
+      // Se requiere un flag explícito 'dailyFinancialReportEnabled' para enviarlo.
+      // Como este switch no existe en el frontend actual, esto desactiva efectivamente el reporte diario general
+      // para evitar spam no solicitado, manteniendo solo las alertas críticas.
+      if (!settings.dailyFinancialReportEnabled) {
         continue;
       }
       
