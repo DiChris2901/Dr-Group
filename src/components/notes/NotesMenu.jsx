@@ -22,7 +22,8 @@ import {
   Card,
   CardContent,
   Chip,
-  Avatar
+  Avatar,
+  Grid
 } from '@mui/material';
 import {
   StickyNote2 as NotesIcon,
@@ -249,69 +250,274 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
       <Dialog
         open={noteModalOpen}
         onClose={handleCloseNoteModal}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 2 }
+          sx: {
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+          }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          {editingNote ? 'Editar Nota' : 'Nueva Nota'}
-          <IconButton
-            onClick={handleCloseNoteModal}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
+        <DialogTitle sx={{ 
+          pb: 2,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText',
+              width: 40,
+              height: 40
+            }}>
+              {editingNote ? <EditIcon /> : <AddIcon />}
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700,
+                mb: 0,
+                color: 'text.primary' 
+              }}>
+                {editingNote ? 'Editar Nota' : 'Nueva Nota'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {editingNote ? 'Actualiza la información de tu nota' : 'Crea una nueva nota rápida'}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton 
+            onClick={handleCloseNoteModal} 
+            sx={{ color: 'text.secondary' }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Título (opcional)"
-            fullWidth
-            variant="outlined"
-            value={noteForm.title}
-            onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          
-          <TextField
-            margin="dense"
-            label="Contenido"
-            fullWidth
-            multiline
-            rows={4}
-            variant="outlined"
-            value={noteForm.content}
-            onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
-            sx={{ mb: 2 }}
-          />
+        <DialogContent sx={{ p: 3, pt: 4 }}>
+          <Box sx={{ mt: 2 }}>
+            <Grid container spacing={3}>
+              {/* COLUMNA IZQUIERDA - Título y Color */}
+              <Grid item xs={12} md={5}>
+                <Box
+                  component={motion.div}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    height: '100%'
+                  }}
+                >
+                  <Typography 
+                    variant="overline" 
+                    sx={{
+                      fontWeight: 600,
+                      color: 'text.secondary',
+                      letterSpacing: 0.8,
+                      fontSize: '0.75rem',
+                      display: 'block',
+                      mb: 3
+                    }}
+                  >
+                    Información General
+                  </Typography>
 
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Color:
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {colors.map((color) => (
-              <Avatar
-                key={color.value}
-                sx={{
-                  width: 32,
-                  height: 32,
-                  bgcolor: color.value,
-                  cursor: 'pointer',
-                  border: noteForm.color === color.value ? '3px solid' : '2px solid transparent',
-                  borderColor: noteForm.color === color.value ? theme.palette.text.primary : 'transparent'
-                }}
-                onClick={() => setNoteForm({ ...noteForm, color: color.value })}
-              />
-            ))}
+                  <TextField
+                    autoFocus
+                    label="Título (opcional)"
+                    fullWidth
+                    variant="outlined"
+                    value={noteForm.title}
+                    onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })}
+                    placeholder="Ej: Pendientes del día..."
+                    sx={{ mb: 4 }}
+                  />
+
+                  <Box sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+                    background: alpha(theme.palette.background.default, 0.4)
+                  }}>
+                    <Typography 
+                      variant="overline" 
+                      sx={{
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                        letterSpacing: 0.8,
+                        fontSize: '0.75rem',
+                        display: 'block',
+                        mb: 2
+                      }}
+                    >
+                      Color de Identificación
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                      {colors.map((color) => (
+                        <Tooltip key={color.value} title={color.name} arrow>
+                          <Avatar
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              bgcolor: color.value,
+                              cursor: 'pointer',
+                              border: noteForm.color === color.value 
+                                ? `3px solid ${theme.palette.text.primary}` 
+                                : `2px solid ${alpha(theme.palette.divider, 0.2)}`,
+                              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                              boxShadow: noteForm.color === color.value 
+                                ? '0 4px 12px rgba(0,0,0,0.15)' 
+                                : '0 2px 4px rgba(0,0,0,0.06)',
+                              transform: noteForm.color === color.value ? 'scale(1.1)' : 'scale(1)',
+                              '&:hover': {
+                                transform: 'scale(1.15)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                              }
+                            }}
+                            onClick={() => setNoteForm({ ...noteForm, color: color.value })}
+                          >
+                            {noteForm.color === color.value && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                              >
+                                ✓
+                              </motion.div>
+                            )}
+                          </Avatar>
+                        </Tooltip>
+                      ))}
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
+
+              {/* COLUMNA DERECHA - Contenido con borde del color seleccionado */}
+              <Grid item xs={12} md={7}>
+                <Box
+                  component={motion.div}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    borderLeft: `4px solid ${noteForm.color}`,
+                    background: theme.palette.background.paper,
+                    boxShadow: `0 2px 8px rgba(0,0,0,0.06), -2px 0 8px ${alpha(noteForm.color, 0.15)}`,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '4px',
+                      height: '100%',
+                      background: `linear-gradient(180deg, ${noteForm.color} 0%, ${alpha(noteForm.color, 0.3)} 100%)`,
+                      zIndex: 1
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                    <Typography 
+                      variant="overline" 
+                      sx={{
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                        letterSpacing: 0.8,
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      Contenido de la Nota
+                    </Typography>
+                    <Chip
+                      size="small"
+                      sx={{
+                        bgcolor: alpha(noteForm.color, 0.15),
+                        color: noteForm.color,
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        height: 22,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(noteForm.color, 0.3)}`,
+                        '& .MuiChip-label': {
+                          px: 1.5
+                        }
+                      }}
+                      label={colors.find(c => c.value === noteForm.color)?.name || 'Color'}
+                    />
+                  </Box>
+                  
+                  <TextField
+                    label="Contenido"
+                    fullWidth
+                    multiline
+                    variant="outlined"
+                    value={noteForm.content}
+                    onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
+                    placeholder="Escribe el contenido de tu nota aquí..."
+                    sx={{ 
+                      flex: 1,
+                      '& .MuiInputBase-root': {
+                        height: '100%',
+                        alignItems: 'flex-start'
+                      },
+                      '& textarea': {
+                        height: '100% !important',
+                        overflow: 'auto !important'
+                      },
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: alpha(noteForm.color, 0.2)
+                      },
+                      '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: noteForm.color,
+                        borderWidth: 2
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+            </Grid>
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={handleCloseNoteModal}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderTop: `1px solid ${theme.palette.divider}`
+        }}>
+          <Button 
+            onClick={handleCloseNoteModal}
+            sx={{
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 3
+            }}
+          >
             Cancelar
           </Button>
           <Button
@@ -319,6 +525,13 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
             variant="contained"
             startIcon={<SaveIcon />}
             disabled={!noteForm.title.trim() && !noteForm.content.trim()}
+            sx={{
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}
           >
             {editingNote ? 'Actualizar' : 'Guardar'}
           </Button>
@@ -329,70 +542,206 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
       <Dialog
         open={allNotesModalOpen}
         onClose={() => setAllNotesModalOpen(false)}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 2, height: '80vh' }
+          sx: {
+            borderRadius: 2,
+            height: '85vh',
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+          }
         }}
       >
-        <DialogTitle>
-          Todas mis notas ({notesCount})
-          <IconButton
+        <DialogTitle sx={{ 
+          pb: 2,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText',
+              width: 40,
+              height: 40
+            }}>
+              <AllNotesIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700,
+                mb: 0,
+                color: 'text.primary' 
+              }}>
+                Todas mis notas
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {notesCount === 0 ? 'No tienes notas guardadas' : `${notesCount} ${notesCount === 1 ? 'nota guardada' : 'notas guardadas'}`}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton 
             onClick={() => setAllNotesModalOpen(false)}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
+            sx={{ color: 'text.secondary' }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 2 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 2 }}>
-            {notes.map((note) => (
-              <Card
-                key={note.id}
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          {notes.length > 0 ? (
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+              gap: 3 
+            }}>
+              {notes.map((note) => (
+                <motion.div
+                  key={note.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card
+                    sx={{
+                      height: '100%',
+                      borderLeft: `4px solid ${note.color || '#1976d2'}`,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      '&:hover': { 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                    onClick={() => {
+                      setAllNotesModalOpen(false);
+                      handleOpenNoteModal(note);
+                    }}
+                  >
+                    <CardContent sx={{ p: 2.5 }}>
+                      {note.title && (
+                        <Typography 
+                          variant="h6" 
+                          sx={{
+                            fontWeight: 600,
+                            mb: 1.5,
+                            color: 'text.primary',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical'
+                          }}
+                        >
+                          {note.title}
+                        </Typography>
+                      )}
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        sx={{ 
+                          mb: 2,
+                          minHeight: 60,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical'
+                        }}
+                      >
+                        {note.content || 'Sin contenido'}
+                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        pt: 1.5,
+                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                      }}>
+                        <Typography variant="caption" color="text.disabled">
+                          {formatDistanceToNow(note.updatedAt, { addSuffix: true, locale: es })}
+                        </Typography>
+                        <Chip 
+                          size="small"
+                          sx={{
+                            bgcolor: alpha(note.color || '#1976d2', 0.1),
+                            color: note.color || '#1976d2',
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 20
+                          }}
+                          label={note.title ? 'Con título' : 'Sin título'}
+                        />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ 
+              textAlign: 'center', 
+              py: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '50vh'
+            }}>
+              <Box
+                component={motion.div}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
                 sx={{
-                  borderLeft: `4px solid ${note.color || '#1976d2'}`,
-                  cursor: 'pointer',
-                  '&:hover': { boxShadow: theme.shadows[4] }
-                }}
-                onClick={() => {
-                  setAllNotesModalOpen(false);
-                  handleOpenNoteModal(note);
+                  width: 120,
+                  height: 120,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  mb: 3
                 }}
               >
-                <CardContent>
-                  {note.title && (
-                    <Typography variant="h6" fontWeight="600" gutterBottom noWrap>
-                      {note.title}
-                    </Typography>
-                  )}
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {truncateText(note.content, 150)}
-                  </Typography>
-                  <Typography variant="caption" color="text.disabled">
-                    {formatDistanceToNow(note.updatedAt, { addSuffix: true, locale: es })}
-                  </Typography>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-          
-          {notes.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <NotesIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">
+                <NotesIcon sx={{ fontSize: 64, color: 'primary.main' }} />
+              </Box>
+              <Typography variant="h5" fontWeight="600" color="text.primary" sx={{ mb: 1 }}>
                 No tienes notas todavía
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
+                Las notas te ayudan a recordar tareas pendientes, ideas importantes o cualquier información que necesites guardar rápidamente.
               </Typography>
               <Button
                 variant="contained"
+                size="large"
                 startIcon={<AddIcon />}
                 onClick={() => {
                   setAllNotesModalOpen(false);
                   handleOpenNoteModal();
                 }}
-                sx={{ mt: 2 }}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 4,
+                  py: 1.5,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}
               >
-                Crear primera nota
+                Crear mi primera nota
               </Button>
             </Box>
           )}
