@@ -252,47 +252,45 @@ export default function DashboardScreen() {
               )}
             </View>
             
-            {/* 🧪 BOTÓN DEBUG: Verificar OTA */}
-            {__DEV__ && (
-              <IconButton 
-                icon="update" 
-                mode="contained"
-                size={24}
-                iconColor="#FFF"
-                containerColor="#FF9800"
-                onPress={async () => {
-                  try {
-                    console.log('🔍 Verificando actualizaciones OTA...');
-                    Alert.alert('🔍 Debug OTA', 'Verificando actualizaciones...');
-                    
-                    const update = await Updates.checkForUpdateAsync();
-                    console.log('📊 Resultado:', update);
-                    
-                    if (update.isAvailable) {
-                      Alert.alert(
-                        '✅ Actualización Disponible',
-                        `Se encontró una actualización.\n\nManifest: ${update.manifest?.id || 'N/A'}`,
-                        [
-                          { text: 'Cancelar', style: 'cancel' },
-                          { 
-                            text: 'Descargar', 
-                            onPress: async () => {
-                              await Updates.fetchUpdateAsync();
-                              Alert.alert('✅ Descargado', 'Reinicia la app para aplicar');
-                            }
+            {/* 🧪 BOTÓN DEBUG: Verificar OTA (TEMPORAL - SIEMPRE VISIBLE) */}
+            <IconButton 
+              icon="update" 
+              mode="contained"
+              size={24}
+              iconColor="#FFF"
+              containerColor="#FF9800"
+              onPress={async () => {
+                try {
+                  console.log('🔍 Verificando actualizaciones OTA...');
+                  Alert.alert('🔍 Debug OTA', 'Verificando actualizaciones...');
+                  
+                  const update = await Updates.checkForUpdateAsync();
+                  console.log('📊 Resultado:', update);
+                  
+                  if (update.isAvailable) {
+                    Alert.alert(
+                      '✅ Actualización Disponible',
+                      `Se encontró una actualización.\n\nManifest: ${update.manifest?.id || 'N/A'}`,
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { 
+                          text: 'Descargar', 
+                          onPress: async () => {
+                            await Updates.fetchUpdateAsync();
+                            Alert.alert('✅ Descargado', 'Reinicia la app para aplicar');
                           }
-                        ]
-                      );
-                    } else {
-                      Alert.alert('ℹ️ Sin Actualizaciones', 'Ya tienes la última versión');
-                    }
-                  } catch (error) {
-                    console.error('❌ Error:', error);
-                    Alert.alert('❌ Error', error.message);
+                        }
+                      ]
+                    );
+                  } else {
+                    Alert.alert('ℹ️ Sin Actualizaciones', 'Ya tienes la última versión');
                   }
-                }} 
-              />
-            )}
+                } catch (error) {
+                  console.error('❌ Error:', error);
+                  Alert.alert('❌ Error', error.message);
+                }
+              }} 
+            />
             
             <IconButton 
               icon={isDarkMode ? "white-balance-sunny" : "moon-waning-crescent"} 
