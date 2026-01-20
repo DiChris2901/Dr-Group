@@ -9,6 +9,7 @@ import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { checkForAllUpdates } from './src/services/UpdateService';
 import NotificationService from './src/services/NotificationService';
+import UpdateBanner from './src/components/UpdateBanner';
 import materialTheme from './material-theme.json';
 
 // 🎨 TEMA "MATERIAL YOU EXPRESSIVE" - Generated from material-theme.json
@@ -119,6 +120,8 @@ function AppContent() {
     <PaperProvider theme={theme}>
       <NotificationsProvider>
         <StatusBar style={isDarkMode ? "light" : "dark"} backgroundColor={theme.colors.background} />
+        {/* 🔄 Banner de actualizaciones OTA */}
+        <UpdateBanner />
         <AppNavigator ref={navigationRef} />
       </NotificationsProvider>
     </PaperProvider>

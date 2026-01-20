@@ -7,6 +7,7 @@ export { default as ExpressiveCard } from './ExpressiveCard';
 export { default as DetailRow } from './DetailRow';
 export { default as OverlineText } from './OverlineText';
 export { default as AppLogo } from './AppLogo';
+export { default as UpdateBanner } from './UpdateBanner';
 
 // Estados compartidos (Material 3 Expressive)
 export { default as EmptyState } from './shared/EmptyState';
