@@ -219,17 +219,73 @@ Set-Location mobile
 # Instalar dependencias
 npm install
 
-# Iniciar servidor de desarrollo
+# Iniciar servidor de desarrollo (pruebas con Expo Go)
 npx expo start
 
-# Escanear QR con Expo Go
-
-# Build APK de producción (requiere EAS CLI)
-eas build --platform android --profile production
-
-# Publicar actualización OTA
-eas update --branch production --message "Descripción"
+# Escanear QR con Expo Go para ver cambios en tiempo real
 ```
+
+---
+
+## 📱 Distribución de App Móvil
+
+La app móvil se distribuye vía **Firebase App Distribution** con compilación local en Android Studio.
+
+### **🔄 Flujo Completo de Actualización**
+
+#### **1. Desarrollo y Pruebas**
+```powershell
+# Probar cambios localmente con Expo Go
+Set-Location mobile
+npx expo start
+# Escanear QR con celular → Ver cambios en tiempo real
+```
+
+#### **2. Commit a Git (Backup)**
+```powershell
+git add .
+git commit -m "feat: Descripción del cambio"
+git push origin main
+```
+
+#### **3. Versionado Antes de Compilar**
+```powershell
+cd mobile\android\app
+.\increment-version.ps1
+# Elegir tipo: 1=PATCH (bugs) | 2=MINOR (features) | 3=MAJOR (breaking)
+```
+
+#### **4. Compilación en Android Studio**
+```
+1. Abrir Android Studio
+2. Build > Generate Signed Bundle/APK
+3. Seleccionar APK > Release
+4. Esperar 2-5 minutos
+5. APK generado en: mobile\android\app\build\outputs\apk\release\app-release.apk
+```
+
+#### **5. Distribución a Usuarios**
+```powershell
+cd mobile
+.\distribute-apk.ps1 -Version "3.1.0" -ReleaseNotes "Correcciones y mejoras"
+
+# Primera vez (agregar verificadores):
+.\distribute-apk.ps1 -Version "3.0.0" -ReleaseNotes "Primera versión" -Testers "correo1@gmail.com,correo2@gmail.com"
+```
+
+#### **6. Verificación**
+- ✅ Verificadores reciben email de Firebase automáticamente
+- ✅ Pueden descargar APK desde el link del email
+- ✅ Ver métricas en: https://console.firebase.google.com/project/dr-group-cd21b/appdistribution
+
+### **📋 Notas Importantes**
+
+- **NO hay actualizaciones OTA:** Compilación local en Android Studio (no EAS Build)
+- **Todas las actualizaciones requieren:** Compilar nuevo APK + Distribuir + Reinstalar
+- **Ventaja:** Control total, sin colas de EAS Build (30+ min), distribución rápida (2-5 min)
+- **Documentación completa:** Ver `mobile/APP_DISTRIBUTION_GUIDE.md`
+
+---
 
 ### **Configuración Firebase**
 

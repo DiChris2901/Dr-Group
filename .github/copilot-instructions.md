@@ -1413,22 +1413,40 @@ npx expo start
 Set-Location mobile; npx expo start
 ```
 
-### **�️ FLUJO DE TRABAJO: EXPO GO & PRODUCCIÓN**
+### **⚙️ FLUJO DE TRABAJO: DESARROLLO → PRODUCCIÓN**
 
-**IMPORTANTE:** Usamos Expo Go para desarrollo rápido y EAS Build para producción.
+**IMPORTANTE:** Usamos Expo Go para desarrollo y Android Studio para compilación local (NO EAS Build).
 
-#### **MODO 1: EXPO GO (Desarrollo Rápido / UI / JS)**
-- **Uso:** Cambios visuales, lógica de negocio simple, nuevas pantallas.
-- **Ventaja:** Feedback instantáneo, no requiere compilar.
-- **Comando:** `Set-Location mobile; npx expo start` (Escanear QR con Expo Go).
+#### **FASE 1: DESARROLLO LOCAL CON EXPO**
+- **Uso:** Probar cambios visuales, lógica de negocio, nuevas pantallas
+- **Ventaja:** Feedback instantáneo, no requiere compilar
+- **Comando:** `Set-Location mobile; npx expo start` (Escanear QR con Expo Go)
+- **Iteración rápida:** Cambiar código → Ver resultado inmediatamente
 
-#### **MODO 2: PRODUCCIÓN (OTA vs APK)**
-- **OTA (`eas update`):** Para cambios de JS/Assets en producción (se sube a Expo Go/Usuarios).
-- **APK (`eas build`):** Para cambios nativos o de configuración (Android Studio).
+#### **FASE 2: VERSIONADO ANTES DE COMPILAR**
+- **Trigger:** Cuando usuario mencione "compilar", "hacer build", "generar APK"
+- **Script:** `cd mobile\android\app; .\increment-version.ps1`
+- **Opciones:** PATCH (bugs) | MINOR (features) | MAJOR (breaking changes)
+- **Actualiza:** app.json + build.gradle + version.properties
 
-### **�📋 COMANDOS COMUNES DE LA APP MÓVIL:**
+#### **FASE 3: COMPILACIÓN LOCAL EN ANDROID STUDIO**
+- **Por qué local:** Evita colas de 30+ minutos de EAS Build (free tier)
+- **Ubicación APK:** `mobile\android\app\build\outputs\apk\release\app-release.apk`
+- **Proceso:** Build > Generate Signed Bundle/APK > APK > Release
+- **Tiempo:** 2-5 minutos (vs 30+ min en EAS Build)
+- **NO OTA:** Compilación local significa NO actualizaciones over-the-air
 
-#### **1. Iniciar servidor de desarrollo:**
+#### **FASE 4: DISTRIBUCIÓN VIA FIREBASE APP DISTRIBUTION**
+- **Script:** `cd mobile; .\distribute-apk.ps1`
+- **Parámetros:** `-Version "X.X.X" -ReleaseNotes "Descripción cambios"`
+- **Primera vez:** Agregar verificadores con `-Testers "correo1,correo2,..."`
+- **Actualizaciones:** Solo Version + ReleaseNotes (verificadores ya registrados)
+- **Notificaciones:** Firebase envía email automáticamente a todos los verificadores
+- **Tracking:** Ver descargas y métricas en Firebase Console
+
+### **📋 COMANDOS COMUNES DE LA APP MÓVIL:**
+
+#### **1. Iniciar servidor de desarrollo (pruebas locales):**
 ```powershell
 Set-Location mobile; npx expo start
 ```
@@ -1443,17 +1461,31 @@ Set-Location mobile; npm install [paquete]
 Set-Location mobile; npx expo install [paquete]
 ```
 
-#### **4. Build de producción (APK):**
+#### **4. Incrementar versión antes de compilar:**
 ```powershell
-Set-Location mobile; eas build --platform android
+cd mobile\android\app
+.\increment-version.ps1
+# Elegir tipo: 1=PATCH, 2=MINOR, 3=MAJOR
 ```
 
-#### **5. Ver logs de la app:**
+#### **5. Compilar APK en Android Studio:**
+```
+Build > Generate Signed Bundle/APK > APK > Release
+APK resultante: mobile\android\app\build\outputs\apk\release\app-release.apk
+```
+
+#### **6. Distribuir APK a usuarios:**
+```powershell
+cd mobile
+.\distribute-apk.ps1 -Version "X.X.X" -ReleaseNotes "Descripción cambios"
+```
+
+#### **7. Ver logs de la app:**
 ```powershell
 Set-Location mobile; npx expo start --clear
 ```
 
-#### **6. Actualizar dependencias de Expo:**
+#### **8. Actualizar dependencias de Expo:**
 ```powershell
 Set-Location mobile; npx expo upgrade
 ```
@@ -1948,296 +1980,96 @@ tree mobile/src /F
 # Instalar nueva dependencia
 Set-Location mobile; npx expo install [paquete]
 
-# Build APK completo (requiere EAS)
-Set-Location mobile; eas build --platform android --profile production
+# Incrementar versión antes de compilar
+cd mobile\android\app; .\increment-version.ps1
 
-# Publicar actualización OTA (solo código JS/assets)
-Set-Location mobile; eas update --branch production --message "Descripción"
+# Distribuir APK compilado
+cd mobile; .\distribute-apk.ps1 -Version "X.X.X" -ReleaseNotes "Descripción"
 ```
 
 ---
 
-## 🔄 **PROTOCOLO DE DEPLOYMENT: OTA vs APK COMPLETO**
+## 🔄 **PROTOCOLO DE DISTRIBUCIÓN MÓVIL: FIREBASE APP DISTRIBUTION**
 
-### 🧠 CONCEPTO CLAVE: GIT vs EXPO CLOUD
+### 🧠 CONCEPTO CLAVE: COMPILACIÓN LOCAL + FIREBASE DISTRIBUTION
 
-**¡CRÍTICO! Entender la diferencia para no fallar en el deployment:**
+**¡CRÍTICO! Entender el flujo completo:**
 
 | Acción | Comando | ¿Qué hace? | ¿Actualiza al usuario? |
 |--------|---------|------------|------------------------|
 | **Guardar Código** | `git push` | Sube código a GitHub (Backup) | ❌ **NO** |
-| **Publicar App** | `eas update` | Sube JS a Expo Cloud (Release) | ✅ **SÍ (Instantáneo)** |
-| **Crear Instalador** | `eas build` | Crea nuevo APK (Nativo) | ✅ **SÍ (Requiere descarga)** |
+| **Compilar APK** | Android Studio Build | Genera APK localmente (2-5 min) | ❌ **NO** |
+| **Distribuir APK** | `.\distribute-apk.ps1` | Sube APK a Firebase + Notifica usuarios | ✅ **SÍ (Via email)** |
 
 **CONCLUSIÓN:**
-- El Dashboard Web se despliega desde Git (vía Firebase).
-- La App Móvil se despliega desde tu PC a Expo Cloud (vía `eas update`).
-- **Git NO actualiza la App Móvil.** Solo `eas update` lo hace.
+- El Dashboard Web se despliega desde Git (vía Firebase Hosting).
+- La App Móvil se compila localmente en Android Studio (evita colas de EAS Build).
+- **NO hay actualizaciones OTA** - Todas las actualizaciones requieren reinstalar APK completo.
+- **Firebase App Distribution** notifica automáticamente a todos los verificadores registrados.
 
-### **⚠️ DECISIÓN CRÍTICA: ¿Actualización OTA o Nuevo APK?**
+### **📋 PROTOCOLO COMPLETO DE ACTUALIZACIÓN**
 
-**ANTES de compilar/publicar, SIEMPRE ejecutar este checklist:**
-
-#### **✅ USAR ACTUALIZACIÓN OTA (Instantánea) SI:**
-- ✅ Solo cambios en código JavaScript/TypeScript
-- ✅ Solo cambios en componentes React Native
-- ✅ Solo cambios en estilos (StyleSheet)
-- ✅ Solo cambios en lógica de negocio
-- ✅ Solo cambios en assets (imágenes, fuentes ya declaradas)
-- ✅ Solo cambios en Firebase (queries, listeners, lógica)
-- ✅ Correcciones de bugs visuales o de lógica
-- ✅ Ajustes de UX sin nuevas librerías nativas
-
-**Ventajas OTA:**
-- ⚡ Publicación instantánea (1-2 minutos)
-- 🚀 Usuarios reciben actualización sin descargar APK
-- 🔄 Rollback inmediato si hay problemas
-- 💾 Solo se descargan los cambios (KB, no MB)
-- 📱 Se aplica automáticamente al siguiente inicio de la app
-- 🛠️ **Funciona en APKs compilados con Android Studio** (siempre que sea Release)
-
-**Comando OTA:**
+#### **PASO 1: DESARROLLO Y PRUEBAS**
 ```powershell
-# 1. PRIMERO: Guardar en Git (Buenas prácticas)
+# Probar cambios localmente con Expo Go
+Set-Location mobile; npx expo start
+# Escanear QR con celular → Ver cambios en tiempo real
+```
+
+#### **PASO 2: COMMIT A GIT (Backup)**
+```powershell
 git add .
-git commit -m "Mensaje"
-git push
-
-# 2. SEGUNDO: Enviar a los celulares (El deploy real)
-Set-Location mobile; eas update --branch production --message "Fix: Corrección cálculo horas trabajadas"
+git commit -m "feat: Nueva funcionalidad de registro de asistencias"
+git push origin main
 ```
+
+#### **PASO 3: VERSIONADO (Antes de compilar)**
+```powershell
+cd mobile\android\app
+.\increment-version.ps1
+# Elegir: 1=PATCH (bugs) | 2=MINOR (features) | 3=MAJOR (breaking)
+```
+
+#### **PASO 4: COMPILACIÓN EN ANDROID STUDIO**
+```
+1. Abrir Android Studio
+2. Build > Generate Signed Bundle/APK
+3. Seleccionar APK > Release
+4. Esperar 2-5 minutos
+5. APK generado en: mobile\android\app\build\outputs\apk\release\app-release.apk
+```
+
+#### **PASO 5: DISTRIBUCIÓN A USUARIOS**
+```powershell
+cd mobile
+.\distribute-apk.ps1 -Version "3.1.0" -ReleaseNotes "Correcciones de bugs y mejoras"
+
+# Primera vez (agregar verificadores):
+.\distribute-apk.ps1 -Version "3.0.0" -ReleaseNotes "Primera versión" -Testers "correo1@gmail.com,correo2@gmail.com"
+```
+
+#### **PASO 6: VERIFICACIÓN**
+- ✅ Los verificadores reciben email de Firebase
+- ✅ Pueden descargar APK desde el link
+- ✅ Ver métricas en: https://console.firebase.google.com/project/dr-group-cd21b/appdistribution
 
 ---
 
-#### **🏗️ USAR APK COMPLETO (Build Completo) SI:**
-- ❌ Cambios en `app.json` (permisos, configuraciones)
-- ❌ Agregaste/eliminaste permisos de Android
-- ❌ Instalaste nueva librería con código nativo (react-native-*)
-- ❌ Cambiaste `bundleIdentifier` o `package` name
-- ❌ Actualizaste versión de Expo SDK (expo upgrade)
-- ❌ Modificaste plugins nativos en `app.json`
-- ❌ Cambiaste configuración de notificaciones push
-- ❌ Agregaste nuevos assets que requieren compilación nativa
-- ❌ Cambiaste `runtimeVersion` policy
-- ❌ Modificaste código nativo (android/, ios/ folders si existen)
+### **⚠️ LIMITACIONES IMPORTANTES**
 
-**Razones APK Completo:**
-- 🔧 Código nativo requiere recompilación
-- 📦 Permisos Android requieren reinstalación
-- 🛠️ Plugins nativos requieren rebuild
-- 🏗️ Configuraciones nativas no se pueden actualizar por OTA
+**NO hay actualizaciones OTA porque:**
+- Compilación local en Android Studio (no EAS Build)
+- EAS Build free tier tiene colas de 30+ minutos (inaceptable)
+- Firebase App Distribution solo distribuye APK completo
 
-**Comando APK Completo:**
-```powershell
-# PASO 1: Consultar última versión en EAS Build
-# (Ver protocolo de versionado automático abajo)
+**Todas las actualizaciones requieren:**
+1. Compilar nuevo APK en Android Studio
+2. Ejecutar script de distribución
+3. Usuarios descargan e instalan APK completo
 
-# PASO 2: Incrementar versión automáticamente en app.json
-# Cambiar: "version": "1.0.0" → "1.1.0" (automático)
-
-# PASO 3: Build APK de producción
-Set-Location mobile; eas build --platform android --profile production
-
-# PASO 4: Esperar ~10-15 minutos para build en la nube
-# PASO 5: ¡Listo! La app consulta EAS Build automáticamente
-```
+**Ventaja:** Control total, sin dependencias de servicios externos, distribución rápida (2-5 min compilación local)
 
 ---
-
-### **🔢 PROTOCOLO DE VERSIONADO AUTOMÁTICO**
-
-**ANTES de compilar APK, SIEMPRE ejecutar este protocolo:**
-
-#### **PASO 1: Consultar última versión en EAS Build**
-```powershell
-# Consultar API de EAS Build para última versión
-$response = Invoke-RestMethod -Uri "https://api.expo.dev/v2/projects/169f6749-ebbd-4386-9359-b60f7afe299d/builds?platform=android&status=finished&limit=1" -Method Get
-
-# Obtener versión actual en EAS
-$easVersion = $response[0].appVersion
-Write-Host "📱 Última versión en EAS Build: $easVersion"
-
-# Leer versión actual local
-$appJson = Get-Content "mobile/app.json" -Raw | ConvertFrom-Json
-$currentVersion = $appJson.expo.version
-Write-Host "💻 Versión local actual: $currentVersion"
-```
-
-#### **PASO 2: Incrementar versión automáticamente**
-```powershell
-# Función para incrementar versión (1.0.0 → 1.1.0)
-function Get-NextVersion {
-    param([string]$version)
-    $parts = $version.Split('.')
-    $major = [int]$parts[0]
-    $minor = [int]$parts[1]
-    $patch = [int]$parts[2]
-    
-    # Incrementar minor (cambio estándar)
-    $minor++
-    
-    return "$major.$minor.$patch"
-}
-
-$newVersion = Get-NextVersion -version $easVersion
-Write-Host "🚀 Nueva versión a compilar: $newVersion"
-```
-
-#### **PASO 3: Actualizar app.json automáticamente**
-```powershell
-# Actualizar versión en app.json
-$appJson.expo.version = $newVersion
-$appJson | ConvertTo-Json -Depth 10 | Set-Content "mobile/app.json"
-
-Write-Host "✅ app.json actualizado a versión $newVersion"
-```
-
-#### **PASO 4: Confirmar con el usuario**
-```
-🎯 VERSIONADO AUTOMÁTICO COMPLETADO
-
-📱 Última versión en EAS: 1.0.0
-🚀 Nueva versión local: 1.1.0
-
-✅ app.json actualizado
-📦 Listo para compilar
-
-¿Deseas proceder con el build?
-Comando: Set-Location mobile; eas build --platform android --profile production
-```
-
----
-
-### **🤖 COMPORTAMIENTO OBLIGATORIO DEL ASISTENTE**
-
-**Cuando el usuario pida "compilar la app" o "hacer build":**
-
-1. **DETENER** - No compilar inmediatamente
-2. **CONSULTAR** - Ejecutar protocolo de versionado automático
-3. **INFORMAR** - Mostrar versiones (actual EAS → nueva local)
-4. **CONFIRMAR** - Esperar aprobación del usuario
-5. **COMPILAR** - Ejecutar build con nueva versión
-
-**NUNCA compilar sin verificar y actualizar versión primero.**
-
----
-
-### **📋 SCRIPT COMPLETO DE VERSIONADO**
-
-Puedes crear este script en `mobile/auto-version.ps1`:
-
-```powershell
-# auto-version.ps1 - Versionado automático antes de compilar
-
-Write-Host "🔍 Consultando última versión en EAS Build..." -ForegroundColor Cyan
-
-# Consultar EAS Build API
-$response = Invoke-RestMethod -Uri "https://api.expo.dev/v2/projects/169f6749-ebbd-4386-9359-b60f7afe299d/builds?platform=android&status=finished&limit=1" -Method Get
-
-if ($response.Count -eq 0) {
-    Write-Host "⚠️ No se encontraron builds en EAS. Usando versión local." -ForegroundColor Yellow
-    exit
-}
-
-$easVersion = $response[0].appVersion
-Write-Host "📱 Última versión en EAS Build: $easVersion" -ForegroundColor Green
-
-# Leer app.json
-$appJsonPath = "app.json"
-$appJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
-$currentVersion = $appJson.expo.version
-
-# Incrementar versión
-$parts = $easVersion.Split('.')
-$major = [int]$parts[0]
-$minor = [int]$parts[1]
-$patch = [int]$parts[2]
-$minor++
-$newVersion = "$major.$minor.$patch"
-
-Write-Host "🚀 Nueva versión: $newVersion" -ForegroundColor Magenta
-
-# Actualizar app.json
-$appJson.expo.version = $newVersion
-$appJson | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath
-
-Write-Host "✅ app.json actualizado exitosamente" -ForegroundColor Green
-Write-Host ""
-Write-Host "📦 Listo para compilar con:" -ForegroundColor Cyan
-Write-Host "   eas build --platform android --profile production" -ForegroundColor White
-```
-
-**Uso:**
-```powershell
-Set-Location mobile
-.\auto-version.ps1
-eas build --platform android --profile production
-```
-
----
-
-### **🎯 CHECKLIST DE EVALUACIÓN AUTOMÁTICA**
-
-**Al recibir petición de "compilar la app" o "actualizar la app", ejecutar:**
-
-#### **PASO 1: Análizar Cambios Recientes**
-```powershell
-# Ver qué archivos se modificaron
-git status
-git diff
-```
-
-#### **PASO 2: Evaluar Tipo de Cambios**
-
-**Preguntas clave:**
-1. ¿Se modificó `app.json`? → **APK Completo**
-2. ¿Se instaló librería nueva con `npx expo install`? → Verificar si es nativa
-3. ¿Se modificó lista de permisos en `android.permissions`? → **APK Completo**
-4. ¿Solo se editaron archivos `.js`, `.jsx` en `src/`? → **OTA**
-5. ¿Se modificó `eas.json` o `runtimeVersion`? → **APK Completo**
-
-#### **PASO 3: Informar al Usuario**
-
-**Si es OTA (Caso más común):**
-```
-✅ Los cambios realizados son compatibles con actualización OTA.
-
-📱 Tipo de cambios: Solo código JavaScript/React Native
-⚡ Tiempo de publicación: 1-2 minutos
-🚀 Distribución: Automática (usuarios reciben al abrir la app)
-🔄 Rollback: Inmediato si hay problemas
-
-¿Deseas publicar la actualización OTA ahora?
-Comando: Set-Location mobile; eas update --branch production --message "[descripción]"
-```
-
-**Si es APK Completo (Caso especial):**
-```
-⚠️ Los cambios realizados requieren compilación de APK completo.
-
-🏗️ Razón: [Especificar razón: permisos/librería nativa/app.json/etc.]
-⏱️ Tiempo de build: ~10-15 minutos
-📦 Distribución: Manual (usuarios deben descargar e instalar APK)
-📋 Pasos necesarios:
-   1. Incrementar versión en app.json (actual: X.X.X → nueva: X.X.X)
-   2. Ejecutar build en EAS
-   3. Descargar APK generado
-   4. Distribuir a usuarios
-
-¿Deseas proceder con el build completo?
-Comando: Set-Location mobile; eas build --platform android --profile production
-```
-
----
-
-### **📝 EJEMPLOS DE DECISIONES**
-
-#### **Ejemplo 1: Corrección de Bug en Cálculo de Horas**
-```javascript
-// AuthContext.js - Línea 194
-// Cambio: if (asistencia.entrada?.hora && asistencia.salida) {
-// A:      if (asistencia.entrada?.hora && asistencia.salida?.hora) {
-```
 **Decisión:** ✅ **OTA** - Solo cambio en lógica JavaScript
 
 ---
