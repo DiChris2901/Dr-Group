@@ -903,18 +903,15 @@ const AsistenciasPage = () => {
                         {/* Entrada */}
                         <TableCell align="center">
                           <Chip
-                            icon={<AccessTimeIcon sx={{ fontSize: 12 }} />}
                             label={formatTime(asistencia.entrada?.hora) || '-'}
                             size="small"
-                            variant="outlined"
                             sx={{
                               height: 22,
-                              borderColor: alpha(theme.palette.success.main, 0.5),
-                              color: theme.palette.success.main,
+                              backgroundColor: alpha(theme.palette.success.main, 0.12),
+                              color: theme.palette.success.dark,
                               fontSize: '0.7rem',
-                              '& .MuiChip-icon': {
-                                color: theme.palette.success.main
-                              }
+                              fontWeight: 500,
+                              border: 'none'
                             }}
                           />
                         </TableCell>
@@ -954,17 +951,17 @@ const AsistenciasPage = () => {
                               sx={{
                                 height: 22,
                                 fontSize: '0.7rem',
-                                fontWeight: 600,
+                                fontWeight: 500,
                                 backgroundColor: asistencia.entrada.ubicacion.tipo === 'Oficina' 
-                                  ? alpha(theme.palette.success.main, 0.1)
-                                  : alpha(theme.palette.warning.main, 0.1),
+                                  ? alpha(theme.palette.success.main, 0.08)
+                                  : alpha(theme.palette.info.main, 0.08),
                                 color: asistencia.entrada.ubicacion.tipo === 'Oficina'
-                                  ? theme.palette.success.main
-                                  : theme.palette.warning.main,
+                                  ? theme.palette.success.dark
+                                  : theme.palette.info.dark,
                                 border: `1px solid ${
                                   asistencia.entrada.ubicacion.tipo === 'Oficina'
-                                    ? alpha(theme.palette.success.main, 0.3)
-                                    : alpha(theme.palette.warning.main, 0.3)
+                                    ? alpha(theme.palette.success.main, 0.2)
+                                    : alpha(theme.palette.info.main, 0.2)
                                 }`
                               }}
                             />
@@ -1006,18 +1003,19 @@ const AsistenciasPage = () => {
                                       icon={<BreakIcon sx={{ fontSize: 12 }} />}
                                       label={horaInicio}
                                       size="small"
-                                      variant="outlined"
                                       sx={{
                                         height: 22,
-                                        borderColor: alpha(theme.palette.info.main, 0.5),
-                                        color: theme.palette.info.main,
+                                        backgroundColor: alpha(theme.palette.info.main, 0.12),
+                                        color: theme.palette.info.dark,
                                         fontSize: '0.7rem',
+                                        fontWeight: 500,
+                                        border: 'none',
                                         '& .MuiChip-icon': {
-                                          color: theme.palette.info.main
+                                          color: theme.palette.info.dark
                                         }
                                       }}
                                     />
-                                    <Typography variant="caption" sx={{ color: theme.palette.info.main, fontWeight: 500 }}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: '0.65rem' }}>
                                       {duracion}
                                     </Typography>
                                   </Box>
@@ -1062,18 +1060,19 @@ const AsistenciasPage = () => {
                                       icon={<LunchIcon sx={{ fontSize: 12 }} />}
                                       label={horaInicio}
                                       size="small"
-                                      variant="outlined"
                                       sx={{
                                         height: 22,
-                                        borderColor: alpha(theme.palette.warning.main, 0.5),
-                                        color: theme.palette.warning.main,
+                                        backgroundColor: alpha(theme.palette.warning.main, 0.15),
+                                        color: theme.palette.warning.dark,
                                         fontSize: '0.7rem',
+                                        fontWeight: 500,
+                                        border: 'none',
                                         '& .MuiChip-icon': {
-                                          color: theme.palette.warning.main
+                                          color: theme.palette.warning.dark
                                         }
                                       }}
                                     />
-                                    <Typography variant="caption" sx={{ color: theme.palette.warning.main, fontWeight: 500 }}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400, fontSize: '0.65rem' }}>
                                       {duracion}
                                     </Typography>
                                   </Box>
@@ -1089,24 +1088,19 @@ const AsistenciasPage = () => {
                         <TableCell align="center">
                           <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
                             <Chip
-                              icon={<ExitIcon sx={{ fontSize: 12 }} />}
                               label={formatTime(asistencia.salida?.hora) || '-'}
                               size="small"
-                              variant="outlined"
                               sx={{
                                 height: 22,
-                                borderColor: asistencia.salida?.hora 
-                                  ? alpha(theme.palette.error.main, 0.5) 
-                                  : alpha(theme.palette.divider, 0.6),
+                                backgroundColor: asistencia.salida?.hora 
+                                  ? alpha(theme.palette.grey[500], 0.12)
+                                  : alpha(theme.palette.divider, 0.3),
                                 color: asistencia.salida?.hora 
-                                  ? theme.palette.error.main 
+                                  ? theme.palette.text.primary
                                   : 'text.secondary',
                                 fontSize: '0.7rem',
-                                '& .MuiChip-icon': {
-                                  color: asistencia.salida?.hora 
-                                    ? theme.palette.error.main 
-                                    : 'text.secondary'
-                                }
+                                fontWeight: 500,
+                                border: 'none'
                               }}
                             />
                             {/* Modalidad Salida (Nuevo) */}
@@ -1117,17 +1111,17 @@ const AsistenciasPage = () => {
                                 sx={{
                                   height: 20,
                                   fontSize: '0.65rem',
-                                  fontWeight: 600,
+                                  fontWeight: 500,
                                   backgroundColor: asistencia.salida.ubicacion.tipo === 'Oficina' 
-                                    ? alpha(theme.palette.success.main, 0.1)
-                                    : alpha(theme.palette.warning.main, 0.1),
+                                    ? alpha(theme.palette.success.main, 0.08)
+                                    : alpha(theme.palette.info.main, 0.08),
                                   color: asistencia.salida.ubicacion.tipo === 'Oficina'
-                                    ? theme.palette.success.main
-                                    : theme.palette.warning.main,
+                                    ? theme.palette.success.dark
+                                    : theme.palette.info.dark,
                                   border: `1px solid ${
                                     asistencia.salida.ubicacion.tipo === 'Oficina'
-                                      ? alpha(theme.palette.success.main, 0.3)
-                                      : alpha(theme.palette.warning.main, 0.3)
+                                      ? alpha(theme.palette.success.main, 0.2)
+                                      : alpha(theme.palette.info.main, 0.2)
                                   }`
                                 }}
                               />
@@ -1157,16 +1151,18 @@ const AsistenciasPage = () => {
                               </Typography>
                             </Box>
                           ) : (
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                color: theme.palette.success.main,
+                            <Chip
+                              label="En curso"
+                              size="small"
+                              sx={{
+                                height: 22,
+                                fontSize: '0.7rem',
                                 fontWeight: 500,
-                                fontSize: '0.7rem'
+                                backgroundColor: alpha(theme.palette.success.main, 0.08),
+                                color: theme.palette.success.dark,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
                               }}
-                            >
-                              En curso
-                            </Typography>
+                            />
                           )}
                         </TableCell>
                       </TableRow>
