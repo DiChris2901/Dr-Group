@@ -28,7 +28,7 @@ const QuickAccessLinks = () => {
     {
       id: 1,
       title: 'Portal Operativo',
-      subtitle: 'Sistema principal de operaciones',
+      subtitle: 'Operaciones diarias',
       url: 'https://www.organizacionrdj.com',
       icon: Business,
       delay: 0
@@ -36,7 +36,7 @@ const QuickAccessLinks = () => {
     {
       id: 2,
       title: 'Coljuegos',
-      subtitle: 'Portal oficial gubernamental',
+      subtitle: 'Portal gubernamental',
       url: 'https://www.coljuegos.gov.co',
       icon: AccountBalance,
       delay: 0.1
@@ -52,7 +52,7 @@ const QuickAccessLinks = () => {
     {
       id: 4,
       title: 'HOUNDOC',
-      subtitle: 'Plataforma inteligente JSA',
+      subtitle: 'Plataforma JSA',
       url: 'https://app.ia.coljuegos.gov.co/login?p=/',
       icon: Description,
       delay: 0.3
@@ -60,7 +60,7 @@ const QuickAccessLinks = () => {
     {
       id: 5,
       title: 'Muisca DIAN',
-      subtitle: 'Sistema tributario nacional',
+      subtitle: 'Gestión tributaria',
       url: 'https://muisca.dian.gov.co/WebIdentidadLogin/?ideRequest=eyJjbGllbnRJZCI6IldvMGFLQWxCN3ZSUF8xNmZyUEkxeDlacGhCRWEiLCJyZWRpcmVjdF91cmkiOiJodHRwOi8vbXVpc2NhLmRpYW4uZ292LmNvL0lkZW50aWRhZFJlc3RfTG9naW5GaWx0cm8vYXBpL3N0cy92MS9hdXRoL2NhbGxiYWNrP3JlZGlyZWN0X3VyaT1odHRwJTNBJTJGJTJGbXVpc2NhLmRpYW4uZ292LmNvJTJGV2ViQXJxdWl0ZWN0dXJhJTJGRGVmTG9naW4uZmFjZXMiLCJyZXNwb25zZVR5cGUiOiIiLCJzY29wZSI6IiIsInN0YXRlIjoiIiwibm9uY2UiOiIiLCJwYXJhbXMiOnsidGlwb1VzdWFyaW8iOiJtdWlzY2EifX0%3D',
       icon: LocalAtm,
       delay: 0.4
@@ -137,15 +137,15 @@ const QuickAccessLinks = () => {
                     color: theme.palette.text.primary,
                     border: `0.6px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.12)}`,
                     boxShadow: theme.palette.mode === 'dark'
-                      ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.1)}, 0 2px 8px rgba(0, 0, 0, 0.2)`
-                      : `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}, 0 2px 8px rgba(0, 0, 0, 0.04)`,
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+                      : '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    transition: 'all 0.2s ease',
                     borderRadius: 1,
                     '&:hover': {
-                      borderColor: alpha(theme.palette.primary.main, 0.2),
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
                       boxShadow: theme.palette.mode === 'dark'
-                        ? `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}, 0 4px 12px rgba(0, 0, 0, 0.3)`
-                        : `0 4px 20px ${alpha(theme.palette.primary.main, 0.12)}, 0 4px 12px rgba(0, 0, 0, 0.08)`,
+                        ? '0 2px 12px rgba(0, 0, 0, 0.4)'
+                        : '0 2px 12px rgba(0, 0, 0, 0.08)',
                       transform: 'translateY(-2px)',
                       background: theme.palette.mode === 'dark' 
                         ? theme.palette.background.paper
@@ -226,15 +226,6 @@ const QuickAccessLinks = () => {
             </Grid>
           ))}
         </Grid>
-        
-        <Box sx={{ 
-          mt: 1.5, 
-          textAlign: 'center'
-        }}>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-            Haz clic en cualquier tarjeta para abrir el portal en una nueva pestaña
-          </Typography>
-        </Box>
       </Card>
     </motion.div>
   );
