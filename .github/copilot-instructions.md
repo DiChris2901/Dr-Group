@@ -1382,6 +1382,77 @@ Set-Location mobile; npx expo start --clear
 Set-Location mobile; npx expo upgrade
 ```
 
+---
+
+### **🔢 VERSIONADO AUTOMÁTICO ANTES DE COMPILAR**
+
+**⚠️ REGLA CRÍTICA:** Cuando el usuario mencione:
+- "voy a compilar"
+- "compilar la app"
+- "hacer build"
+- "generar APK"
+- Cualquier variante que implique compilación en Android Studio
+
+**ACCIÓN OBLIGATORIA:** Ejecutar INMEDIATAMENTE el script de versionado antes de cualquier otra acción.
+
+#### **🤖 PROTOCOLO AUTOMÁTICO:**
+
+**PASO 1: Ejecutar script de versionado**
+```powershell
+cd mobile/android/app
+.\increment-version.ps1
+```
+
+**PASO 2: Preguntar al usuario qué tipo de versión incrementar:**
+- **[1] PATCH** - Correcciones de bugs (2.1.0 → 2.1.1 → 2.1.2)
+- **[2] MINOR** - Nuevas características (2.1.0 → 2.2.0 → 2.3.0)
+- **[3] MAJOR** - Cambios importantes (2.1.0 → 3.0.0 → 4.0.0)
+
+**PASO 3: Confirmar actualización**
+```
+Version actual: X.X.X → Nueva version: Y.Y.Y
+versionCode: XX (se auto-incrementara a YY al compilar)
+```
+
+**PASO 4: Informar siguiente paso**
+```
+Ahora puedes compilar en Android Studio:
+Build > Generate Signed Bundle/APK > APK > Release
+```
+
+#### **📝 NOTAS IMPORTANTES:**
+
+1. **El versionCode se auto-incrementa** en cada build Release (gestionado por Gradle)
+2. **El versionName se incrementa manualmente** según tipo (PATCH/MINOR/MAJOR)
+3. **El script actualiza automáticamente:**
+   - `mobile/android/app/build.gradle` → versionName
+   - `mobile/app.json` → version (sincronización Expo)
+   - `mobile/android/app/version.properties` → versionCode base
+
+4. **El LoginScreen muestra automáticamente:**
+   ```javascript
+   Versión {Constants.expoConfig?.version} (Build {Constants.expoConfig?.android?.versionCode})
+   // Ejemplo: "Versión 2.2.0 (Build 22)"
+   ```
+
+#### **🚫 NUNCA:**
+- Compilar sin ejecutar el script de versionado primero
+- Asumir el tipo de versión, SIEMPRE preguntar al usuario
+- Olvidar sincronizar app.json con build.gradle
+
+#### **✅ SIEMPRE:**
+- Ejecutar `.\increment-version.ps1` cuando se mencione "compilar"
+- Preguntar explícitamente: "¿Qué tipo de actualización es? (1=PATCH, 2=MINOR, 3=MAJOR)"
+- Confirmar versión actualizada antes de continuar
+- Recordar que el versionCode se incrementa automáticamente en el build
+
+---
+
+### **🎯 PATRÓN GENERAL:**
+```powershell
+Set-Location mobile; npx expo upgrade
+```
+
 ### **🎯 PATRÓN GENERAL:**
 
 ```powershell

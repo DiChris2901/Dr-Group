@@ -319,7 +319,7 @@ export default function LoginScreen() {
                 color: theme.colors.primary,
                 opacity: 0.8
               }}>
-                Versión {Constants.expoConfig?.version ?? '1.0.0'}
+                Versión {Constants.expoConfig?.version ?? '1.0.0'} (Build {Constants.expoConfig?.android?.versionCode ?? '1'})
               </Text>
             </View>
 
