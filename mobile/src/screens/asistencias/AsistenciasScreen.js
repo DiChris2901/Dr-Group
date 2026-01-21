@@ -61,10 +61,12 @@ export default function AsistenciasScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [usersMap, setUsersMap] = useState({});
   const [filterType, setFilterType] = useState('week'); // 'week' | 'month' | 'last_month' | 'recent'
+  const [selectedUserFilter, setSelectedUserFilter] = useState('all'); // ✅ NUEVO: Filtro por empleado
   
   // Modal State
   const [selectedAsistencia, setSelectedAsistencia] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false); // ✅ NUEVO: Modal de filtro por empleado
 
   // Animations
   const slideAnim = useRef(new Animated.Value(height * 0.3)).current;
@@ -93,7 +95,7 @@ export default function AsistenciasScreen({ navigation }) {
     if (userProfile) {
       cargarAsistencias();
     }
-  }, [userProfile, filterType, activeSession]);
+  }, [userProfile, filterType, activeSession, selectedUserFilter]); // ✅ AGREGAR selectedUserFilter a dependencias
 
   const cargarUsuarios = async () => {
     try {
@@ -160,6 +162,11 @@ export default function AsistenciasScreen({ navigation }) {
       } else {
         // Admin query
         let constraints = [];
+        
+        // ✅ NUEVO: Filtro por empleado específico para admins
+        if (selectedUserFilter !== 'all') {
+          constraints.push(where('uid', '==', selectedUserFilter));
+        }
         
         const now = new Date();
         
@@ -365,6 +372,53 @@ export default function AsistenciasScreen({ navigation }) {
           Registro de Asistencias
         </Text>
       </View>
+
+      {/* ✅ NUEVO: Filtro por Empleado (Solo Admins) */}
+      {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setFilterModalVisible(true);
+            }}
+            android_ripple={{ color: surfaceColors.primary + '1F' }}
+            style={{
+              backgroundColor: surfaceColors.surfaceContainerLow,
+              borderRadius: 24,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderWidth: 1,
+              borderColor: surfaceColors.outline
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <MaterialCommunityIcons 
+                name="account-filter" 
+                size={24} 
+                color={surfaceColors.primary} 
+                style={{ marginRight: 12 }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Empleado
+                </Text>
+                <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600', marginTop: 2 }}>
+                  {selectedUserFilter === 'all' 
+                    ? 'Todos los empleados' 
+                    : usersMap[selectedUserFilter]?.name || 'Seleccionar'}
+                </Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons 
+              name="chevron-right" 
+              size={24} 
+              color={surfaceColors.onSurfaceVariant} 
+            />
+          </Pressable>
+        </View>
+      )}
 
       <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         {[
@@ -789,6 +843,112 @@ export default function AsistenciasScreen({ navigation }) {
 
               </ScrollView>
             )}
+          </Surface>
+        </View>
+      </Modal>
+
+      {/* ✅ NUEVO: Modal de Filtro por Empleado (Solo Admins) */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={filterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={[styles.modalOverlay, dynamicStyles.modalOverlay]}>
+          <Surface style={[styles.modalContent, dynamicStyles.modalSurface]} elevation={0}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.surfaceVariant }]}>
+              <Text variant="titleLarge" style={{ fontWeight: 'bold', letterSpacing: -0.25 }}>Filtrar por Empleado</Text>
+              <IconButton icon="close" onPress={() => setFilterModalVisible(false)} />
+            </View>
+            
+            <ScrollView contentContainerStyle={[styles.modalBody, { paddingBottom: 20 }]}>
+              {/* Opción: Todos */}
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSelectedUserFilter('all');
+                  setFilterModalVisible(false);
+                }}
+                android_ripple={{ color: surfaceColors.primary + '1F' }}
+                style={{
+                  backgroundColor: selectedUserFilter === 'all' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.outline
+                }}
+              >
+                <MaterialCommunityIcons 
+                  name={selectedUserFilter === 'all' ? 'check-circle' : 'account-multiple'} 
+                  size={24} 
+                  color={selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.onSurfaceVariant} 
+                  style={{ marginRight: 12 }}
+                />
+                <Text variant="titleMedium" style={{ 
+                  color: selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.onSurface, 
+                  fontWeight: selectedUserFilter === 'all' ? '600' : '500' 
+                }}>
+                  Todos los empleados
+                </Text>
+              </Pressable>
+
+              {/* Lista de Empleados */}
+              {Object.values(usersMap).map((user) => {
+                const isSelected = selectedUserFilter === user.uid;
+                return (
+                  <Pressable
+                    key={user.uid}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedUserFilter(user.uid);
+                      setFilterModalVisible(false);
+                    }}
+                    android_ripple={{ color: surfaceColors.primary + '1F' }}
+                    style={{
+                      backgroundColor: isSelected ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: isSelected ? surfaceColors.primary : surfaceColors.outline
+                    }}
+                  >
+                    {user.photoURL ? (
+                      <Avatar.Image size={40} source={{ uri: user.photoURL }} style={{ marginRight: 12 }} />
+                    ) : (
+                      <Avatar.Text 
+                        size={40} 
+                        label={(user.name || 'U').charAt(0)} 
+                        style={{ 
+                          marginRight: 12, 
+                          backgroundColor: surfaceColors.secondaryContainer 
+                        }} 
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text variant="titleMedium" style={{ 
+                        color: isSelected ? surfaceColors.primary : surfaceColors.onSurface, 
+                        fontWeight: isSelected ? '600' : '500' 
+                      }}>
+                        {user.name}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <MaterialCommunityIcons 
+                        name="check-circle" 
+                        size={24} 
+                        color={surfaceColors.primary} 
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Surface>
         </View>
       </Modal>

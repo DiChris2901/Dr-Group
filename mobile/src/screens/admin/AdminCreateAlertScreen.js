@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Modal, FlatList, Image } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme as usePaperTheme, SegmentedButtons, IconButton, Avatar, Divider, Checkbox, Searchbar, Chip, ActivityIndicator } from 'react-native-paper';
+import { logger } from '../../utils/logger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { collection, addDoc, serverTimestamp, getDocs, query, where, orderBy, limit, getDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -269,10 +270,6 @@ export default function AdminCreateAlertScreen() {
   };
 
   const handleSend = async () => {
-    console.log('DEBUG: Iniciando envío de alerta');
-    console.log('DEBUG: User:', user?.uid);
-    console.log('DEBUG: UserProfile:', userProfile);
-    
     if (!title.trim() || !message.trim()) {
       Alert.alert('Faltan datos', 'Por favor escribe un título y un mensaje para la alerta.');
       return;
@@ -425,14 +422,14 @@ export default function AdminCreateAlertScreen() {
         } 
         // 2. Si no, buscar en Firestore directamente (Fallback robusto)
         else if (user?.uid) {
-          console.log('DEBUG: Buscando perfil de usuario en Firestore...');
+          logger.debug('Buscando perfil de usuario en Firestore...');
           
           // A. Intentar buscar por ID de documento (Estándar)
           let userDocSnap = await getDoc(doc(db, 'users', user.uid));
           
           // B. Si no existe, intentar buscar por campo authUid (Caso especial visto en captura)
           if (!userDocSnap.exists()) {
-            console.log('DEBUG: No encontrado por ID, buscando por authUid...');
+            logger.debug('No encontrado por ID, buscando por authUid...');
             const q = query(collection(db, 'users'), where('authUid', '==', user.uid));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
@@ -444,18 +441,16 @@ export default function AdminCreateAlertScreen() {
             const userData = userDocSnap.data();
             senderName = userData.name || userData.displayName || senderName;
             senderRole = userData.role || senderRole;
-            console.log('DEBUG: Perfil encontrado en Firestore:', senderName);
+            logger.debug('Perfil encontrado en Firestore:', senderName);
           } else {
             // C. Último recurso: usar email
             senderName = user?.email ? user.email.split('@')[0] : 'Administrador';
-            console.log('DEBUG: Perfil no encontrado, usando email:', senderName);
+            logger.debug('Perfil no encontrado, usando email:', senderName);
           }
         }
       } catch (err) {
-        console.error('Error resolviendo remitente:', err);
+        logger.error('Error resolviendo remitente:', err);
       }
-
-      console.log('DEBUG: Sender Info Final:', { senderName, senderRole, senderUid });
 
       const batchPromises = targetUsers.map(userDoc => {
         return addDoc(collection(db, 'notifications'), {
@@ -1052,7 +1047,7 @@ export default function AdminCreateAlertScreen() {
         </View>
       </Modal>
 
-      {/* User Selection Modal */}
+      {/* User Selection Modal - Material You Expressive Design */}
       <Modal
         visible={userModalVisible}
         animationType="slide"
@@ -1060,51 +1055,128 @@ export default function AdminCreateAlertScreen() {
         onRequestClose={() => setUserModalVisible(false)}
       >
         <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-          <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Seleccionar Usuarios</Text>
-            <Button onPress={() => setUserModalVisible(false)}>Listo</Button>
+          {/* Header con diseño elevado */}
+          <View style={{ 
+            padding: 20, 
+            backgroundColor: theme.colors.surfaceContainerLow,
+            borderBottomLeftRadius: 24,
+            borderBottomRightRadius: 24,
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            elevation: 0
+          }}>
+            <Text variant="titleLarge" style={{ fontWeight: '600', color: theme.colors.onSurface }}>
+              Seleccionar Usuarios
+            </Text>
+            <Button 
+              mode="text" 
+              onPress={() => setUserModalVisible(false)}
+              textColor={getPrimaryColor()}
+            >
+              Listo
+            </Button>
           </View>
           
-          <View style={{ padding: 16 }}>
+          {/* Searchbar con diseño orgánico */}
+          <View style={{ padding: 20, paddingBottom: 16 }}>
             <Searchbar
               placeholder="Buscar usuario..."
               onChangeText={setSearchQuery}
               value={searchQuery}
-              style={{ backgroundColor: theme.colors.surfaceContainerHigh }}
-              elevation={0}
+              style={{ 
+                backgroundColor: theme.colors.surfaceContainerHigh,
+                borderRadius: 32,
+                elevation: 0
+              }}
+              inputStyle={{ fontSize: 14 }}
+              iconColor={theme.colors.onSurfaceVariant}
             />
           </View>
 
+          {/* Lista de usuarios con cards orgánicas */}
           <FlatList
             data={filteredUsers}
             keyExtractor={item => item.id}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                onPress={() => toggleUserSelection(item.id)}
-                style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center', 
-                  padding: 16, 
-                  borderBottomWidth: 1, 
-                  borderBottomColor: theme.colors.surfaceVariant 
-                }}
-              >
-                {item.photoURL ? (
-                  <Avatar.Image size={40} source={{ uri: item.photoURL }} />
-                ) : (
-                  <Avatar.Text size={40} label={(item.name || 'U').charAt(0)} />
-                )}
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text variant="bodyLarge" style={{ fontWeight: '600' }}>{item.name || 'Usuario'}</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{item.email}</Text>
-                </View>
-                <Checkbox 
-                  status={selectedUsers.includes(item.id) ? 'checked' : 'unchecked'} 
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 12 }}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            renderItem={({ item }) => {
+              const isSelected = selectedUsers.includes(item.id);
+              return (
+                <TouchableOpacity 
                   onPress={() => toggleUserSelection(item.id)}
-                />
-              </TouchableOpacity>
-            )}
+                  activeOpacity={0.7}
+                  style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    padding: 16,
+                    paddingVertical: 14,
+                    borderRadius: 24,
+                    backgroundColor: isSelected 
+                      ? theme.colors.primaryContainer 
+                      : theme.colors.surfaceContainerLow,
+                    elevation: 0,
+                    borderWidth: isSelected ? 2 : 0,
+                    borderColor: isSelected ? getPrimaryColor() : 'transparent'
+                  }}
+                >
+                  {/* Avatar con tamaño Material You (48px mínimo) */}
+                  {item.photoURL ? (
+                    <Avatar.Image 
+                      size={48} 
+                      source={{ uri: item.photoURL }}
+                      style={{ 
+                        backgroundColor: theme.colors.surfaceContainerHigh 
+                      }}
+                    />
+                  ) : (
+                    <Avatar.Text 
+                      size={48} 
+                      label={(item.name || 'U').charAt(0).toUpperCase()}
+                      style={{ 
+                        backgroundColor: getPrimaryColor() 
+                      }}
+                      labelStyle={{ 
+                        color: theme.colors.onPrimary,
+                        fontWeight: '600'
+                      }}
+                    />
+                  )}
+                  
+                  {/* Información del usuario */}
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text 
+                      variant="bodyLarge" 
+                      style={{ 
+                        fontWeight: '600',
+                        color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurface,
+                        marginBottom: 2
+                      }}
+                    >
+                      {item.name || 'Usuario'}
+                    </Text>
+                    <Text 
+                      variant="bodySmall" 
+                      style={{ 
+                        color: isSelected 
+                          ? theme.colors.onPrimaryContainer 
+                          : theme.colors.onSurfaceVariant,
+                        fontSize: 12
+                      }}
+                    >
+                      {item.email}
+                    </Text>
+                  </View>
+                  
+                  {/* Checkbox con diseño mejorado */}
+                  <Checkbox 
+                    status={isSelected ? 'checked' : 'unchecked'} 
+                    onPress={() => toggleUserSelection(item.id)}
+                    color={getPrimaryColor()}
+                  />
+                </TouchableOpacity>
+              );
+            }}
           />
         </View>
       </Modal>

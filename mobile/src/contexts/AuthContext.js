@@ -12,6 +12,8 @@ import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/NotificationService';
 
+const ACTIVE_SESSION_KEY = '@active_session_state';
+
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
@@ -21,6 +23,7 @@ export const AuthProvider = ({ children }) => {
   const [activeSession, setActiveSession] = useState(null);
   const [isConnected, setIsConnected] = useState(true);
   const [isStartingSession, setIsStartingSession] = useState(false); // 🔒 CANDADO: Prevenir múltiples inicios
+  const [lastCreatedSessionId, setLastCreatedSessionId] = useState(null); // 🔒 TRACK: Último registro creado
 
   // ✅ Monitorear conexión y sincronizar
   useEffect(() => {
@@ -33,6 +36,35 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // 🔒 CAPA 1: Verificar si ya se creó registro hoy (Cache Local)
+  const checkTodaySessionInCache = async (uid, todayStr) => {
+    try {
+      const cacheKey = `session_${uid}_${todayStr}`;
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (cached) {
+        const sessionData = JSON.parse(cached);
+        console.log('✅ CAPA 1 - Registro encontrado en caché local:', sessionData.sessionId);
+        return sessionData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error verificando caché local:', error);
+      return null;
+    }
+  };
+
+  // 🔒 CAPA 1: Guardar registro en cache local
+  const saveTodaySessionInCache = async (uid, todayStr, sessionId) => {
+    try {
+      const cacheKey = `session_${uid}_${todayStr}`;
+      const data = { sessionId, timestamp: Date.now() };
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
+      console.log('💾 Registro guardado en caché local:', cacheKey);
+    } catch (error) {
+      console.error('Error guardando en caché:', error);
+    }
+  };
+
   const syncPendingActions = async () => {
     try {
       const pending = await AsyncStorage.getItem('pending_actions');
@@ -43,22 +75,52 @@ export const AuthProvider = ({ children }) => {
 
       console.log('🔄 Sincronizando acciones pendientes:', actions.length);
       
+      // 🔒 FILTRAR DUPLICADOS: Solo procesar acciones únicas
+      const uniqueActions = [];
+      const seenSessionIds = new Set();
+      
       for (const action of actions) {
-        // Procesar cada acción según su tipo
-        // Nota: Esto es simplificado. En producción idealmente se re-ejecuta la lógica completa
-        // o se usa un endpoint de API que acepte timestamps pasados.
-        // Aquí solo actualizamos Firestore con los datos guardados.
-        
+        if (action.type === 'create_session') {
+          // Verificar si ya procesamos esta fecha
+          const cacheKey = `session_${action.data.uid}_${action.data.fecha}`;
+          if (seenSessionIds.has(cacheKey)) {
+            console.log('⚠️ Acción duplicada detectada, saltando:', cacheKey);
+            continue;
+          }
+          seenSessionIds.add(cacheKey);
+          uniqueActions.push(action);
+        } else {
+          uniqueActions.push(action);
+        }
+      }
+      
+      console.log(`📊 Acciones únicas a sincronizar: ${uniqueActions.length} de ${actions.length}`);
+      
+      for (const action of uniqueActions) {
         if (action.type === 'update_session') {
           await updateDoc(doc(db, 'asistencias', action.sessionId), action.data);
         } else if (action.type === 'create_session') {
-          // Crear sesión pendiente
-          await addDoc(collection(db, 'asistencias'), action.data);
+          // 🔒 Verificar que no exista antes de crear
+          const qCheck = query(
+            collection(db, 'asistencias'),
+            where('uid', '==', action.data.uid),
+            where('fecha', '==', action.data.fecha)
+          );
+          const existingSnap = await getDocs(qCheck);
+          
+          if (existingSnap.empty) {
+            const newDoc = await addDoc(collection(db, 'asistencias'), action.data);
+            console.log('✅ Sesión offline creada:', newDoc.id);
+          } else {
+            console.log('⚠️ Sesión ya existe en Firestore, saltando creación');
+          }
         }
       }
 
       await AsyncStorage.removeItem('pending_actions');
-      Alert.alert('Sincronización', 'Tus registros offline se han subido correctamente.');
+      if (uniqueActions.length > 0) {
+        Alert.alert('Sincronización', 'Tus registros offline se han subido correctamente.');
+      }
     } catch (error) {
       console.error('Error sincronizando:', error);
     }
@@ -128,6 +190,35 @@ export const AuthProvider = ({ children }) => {
       return () => {}; // ✅ Cleanup vacío cuando no hay usuario
     }
 
+    // ✅ PASO 1: Intentar cargar sesión guardada de AsyncStorage (instantáneo)
+    const loadSavedSession = async () => {
+      try {
+        const savedSession = await AsyncStorage.getItem(ACTIVE_SESSION_KEY);
+        if (savedSession) {
+          const parsed = JSON.parse(savedSession);
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          
+          // Verificar que sea del día actual
+          if (parsed.fecha === todayStr && parsed.estadoActual !== 'finalizado') {
+            // Reconstruir Timestamp de entrada
+            if (parsed.entrada?.hora && typeof parsed.entrada.hora === 'number') {
+              parsed.entrada.hora = Timestamp.fromMillis(parsed.entrada.hora);
+            }
+            setActiveSession(parsed);
+          } else {
+            // Limpiar sesión antigua o finalizada
+            await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando sesión guardada:', error);
+      }
+    };
+
+    loadSavedSession();
+
+    // ✅ PASO 2: Listener de Firestore (override si hay diferencias)
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -139,12 +230,27 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = onSnapshot(
       q, 
-      (snapshot) => {
+      async (snapshot) => {
         if (!snapshot.empty) {
           // Si existe registro de hoy, lo cargamos (sea abierto o cerrado)
           // Esto permite que si el admin borra la 'salida', la app se entere inmediatamente
           const docData = snapshot.docs[0].data();
-          setActiveSession({ ...docData, id: snapshot.docs[0].id });
+          const sessionState = { ...docData, id: snapshot.docs[0].id };
+          setActiveSession(sessionState);
+          
+          // ✅ Actualizar AsyncStorage también
+          try {
+            const sessionToSave = {
+              ...sessionState,
+              entrada: sessionState.entrada?.hora ? {
+                ...sessionState.entrada,
+                hora: sessionState.entrada.hora.toMillis ? sessionState.entrada.hora.toMillis() : new Date(sessionState.entrada.hora).getTime()
+              } : sessionState.entrada
+            };
+            await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(sessionToSave));
+          } catch (e) {
+            console.error('Error actualizando AsyncStorage:', e);
+          }
         } else {
           // Si no hay registro de hoy, buscamos si hay alguna sesión ABIERTA de días anteriores
         // (Caso borde: olvidó cerrar ayer)
@@ -250,22 +356,67 @@ export const AuthProvider = ({ children }) => {
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       
+      // � CAPA 1: Verificar caché local PRIMERO (más rápido y funciona offline)
+      const cachedSession = await checkTodaySessionInCache(user.uid, todayStr);
+      if (cachedSession) {
+        console.log('✅ Registro encontrado en caché, cargando sesión existente...');
+        try {
+          const docSnap = await getDoc(doc(db, 'asistencias', cachedSession.sessionId));
+          if (docSnap.exists()) {
+            const sessionData = { id: docSnap.id, ...docSnap.data() };
+            setActiveSession(sessionData);
+            return { success: true, sessionId: docSnap.id, resumed: true, fromCache: true };
+          }
+        } catch (e) {
+          console.warn('No se pudo cargar sesión desde Firestore, continuando...');
+        }
+      }
+      
       // 🚀 Iniciar queries y ubicación en PARALELO (no esperar secuencialmente)
       const validationsPromise = (async () => {
-        // Consultar si ya existe un registro para hoy
+        // 🔒 CAPA 2: Query con retry y timeout para conexiones lentas
         const qToday = query(
           collection(db, 'asistencias'),
           where('uid', '==', user.uid),
           where('fecha', '==', todayStr)
         );
         
-        // ✅ Intentar obtener desde el servidor para asegurar estado actualizado (Reaperturas)
+        // ✅ Intentar obtener desde el servidor con RETRY y TIMEOUT
         let snapshotToday;
-        try {
-          snapshotToday = await getDocsFromServer(qToday);
-        } catch (e) {
-          console.log('⚠️ Error contactando servidor, usando caché local:', e);
-          snapshotToday = await getDocs(qToday);
+        const maxRetries = 2;
+        let attempt = 0;
+        
+        while (attempt <= maxRetries) {
+          try {
+            attempt++;
+            console.log(`🔍 CAPA 2 - Intento ${attempt}/${maxRetries + 1} de consultar Firestore...`);
+            
+            // ⚡ Query con timeout de 8 segundos
+            const queryPromise = getDocsFromServer(qToday);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout Firestore')), 8000)
+            );
+            
+            snapshotToday = await Promise.race([queryPromise, timeoutPromise]);
+            console.log('✅ Query exitosa en intento', attempt);
+            break; // Éxito, salir del loop
+          } catch (e) {
+            console.log(`⚠️ Intento ${attempt} falló:`, e.message);
+            
+            if (attempt > maxRetries) {
+              // Último intento: usar caché local
+              console.log('⚠️ Todos los intentos fallaron, usando caché local');
+              try {
+                snapshotToday = await getDocs(qToday);
+              } catch (cacheError) {
+                console.error('❌ Error crítico: No se puede acceder ni a servidor ni a caché');
+                throw new Error('Sin conexión a internet. Por favor verifica tu conexión y intenta nuevamente.');
+              }
+            } else {
+              // Esperar 1 segundo antes del siguiente intento
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
         }
         
         if (!snapshotToday.empty) {
@@ -413,11 +564,25 @@ export const AuthProvider = ({ children }) => {
       // ✅ Usar fecha LOCAL del dispositivo (lo que el usuario ve)
       // Nota: 'now' ya fue declarado al inicio de la función para validaciones
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      // 🔒 CAPA 3: Generar ID único de sesión (timestamp + uid)
+      const sessionUniqueId = `${user.uid}_${today}_${Date.now()}`;
+      
+      // 🔒 CAPA 3: Verificar si acabamos de crear este registro (prevenir doble tap)
+      if (lastCreatedSessionId && lastCreatedSessionId.startsWith(`${user.uid}_${today}`)) {
+        const timeSinceLastCreation = Date.now() - parseInt(lastCreatedSessionId.split('_')[2]);
+        if (timeSinceLastCreation < 5000) { // Menos de 5 segundos
+          console.log('⚠️ CAPA 3 - Registro duplicado detectado (menos de 5s desde último), abortando');
+          throw new Error('Ya se está procesando tu registro. Por favor espera...');
+        }
+      }
+      
       const asistenciaData = {
         uid: user.uid,
         empleadoEmail: user.email,
         empleadoNombre: nombreEmpleado,
         fecha: today,
+        sessionUniqueId, // 🔒 ID único para detectar duplicados
         entrada: {
           hora: Timestamp.now(),
           ubicacion: location,
@@ -431,11 +596,51 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
+      // 🔒 CAPA 3: ÚLTIMA VERIFICACIÓN antes de crear (por si acaso)
+      const finalCheck = query(
+        collection(db, 'asistencias'),
+        where('uid', '==', user.uid),
+        where('fecha', '==', today)
+      );
+      const finalSnapshot = await getDocs(finalCheck);
+      
+      if (!finalSnapshot.empty) {
+        console.log('⚠️ CAPA 3 - Registro detectado en última verificación, usando existente');
+        const existingDoc = finalSnapshot.docs[0];
+        const existingData = { id: existingDoc.id, ...existingDoc.data() };
+        setActiveSession(existingData);
+        await saveTodaySessionInCache(user.uid, today, existingDoc.id);
+        return { success: true, sessionId: existingDoc.id, resumed: true, preventedDuplicate: true };
+      }
+
       const asistenciaRef = await addDoc(collection(db, 'asistencias'), asistenciaData);
-      setActiveSession({
+      console.log('✅ Registro creado exitosamente:', asistenciaRef.id);
+      
+      // 🔒 Guardar en tracking para prevenir duplicados
+      setLastCreatedSessionId(sessionUniqueId);
+      
+      // 🔒 Guardar en caché local
+      await saveTodaySessionInCache(user.uid, today, asistenciaRef.id);
+      
+      const sessionState = {
         ...asistenciaData,
         id: asistenciaRef.id
-      });
+      };
+      
+      setActiveSession(sessionState);
+      
+      // ✅ Persistir activeSession completa para recuperar al reabrir app
+      try {
+        await AsyncStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+          ...sessionState,
+          entrada: {
+            ...sessionState.entrada,
+            hora: sessionState.entrada.hora.toMillis ? sessionState.entrada.hora.toMillis() : new Date(sessionState.entrada.hora).getTime()
+          }
+        }));
+      } catch (e) {
+        console.error('Error persistiendo activeSession:', e);
+      }
 
       // ⚡ OPTIMIZADO: Notificaciones en background (no bloquean el retorno)
       Promise.all([
@@ -796,6 +1001,13 @@ export const AuthProvider = ({ children }) => {
         });
       }
 
+      // ✅ Limpiar AsyncStorage al finalizar
+      try {
+        await AsyncStorage.removeItem(ACTIVE_SESSION_KEY);
+      } catch (e) {
+        console.error('Error limpiando AsyncStorage:', e);
+      }
+      
       // ✅ Actualizar estado inmediatamente
       setActiveSession({
         ...activeSession,

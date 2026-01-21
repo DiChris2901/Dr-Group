@@ -380,9 +380,41 @@ export default function AdminDashboardScreen({ navigation }) {
                     }} />
                     <Text variant="bodySmall" style={{ color: theme.colors.secondary, textTransform: 'capitalize' }}>
                       {employee.status} 
-                      {employee.attendance?.entrada?.hora ? 
-                        ` • Desde ${employee.attendance.entrada.hora.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 
-                        ' • Sin registro'}
+                      {(() => {
+                        const attendance = employee.attendance;
+                        if (!attendance) return ' • Sin registro';
+                        
+                        let timeLabel = '';
+                        
+                        if (employee.status === 'break') {
+                          // Mostrar hora del último break
+                          const lastBreak = attendance.breaks?.[attendance.breaks.length - 1];
+                          if (lastBreak?.inicio) {
+                            const breakTime = lastBreak.inicio.toDate ? lastBreak.inicio.toDate() : new Date(lastBreak.inicio);
+                            timeLabel = ` • Desde ${breakTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                          }
+                        } else if (employee.status === 'almuerzo') {
+                          // Mostrar hora de inicio del almuerzo
+                          if (attendance.almuerzo?.inicio) {
+                            const lunchTime = attendance.almuerzo.inicio.toDate ? attendance.almuerzo.inicio.toDate() : new Date(attendance.almuerzo.inicio);
+                            timeLabel = ` • Desde ${lunchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                          }
+                        } else if (employee.status === 'finalizado') {
+                          // Mostrar hora de salida
+                          if (attendance.salida?.hora) {
+                            const exitTime = attendance.salida.hora.toDate ? attendance.salida.hora.toDate() : new Date(attendance.salida.hora);
+                            timeLabel = ` • Finalizó ${exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                          }
+                        } else if (employee.status === 'trabajando') {
+                          // Mostrar hora de entrada
+                          if (attendance.entrada?.hora) {
+                            const entryTime = attendance.entrada.hora.toDate ? attendance.entrada.hora.toDate() : new Date(attendance.entrada.hora);
+                            timeLabel = ` • Desde ${entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                          }
+                        }
+                        
+                        return timeLabel || ' • Sin registro';
+                      })()}
                     </Text>
                   </View>
                 </View>
