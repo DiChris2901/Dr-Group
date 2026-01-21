@@ -1,21 +1,18 @@
-import React from 'react';
-import { View, Platform } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { BottomNavigation, useTheme as usePaperTheme } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 // Screens
-import DashboardScreen from '../screens/dashboard/DashboardScreen';
-import AdminDashboardScreen from '../screens/dashboard/AdminDashboardScreen';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
-import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
-import ReportesScreen from '../screens/reportes/ReportesScreen';
+import CalendarioScreen from '../screens/calendario/CalendarioScreen';
+import AdminDashboardScreen from '../screens/dashboard/AdminDashboardScreen';
+import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
-import AchievementsScreen from '../screens/achievements/AchievementsScreen';
+import ReportesScreen from '../screens/reportes/ReportesScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -154,20 +151,6 @@ export default function BottomTabNavigator() {
           ),
         }}
       />
-      
-      {/* ✅ NUEVO: Tab de Logros (Solo para empleados) */}
-      {!isAdmin && (
-        <Tab.Screen 
-          name="Achievements" 
-          component={AchievementsScreen}
-          options={{
-            tabBarLabel: 'Logros',
-            tabBarIcon: ({ focused, color }) => (
-              <MaterialCommunityIcons name={focused ? "trophy" : "trophy-outline"} size={24} color={color} />
-            ),
-          }}
-        />
-      )}
     </Tab.Navigator>
   );
 }
