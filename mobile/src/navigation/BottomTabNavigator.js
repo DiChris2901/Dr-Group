@@ -15,6 +15,7 @@ import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
+import AchievementsScreen from '../screens/achievements/AchievementsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -153,6 +154,20 @@ export default function BottomTabNavigator() {
           ),
         }}
       />
+      
+      {/* ✅ NUEVO: Tab de Logros (Solo para empleados) */}
+      {!isAdmin && (
+        <Tab.Screen 
+          name="Achievements" 
+          component={AchievementsScreen}
+          options={{
+            tabBarLabel: 'Logros',
+            tabBarIcon: ({ focused, color }) => (
+              <MaterialCommunityIcons name={focused ? "trophy" : "trophy-outline"} size={24} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
