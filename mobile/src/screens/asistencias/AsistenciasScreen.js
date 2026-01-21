@@ -62,13 +62,11 @@ export default function AsistenciasScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [usersMap, setUsersMap] = useState({});
   const [filterType, setFilterType] = useState('week'); // 'week' | 'month' | 'last_month' | 'recent'
-  const [selectedUserFilter, setSelectedUserFilter] = useState('all'); // ✅ Filtro por empleado
-  const [searchQuery, setSearchQuery] = useState(''); // ✅ NUEVO: Búsqueda por texto
+  const [searchQuery, setSearchQuery] = useState(''); // ✅ Búsqueda por texto
   
   // Modal State
   const [selectedAsistencia, setSelectedAsistencia] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [filterModalVisible, setFilterModalVisible] = useState(false); // ✅ Modal de filtro por empleado
 
   // Animations
   const slideAnim = useRef(new Animated.Value(height * 0.3)).current;
@@ -97,7 +95,7 @@ export default function AsistenciasScreen({ navigation }) {
     if (userProfile) {
       cargarAsistencias();
     }
-  }, [userProfile, filterType, activeSession, selectedUserFilter]); // ✅ AGREGAR selectedUserFilter a dependencias
+  }, [userProfile, filterType, activeSession]);
 
   const cargarUsuarios = async () => {
     try {
@@ -164,11 +162,6 @@ export default function AsistenciasScreen({ navigation }) {
       } else {
         // Admin query
         let constraints = [];
-        
-        // ✅ NUEVO: Filtro por empleado específico para admins
-        if (selectedUserFilter !== 'all') {
-          constraints.push(where('uid', '==', selectedUserFilter));
-        }
         
         const now = new Date();
         
@@ -241,20 +234,57 @@ export default function AsistenciasScreen({ navigation }) {
     return format(date, 'h:mm a');
   };
 
-  // ✅ NUEVO: Filtrado local por búsqueda
+  // ✅ NUEVO: Filtrado local por búsqueda (búsqueda inteligente de fechas)
   const filteredAsistencias = asistencias.filter(item => {
     if (!searchQuery.trim()) return true;
     
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     const userName = usersMap[item.uid]?.name?.toLowerCase() || '';
-    const fecha = item.fecha?.toLowerCase() || '';
+    const fechaISO = item.fecha || ''; // Formato: "2026-01-20"
+    
+    // Convertir fecha ISO a formatos legibles en español
+    let fechaFormateada = '';
+    let fechaDia = '';
+    let fechaMes = '';
+    let fechaAno = '';
+    
+    if (fechaISO) {
+      try {
+        const [ano, mes, dia] = fechaISO.split('-');
+        fechaDia = dia;
+        fechaMes = mes;
+        fechaAno = ano;
+        
+        // Crear múltiples formatos de búsqueda
+        const mesesES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
+                         'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const nombreMes = mesesES[parseInt(mes) - 1] || '';
+        
+        // Formatos soportados:
+        // "20 de enero", "20 enero", "enero 20"
+        // "20/01/2026", "20/01", "20-01-2026", "20-01"
+        // "2026-01-20" (ISO original)
+        fechaFormateada = [
+          `${dia} de ${nombreMes}`, // "20 de enero"
+          `${dia} ${nombreMes}`,    // "20 enero"
+          `${nombreMes} ${dia}`,    // "enero 20"
+          `${dia}/${mes}/${ano}`,   // "20/01/2026"
+          `${dia}/${mes}`,          // "20/01"
+          `${dia}-${mes}-${ano}`,   // "20-01-2026"
+          `${dia}-${mes}`,          // "20-01"
+          fechaISO                  // "2026-01-20"
+        ].join(' ').toLowerCase();
+      } catch (e) {
+        fechaFormateada = fechaISO.toLowerCase();
+      }
+    }
     
     // Admin: busca por nombre + fecha
     // Empleado: solo busca por fecha (solo ve sus registros)
     if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
-      return userName.includes(query) || fecha.includes(query);
+      return userName.includes(query) || fechaFormateada.includes(query);
     } else {
-      return fecha.includes(query);
+      return fechaFormateada.includes(query);
     }
   });
 
@@ -392,54 +422,7 @@ export default function AsistenciasScreen({ navigation }) {
         </Text>
       </View>
 
-      {/* ✅ NUEVO: Filtro por Empleado (Solo Admins) */}
-      {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
-        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              setFilterModalVisible(true);
-            }}
-            android_ripple={{ color: surfaceColors.primary + '1F' }}
-            style={{
-              backgroundColor: surfaceColors.surfaceContainerLow,
-              borderRadius: 24,
-              padding: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderWidth: 1,
-              borderColor: surfaceColors.outline
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <MaterialCommunityIcons 
-                name="account-filter" 
-                size={24} 
-                color={surfaceColors.primary} 
-                style={{ marginRight: 12 }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Empleado
-                </Text>
-                <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600', marginTop: 2 }}>
-                  {selectedUserFilter === 'all' 
-                    ? 'Todos los empleados' 
-                    : usersMap[selectedUserFilter]?.name || 'Seleccionar'}
-                </Text>
-              </View>
-            </View>
-            <MaterialCommunityIcons 
-              name="chevron-right" 
-              size={24} 
-              color={surfaceColors.onSurfaceVariant} 
-            />
-          </Pressable>
-        </View>
-      )}
-
-      {/* ✅ NUEVO: Búsqueda por texto */}
+      {/* ✅ Búsqueda por texto */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
         <Searchbar
           placeholder={(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') 
@@ -880,112 +863,6 @@ export default function AsistenciasScreen({ navigation }) {
 
               </ScrollView>
             )}
-          </Surface>
-        </View>
-      </Modal>
-
-      {/* ✅ NUEVO: Modal de Filtro por Empleado (Solo Admins) */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={filterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <View style={[styles.modalOverlay, dynamicStyles.modalOverlay]}>
-          <Surface style={[styles.modalContent, dynamicStyles.modalSurface]} elevation={0}>
-            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleLarge" style={{ fontWeight: 'bold', letterSpacing: -0.25 }}>Filtrar por Empleado</Text>
-              <IconButton icon="close" onPress={() => setFilterModalVisible(false)} />
-            </View>
-            
-            <ScrollView contentContainerStyle={[styles.modalBody, { paddingBottom: 20 }]}>
-              {/* Opción: Todos */}
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSelectedUserFilter('all');
-                  setFilterModalVisible(false);
-                }}
-                android_ripple={{ color: surfaceColors.primary + '1F' }}
-                style={{
-                  backgroundColor: selectedUserFilter === 'all' ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
-                  borderRadius: 16,
-                  padding: 16,
-                  marginBottom: 12,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.outline
-                }}
-              >
-                <MaterialCommunityIcons 
-                  name={selectedUserFilter === 'all' ? 'check-circle' : 'account-multiple'} 
-                  size={24} 
-                  color={selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.onSurfaceVariant} 
-                  style={{ marginRight: 12 }}
-                />
-                <Text variant="titleMedium" style={{ 
-                  color: selectedUserFilter === 'all' ? surfaceColors.primary : surfaceColors.onSurface, 
-                  fontWeight: selectedUserFilter === 'all' ? '600' : '500' 
-                }}>
-                  Todos los empleados
-                </Text>
-              </Pressable>
-
-              {/* Lista de Empleados */}
-              {Object.values(usersMap).map((user) => {
-                const isSelected = selectedUserFilter === user.uid;
-                return (
-                  <Pressable
-                    key={user.uid}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setSelectedUserFilter(user.uid);
-                      setFilterModalVisible(false);
-                    }}
-                    android_ripple={{ color: surfaceColors.primary + '1F' }}
-                    style={{
-                      backgroundColor: isSelected ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
-                      borderRadius: 16,
-                      padding: 16,
-                      marginBottom: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      borderWidth: 1,
-                      borderColor: isSelected ? surfaceColors.primary : surfaceColors.outline
-                    }}
-                  >
-                    {user.photoURL ? (
-                      <Avatar.Image size={40} source={{ uri: user.photoURL }} style={{ marginRight: 12 }} />
-                    ) : (
-                      <Avatar.Text 
-                        size={40} 
-                        label={(user.name || 'U').charAt(0)} 
-                        style={{ 
-                          marginRight: 12, 
-                          backgroundColor: surfaceColors.secondaryContainer 
-                        }} 
-                      />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text variant="titleMedium" style={{ 
-                        color: isSelected ? surfaceColors.primary : surfaceColors.onSurface, 
-                        fontWeight: isSelected ? '600' : '500' 
-                      }}>
-                        {user.name}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <MaterialCommunityIcons 
-                        name="check-circle" 
-                        size={24} 
-                        color={surfaceColors.primary} 
-                      />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
           </Surface>
         </View>
       </Modal>
