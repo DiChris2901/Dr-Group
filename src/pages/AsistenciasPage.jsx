@@ -340,7 +340,7 @@ const AsistenciasPage = () => {
     }
     
     // Reset estados
-    setFilterPeriodo('');
+    setFilterPeriodo('hoy'); // Mantener valor por defecto
     setFilterEmpleado('all');
     setFilterEstado('all');
     setFilterUbicacion('all');
