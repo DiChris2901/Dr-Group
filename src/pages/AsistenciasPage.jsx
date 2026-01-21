@@ -880,8 +880,8 @@ const AsistenciasPage = () => {
                           <Box display="flex" alignItems="center" gap={1.5}>
                             <Avatar
                               sx={{
-                                width: 36,
-                                height: 36,
+                                width: 28,
+                                height: 28,
                                 bgcolor: theme.palette.primary.main
                               }}
                             >
@@ -903,14 +903,15 @@ const AsistenciasPage = () => {
                         {/* Entrada */}
                         <TableCell align="center">
                           <Chip
-                            icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
+                            icon={<AccessTimeIcon sx={{ fontSize: 12 }} />}
                             label={formatTime(asistencia.entrada?.hora) || '-'}
                             size="small"
                             variant="outlined"
                             sx={{
+                              height: 22,
                               borderColor: alpha(theme.palette.success.main, 0.5),
                               color: theme.palette.success.main,
-                              fontSize: '0.75rem',
+                              fontSize: '0.7rem',
                               '& .MuiChip-icon': {
                                 color: theme.palette.success.main
                               }
@@ -1088,18 +1089,19 @@ const AsistenciasPage = () => {
                         <TableCell align="center">
                           <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
                             <Chip
-                              icon={<ExitIcon sx={{ fontSize: 14 }} />}
+                              icon={<ExitIcon sx={{ fontSize: 12 }} />}
                               label={formatTime(asistencia.salida?.hora) || '-'}
                               size="small"
                               variant="outlined"
                               sx={{
+                                height: 22,
                                 borderColor: asistencia.salida?.hora 
                                   ? alpha(theme.palette.error.main, 0.5) 
                                   : alpha(theme.palette.divider, 0.6),
                                 color: asistencia.salida?.hora 
                                   ? theme.palette.error.main 
                                   : 'text.secondary',
-                                fontSize: '0.75rem',
+                                fontSize: '0.7rem',
                                 '& .MuiChip-icon': {
                                   color: asistencia.salida?.hora 
                                     ? theme.palette.error.main 
@@ -1155,7 +1157,16 @@ const AsistenciasPage = () => {
                               </Typography>
                             </Box>
                           ) : (
-                            <Typography variant="caption" color="text.secondary">En curso</Typography>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                color: theme.palette.success.main,
+                                fontWeight: 500,
+                                fontSize: '0.7rem'
+                              }}
+                            >
+                              En curso
+                            </Typography>
                           )}
                         </TableCell>
                       </TableRow>
