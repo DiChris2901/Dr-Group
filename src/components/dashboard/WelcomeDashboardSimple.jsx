@@ -13,7 +13,6 @@ import QuickAccessLinks from './QuickAccessLinks';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
   const { currentUser, userProfile } = useAuth();
   useContractExpirationAlerts(); // ✅ Activar sistema de alertas de contratos
   const [currentTime] = useState(new Date().getHours());
@@ -84,46 +83,11 @@ const WelcomeDashboardSimple = () => {
                 Centro de Comando Empresarial • Gestión financiera inteligente
               </Typography>
             </Box>
-            
-            {/* Botón sobrio con estado en tiempo real */}
-            <Button
-              variant="contained"
-              startIcon={<Refresh />}
-              onClick={handleRefresh}
-              disabled={stats?.loading}
-              sx={{
-                background: 'rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: 1,
-                fontWeight: 500,
-                px: 2.5,
-                py: 1,
-                color: 'white',
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                minHeight: 'auto',
-                '&:hover': {
-                  background: 'rgba(255,255,255,0.2)',
-                  borderColor: 'rgba(255,255,255,0.3)'
-                },
-                '&:disabled': {
-                  background: 'rgba(255,255,255,0.05)',
-                  color: 'rgba(255,255,255,0.5)'
-                }
-              }}
-            >
-              {stats?.loading ? 'Cargando...' : 'Actualizar'}
-            </Button>
           </Box>
         </Box>
       </motion.div>
 
         {/* Estadísticas eliminadas - Dashboard minimalista enfocado en accesos rápidos */}
-              </motion.div>
-            </Grid>
-          ))}
-        </Grid>
 
         {/* Páginas de Interés - Accesos Directos */}
         <Box sx={{ mb: 4 }}>
