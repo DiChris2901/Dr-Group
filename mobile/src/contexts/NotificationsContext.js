@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import { collection, query, where, onSnapshot, orderBy, limit, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
+import { logger } from '../utils/logger';
 
 const NotificationsContext = createContext();
 
@@ -28,12 +31,20 @@ Notifications.setNotificationHandler({
 });
 
 export const NotificationsProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [notification, setNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expoPushToken, setExpoPushToken] = useState(null);
   const notificationListener = useRef();
   const responseListener = useRef();
   const lastNotificationIdRef = useRef(null);
+
+  // ✅ NUEVO: Registrar token de dispositivo al iniciar sesión
+  useEffect(() => {
+    if (user && userProfile) {
+      registerForPushNotifications();
+    }
+  }, [user, userProfile]);
 
   // ✅ Listener de Firestore para contar no leídas y detectar nuevas
   useEffect(() => {
@@ -154,6 +165,56 @@ export const NotificationsProvider = ({ children }) => {
     }
   }
 
+  // ✅ NUEVO: Registrar dispositivo para Push Notifications y guardar token
+  async function registerForPushNotifications() {
+    if (!Device.isDevice) {
+      logger.warn('Push Notifications requieren dispositivo físico');
+      return null;
+    }
+
+    try {
+      // 1. Pedir permisos
+      const hasPermission = await requestNotificationPermissions();
+      if (!hasPermission) return null;
+
+      // 2. Obtener Expo Push Token
+      const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      const token = tokenData.data;
+      
+      setExpoPushToken(token);
+      logger.info('✅ Expo Push Token obtenido:', token);
+
+      // 3. Guardar token en Firestore con info del dispositivo
+      if (user && token) {
+        const deviceInfo = {
+          token,
+          platform: Platform.OS,
+          model: Device.modelName || 'Unknown',
+          osVersion: Device.osVersion || 'Unknown',
+          appVersion: Constants.expoConfig?.version || '2.1.0',
+          lastUpdated: new Date().toISOString(),
+          userId: user.uid,
+          role: userProfile?.role || 'USER',
+          // ✅ Preferencias de notificaciones según rol
+          preferences: {
+            calendar: userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN', // Solo admins reciben calendario
+            attendance: true, // Todos reciben recordatorios de asistencia
+            alerts: true // Todos reciben alertas de admins
+          }
+        };
+
+        await setDoc(doc(db, 'deviceTokens', user.uid), deviceInfo, { merge: true });
+        logger.info('✅ Token guardado en Firestore con preferencias');
+      }
+
+      return token;
+    } catch (error) {
+      logger.error('❌ Error registrando push notifications:', error);
+      return null;
+    }
+  }
+
   // Configurar canales de notificación para Android
   async function setupNotificationChannels() {
     try {
@@ -221,12 +282,126 @@ export const NotificationsProvider = ({ children }) => {
     }
   }
 
+  // ✅ NUEVO: Programar recordatorio de salida (6:00 PM si no ha registrado salida)
+  async function scheduleExitReminder() {
+    try {
+      const now = new Date();
+      const exitReminderTime = new Date();
+      exitReminderTime.setHours(18, 0, 0, 0); // 6:00 PM
+
+      // Si ya pasó las 6 PM hoy, programar para mañana
+      if (now > exitReminderTime) {
+        exitReminderTime.setDate(exitReminderTime.getDate() + 1);
+      }
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🏠 ¿Olvidaste registrar tu salida?',
+          body: 'Recuerda finalizar tu jornada laboral en la app.',
+          data: { type: 'exit_reminder', screen: 'Dashboard' },
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: {
+          date: exitReminderTime,
+          channelId: 'reminders',
+        },
+      });
+
+      logger.info('✅ Recordatorio de salida programado:', identifier);
+      return identifier;
+    } catch (error) {
+      logger.error('❌ Error programando recordatorio de salida:', error);
+    }
+  }
+
+  // ✅ NUEVO: Recordatorio de break después de 4 horas trabajando
+  async function scheduleBreakReminder(startTime) {
+    try {
+      const breakTime = new Date(startTime);
+      breakTime.setHours(breakTime.getHours() + 4); // 4 horas después
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '☕ Hora de un descanso',
+          body: 'Has trabajado 4 horas. Tómate un break de 15 minutos.',
+          data: { type: 'break_reminder', screen: 'Dashboard' },
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.DEFAULT,
+        },
+        trigger: {
+          date: breakTime,
+          channelId: 'reminders',
+        },
+      });
+
+      logger.info('✅ Recordatorio de break programado:', identifier);
+      return identifier;
+    } catch (error) {
+      logger.error('❌ Error programando recordatorio de break:', error);
+    }
+  }
+
+  // ✅ NUEVO: Recordatorio de almuerzo (12:00 PM si no lo ha registrado)
+  async function scheduleLunchReminder() {
+    try {
+      const now = new Date();
+      const lunchTime = new Date();
+      lunchTime.setHours(12, 0, 0, 0); // 12:00 PM
+
+      // Solo programar si aún no es mediodía
+      if (now < lunchTime) {
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🍽️ Hora del almuerzo',
+            body: 'Recuerda registrar tu hora de almuerzo.',
+            data: { type: 'lunch_reminder', screen: 'Dashboard' },
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.DEFAULT,
+          },
+          trigger: {
+            date: lunchTime,
+            channelId: 'reminders',
+          },
+        });
+
+        logger.info('✅ Recordatorio de almuerzo programado:', identifier);
+        return identifier;
+      }
+    } catch (error) {
+      logger.error('❌ Error programando recordatorio de almuerzo:', error);
+    }
+  }
+
+  // ✅ NUEVO: Cancelar recordatorios específicos por tipo
+  async function cancelScheduledReminders() {
+    try {
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      
+      for (const notif of scheduledNotifications) {
+        const data = notif.content?.data;
+        if (data?.type?.includes('reminder')) {
+          await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+          logger.info(`✅ Recordatorio cancelado: ${data.type}`);
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Error cancelando recordatorios:', error);
+    }
+  }
+
   const value = {
     notification,
     unreadCount,
+    expoPushToken,
     scheduleNotification,
     cancelNotification,
-    cancelAllNotifications
+    cancelAllNotifications,
+    // ✅ NUEVAS funciones de recordatorios
+    scheduleExitReminder,
+    scheduleBreakReminder,
+    scheduleLunchReminder,
+    cancelScheduledReminders,
   };
 
   return (

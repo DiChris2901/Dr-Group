@@ -11,6 +11,7 @@ import { Platform, Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/NotificationService';
+import { logger } from '../utils/logger';
 
 const ACTIVE_SESSION_KEY = '@active_session_state';
 
@@ -647,6 +648,31 @@ export const AuthProvider = ({ children }) => {
         NotificationService.notifyWorkDayComplete(9),
         NotificationService.updateStateNotification('trabajando', now)
       ]).catch(e => console.log('Error programando notificaciones:', e));
+
+      // ✅ NUEVO: Programar recordatorios automáticos
+      try {
+        // Importar dinámicamente para evitar circular dependency
+        const { scheduleExitReminder, scheduleBreakReminder, scheduleLunchReminder } = require('./NotificationsContext');
+        
+        // Recordatorio de salida a las 6 PM
+        if (scheduleExitReminder) {
+          scheduleExitReminder().catch(e => logger.debug('Error programando recordatorio de salida:', e));
+        }
+        
+        // Recordatorio de break en 4 horas
+        if (scheduleBreakReminder) {
+          scheduleBreakReminder(now).catch(e => logger.debug('Error programando recordatorio de break:', e));
+        }
+        
+        // Recordatorio de almuerzo a las 12 PM
+        if (scheduleLunchReminder) {
+          scheduleLunchReminder().catch(e => logger.debug('Error programando recordatorio de almuerzo:', e));
+        }
+        
+        logger.info('✅ Recordatorios automáticos programados');
+      } catch (e) {
+        logger.debug('NotificationsContext no disponible aún');
+      }
 
       return { success: true, sessionId: asistenciaRef.id };
     } catch (error) {
