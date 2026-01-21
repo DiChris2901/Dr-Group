@@ -1,153 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
-  Grid,
-  Card,
-  CardContent,
   Typography,
-  LinearProgress,
   useTheme,
-  CircularProgress,
-  Alert,
-  Chip,
-  Button,
-  Divider,
-  Avatar,
-  IconButton,
-  Tooltip,
-  alpha,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
+  alpha
 } from '@mui/material';
-import {
-  Warning,
-  CheckCircle,
-  AttachMoney,
-  Business as BusinessIcon,
-  AccountBalance,
-  Person,
-  Refresh,
-  Payment as PaymentIcon
-} from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { useDashboardStats } from '../../hooks/useDashboardStats';
-import { useFirestore } from '../../hooks/useFirestore';
-import { useCommitments } from '../../hooks/useFirestore';
 import { useContractExpirationAlerts } from '../../hooks/useContractExpirationAlerts';
-import { fCurrency } from '../../utils/formatNumber';
-import { useNavigate } from 'react-router-dom';
 import DashboardCalendar from './DashboardCalendar';
 import QuickAccessLinks from './QuickAccessLinks';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { currentUser, userProfile } = useAuth();
-  const stats = useDashboardStats();
-  const { commitments } = useCommitments();
   useContractExpirationAlerts(); // ✅ Activar sistema de alertas de contratos
   const [currentTime] = useState(new Date().getHours());
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [alertsModalOpen, setAlertsModalOpen] = useState(false);
-  const [payments, setPayments] = useState([]);
 
-  // 🔥 CARGAR PAGOS DESDE FIREBASE
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'payments'),
-      (snapshot) => {
-        const paymentsData = [];
-        snapshot.forEach((doc) => {
-          const payment = doc.data();
-          paymentsData.push({
-            id: doc.id,
-            commitmentId: payment.commitmentId,
-            amount: parseFloat(payment.amount || payment.totalAmount || 0)
-          });
-        });
-        setPayments(paymentsData);
-        console.log('💳 Pagos cargados:', paymentsData.length);
-      },
-      (error) => {
-        console.error('Error cargando pagos:', error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  // 🔥 FUNCIÓN PARA CALCULAR SALDO REAL
-  const calculateRemainingBalance = useCallback((commitment) => {
-    const originalAmount = parseFloat(commitment.amount || commitment.totalAmount || 0);
-    
-    // Obtener pagos para este compromiso
-    const commitmentsPayments = payments.filter(p => p.commitmentId === commitment.id);
-    const totalPaid = commitmentsPayments.reduce((sum, payment) => sum + payment.amount, 0);
-    
-    // Calcular saldo restante
-    const remainingBalance = Math.max(0, originalAmount - totalPaid);
-    
-    return remainingBalance;
-  }, [payments]);
-
-  // Obtener compromisos vencidos - Usando la misma lógica que useDashboardStats
-  const getOverdueCommitments = useCallback(() => {
-    if (!commitments || commitments.length === 0) return [];
-    
-    const now = new Date();
-    return commitments.filter(commitment => {
-      const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-      
-      // Verificar si está vencido
-      const isOverdue = dueDate && dueDate < now;
-      
-      // Verificar múltiples formas de identificar un compromiso PAGADO (misma lógica que useDashboardStats)
-      const isPaid = commitment.status === 'completed' || 
-                    commitment.status === 'paid' || 
-                    commitment.status === 'Pagado' ||
-                    commitment.status === 'pagado' ||
-                    commitment.status === 'PAGADO' ||
-                    commitment.paid === true ||
-                    commitment.isPaid === true ||
-                    commitment.paymentStatus === 'paid' ||
-                    commitment.paymentStatus === 'Pagado' ||
-                    commitment.paymentStatus === 'pagado' ||
-                    commitment.completed === true;
-      
-      // Solo mostrar compromisos vencidos Y no pagados
-      return isOverdue && !isPaid;
-    }).map(commitment => {
-      const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-      const remainingBalance = calculateRemainingBalance(commitment);
-      
-      return {
-        ...commitment,
-        dueDate,
-        remainingBalance // 🔥 Agregar saldo real calculado
-      };
-    }).sort((a, b) => a.dueDate - b.dueDate); // Ordenar por fecha de vencimiento
-  }, [commitments, calculateRemainingBalance]);
-
-  const overdueCommitments = getOverdueCommitments();
-
-  // Actualizar timestamp cada minuto
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastRefresh(new Date());
-    }, 60000); // Actualiza cada minuto
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleRefresh = () => {
-    setLastRefresh(new Date());
-    window.location.reload();
-  };
+  // Dashboard minimalista: Funciones de cálculo de compromisos vencidos eliminadas
 
   const getGreeting = () => {
     if (currentTime < 12) return 'Buenos días';
@@ -155,48 +26,8 @@ const WelcomeDashboardSimple = () => {
     return 'Buenas noches';
   };
 
-
-
-  // Estadísticas rápidas con datos reales de Firebase
-  const quickStats = [
-    {
-      title: 'Compromisos Activos',
-      value: stats?.loading ? '...' : (stats?.activeCommitments || '0'),
-      icon: AccountBalance,
-      color: '#2196f3',
-      trend: stats?.activeCommitments > 0 ? `${stats.activeCommitments} activos de ${stats.totalCommitments} total` : 'Sin compromisos activos'
-    },
-    {
-      title: 'Pendientes de Pago',
-      value: stats?.loading ? '...' : fCurrency(stats?.pendingAmount || 0),
-      icon: AttachMoney,
-      color: '#ff9800',
-      trend: stats?.pendingCommitments > 0 ? `${stats.pendingCommitments} compromisos` : 'Al día'
-    },
-    {
-      title: 'Empresas Activas',
-      value: stats?.loading ? '...' : (stats?.totalCompanies || '0'),
-      icon: BusinessIcon,
-      color: '#4caf50',
-      trend: stats?.totalCompanies > 0 ? 'Activo' : 'Inactivo'
-    },
-    {
-      title: 'Alertas Críticas',
-      value: stats?.loading ? '...' : (stats?.overDueCommitments || '0'),
-      icon: Warning,
-      color: '#f44336',
-      trend: stats?.overDueCommitments > 0 ? '¡Revisar!' : 'Sin alertas',
-      onClick: () => setAlertsModalOpen(true),
-      isAlert: true
-    },
-    {
-      title: `Pagos de ${new Date().toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('es-ES', { month: 'long' }).slice(1)}`,
-      value: stats?.loading ? '...' : fCurrency(stats?.currentMonthPaymentAmount || 0),
-      icon: PaymentIcon,
-      color: '#9c27b0',
-      trend: stats?.currentMonthPayments > 0 ? `${stats.currentMonthPayments} pagos realizados` : 'Sin pagos este mes'
-    }
-  ];
+  // Dashboard minimalista: Solo accesos rápidos y calendario
+  // (Estadísticas eliminadas - redundantes con páginas dedicadas)
 
   return (
     <motion.div
@@ -288,66 +119,7 @@ const WelcomeDashboardSimple = () => {
         </Box>
       </motion.div>
 
-        {/* Estadísticas rápidas */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          {quickStats.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={quickStats.length === 5 ? 2.4 : 3} key={index}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <Card sx={{
-                  background: theme.palette.mode === 'dark' 
-                    ? theme.palette.background.paper
-                    : '#ffffff',
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-                    : '0 4px 20px rgba(0, 0, 0, 0.08)',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 8px 25px rgba(0, 0, 0, 0.4)'
-                      : '0 8px 25px rgba(0, 0, 0, 0.12)',
-                    borderColor: alpha(theme.palette.primary.main, 0.8)
-                  },
-                  transition: 'all 0.3s ease',
-                  cursor: stat.onClick ? 'pointer' : 'default'
-                }}
-                onClick={stat.onClick}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box>
-                        <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-                          {stats?.loading ? (
-                            <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
-                          ) : stat.value}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {stat.title}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ 
-                        background: alpha(theme.palette.primary.main, 0.1), 
-                        borderRadius: 2, 
-                        p: 1.5,
-                        color: theme.palette.primary.main
-                      }}>
-                        <stat.icon />
-                      </Box>
-                    </Box>
-                    <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
-                      <Chip 
-                        label={stat.trend} 
-                        size="small" 
-                        color={stat.trend.includes('+') ? 'success' : 'error'}
-                        variant="outlined"
-                      />
-                    </Box>
-                  </CardContent>
-                </Card>
+        {/* Estadísticas eliminadas - Dashboard minimalista enfocado en accesos rápidos */}
               </motion.div>
             </Grid>
           ))}
@@ -372,204 +144,7 @@ const WelcomeDashboardSimple = () => {
 
       </Box>
 
-      {/* Modal de Alertas Críticas - Diseño Sobrio */}
-      <Dialog
-        open={alertsModalOpen}
-        onClose={() => setAlertsModalOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)',
-            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          pb: 2,
-          pt: 3,
-          px: 3,
-          background: 'transparent',
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5
-        }}>
-          <Warning sx={{ color: 'error.main', fontSize: 20 }} />
-          <Box>
-            <Typography variant="subtitle2" sx={{ 
-              color: 'text.secondary',
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              mb: 0.5
-            }}>
-              ESTADO CRÍTICO
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              Compromisos Vencidos
-            </Typography>
-          </Box>
-        </DialogTitle>
-        
-        <DialogContent sx={{ p: 0 }}>
-          {overdueCommitments.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <CheckCircle sx={{ fontSize: 32, color: 'success.main', mb: 1.5 }} />
-              <Typography variant="subtitle1" color="success.main" sx={{ fontWeight: 600 }}>
-                ¡No hay compromisos vencidos!
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Todos los compromisos están al día
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ p: 2 }}>
-              {overdueCommitments.map((commitment, index) => (
-                <React.Fragment key={commitment.id}>
-                  <Box sx={{ 
-                    p: 1.5,
-                    border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.error.main, 0.04),
-                    mb: index < overdueCommitments.length - 1 ? 1.5 : 0
-                  }}>
-                    {/* Header compacto */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        flex: 1,
-                        mr: 2
-                      }}>
-                        {commitment.concept || commitment.description || commitment.title || commitment.name || 'Compromiso sin descripción'}
-                      </Typography>
-                      <Chip 
-                        label={fCurrency(commitment.remainingBalance || commitment.amount || 0)}
-                        size="small"
-                        sx={{
-                          backgroundColor: alpha(theme.palette.error.main, 0.08),
-                          color: 'error.main',
-                          border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-                          fontWeight: 600,
-                          fontSize: '0.75rem'
-                        }}
-                      />
-                    </Box>
-                    
-                    {/* Información compacta */}
-                    <Box sx={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: 1,
-                      fontSize: '0.8rem'
-                    }}>
-                      <Box>
-                        <Typography variant="caption" sx={{ 
-                          color: 'text.secondary',
-                          fontSize: '0.7rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          fontWeight: 500
-                        }}>
-                          EMPRESA
-                        </Typography>
-                        <Typography variant="body2" sx={{ 
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                          color: 'text.primary',
-                          mt: 0.25
-                        }}>
-                          {commitment.companyName || commitment.company || 'No especificada'}
-                        </Typography>
-                      </Box>
-                      
-                      <Box>
-                        <Typography variant="caption" sx={{ 
-                          color: 'text.secondary',
-                          fontSize: '0.7rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          fontWeight: 500
-                        }}>
-                          VENCIDO
-                        </Typography>
-                        <Typography variant="body2" sx={{ 
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          color: 'error.main',
-                          mt: 0.25
-                        }}>
-                          {Math.floor((new Date() - commitment.dueDate) / (1000 * 60 * 60 * 24))} días
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    {/* Fecha de vencimiento */}
-                    <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-                      <Typography variant="caption" sx={{ 
-                        color: 'text.secondary',
-                        fontSize: '0.7rem'
-                      }}>
-                        Fecha límite: {commitment.dueDate.toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric'
-                        })}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </React.Fragment>
-              ))}
-            </Box>
-          )}
-        </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 2, 
-          gap: 1.5,
-          borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          backgroundColor: alpha(theme.palette.background.default, 0.5)
-        }}>
-          <Button
-            onClick={() => {
-              setAlertsModalOpen(false);
-              navigate('/commitments');
-            }}
-            variant="contained"
-            disabled={overdueCommitments.length === 0}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              borderRadius: 1,
-              px: 3
-            }}
-          >
-            Gestionar Compromisos
-          </Button>
-          <Button
-            onClick={() => setAlertsModalOpen(false)}
-            variant="outlined"
-            sx={{
-              textTransform: 'none',
-              fontWeight: 500,
-              borderRadius: 1,
-              px: 3,
-              borderColor: alpha(theme.palette.primary.main, 0.2),
-              '&:hover': {
-                borderColor: alpha(theme.palette.primary.main, 0.4),
-                backgroundColor: alpha(theme.palette.primary.main, 0.04)
-              }
-            }}
-          >
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Modal de alertas eliminado - Sistema centralizado en AlertsCenter */}
     </motion.div>
   );
 };
