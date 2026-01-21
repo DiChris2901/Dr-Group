@@ -20,7 +20,8 @@ import {
   Surface,
   Chip,
   Avatar,
-  Divider
+  Divider,
+  Searchbar
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
@@ -61,12 +62,13 @@ export default function AsistenciasScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [usersMap, setUsersMap] = useState({});
   const [filterType, setFilterType] = useState('week'); // 'week' | 'month' | 'last_month' | 'recent'
-  const [selectedUserFilter, setSelectedUserFilter] = useState('all'); // ✅ NUEVO: Filtro por empleado
+  const [selectedUserFilter, setSelectedUserFilter] = useState('all'); // ✅ Filtro por empleado
+  const [searchQuery, setSearchQuery] = useState(''); // ✅ NUEVO: Búsqueda por texto
   
   // Modal State
   const [selectedAsistencia, setSelectedAsistencia] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [filterModalVisible, setFilterModalVisible] = useState(false); // ✅ NUEVO: Modal de filtro por empleado
+  const [filterModalVisible, setFilterModalVisible] = useState(false); // ✅ Modal de filtro por empleado
 
   // Animations
   const slideAnim = useRef(new Animated.Value(height * 0.3)).current;
@@ -238,6 +240,23 @@ export default function AsistenciasScreen({ navigation }) {
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return format(date, 'h:mm a');
   };
+
+  // ✅ NUEVO: Filtrado local por búsqueda
+  const filteredAsistencias = asistencias.filter(item => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const userName = usersMap[item.uid]?.name?.toLowerCase() || '';
+    const fecha = item.fecha?.toLowerCase() || '';
+    
+    // Admin: busca por nombre + fecha
+    // Empleado: solo busca por fecha (solo ve sus registros)
+    if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
+      return userName.includes(query) || fecha.includes(query);
+    } else {
+      return fecha.includes(query);
+    }
+  });
 
   const AsistenciaItem = ({ item, index }) => {
     const user = usersMap[item.uid] || {};
@@ -420,6 +439,24 @@ export default function AsistenciasScreen({ navigation }) {
         </View>
       )}
 
+      {/* ✅ NUEVO: Búsqueda por texto */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <Searchbar
+          placeholder={(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') 
+            ? "Buscar por nombre o fecha..." 
+            : "Buscar por fecha..."}
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={{
+            backgroundColor: surfaceColors.surfaceContainerHigh,
+            borderRadius: 32,
+            elevation: 0,
+          }}
+          inputStyle={{ fontSize: 14 }}
+          iconColor={surfaceColors.onSurfaceVariant}
+        />
+      </View>
+
       <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
         {[
           { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
@@ -469,7 +506,7 @@ export default function AsistenciasScreen({ navigation }) {
         }
       ]}>
         <FlatList
-          data={asistencias}
+          data={filteredAsistencias}
           renderItem={({ item, index }) => <AsistenciaItem item={item} index={index} />}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Espacio extra al final

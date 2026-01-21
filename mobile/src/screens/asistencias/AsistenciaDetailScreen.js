@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import MapView, { Marker } from 'react-native-maps';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,6 +17,12 @@ import { es } from 'date-fns/locale';
 export default function AsistenciaDetailScreen({ route, navigation }) {
   const { asistencia } = route.params;
   const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
+  const { userProfile, user } = useAuth();
+
+  // ✅ Determinar si puede ver el mapa (admins o propio registro)
+  const isAdmin = userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN';
+  const isOwnRecord = asistencia.uid === user?.uid;
+  const canViewMap = isAdmin || isOwnRecord;
 
   const formatearHora = (timestamp) => {
     if (!timestamp) return '--:--';
@@ -98,11 +106,52 @@ export default function AsistenciaDetailScreen({ route, navigation }) {
               iconColor={getPrimaryColor()}
               highlight
             />
-            {asistencia.entrada?.ubicacion && (
+            {asistencia.entrada?.ubicacion && canViewMap && (
+              <>
+                <View style={{ marginTop: 16 }}>
+                  <OverlineText style={{ marginBottom: 8 }}>UBICACIÓN DE ENTRADA</OverlineText>
+                  <View style={{ 
+                    height: 200, 
+                    borderRadius: 24, 
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0'
+                  }}>
+                    <MapView
+                      style={{ flex: 1 }}
+                      initialRegion={{
+                        latitude: asistencia.entrada.ubicacion.lat,
+                        longitude: asistencia.entrada.ubicacion.lon,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      scrollEnabled={true}
+                      zoomEnabled={true}
+                    >
+                      <Marker
+                        coordinate={{
+                          latitude: asistencia.entrada.ubicacion.lat,
+                          longitude: asistencia.entrada.ubicacion.lon,
+                        }}
+                        title="Entrada registrada"
+                        description={asistencia.entrada.dispositivo || 'Ubicación de registro'}
+                      />
+                    </MapView>
+                  </View>
+                </View>
+                <DetailRow
+                  icon="location"
+                  label="Coordenadas"
+                  value={`${asistencia.entrada.ubicacion.lat.toFixed(6)}, ${asistencia.entrada.ubicacion.lon.toFixed(6)}`}
+                  iconColor="#4caf50"
+                />
+              </>
+            )}
+            {asistencia.entrada?.ubicacion && !canViewMap && (
               <DetailRow
                 icon="location"
                 label="Ubicación"
-                value={`${asistencia.entrada.ubicacion.lat.toFixed(6)}, ${asistencia.entrada.ubicacion.lon.toFixed(6)}`}
+                value="Registrada correctamente"
                 iconColor="#4caf50"
               />
             )}
