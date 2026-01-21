@@ -858,7 +858,6 @@ const AsistenciasPage = () => {
                       <TableCell align="center">Entrada</TableCell>
                       <TableCell align="center">Ubicación</TableCell>
                       <TableCell align="center">Modalidad</TableCell>
-                      <TableCell align="center">Dispositivo</TableCell>
                       <TableCell align="center">Breaks</TableCell>
                       <TableCell align="center">Almuerzo</TableCell>
                       <TableCell align="center">Salida</TableCell>
@@ -952,8 +951,8 @@ const AsistenciasPage = () => {
                               label={asistencia.entrada.ubicacion.tipo}
                               size="small"
                               sx={{
-                                height: 24,
-                                fontSize: '0.75rem',
+                                height: 22,
+                                fontSize: '0.7rem',
                                 fontWeight: 600,
                                 backgroundColor: asistencia.entrada.ubicacion.tipo === 'Oficina' 
                                   ? alpha(theme.palette.success.main, 0.1)
@@ -966,24 +965,6 @@ const AsistenciasPage = () => {
                                     ? alpha(theme.palette.success.main, 0.3)
                                     : alpha(theme.palette.warning.main, 0.3)
                                 }`
-                              }}
-                            />
-                          ) : (
-                            <Typography variant="caption" color="text.secondary">-</Typography>
-                          )}
-                        </TableCell>
-
-                        {/* Dispositivo */}
-                        <TableCell align="center">
-                          {asistencia.entrada?.dispositivo ? (
-                            <Chip
-                              label={asistencia.entrada.dispositivo}
-                              size="small"
-                              variant="outlined"
-                              sx={{ 
-                                fontSize: '0.75rem',
-                                borderColor: alpha(theme.palette.divider, 0.6),
-                                color: 'text.secondary'
                               }}
                             />
                           ) : (
@@ -1021,14 +1002,15 @@ const AsistenciasPage = () => {
                                 return (
                                   <Box key={idx} display="flex" flexDirection="column" alignItems="center" gap={0.3}>
                                     <Chip
-                                      icon={<BreakIcon sx={{ fontSize: 14 }} />}
+                                      icon={<BreakIcon sx={{ fontSize: 12 }} />}
                                       label={horaInicio}
                                       size="small"
                                       variant="outlined"
                                       sx={{
+                                        height: 22,
                                         borderColor: alpha(theme.palette.info.main, 0.5),
                                         color: theme.palette.info.main,
-                                        fontSize: '0.75rem',
+                                        fontSize: '0.7rem',
                                         '& .MuiChip-icon': {
                                           color: theme.palette.info.main
                                         }
@@ -1076,14 +1058,15 @@ const AsistenciasPage = () => {
                                 return (
                                   <Box display="flex" flexDirection="column" alignItems="center" gap={0.3}>
                                     <Chip
-                                      icon={<LunchIcon sx={{ fontSize: 14 }} />}
+                                      icon={<LunchIcon sx={{ fontSize: 12 }} />}
                                       label={horaInicio}
                                       size="small"
                                       variant="outlined"
                                       sx={{
+                                        height: 22,
                                         borderColor: alpha(theme.palette.warning.main, 0.5),
                                         color: theme.palette.warning.main,
-                                        fontSize: '0.75rem',
+                                        fontSize: '0.7rem',
                                         '& .MuiChip-icon': {
                                           color: theme.palette.warning.main
                                         }
