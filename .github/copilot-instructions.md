@@ -119,7 +119,82 @@ Preguntar explícitamente:
 ❓ ¿Hay algún error o algo que necesites ajustar antes del deployment?
 ```
 
-#### **PASO 2: DEPLOYMENT AUTOMÁTICO (Solo tras confirmación)**
+#### **PASO 2: VERSIONADO SEMÁNTICO AUTOMÁTICO (OBLIGATORIO)**
+
+**ANTES de hacer deployment, ANALIZAR cambios y actualizar versión:**
+
+**🔍 Criterios de Versionado (Semantic Versioning 2.0.0):**
+
+1. **PATCH (x.x.1)** - Correcciones de bugs, ajustes menores:
+   - Corrección de errores sin cambiar funcionalidad
+   - Ajustes visuales menores (colores, espaciados)
+   - Corrección de typos o textos
+   - Optimizaciones de performance sin cambios en API
+   - Ejemplos: `3.5.0 → 3.5.1`, `3.5.1 → 3.5.2`
+
+2. **MINOR (x.1.0)** - Nuevas funcionalidades compatibles:
+   - Nueva página o componente
+   - Nueva funcionalidad en página existente
+   - Mejoras significativas de UX/UI
+   - Refactorización importante pero compatible
+   - Nuevos filtros, búsquedas, exportaciones
+   - Ejemplos: `3.5.0 → 3.6.0`, `3.6.0 → 3.7.0`
+
+3. **MAJOR (1.0.0)** - Cambios incompatibles o arquitectónicos:
+   - Reescritura completa de módulo
+   - Cambios en estructura de datos de Firebase
+   - Eliminación de funcionalidades existentes
+   - Nueva plataforma (web → móvil, móvil → desktop)
+   - Cambios que rompen integraciones existentes
+   - Ejemplos: `3.9.0 → 4.0.0`, `4.5.0 → 5.0.0`
+
+**📋 Proceso de Actualización de Versión:**
+
+```bash
+# 1. ANALIZAR cambios realizados en la sesión
+#    Revisar: commits, archivos modificados, funcionalidades agregadas
+
+# 2. DETERMINAR tipo de cambio (PATCH/MINOR/MAJOR)
+
+# 3. ACTUALIZAR versión en 3 archivos SIMULTÁNEAMENTE:
+#    - src/components/layout/Sidebar.jsx (línea ~1341)
+#    - package.json (línea 3)
+#    - README.md (línea ~484)
+
+# 4. COMMIT con mensaje descriptivo:
+#    git commit -m "chore: Actualizar versión a vX.X.X (descripción breve)"
+```
+
+**Archivos a actualizar (usar multi_replace_string_in_file):**
+
+```javascript
+// Sidebar.jsx (línea ~1341)
+v3.5.0 • Ene 2026  →  v3.6.0 • Ene 2026
+
+// package.json (línea 3)
+"version": "3.5.0"  →  "version": "3.6.0"
+
+// README.md (línea ~484)
+Versión:** 3.5.0 (Enero 2026)  →  Versión:** 3.6.0 (Enero 2026)
+```
+
+**🎯 Ejemplos de Análisis:**
+
+| Cambios Realizados | Tipo | Nueva Versión | Razón |
+|-------------------|------|---------------|-------|
+| Fix: Corrección cálculo horas | PATCH | 3.5.0 → 3.5.1 | Bug fix |
+| Feat: Filtros en AsistenciasPage | MINOR | 3.5.0 → 3.6.0 | Nueva funcionalidad |
+| Refactor: Nueva arquitectura permisos | MAJOR | 3.9.0 → 4.0.0 | Cambio incompatible |
+| Style: Diseño sobrio refinado | MINOR | 3.5.0 → 3.6.0 | Mejora UX significativa |
+| Chore: Actualizar dependencias | PATCH | 3.5.1 → 3.5.2 | Mantenimiento |
+
+**⚠️ OBLIGATORIO:**
+- ✅ Actualizar versión ANTES de deployment
+- ✅ Usar multi_replace para los 3 archivos simultáneamente
+- ✅ Explicar al usuario por qué elegiste ese tipo de versión
+- ✅ Si no estás seguro del tipo, preguntar al usuario
+
+#### **PASO 3: DEPLOYMENT AUTOMÁTICO (Solo tras confirmación)**
 Una vez que el usuario confirme que **NO hay errores**, ejecutar automáticamente:
 
 ```bash
@@ -138,7 +213,7 @@ Una vez que el usuario confirme que **NO hay errores**, ejecutar automáticament
 - ✅ **Reportar cualquier error inmediatamente**
 - ✅ **Confirmar deployment exitoso al finalizar**
 
-#### **PASO 3: CONFIRMACIÓN FINAL**
+#### **PASO 4: CONFIRMACIÓN FINAL**
 Al completar el deployment, reportar:
 ```
 🎉 DEPLOYMENT COMPLETADO
@@ -146,6 +221,7 @@ Al completar el deployment, reportar:
 ✅ Git: Commit y push exitosos
 ✅ Build: Compilación sin errores
 ✅ Firebase: Hosting actualizado
+✅ Versión: v[X.X.X] desplegada
 🌐 URL: https://dr-group-dashboard.web.app
 
 ⏱️ Tiempo total: [X segundos]
