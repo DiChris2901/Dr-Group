@@ -11,8 +11,6 @@ import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
-import PDFExportService from '../../services/PDFExportService';
-import * as Haptics from 'expo-haptics';
 
 export default function AdminDashboardScreen({ navigation }) {
   const theme = usePaperTheme();
@@ -160,59 +158,6 @@ export default function AdminDashboardScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  // ✅ NUEVO: Exportar reporte PDF de asistencias del día
-  const handleExportPDF = async () => {
-    try {
-      Haptics.selectionAsync();
-      
-      if (allEmployees.length === 0) {
-        Alert.alert('Sin datos', 'No hay asistencias para exportar hoy.');
-        return;
-      }
-
-      // Obtener todas las asistencias completas del día
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const q = query(
-        collection(db, 'asistencias'),
-        where('fecha', '==', today)
-      );
-      
-      const snapshot = await getDocs(q);
-      const asistenciasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      if (asistenciasData.length === 0) {
-        Alert.alert('Sin datos', 'No hay asistencias registradas hoy.');
-        return;
-      }
-
-      // Calcular estadísticas
-      const stats = PDFExportService.calculateStats(asistenciasData);
-
-      // Preparar datos para PDF
-      const now = new Date();
-      const monthName = format(now, 'MMMM', { locale: es });
-      const year = now.getFullYear();
-
-      const pdfParams = {
-        employeeName: 'Todos los Empleados',
-        employeeEmail: 'admin@drgroup.com',
-        month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-        year: year.toString(),
-        asistencias: asistenciasData,
-        ...stats,
-        primaryColor: theme.colors.primary
-      };
-
-      // Exportar PDF
-      await PDFExportService.exportToPDF(pdfParams);
-
-      Alert.alert('✅ Éxito', 'Reporte PDF generado correctamente');
-    } catch (error) {
-      console.error('❌ Error exportando PDF:', error);
-      Alert.alert('Error', 'No se pudo generar el reporte. Intenta nuevamente.');
-    }
-  };
-
   const KPICard = ({ icon, label, value, color, bgColor, filterType }) => {
     const isSelected = filter === filterType;
     return (
@@ -304,15 +249,6 @@ export default function AdminDashboardScreen({ navigation }) {
             onPress={() => {
               triggerHaptic('selection');
               toggleDarkMode();
-            }} 
-          />
-          <IconButton 
-            icon="file-pdf-box" 
-            mode="contained-tonal"
-            size={24}
-            onPress={() => {
-              triggerHaptic('selection');
-              handleExportPDF();
             }} 
           />
           <IconButton 

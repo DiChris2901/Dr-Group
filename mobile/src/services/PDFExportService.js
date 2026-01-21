@@ -1,6 +1,7 @@
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import { logger } from '../utils/logger';
+import * as Print from 'expo-print';
+import { shareAsync } from 'expo-sharing';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 /**
  * Servicio para generar y compartir reportes PDF de asistencias
@@ -296,40 +297,30 @@ class PDFExportService {
    */
   async exportToPDF(params) {
     try {
-      logger.info('📄 Generando PDF de asistencias...');
+      console.log('📄 Generando PDF de asistencias...');
 
       // 1. Generar HTML
       const htmlContent = this.generateHTMLReport(params);
 
-      // 2. Convertir HTML a base64 para Expo File System
-      const fileName = `DR_Group_Asistencias_${params.employeeName.replace(/\s+/g, '_')}_${params.month}_${params.year}.html`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-
-      // 3. Guardar archivo HTML temporal
-      await FileSystem.writeAsStringAsync(fileUri, htmlContent, {
-        encoding: FileSystem.EncodingType.UTF8,
+      // 2. Generar PDF desde HTML usando expo-print
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false
       });
 
-      logger.info('✅ Archivo HTML creado:', fileUri);
+      console.log('✅ PDF generado:', uri);
 
-      // 4. Verificar si se puede compartir
-      const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) {
-        logger.warn('⚠️ Sharing no disponible en este dispositivo');
-        return false;
-      }
-
-      // 5. Abrir menú de compartir
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/html',
+      // 3. Compartir el PDF
+      await shareAsync(uri, {
+        mimeType: 'application/pdf',
         dialogTitle: `Reporte de Asistencias - ${params.employeeName}`,
-        UTI: 'public.html'
+        UTI: 'com.adobe.pdf'
       });
 
-      logger.info('✅ PDF compartido exitosamente');
+      console.log('✅ PDF compartido exitosamente');
       return true;
     } catch (error) {
-      logger.error('❌ Error exportando PDF:', error);
+      console.error('❌ Error exportando PDF:', error);
       throw error;
     }
   }

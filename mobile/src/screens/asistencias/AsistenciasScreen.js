@@ -36,6 +36,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { SegmentedButtons } from 'react-native-paper';
+import PDFExportService from '../../services/PDFExportService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -230,6 +231,46 @@ export default function AsistenciasScreen({ navigation }) {
     setModalVisible(true);
   };
 
+  // ✅ Exportar reporte PDF (Solo admins)
+  const handleExportPDF = async () => {
+    try {
+      Haptics.selectionAsync();
+      
+      if (filteredAsistencias.length === 0) {
+        Alert.alert('Sin datos', 'No hay asistencias para exportar en el período seleccionado.');
+        return;
+      }
+
+      // Calcular estadísticas
+      const stats = PDFExportService.calculateStats(filteredAsistencias);
+
+      // Preparar datos para PDF
+      const now = new Date();
+      const monthName = format(now, 'MMMM', { locale: es });
+      const year = now.getFullYear();
+
+      const pdfParams = {
+        employeeName: userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN' 
+          ? 'Todos los Empleados' 
+          : userProfile?.name || user?.email || 'Empleado',
+        employeeEmail: user?.email || 'N/A',
+        month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        year: year.toString(),
+        asistencias: filteredAsistencias,
+        ...stats,
+        primaryColor: surfaceColors.primary
+      };
+
+      // Exportar PDF
+      await PDFExportService.exportToPDF(pdfParams);
+
+      Alert.alert('✅ Éxito', 'Reporte PDF generado correctamente');
+    } catch (error) {
+      console.error('❌ Error exportando PDF:', error);
+      Alert.alert('Error', 'No se pudo generar el reporte. Intenta nuevamente.');
+    }
+  };
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '--:--';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -406,22 +447,37 @@ export default function AsistenciasScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <Text 
-          variant="displaySmall" 
-          style={{ 
-            fontWeight: '400', 
-            color: surfaceColors.onSurface,
-            letterSpacing: -0.5,
-            fontFamily: 'Roboto-Flex',
-            marginBottom: 4
-          }}
-        >
-          Historial
-        </Text>
-        <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
-          Registro de Asistencias
-        </Text>
+      <View style={[styles.header, (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View>
+          <Text 
+            variant="displaySmall" 
+            style={{ 
+              fontWeight: '400', 
+              color: surfaceColors.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4
+            }}
+          >
+            Historial
+          </Text>
+          <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
+            Registro de Asistencias
+          </Text>
+        </View>
+        {/* ✅ Botón Exportar PDF (Solo admins) */}
+        {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
+          <IconButton
+            icon="file-pdf-box"
+            size={28}
+            iconColor={surfaceColors.primary}
+            style={{ 
+              backgroundColor: surfaceColors.primaryContainer,
+              borderRadius: 16 
+            }}
+            onPress={handleExportPDF}
+          />
+        )}
       </View>
 
       {/* ✅ Búsqueda por texto */}
