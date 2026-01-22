@@ -175,12 +175,16 @@ export default function ReportesScreen() {
             const index = dayIndex === 0 ? 6 : dayIndex - 1;
             
             if (a.horasTrabajadas) {
-              const [h, m] = a.horasTrabajadas.split(':').map(Number);
-              days[index] += h + (m / 60);
+              const parts = a.horasTrabajadas.split(':');
+              if (parts.length >= 2) {
+                const h = Number(parts[0]) || 0;
+                const m = Number(parts[1]) || 0;
+                days[index] += h + (m / 60);
+              }
             }
           }
         });
-        chartData = days.map(v => Number(v.toFixed(1)));
+        chartData = days.map(v => Number.isFinite(v) ? Number(v.toFixed(1)) : 0);
       } else if (rangoSeleccionado === 'mes') {
         chartLabels = ['S1', 'S2', 'S3', 'S4', 'S5'];
         const weeks = new Array(5).fill(0);
@@ -191,12 +195,16 @@ export default function ReportesScreen() {
             const weekIndex = Math.floor((day - 1) / 7);
             
             if (a.horasTrabajadas && weekIndex < 5) {
-              const [h, m] = a.horasTrabajadas.split(':').map(Number);
-              weeks[weekIndex] += h + (m / 60);
+              const parts = a.horasTrabajadas.split(':');
+              if (parts.length >= 2) {
+                const h = Number(parts[0]) || 0;
+                const m = Number(parts[1]) || 0;
+                weeks[weekIndex] += h + (m / 60);
+              }
             }
           }
         });
-        chartData = weeks.map(v => Number(v.toFixed(1)));
+        chartData = weeks.map(v => Number.isFinite(v) ? Number(v.toFixed(1)) : 0);
       } else {
         // Vista Anual
         chartLabels = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -209,12 +217,16 @@ export default function ReportesScreen() {
             const monthIndex = month - 1;
             
             if (a.horasTrabajadas && monthIndex >= 0 && monthIndex < 12) {
-              const [h, m] = a.horasTrabajadas.split(':').map(Number);
-              months[monthIndex] += h + (m / 60);
+              const parts = a.horasTrabajadas.split(':');
+              if (parts.length >= 2) {
+                const h = Number(parts[0]) || 0;
+                const m = Number(parts[1]) || 0;
+                months[monthIndex] += h + (m / 60);
+              }
             }
           }
         });
-        chartData = months.map(v => Number(v.toFixed(1)));
+        chartData = months.map(v => Number.isFinite(v) ? Number(v.toFixed(1)) : 0);
       }
 
       // Configuración de jornada para puntualidad
@@ -243,8 +255,12 @@ export default function ReportesScreen() {
 
       asistenciasValidas.forEach(a => {
         if (a.horasTrabajadas) {
-          const [h, m] = a.horasTrabajadas.split(':').map(Number);
-          totalMinutos += (h * 60) + m;
+          const parts = a.horasTrabajadas.split(':');
+          if (parts.length >= 2) {
+            const h = Number(parts[0]) || 0;
+            const m = Number(parts[1]) || 0;
+            totalMinutos += (h * 60) + m;
+          }
         }
         
         if (a.entrada?.hora) {
@@ -278,8 +294,12 @@ export default function ReportesScreen() {
           }
           
           if (a.horasTrabajadas) {
-            const [h, m] = a.horasTrabajadas.split(':').map(Number);
-            empleadoStats[a.uid].totalMinutos += (h * 60) + m;
+            const parts = a.horasTrabajadas.split(':');
+            if (parts.length >= 2) {
+              const h = Number(parts[0]) || 0;
+              const m = Number(parts[1]) || 0;
+              empleadoStats[a.uid].totalMinutos += (h * 60) + m;
+            }
           }
           
           if (a.fecha) {
@@ -290,19 +310,26 @@ export default function ReportesScreen() {
         // Calcular promedio de cada empleado y luego el promedio general
         const promediosEmpleados = Object.values(empleadoStats)
           .filter(e => e.diasTrabajados.size > 0)
-          .map(e => e.totalMinutos / e.diasTrabajados.size / 60);
+          .map(e => e.totalMinutos / e.diasTrabajados.size / 60)
+          .filter(p => Number.isFinite(p)); // Filtrar NaN e Infinity
         
         if (promediosEmpleados.length > 0) {
           const sumaPromedios = promediosEmpleados.reduce((sum, p) => sum + p, 0);
-          promedioDiarioCalculado = (sumaPromedios / promediosEmpleados.length).toFixed(1);
+          const promedio = sumaPromedios / promediosEmpleados.length;
+          promedioDiarioCalculado = Number.isFinite(promedio) ? promedio.toFixed(1) : '0';
         }
       } else {
         // USUARIO NORMAL: Calcular su propio promedio
-        promedioDiarioCalculado = diasReales ? (totalMinutos / diasReales / 60).toFixed(1) : 0;
+        if (diasReales > 0 && Number.isFinite(totalMinutos)) {
+          const promedio = totalMinutos / diasReales / 60;
+          promedioDiarioCalculado = Number.isFinite(promedio) ? promedio.toFixed(1) : '0';
+        } else {
+          promedioDiarioCalculado = '0';
+        }
       }
 
       setStats({
-        totalHoras: Math.floor(totalMinutos / 60),
+        totalHoras: Number.isFinite(totalMinutos) ? Math.floor(totalMinutos / 60) : 0,
         diasTrabajados: diasReales,
         promedioDiario: promedioDiarioCalculado,
         puntualidad: punctualityBaseCount > 0 ? Math.round((onTimeCount / punctualityBaseCount) * 100) : null,

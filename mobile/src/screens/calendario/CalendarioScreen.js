@@ -876,6 +876,9 @@ export default function CalendarioScreen({ navigation }) {
                 renderHeader={() => null}
                 markedDates={{
                   ...allEventos.reduce((acc, event) => {
+                    // ✅ Validar que event.date sea válido
+                    if (!event.date || !isValid(event.date)) return acc;
+                    
                     const dateKey = format(event.date, 'yyyy-MM-dd');
                     
                     // Determinar color según tipo de evento
