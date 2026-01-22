@@ -17,14 +17,18 @@ import {
   Alert,
   useTheme,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  Avatar,
+  IconButton,
+  alpha
 } from '@mui/material';
 import {
   Event as EventIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
   Edit as EditIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -39,8 +43,15 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
     description: '',
     priority: 'medium', // low, medium, high
     subType: 'personal', // personal, business, reminder
-    notifyMe: false, // Si debe enviar notificación
-    notifyDaysBefore: 1 // Días antes de notificar: 1, 3, 7, 15
+    allDay: true,
+    notifications: [
+      { time: 10, unit: 'minutes', enabled: true }
+    ],
+    recurrence: {
+      enabled: false,
+      frequency: 'none',
+      endDate: null
+    }
   });
 
   // Cargar datos del evento cuando se está editando
@@ -51,8 +62,9 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
         description: editingEvent.description || '',
         priority: editingEvent.priority || 'medium',
         subType: editingEvent.subType || 'personal',
-        notifyMe: editingEvent.notifyMe || false,
-        notifyDaysBefore: editingEvent.notifyDaysBefore || 1
+        allDay: editingEvent.allDay !== undefined ? editingEvent.allDay : true,
+        notifications: editingEvent.notifications || [{ time: 10, unit: 'minutes', enabled: true }],
+        recurrence: editingEvent.recurrence || { enabled: false, frequency: 'none', endDate: null }
       });
     } else {
       setEventData({
@@ -60,8 +72,9 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
         description: '',
         priority: 'medium',
         subType: 'personal',
-        notifyMe: false,
-        notifyDaysBefore: 1
+        allDay: true,
+        notifications: [{ time: 10, unit: 'minutes', enabled: true }],
+        recurrence: { enabled: false, frequency: 'none', endDate: null }
       });
     }
   }, [editingEvent]);
@@ -120,8 +133,9 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
       description: '',
       priority: 'medium',
       subType: 'personal',
-      notifyMe: false,
-      notifyDaysBefore: 1
+      allDay: true,
+      notifications: [{ time: 10, unit: 'minutes', enabled: true }],
+      recurrence: { enabled: false, frequency: 'none', endDate: null }
     });
     setErrors({});
     onClose();
@@ -137,7 +151,7 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
     <Dialog 
       open={open} 
       onClose={handleClose}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       component={motion.div}
       initial={{ opacity: 0, scale: 0.9 }}
@@ -146,27 +160,50 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
       transition={{ duration: 0.2 }}
       PaperProps={{
         sx: {
-          borderRadius: 1, // 8px - esquinas menos redondeadas
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)' // Sombra más sobria
+          borderRadius: 2,
+          background: theme.palette.background.paper,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
         }
       }}
     >
       <DialogTitle sx={{ 
-        pb: 1, // Reducir padding inferior del header
-        backgroundColor: 'background.paper', // Fondo sobrio
-        borderBottom: `1px solid ${theme.palette.divider}` // Solo borde inferior
+        pb: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: theme.palette.mode === 'dark' 
+          ? theme.palette.grey[900]
+          : theme.palette.grey[50],
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        color: 'text.primary'
       }}>
-        <Box display="flex" alignItems="center" gap={1}>
-          {isEditing ? <EditIcon color="primary" /> : <EventIcon color="primary" />}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+            {isEditing ? <EditIcon /> : <EventIcon />}
+          </Avatar>
           <Box>
-            <Typography variant="h6" component="div">
-              {isEditing ? 'Editar Evento' : 'Agregar Evento'}
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+              {isEditing ? 'Editar Evento' : 'Nuevo Evento'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {selectedDate && format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
             </Typography>
           </Box>
         </Box>
+        <IconButton
+          onClick={handleClose}
+          sx={{
+            color: 'text.secondary',
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.08)
+            }
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 2, px: 3, pb: 3 }}>
@@ -229,46 +266,147 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) =>
             p: 2,
             backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
           }}>
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <NotificationsIcon color="action" fontSize="small" />
-              <Typography variant="subtitle2" fontWeight={600}>
-                Notificaciones
-              </Typography>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <NotificationsIcon color="action" fontSize="small" />
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Alertas
+                </Typography>
+              </Box>
+              <Chip 
+                label={eventData.notifications.filter(n => n.enabled).length} 
+                size="small" 
+                color="primary"
+                sx={{ minWidth: 32, height: 24 }}
+              />
             </Box>
             
+            <Stack spacing={1.5}>
+              {[
+                { time: 0, unit: 'minutes', label: 'A la hora del evento', icon: '🔔' },
+                { time: 10, unit: 'minutes', label: '10 minutos antes', icon: '⏱️' },
+                { time: 1, unit: 'hours', label: '1 hora antes', icon: '⏰' },
+                { time: 1, unit: 'days', label: '1 día antes', icon: '📅' }
+              ].map((notif) => {
+                const isActive = eventData.notifications.some(
+                  n => n.time === notif.time && n.unit === notif.unit && n.enabled
+                );
+                
+                return (
+                  <FormControlLabel
+                    key={`${notif.time}-${notif.unit}`}
+                    control={
+                      <Checkbox
+                        checked={isActive}
+                        onChange={(e) => {
+                          setEventData(prev => {
+                            const existingIndex = prev.notifications.findIndex(
+                              n => n.time === notif.time && n.unit === notif.unit
+                            );
+                            
+                            let newNotifications;
+                            if (existingIndex >= 0) {
+                              newNotifications = [...prev.notifications];
+                              newNotifications[existingIndex] = {
+                                ...newNotifications[existingIndex],
+                                enabled: e.target.checked
+                              };
+                            } else {
+                              newNotifications = [...prev.notifications, { ...notif, enabled: true }];
+                            }
+                            
+                            return { ...prev, notifications: newNotifications };
+                          });
+                        }}
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        {notif.icon} {notif.label}
+                      </Typography>
+                    }
+                  />
+                );
+              })}
+            </Stack>
+          </Box>
+
+          {/* Recurrencia */}
+          <Box sx={{ 
+            border: `1px solid ${theme.palette.divider}`, 
+            borderRadius: 1, 
+            p: 2,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+          }}>
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={eventData.notifyMe}
-                  onChange={(e) => setEventData(prev => ({ ...prev, notifyMe: e.target.checked }))}
+                  checked={eventData.recurrence.enabled}
+                  onChange={(e) => setEventData(prev => ({
+                    ...prev,
+                    recurrence: {
+                      ...prev.recurrence,
+                      enabled: e.target.checked
+                    }
+                  }))}
                   color="primary"
                 />
               }
               label={
-                <Typography variant="body2">
-                  Notificarme de este evento
+                <Typography variant="subtitle2" fontWeight={600}>
+                  🔄 Repetir evento
                 </Typography>
               }
             />
 
-            {eventData.notifyMe && (
-              <FormControl fullWidth size="small" sx={{ mt: 2 }}>
-                <InputLabel>Recordarme</InputLabel>
-                <Select
-                  value={eventData.notifyDaysBefore}
-                  label="Recordarme"
-                  onChange={handleInputChange('notifyDaysBefore')}
-                >
-                  <MenuItem value={1}>1 día antes</MenuItem>
-                  <MenuItem value={3}>3 días antes</MenuItem>
-                  <MenuItem value={7}>1 semana antes</MenuItem>
-                  <MenuItem value={15}>15 días antes</MenuItem>
-                </Select>
-              </FormControl>
+            {eventData.recurrence.enabled && (
+              <Stack spacing={2} mt={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Frecuencia</InputLabel>
+                  <Select
+                    value={eventData.recurrence.frequency}
+                    label="Frecuencia"
+                    onChange={(e) => setEventData(prev => ({
+                      ...prev,
+                      recurrence: {
+                        ...prev.recurrence,
+                        frequency: e.target.value
+                      }
+                    }))}
+                  >
+                    <MenuItem value="daily">📅 Diario</MenuItem>
+                    <MenuItem value="weekly">📆 Semanal</MenuItem>
+                    <MenuItem value="monthly">🗓️ Mensual</MenuItem>
+                    <MenuItem value="yearly">📋 Anual</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Finaliza el"
+                  type="date"
+                  value={eventData.recurrence.endDate 
+                    ? format(new Date(eventData.recurrence.endDate), 'yyyy-MM-dd')
+                    : ''
+                  }
+                  onChange={(e) => {
+                    const newEndDate = e.target.value ? new Date(e.target.value) : null;
+                    setEventData(prev => ({
+                      ...prev,
+                      recurrence: {
+                        ...prev.recurrence,
+                        endDate: newEndDate
+                      }
+                    }));
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="Fecha límite de la recurrencia"
+                />
+              </Stack>
             )}
           </Box>
-
-          {/* 
 
           {/* Información adicional */}
           <Alert severity="info" sx={{ borderRadius: 1 }}>

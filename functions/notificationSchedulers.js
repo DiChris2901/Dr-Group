@@ -304,3 +304,169 @@ exports.checkCalendarEvents = onSchedule({
     throw error;
   }
 });
+
+// ======================================
+// NOTIFICACIONES DE EVENTOS PERSONALIZADOS DEL CALENDARIO
+// ======================================
+exports.checkCustomCalendarEvents = onSchedule({
+  schedule: '*/15 * * * *', // Cada 15 minutos
+  timeZone: 'America/Bogota',
+  memory: '512MiB',
+  timeoutSeconds: 180
+}, async (event) => {
+  console.log('📅 Ejecutando checkCustomCalendarEvents...');
+  
+  try {
+    const now = new Date();
+    let notificationsCreated = 0;
+
+    // Query eventos personalizados activos
+    const eventsSnapshot = await db.collection('calendar_events')
+      .where('type', '==', 'custom')
+      .get();
+
+    console.log(`📊 Encontrados ${eventsSnapshot.size} eventos personalizados`);
+
+    for (const eventDoc of eventsSnapshot.docs) {
+      const calendarEvent = eventDoc.data();
+      
+      if (!calendarEvent.date || !calendarEvent.notifications) continue;
+      
+      const eventDate = calendarEvent.date.toDate();
+      const notifications = calendarEvent.notifications || [];
+      
+      // Procesar cada notificación configurada
+      for (const notif of notifications) {
+        if (!notif.enabled) continue;
+
+        // Calcular el tiempo de la notificación
+        let notificationTime = new Date(eventDate);
+        
+        switch (notif.unit) {
+          case 'minutes':
+            notificationTime.setMinutes(notificationTime.getMinutes() - notif.time);
+            break;
+          case 'hours':
+            notificationTime.setHours(notificationTime.getHours() - notif.time);
+            break;
+          case 'days':
+            notificationTime.setDate(notificationTime.getDate() - notif.time);
+            break;
+        }
+
+        // Verificar si debe notificarse AHORA (dentro de los próximos 15 minutos)
+        const timeDiff = notificationTime - now;
+        const minutesUntilNotification = timeDiff / (1000 * 60);
+
+        // Si la notificación debe dispararse en los próximos 15 minutos
+        if (minutesUntilNotification >= 0 && minutesUntilNotification < 15) {
+          
+          // Verificar si ya se creó esta notificación (evitar duplicados)
+          const existingNotifQuery = await db.collection('notifications')
+            .where('data.calendarEventId', '==', eventDoc.id)
+            .where('data.notificationTime', '==', notif.time)
+            .where('data.notificationUnit', '==', notif.unit)
+            .get();
+
+          if (!existingNotifQuery.empty) {
+            console.log(`⏭️ Notificación ya existe para evento ${eventDoc.id}`);
+            continue;
+          }
+
+          // Crear notificación para el creador del evento
+          const creatorId = calendarEvent.createdBy;
+          
+          if (creatorId) {
+            // Verificar preferencias del usuario
+            const userSettings = await db.collection('users').doc(creatorId)
+              .collection('settings').doc('notificationPreferences').get();
+
+            if (userSettings.exists) {
+              const prefs = userSettings.data();
+              
+              // Verificar si tiene habilitadas notificaciones de calendario custom
+              if (prefs?.calendar?.enabled && prefs?.calendar?.events?.custom) {
+                
+                // Formatear mensaje según el tiempo
+                let timeMessage = '';
+                if (notif.time === 0) {
+                  timeMessage = '¡Ahora!';
+                } else if (notif.unit === 'minutes') {
+                  timeMessage = `en ${notif.time} minuto${notif.time > 1 ? 's' : ''}`;
+                } else if (notif.unit === 'hours') {
+                  timeMessage = `en ${notif.time} hora${notif.time > 1 ? 's' : ''}`;
+                } else if (notif.unit === 'days') {
+                  timeMessage = `en ${notif.time} día${notif.time > 1 ? 's' : ''}`;
+                }
+
+                const pad = (n) => String(n).padStart(2, '0');
+                const eventDateStr = `${pad(eventDate.getDate())}/${pad(eventDate.getMonth() + 1)}/${eventDate.getFullYear()}`;
+                const eventTimeStr = calendarEvent.allDay 
+                  ? 'Todo el día' 
+                  : `${pad(eventDate.getHours())}:${pad(eventDate.getMinutes())}`;
+
+                await db.collection('notifications').add({
+                  userId: creatorId,
+                  type: 'calendar',
+                  subType: 'custom',
+                  title: `📅 ${calendarEvent.title}`,
+                  message: `${timeMessage} - ${eventDateStr} ${eventTimeStr}`,
+                  timestamp: Timestamp.now(),
+                  read: false,
+                  data: {
+                    calendarEventId: eventDoc.id,
+                    eventDate: eventDateStr,
+                    eventTime: eventTimeStr,
+                    notificationTime: notif.time,
+                    notificationUnit: notif.unit,
+                    priority: calendarEvent.priority || 'medium',
+                    description: calendarEvent.description || ''
+                  }
+                });
+                
+                notificationsCreated++;
+                console.log(`✅ Notificación creada para ${calendarEvent.title} (${timeMessage})`);
+              }
+            }
+          }
+        }
+      }
+
+      // Procesar eventos recurrentes
+      if (calendarEvent.recurrence?.enabled && calendarEvent.recurrence.endDate) {
+        const recurrence = calendarEvent.recurrence;
+        const endDate = recurrence.endDate.toDate();
+        
+        // Calcular próxima ocurrencia
+        let nextOccurrence = new Date(eventDate);
+        
+        switch (recurrence.frequency) {
+          case 'daily':
+            nextOccurrence.setDate(nextOccurrence.getDate() + 1);
+            break;
+          case 'weekly':
+            nextOccurrence.setDate(nextOccurrence.getDate() + 7);
+            break;
+          case 'monthly':
+            nextOccurrence.setMonth(nextOccurrence.getMonth() + 1);
+            break;
+          case 'yearly':
+            nextOccurrence.setFullYear(nextOccurrence.getFullYear() + 1);
+            break;
+        }
+
+        // Si la próxima ocurrencia está dentro del rango y no ha pasado el endDate
+        if (nextOccurrence <= endDate && nextOccurrence > now) {
+          console.log(`🔄 Evento recurrente: ${calendarEvent.title} - Próxima: ${nextOccurrence}`);
+          // Las notificaciones se crearán en la próxima ejecución
+        }
+      }
+    }
+
+    console.log(`✅ ${notificationsCreated} notificaciones de eventos personalizados creadas`);
+    return { success: true, count: notificationsCreated };
+  } catch (error) {
+    console.error('❌ Error en checkCustomCalendarEvents:', error);
+    throw error;
+  }
+});

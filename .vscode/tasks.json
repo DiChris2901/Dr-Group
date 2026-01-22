@@ -224,6 +224,14 @@
 			"command": "cd mobile && npx expo start --clear",
 			"isBackground": true,
 			"group": "test"
+		},
+		{
+			"label": "Expo Mobile Dev Server",
+			"type": "shell",
+			"command": "cd mobile && npx expo start --clear",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

@@ -1767,3 +1767,4 @@ exports.checkExitReminder = notificationSchedulers.checkExitReminder;
 exports.checkBreakReminder = notificationSchedulers.checkBreakReminder;
 exports.checkLunchReminder = notificationSchedulers.checkLunchReminder;
 exports.checkCalendarEvents = notificationSchedulers.checkCalendarEvents;
+exports.checkCustomCalendarEvents = notificationSchedulers.checkCustomCalendarEvents;
