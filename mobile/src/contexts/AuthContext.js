@@ -470,13 +470,14 @@ export const AuthProvider = ({ children }) => {
       // 🚀 Obtener ubicación en PARALELO (mientras se validan datos)
       const locationPromise = (async () => {
         let location = null;
+        let provider = 'Unknown';
+        let accuracy = null;
+        let isMocked = false;
+        
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status === 'granted') {
             // 🎯 ESTRATEGIA HÍBRIDA: GPS → Network → LastKnown
-            let provider = 'GPS';
-            let accuracy = null;
-            let isMocked = false;
             
             try {
               // ⭐ INTENTO 1: GPS (Alta precisión)
@@ -584,12 +585,23 @@ export const AuthProvider = ({ children }) => {
           console.warn('No se pudo obtener ubicación:', locError.message);
         }
         
-        // ✅ Siempre retornar algo (aunque sea fallback)
-        return location || { tipo: 'Remoto (Sin GPS)', isFallback: true };
+        // ✅ Siempre retornar objeto con todos los metadatos
+        return { 
+          location: location || { tipo: 'Remoto (Sin GPS)', isFallback: true },
+          provider,
+          accuracy,
+          isMocked
+        };
       })();
 
       // ⚡ ESPERAR A QUE AMBAS OPERACIONES TERMINEN EN PARALELO
-      const [validationResult, location] = await Promise.all([validationsPromise, locationPromise]);
+      const [validationResult, locationData] = await Promise.all([validationsPromise, locationPromise]);
+      
+      // Extraer datos de ubicación
+      const location = locationData.location;
+      const provider = locationData.provider;
+      const accuracy = locationData.accuracy;
+      const isMocked = locationData.isMocked;
 
       // Si hay sesión existente, retornarla inmediatamente
       if (validationResult.shouldResume) {
