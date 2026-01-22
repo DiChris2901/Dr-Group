@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   View, 
   FlatList, 
@@ -12,7 +12,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
@@ -311,6 +312,7 @@ export default function CalendarioScreen({ navigation }) {
   const [filteredEventos, setFilteredEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [changingView, setChangingView] = useState(false); // ✅ Loading para cambio de vista
   
   // Data Sources
   const [customEvents, setCustomEvents] = useState([]);
@@ -809,7 +811,12 @@ export default function CalendarioScreen({ navigation }) {
           value={viewMode}
           onValueChange={(value) => {
             Haptics.selectionAsync();
-            setViewMode(value);
+            setChangingView(true);
+            // ✅ Delay para permitir que se muestre el loading
+            setTimeout(() => {
+              setViewMode(value);
+              setTimeout(() => setChangingView(false), 100);
+            }, 50);
           }}
           buttons={[
             { value: 'day', label: 'Día', icon: 'calendar-today' },
@@ -817,6 +824,7 @@ export default function CalendarioScreen({ navigation }) {
             { value: 'month', label: 'Mes', icon: 'calendar-month' },
             { value: 'year', label: 'Año', icon: 'calendar' },
           ]}
+          disabled={changingView}
         />
       </View>
 
@@ -853,19 +861,27 @@ export default function CalendarioScreen({ navigation }) {
       </View>
 
       <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }], opacity: fadeAnim }}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[surfaceColors.primary]}
-              tintColor={surfaceColors.primary}
-            />
-          }
-        >
-          {/* Calendario Visual - Solo en vista Mes y Semana */}
-          {viewMode === 'month' && (
+        {changingView ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 }}>
+            <ActivityIndicator size="large" color={surfaceColors.primary} />
+            <Text style={{ color: surfaceColors.onSurfaceVariant, marginTop: 16, fontSize: 14 }}>
+              Cargando vista...
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[surfaceColors.primary]}
+                tintColor={surfaceColors.primary}
+              />
+            }
+          >
+            {/* Calendario Visual - Solo en vista Mes y Semana */}
+            {viewMode === 'month' && (
             <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <Calendar
                 key={format(selectedDate, 'yyyy-MM')}
@@ -1533,6 +1549,7 @@ export default function CalendarioScreen({ navigation }) {
             </View>
           )}
         </ScrollView>
+        )}
       </Animated.View>
 
       {/* Event Details Modal */}
