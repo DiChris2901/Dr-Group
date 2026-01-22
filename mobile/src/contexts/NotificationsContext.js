@@ -283,8 +283,16 @@ export const NotificationsProvider = ({ children }) => {
   }
 
   // ✅ NUEVO: Programar recordatorio de salida (6:00 PM si no ha registrado salida)
-  async function scheduleExitReminder() {
+  async function scheduleExitReminder(preferences = null) {
     try {
+      // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
+      if (preferences && preferences.attendance) {
+        if (!preferences.attendance.enabled || !preferences.attendance.exitReminder) {
+          logger.debug('⏭️ Recordatorio de salida deshabilitado por preferencias');
+          return null;
+        }
+      }
+
       const now = new Date();
       const exitReminderTime = new Date();
       exitReminderTime.setHours(18, 0, 0, 0); // 6:00 PM
@@ -316,8 +324,16 @@ export const NotificationsProvider = ({ children }) => {
   }
 
   // ✅ NUEVO: Recordatorio de break después de 4 horas trabajando
-  async function scheduleBreakReminder(startTime) {
+  async function scheduleBreakReminder(startTime, preferences = null) {
     try {
+      // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
+      if (preferences && preferences.attendance) {
+        if (!preferences.attendance.enabled || !preferences.attendance.breakReminder) {
+          logger.debug('⏭️ Recordatorio de break deshabilitado por preferencias');
+          return null;
+        }
+      }
+
       const breakTime = new Date(startTime);
       breakTime.setHours(breakTime.getHours() + 4); // 4 horas después
 
@@ -343,8 +359,16 @@ export const NotificationsProvider = ({ children }) => {
   }
 
   // ✅ NUEVO: Recordatorio de almuerzo (12:00 PM si no lo ha registrado)
-  async function scheduleLunchReminder() {
+  async function scheduleLunchReminder(preferences = null) {
     try {
+      // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
+      if (preferences && preferences.attendance) {
+        if (!preferences.attendance.enabled || !preferences.attendance.lunchReminder) {
+          logger.debug('⏭️ Recordatorio de almuerzo deshabilitado por preferencias');
+          return null;
+        }
+      }
+
       const now = new Date();
       const lunchTime = new Date();
       lunchTime.setHours(12, 0, 0, 0); // 12:00 PM
@@ -390,6 +414,99 @@ export const NotificationsProvider = ({ children }) => {
     }
   }
 
+  // ✅ NUEVO: Programar notificación de evento de calendario (Solo ADMIN)
+  async function scheduleCalendarEventNotification(event, daysBeforeArray = [2, 0]) {
+    if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
+      logger.debug('Notificaciones de calendario solo para ADMIN');
+      return [];
+    }
+
+    const identifiers = [];
+
+    try {
+      const eventDate = event.date instanceof Date ? event.date : new Date(event.date);
+      const now = new Date();
+
+      // Solo programar si el evento es futuro
+      if (eventDate < now) {
+        return identifiers;
+      }
+
+      for (const daysBefore of daysBeforeArray) {
+        const notificationDate = new Date(eventDate);
+        notificationDate.setDate(notificationDate.getDate() - daysBefore);
+        notificationDate.setHours(8, 0, 0, 0); // 8:00 AM
+
+        // Solo programar si la fecha de notificación es futura
+        if (notificationDate > now) {
+          const priority = event.priority === 'high' || event.priority === 'urgent' 
+            ? Notifications.AndroidNotificationPriority.HIGH 
+            : Notifications.AndroidNotificationPriority.DEFAULT;
+
+          const emoji = event.type === 'system' ? '🚨' : '📅';
+          const daysText = daysBefore === 0 
+            ? 'HOY' 
+            : daysBefore === 1 
+              ? 'MAÑANA' 
+              : `en ${daysBefore} días`;
+
+          let body = `${event.title} - ${daysText}`;
+          if (event.amount) {
+            body += ` | Monto: ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(event.amount)}`;
+          }
+
+          const identifier = await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `${emoji} Evento de Calendario`,
+              body,
+              data: { 
+                type: 'calendar_event', 
+                eventId: event.id,
+                screen: 'Calendario' 
+              },
+              sound: true,
+              priority,
+            },
+            trigger: {
+              date: notificationDate,
+              channelId: 'reminders',
+            },
+          });
+
+          identifiers.push(identifier);
+          logger.info(`✅ Notificación calendario programada para ${notificationDate.toLocaleString('es-CO')}`);
+        }
+      }
+
+      return identifiers;
+    } catch (error) {
+      logger.error('❌ Error programando notificación de calendario:', error);
+      return identifiers;
+    }
+  }
+
+  // ✅ NUEVO: Cancelar notificaciones de calendario obsoletas
+  async function cancelCalendarNotifications() {
+    try {
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      let canceledCount = 0;
+      
+      for (const notif of scheduledNotifications) {
+        const data = notif.content?.data;
+        if (data?.type === 'calendar_event') {
+          await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+          canceledCount++;
+        }
+      }
+
+      if (canceledCount > 0) {
+        logger.info(`✅ ${canceledCount} notificaciones de calendario canceladas`);
+      }
+    } catch (error) {
+      logger.error('❌ Error cancelando notificaciones de calendario:', error);
+    }
+  }
+
   const value = {
     notification,
     unreadCount,
@@ -402,6 +519,9 @@ export const NotificationsProvider = ({ children }) => {
     scheduleBreakReminder,
     scheduleLunchReminder,
     cancelScheduledReminders,
+    // ✅ NUEVAS funciones de calendario
+    scheduleCalendarEventNotification,
+    cancelCalendarNotifications,
   };
 
   return (

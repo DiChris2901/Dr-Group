@@ -6,7 +6,10 @@ import {
   RefreshControl,
   Dimensions,
   Pressable,
-  Platform
+  Platform,
+  Modal,
+  FlatList,
+  TouchableOpacity
 } from 'react-native';
 import { 
   Text, 
@@ -50,6 +53,9 @@ export default function ReportesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rangoSeleccionado, setRangoSeleccionado] = useState('semana');
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState('todos'); // UID o 'todos'
+  const [empleados, setEmpleados] = useState([]); // Lista de empleados
+  const [menuVisible, setMenuVisible] = useState(false);
   const [stats, setStats] = useState({
     totalHoras: 0,
     diasTrabajados: 0,
@@ -82,14 +88,28 @@ export default function ReportesScreen() {
       const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
       const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
       
-      let q = query(
-        collection(db, 'asistencias'),
-        where('fecha', '>=', fechaDesdeStr),
-        where('fecha', '<=', fechaHastaStr)
-      );
-
-      // Si no es admin, solo ver sus propios datos
-      if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
+      let q;
+      
+      // 🎯 FILTRO POR EMPLEADO SELECCIONADO
+      if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
+        if (empleadoSeleccionado === 'todos') {
+          // Ver todos los empleados (sin ADMIN)
+          q = query(
+            collection(db, 'asistencias'),
+            where('fecha', '>=', fechaDesdeStr),
+            where('fecha', '<=', fechaHastaStr)
+          );
+        } else {
+          // Ver empleado específico
+          q = query(
+            collection(db, 'asistencias'),
+            where('uid', '==', empleadoSeleccionado),
+            where('fecha', '>=', fechaDesdeStr),
+            where('fecha', '<=', fechaHastaStr)
+          );
+        }
+      } else {
+        // Usuario normal: solo ver sus propios datos
         const targetUid = userProfile?.uid || user?.uid;
         if (!targetUid) {
           setLoading(false);
@@ -104,7 +124,24 @@ export default function ReportesScreen() {
       }
       
       const querySnapshot = await getDocs(q);
-      const asistencias = querySnapshot.docs.map(doc => doc.data());
+      let asistencias = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // 🎯 FILTRAR ADMIN: Solo si es vista "todos"
+      if ((userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && empleadoSeleccionado === 'todos') {
+        // Obtener UIDs de usuarios ADMIN para excluirlos
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const adminUIDs = new Set();
+        
+        usersSnapshot.docs.forEach(userDoc => {
+          const userData = userDoc.data();
+          if (userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
+            adminUIDs.add(userDoc.id);
+          }
+        });
+        
+        // Filtrar asistencias de ADMIN
+        asistencias = asistencias.filter(a => !adminUIDs.has(a.uid));
+      }
       
       // ✅ Filtrar días únicos y válidos
       const fechasUnicas = new Set();
@@ -228,10 +265,46 @@ export default function ReportesScreen() {
         }
       });
 
+      // 🎯 CORRECCIÓN: Calcular promedio diario correctamente
+      let promedioDiarioCalculado = 0;
+      
+      if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
+        // ADMIN: Calcular promedio de promedios de cada empleado (sin contar ADMIN)
+        const empleadoStats = {};
+        
+        asistenciasValidas.forEach(a => {
+          if (!empleadoStats[a.uid]) {
+            empleadoStats[a.uid] = { totalMinutos: 0, diasTrabajados: new Set() };
+          }
+          
+          if (a.horasTrabajadas) {
+            const [h, m] = a.horasTrabajadas.split(':').map(Number);
+            empleadoStats[a.uid].totalMinutos += (h * 60) + m;
+          }
+          
+          if (a.fecha) {
+            empleadoStats[a.uid].diasTrabajados.add(a.fecha);
+          }
+        });
+        
+        // Calcular promedio de cada empleado y luego el promedio general
+        const promediosEmpleados = Object.values(empleadoStats)
+          .filter(e => e.diasTrabajados.size > 0)
+          .map(e => e.totalMinutos / e.diasTrabajados.size / 60);
+        
+        if (promediosEmpleados.length > 0) {
+          const sumaPromedios = promediosEmpleados.reduce((sum, p) => sum + p, 0);
+          promedioDiarioCalculado = (sumaPromedios / promediosEmpleados.length).toFixed(1);
+        }
+      } else {
+        // USUARIO NORMAL: Calcular su propio promedio
+        promedioDiarioCalculado = diasReales ? (totalMinutos / diasReales / 60).toFixed(1) : 0;
+      }
+
       setStats({
         totalHoras: Math.floor(totalMinutos / 60),
         diasTrabajados: diasReales,
-        promedioDiario: diasReales ? (totalMinutos / diasReales / 60).toFixed(1) : 0,
+        promedioDiario: promedioDiarioCalculado,
         puntualidad: punctualityBaseCount > 0 ? Math.round((onTimeCount / punctualityBaseCount) * 100) : null,
         onTimeCount,
         punctualityBaseCount,
@@ -245,7 +318,39 @@ export default function ReportesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [rangoSeleccionado, userProfile, user, activeSession]);
+  }, [rangoSeleccionado, empleadoSeleccionado, userProfile, user, activeSession]);
+
+  // 🎯 Cargar lista de empleados (solo para ADMIN)
+  useEffect(() => {
+    const cargarEmpleados = async () => {
+      if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
+        try {
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const empleadosLista = [];
+          
+          usersSnapshot.docs.forEach(userDoc => {
+            const userData = userDoc.data();
+            // Excluir ADMIN y SUPER_ADMIN
+            if (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN') {
+              empleadosLista.push({
+                uid: userDoc.id,
+                nombre: userData.name || userData.displayName || userData.email,
+                email: userData.email
+              });
+            }
+          });
+          
+          // Ordenar alfabéticamente
+          empleadosLista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+          setEmpleados(empleadosLista);
+        } catch (error) {
+          console.error('Error cargando empleados:', error);
+        }
+      }
+    };
+    
+    cargarEmpleados();
+  }, [userProfile]);
 
   useEffect(() => {
     if (userProfile) {
@@ -332,6 +437,165 @@ export default function ReportesScreen() {
 
         {/* Filters (SegmentedButtons como en Novedades) */}
         <View style={styles.filterContainer}>
+          {/* Dropdown de Empleados (solo ADMIN) - Material You Expressive */}
+          {userProfile?.role === 'ADMIN' && (
+            <View style={{ marginBottom: 16 }}>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setMenuVisible(true);
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: pressed 
+                    ? surfaceColors.surfaceContainerHighest 
+                    : surfaceColors.surfaceContainerHigh,
+                  paddingVertical: 16,
+                  paddingHorizontal: 20,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: surfaceColors.outline + '30',
+                  elevation: 0,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{
+                    backgroundColor: surfaceColors.primary + '15',
+                    padding: 8,
+                    borderRadius: 16,
+                  }}>
+                    <MaterialCommunityIcons 
+                      name={empleadoSeleccionado === 'todos' ? "account-multiple" : "account"} 
+                      size={20} 
+                      color={surfaceColors.primary} 
+                    />
+                  </View>
+                  <View>
+                    <Text 
+                      variant="labelSmall" 
+                      style={{ 
+                        color: surfaceColors.onSurfaceVariant,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        marginBottom: 2
+                      }}
+                    >
+                      Filtrar por
+                    </Text>
+                    <Text 
+                      variant="bodyLarge" 
+                      style={{ 
+                        color: surfaceColors.onSurface,
+                        fontWeight: '500'
+                      }}
+                    >
+                      {empleadoSeleccionado === 'todos' 
+                        ? 'Todos los Empleados' 
+                        : empleados.find(e => e.uid === empleadoSeleccionado)?.nombre || 'Seleccionar'}
+                    </Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons 
+                  name={menuVisible ? "chevron-up" : "chevron-down"} 
+                  size={24} 
+                  color={surfaceColors.onSurfaceVariant} 
+                />
+              </Pressable>
+
+              {/* Modal Dropdown Personalizado */}
+              <Modal
+                visible={menuVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setMenuVisible(false)}
+              >
+                <Pressable 
+                  style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+                  onPress={() => setMenuVisible(false)}
+                >
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <Pressable 
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainerHighest,
+                        borderRadius: 24,
+                        width: '90%',
+                        maxWidth: 400,
+                        maxHeight: Dimensions.get('window').height * 0.6,
+                        padding: 8,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 16,
+                        elevation: 8,
+                      }}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <FlatList
+                        data={[{ uid: 'todos', nombre: 'Todos los Empleados' }, ...empleados]}
+                        keyExtractor={(item) => item.uid}
+                        showsVerticalScrollIndicator={true}
+                        ListHeaderComponent={
+                          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
+                            <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                              Filtrar por Empleado
+                            </Text>
+                          </View>
+                        }
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setEmpleadoSeleccionado(item.uid);
+                              setMenuVisible(false);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 12,
+                              paddingVertical: 14,
+                              paddingHorizontal: 20,
+                              marginHorizontal: 8,
+                              marginVertical: 2,
+                              borderRadius: 16,
+                              backgroundColor: empleadoSeleccionado === item.uid 
+                                ? surfaceColors.primary + '15' 
+                                : 'transparent',
+                            }}
+                          >
+                            <MaterialCommunityIcons 
+                              name={item.uid === 'todos' ? "account-multiple" : "account"} 
+                              size={22} 
+                              color={empleadoSeleccionado === item.uid ? surfaceColors.primary : surfaceColors.onSurfaceVariant} 
+                            />
+                            <Text 
+                              variant="bodyLarge" 
+                              style={{ 
+                                color: empleadoSeleccionado === item.uid ? surfaceColors.primary : surfaceColors.onSurface,
+                                fontWeight: empleadoSeleccionado === item.uid ? '600' : '500',
+                                flex: 1
+                              }}
+                            >
+                              {item.nombre}
+                            </Text>
+                            {empleadoSeleccionado === item.uid && (
+                              <MaterialCommunityIcons 
+                                name="check" 
+                                size={22} 
+                                color={surfaceColors.primary} 
+                              />
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      />
+                    </Pressable>
+                  </View>
+                </Pressable>
+              </Modal>
+            </View>
+          )}
+
           <SegmentedButtons
             value={rangoSeleccionado}
             onValueChange={(value) => {

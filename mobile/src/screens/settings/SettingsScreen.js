@@ -240,14 +240,20 @@ export default function SettingsScreen({ navigation }) {
 
         <SettingItem
           title="Notificaciones"
-          description="Alertas y recordatorios"
-          icon="bell-outline"
+          description="Configurar alertas y recordatorios"
+          icon="bell-cog"
+          onPress={() => {
+            Haptics.selectionAsync();
+            navigation.navigate('NotificationPreferences');
+          }}
           right={() => (
-            <Switch 
-              value={notificationsEnabled} 
-              onValueChange={(v) => {
-                Haptics.selectionAsync();
-                setNotificationsEnabled(v);
+            <MaterialCommunityIcons 
+              name="chevron-right" 
+              size={24} 
+              color={theme.colors.onSurfaceVariant} 
+            />
+          )}
+        />
               }} 
               color={theme.colors.primary}
             />

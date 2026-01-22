@@ -22,6 +22,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { onSnapshot, query, collection } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
 import { useColombianHolidays } from '../../hooks/useColombianHolidays';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -254,6 +257,9 @@ const EventoItem = ({ item, index, surfaceColors, onPress }) => {
 export default function CalendarioScreen({ navigation }) {
   const paperTheme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
+  const { scheduleCalendarEventNotification, cancelCalendarNotifications } = useNotifications();
+  const { userProfile } = useAuth();
+  const { preferences } = useNotificationPreferences();
   
   // Surface colors dinámicos
   const surfaceColors = useMemo(() => {
@@ -507,6 +513,82 @@ export default function CalendarioScreen({ navigation }) {
     setLoading(false);
 
   }, [customEvents, commitments, companies, holidays, selectedDate]);
+
+  // ✅ NUEVO: Programar notificaciones de calendario para eventos próximos (Solo ADMIN con preferencias)
+  useEffect(() => {
+    if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
+      return;
+    }
+
+    // Esperar a que se carguen las preferencias
+    if (!preferences || !preferences.calendar.enabled) {
+      return;
+    }
+
+    const programarNotificaciones = async () => {
+      try {
+        // Cancelar notificaciones obsoletas primero
+        await cancelCalendarNotifications();
+
+        const now = new Date();
+        const futureEvents = allEventos.filter(event => {
+          // 1. Solo eventos futuros dentro de los próximos 30 días
+          const eventDate = event.date instanceof Date ? event.date : new Date(event.date);
+          const daysDiff = Math.ceil((eventDate - now) / (1000 * 60 * 60 * 24));
+          if (daysDiff < 0 || daysDiff > 30) return false;
+
+          // 2. Filtrar por preferencias del usuario
+          if (event.type === 'system') {
+            // Parafiscales
+            if (event.title.includes('Parafiscales') && !preferences.calendar.events.parafiscales) {
+              return false;
+            }
+            // Coljuegos
+            if (event.title.includes('Coljuegos') && !preferences.calendar.events.coljuegos) {
+              return false;
+            }
+            // UIAF
+            if (event.title.includes('UIAF') && !preferences.calendar.events.uiaf) {
+              return false;
+            }
+            // Contratos
+            if (event.title.includes('Contrato') && !preferences.calendar.events.contratos) {
+              return false;
+            }
+          }
+
+          // Festivos
+          if (event.type === 'holiday' && !preferences.calendar.events.festivos) {
+            return false;
+          }
+
+          // Eventos personales
+          if (event.type === 'custom' && !preferences.calendar.events.custom) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // Programar notificaciones para cada evento (usar preferencias de días antes)
+        const daysBeforeArray = preferences.calendar.daysBeforeArray || [2, 0];
+        for (const event of futureEvents) {
+          await scheduleCalendarEventNotification(event, daysBeforeArray);
+        }
+
+        if (futureEvents.length > 0) {
+          console.log(`✅ ${futureEvents.length} notificaciones de calendario programadas según preferencias`);
+        }
+      } catch (error) {
+        console.error('❌ Error programando notificaciones de calendario:', error);
+      }
+    };
+
+    // Programar notificaciones al cargar eventos o cuando cambian
+    if (allEventos.length > 0) {
+      programarNotificaciones();
+    }
+  }, [allEventos, userProfile, preferences]);
 
   // Filter events
   useEffect(() => {

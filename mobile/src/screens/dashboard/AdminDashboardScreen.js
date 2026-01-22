@@ -500,6 +500,13 @@ export default function AdminDashboardScreen({ navigation }) {
               <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
             </Surface>
             <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+              <IconButton icon="bell-cog" size={32} iconColor={theme.colors.primary} onPress={() => {
+                triggerHaptic('selection');
+                navigation.navigate('AdminNotificationControl');
+              }} />
+              <Text variant="labelMedium" style={{ textAlign: 'center' }}>Notificaciones</Text>
+            </Surface>
+            <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
               <IconButton icon="cog-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminSettings')} />
               <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
             </Surface>

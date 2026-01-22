@@ -730,19 +730,24 @@ export const AuthProvider = ({ children }) => {
         // Importar dinámicamente para evitar circular dependency
         const { scheduleExitReminder, scheduleBreakReminder, scheduleLunchReminder } = require('./NotificationsContext');
         
+        // 🔹 CARGAR PREFERENCIAS DEL USUARIO
+        const preferencesRef = doc(db, 'users', uid, 'settings', 'notificationPreferences');
+        const preferencesSnap = await getDoc(preferencesRef);
+        const userPreferences = preferencesSnap.exists() ? preferencesSnap.data() : null;
+        
         // Recordatorio de salida a las 6 PM
         if (scheduleExitReminder) {
-          scheduleExitReminder().catch(e => logger.debug('Error programando recordatorio de salida:', e));
+          scheduleExitReminder(userPreferences).catch(e => logger.debug('Error programando recordatorio de salida:', e));
         }
         
         // Recordatorio de break en 4 horas
         if (scheduleBreakReminder) {
-          scheduleBreakReminder(now).catch(e => logger.debug('Error programando recordatorio de break:', e));
+          scheduleBreakReminder(now, userPreferences).catch(e => logger.debug('Error programando recordatorio de break:', e));
         }
         
         // Recordatorio de almuerzo a las 12 PM
         if (scheduleLunchReminder) {
-          scheduleLunchReminder().catch(e => logger.debug('Error programando recordatorio de almuerzo:', e));
+          scheduleLunchReminder(userPreferences).catch(e => logger.debug('Error programando recordatorio de almuerzo:', e));
         }
         
         logger.info('✅ Recordatorios automáticos programados');
