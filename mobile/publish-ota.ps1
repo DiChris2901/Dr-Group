@@ -1,39 +1,23 @@
-# publish-ota.ps1 - Actualización OTA con incremento de versión (Patch)
+# publish-ota.ps1 - OBSOLETO - NO SE USA EN ESTE PROYECTO
+# Este proyecto usa compilación local en Android Studio + Firebase App Distribution
+# NO hay actualizaciones OTA porque no usamos EAS Build
 
-Write-Host "🚀 Iniciando proceso de publicación OTA..." -ForegroundColor Cyan
-
-# 1. Leer versión actual
-$appJsonPath = "app.json"
-$appJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
-$currentVersion = $appJson.expo.version
-
-Write-Host "📱 Versión actual: $currentVersion" -ForegroundColor Yellow
-
-# 2. Incrementar versión (Patch: 1.0.5 -> 1.0.6)
-$parts = $currentVersion.Split('.')
-$major = [int]$parts[0]
-$minor = [int]$parts[1]
-$patch = [int]$parts[2]
-
-$patch++
-$newVersion = "$major.$minor.$patch"
-
-Write-Host "✨ Nueva versión OTA: $newVersion" -ForegroundColor Green
-
-# 3. Actualizar app.json
-$appJson.expo.version = $newVersion
-$appJson | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath
-
-Write-Host "✅ app.json actualizado." -ForegroundColor Green
-
-# 4. Solicitar mensaje de actualización
-$message = Read-Host "📝 Ingresa una descripción breve de los cambios (para el historial)"
-if ([string]::IsNullOrWhiteSpace($message)) {
-    $message = "Actualización OTA v$newVersion"
-}
-
-# 5. Ejecutar EAS Update
-Write-Host "☁️ Publicando a Expo Cloud..." -ForegroundColor Cyan
-eas update --branch production --message "$message"
-
-Write-Host "🎉 ¡Actualización OTA completada! Versión $newVersion disponible." -ForegroundColor Magenta
+Write-Host ""
+Write-Host "⚠️  SCRIPT OBSOLETO" -ForegroundColor Red
+Write-Host ""
+Write-Host "Este proyecto NO usa actualizaciones OTA." -ForegroundColor Yellow
+Write-Host "Todas las actualizaciones requieren:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "1. Incrementar versión manualmente en:" -ForegroundColor Cyan
+Write-Host "   - app.json (version)" -ForegroundColor White
+Write-Host "   - android/app/build.gradle (versionCode, versionName)" -ForegroundColor White
+Write-Host ""
+Write-Host "2. Compilar APK en Android Studio:" -ForegroundColor Cyan
+Write-Host "   Build > Generate Signed Bundle/APK > APK > Release" -ForegroundColor White
+Write-Host ""
+Write-Host "3. Distribuir APK compilado:" -ForegroundColor Cyan
+Write-Host "   .\distribute-apk.ps1 -Version 'X.X.X' -ReleaseNotes 'Descripción'" -ForegroundColor White
+Write-Host ""
+Write-Host "RAZÓN: Compilación local (no EAS Build) = No OTA" -ForegroundColor Yellow
+Write-Host "VENTAJA: Sin colas de 30+ minutos, compilación en 2-5 min" -ForegroundColor Green
+Write-Host ""

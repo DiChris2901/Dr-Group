@@ -273,7 +273,7 @@ export default function LoginScreen() {
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
             >
-              INICIAR JORNADA
+              INICIAR SESIÓN
             </Button>
 
             {/* Biometric Button */}
