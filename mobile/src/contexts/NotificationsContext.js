@@ -18,6 +18,39 @@ export const useNotifications = () => {
   return context;
 };
 
+// Helper para verificar si una notificación debe mostrarse
+const shouldShowNotification = (notification, preferences) => {
+  if (!preferences) return true; // Si no hay preferencias cargadas, mostrar por seguridad
+
+  // 1. Verificar alertas generales (Sistema, Admin)
+  if (notification.type === 'alert' || !notification.type) { 
+    if (!preferences.alerts?.enabled) return false;
+    if (notification.subType === 'system' && !preferences.alerts.systemAlerts) return false;
+    if (notification.subType === 'admin' && !preferences.alerts.adminMessages) return false;
+    if (preferences.alerts.urgentOnly && !notification.urgent) return false;
+    return true;
+  }
+
+  // 2. Verificar calendario
+  if (notification.type === 'calendar' || notification.type === 'event') {
+    if (!preferences.calendar?.enabled) return false;
+    const eventType = notification.subType || 'custom';
+    if (preferences.calendar.events && preferences.calendar.events[eventType] === false) return false;
+    return true;
+  }
+
+  // 3. Verificar asistencia
+  if (notification.type === 'attendance') {
+    if (!preferences.attendance?.enabled) return false;
+    if (notification.subType === 'exit' && !preferences.attendance.exitReminder) return false;
+    if (notification.subType === 'break' && !preferences.attendance.breakReminder) return false;
+    if (notification.subType === 'lunch' && !preferences.attendance.lunchReminder) return false;
+    return true;
+  }
+
+  return true; // Default allow
+};
+
 // ✅ Configurar cómo se manejan las notificaciones locales cuando la app está en foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -35,9 +68,26 @@ export const NotificationsProvider = ({ children }) => {
   const [notification, setNotification] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [expoPushToken, setExpoPushToken] = useState(null);
+  const [userPreferences, setUserPreferences] = useState(null); // ✅ Nueva: Preferencias locales
   const notificationListener = useRef();
   const responseListener = useRef();
   const lastNotificationIdRef = useRef(null);
+
+  // ✅ NUEVO: Cargar preferencias al inicio
+  useEffect(() => {
+    if (user?.uid) {
+      const loadPrefs = async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid, 'settings', 'notificationPreferences');
+          const snap = await getDoc(docRef);
+          if (snap.exists()) setUserPreferences(snap.data());
+        } catch (e) {
+          console.error('Error cargando preferencias de notificaciones:', e);
+        }
+      };
+      loadPrefs();
+    }
+  }, [user]);
 
   // ✅ NUEVO: Registrar token de dispositivo al iniciar sesión
   useEffect(() => {
@@ -84,19 +134,54 @@ export const NotificationsProvider = ({ children }) => {
           const now = new Date();
           const isRecent = createdAt && (now - createdAt) < 10000; // 10 segundos
 
-          if (isRecent && lastNotificationIdRef.current !== newNotifId) {
+          // ✅ APLICAR FILTRO DE PREFERENCIAS
+          const allowedBySettings = shouldShowNotification(newNotif, userPreferences);
+
+          if (isRecent && lastNotificationIdRef.current !== newNotifId && allowedBySettings) {
             lastNotificationIdRef.current = newNotifId;
-            
-            Notifications.scheduleNotificationAsync({
-              content: {
-                title: newNotif.title || 'Nueva Notificación',
-                body: newNotif.message || 'Tienes una nueva alerta en Dr. Group',
-                data: { url: '/notifications', id: newNotifId },
-                sound: true,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-              },
-              trigger: null, // Mostrar inmediatamente
-            });
+
+            // Cargar preferencias de presentación (sin await porque no está en async)
+            getDoc(doc(db, user.uid, 'settings', 'notificationBehavior'))
+              .then((behaviorDoc) => {
+                const prefs = behaviorDoc.exists() ? behaviorDoc.data() : {};
+                const presentationStyle = prefs.presentationStyle || 'full';
+                const soundEnabled = prefs.sound !== false;
+                const vibrationEnabled = prefs.vibration !== false;
+
+                // Adaptar contenido según estilo
+                let finalBody = newNotif.message || 'Tienes una nueva alerta en Dr. Group';
+                if (presentationStyle === 'compact') {
+                  finalBody = finalBody.length > 50 ? finalBody.substring(0, 47) + '...' : finalBody;
+                } else if (presentationStyle === 'minimal') {
+                  finalBody = '';
+                }
+                
+                Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: newNotif.title || 'Nueva Notificación',
+                    body: finalBody,
+                    data: { url: '/notifications', id: newNotifId },
+                    sound: soundEnabled,
+                    vibrate: vibrationEnabled ? [0, 250, 250, 250] : [],
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                  },
+                  trigger: null,
+                });
+              })
+              .catch(() => {
+                // Si falla, mostrar notificación completa por defecto
+                Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: newNotif.title || 'Nueva Notificación',
+                    body: newNotif.message || 'Tienes una nueva alerta en Dr. Group',
+                    data: { url: '/notifications', id: newNotifId },
+                    sound: true,
+                    vibrate: [0, 250, 250, 250],
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                  },
+                  trigger: null,
+                });
+              });
           }
         }
       });
@@ -246,15 +331,43 @@ export const NotificationsProvider = ({ children }) => {
   // ✅ Función para programar notificación local
   async function scheduleNotification(title, body, data = {}, channelId = 'default') {
     try {
+      // Cargar preferencias del usuario
+      let presentationStyle = 'full';
+      let soundEnabled = true;
+      let vibrationEnabled = true;
+      
+      if (user?.uid) {
+        try {
+          const behaviorDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'notificationBehavior'));
+          if (behaviorDoc.exists()) {
+            const prefs = behaviorDoc.data();
+            presentationStyle = prefs.presentationStyle || 'full';
+            soundEnabled = prefs.sound !== false;
+            vibrationEnabled = prefs.vibration !== false;
+          }
+        } catch (e) {
+          console.log('Usando configuración por defecto');
+        }
+      }
+
+      // Adaptar contenido según estilo
+      let finalBody = body;
+      if (presentationStyle === 'compact') {
+        finalBody = body.length > 50 ? body.substring(0, 47) + '...' : body;
+      } else if (presentationStyle === 'minimal') {
+        finalBody = '';
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title,
-          body,
+          body: finalBody,
           data,
-          sound: true,
+          sound: soundEnabled,
+          vibrate: vibrationEnabled ? [0, 250, 250, 250] : [],
           priority: Notifications.AndroidNotificationPriority.HIGH,
         },
-        trigger: null, // Inmediato
+        trigger: null,
       });
       console.log('✅ Notificación programada');
     } catch (error) {

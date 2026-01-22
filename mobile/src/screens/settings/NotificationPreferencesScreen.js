@@ -1,341 +1,336 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Text, Switch, Surface, useTheme, ActivityIndicator, Divider, Button } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, Switch, Surface, useTheme, Avatar, RadioButton, Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import materialTheme from '../../../material-theme.json';
 
 export default function NotificationPreferencesScreen({ navigation }) {
   const theme = useTheme();
-  const { userProfile } = useAuth();
-  const { preferences, loading, updateSection } = useNotificationPreferences();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [settings, setSettings] = useState({
+    sound: true,
+    vibration: true,
+    badge: true,
+    presentationStyle: 'full', // 'full' | 'compact' | 'minimal'
+    doNotDisturb: {
+      enabled: false,
+      startTime: '22:00',
+      endTime: '07:00'
+    }
+  });
 
   const surfaceColors = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
 
-  const handleToggle = async (category, key, value) => {
-    Haptics.selectionAsync();
-    setSaving(true);
+  useEffect(() => {
+    loadSettings();
+  }, [user]);
 
+  const loadSettings = async () => {
+    if (!user?.uid) return;
     try {
-      const result = await updateSection(category, { [key]: value });
-      
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Alert.alert('Error', 'No se pudo guardar la configuración');
+      const docRef = doc(db, 'users', user.uid, 'settings', 'notificationBehavior');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        setSettings({ ...settings, ...snap.data() });
       }
     } catch (error) {
-      Alert.alert('Error', 'Ocurrió un error al guardar');
+      console.error('Error cargando configuración:', error);
+    }
+  };
+
+  const handleToggle = (key, value) => {
+    Haptics.selectionAsync();
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+  };
+
+  const handleDNDToggle = (value) => {
+    Haptics.selectionAsync();
+    const newSettings = { 
+      ...settings, 
+      doNotDisturb: { ...settings.doNotDisturb, enabled: value }
+    };
+    setSettings(newSettings);
+  };
+
+  const handlePresentationChange = (value) => {
+    Haptics.selectionAsync();
+    const newSettings = { ...settings, presentationStyle: value };
+    setSettings(newSettings);
+  };
+
+  const saveSettings = async () => {
+    if (!user?.uid) return;
+    
+    setSaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'notificationBehavior'), settings);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSnackbarVisible(true);
+    } catch (error) {
+      console.error('Error guardando configuración:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSaving(false);
     }
   };
-
-  const handleEventToggle = async (eventKey, value) => {
-    Haptics.selectionAsync();
-    setSaving(true);
-
-    try {
-      const updatedEvents = {
-        ...preferences.calendar.events,
-        [eventKey]: value,
-      };
-
-      const result = await updateSection('calendar', { events: updatedEvents });
-      
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: surfaceColors.background }}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
-  }
-
-  const isAdmin = userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: surfaceColors.background }}>
       {/* Header */}
-      <View style={styles.header}>
-        <MaterialCommunityIcons 
-          name="arrow-left" 
-          size={24} 
-          color={surfaceColors.onSurface} 
-          onPress={() => navigation.goBack()} 
-        />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, fontWeight: '500' }}>
-            Notificaciones
-          </Text>
-          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
-            Personaliza tus alertas
-          </Text>
+      <View style={{ padding: 24, paddingBottom: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Avatar.Icon size={40} icon="arrow-left" style={{ backgroundColor: surfaceColors.surfaceVariant }} color={surfaceColors.onSurfaceVariant} />
+          </TouchableOpacity>
+          <Button 
+            mode="text" 
+            onPress={saveSettings} 
+            disabled={saving}
+            textColor={surfaceColors.primary}
+            style={{ marginTop: -4 }}
+          >
+            {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
         </View>
+        
+        <Text 
+          variant="displaySmall" 
+          style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontWeight: '400', 
+            letterSpacing: 0,
+            color: surfaceColors.onBackground
+          }}
+        >
+          Preferencias
+        </Text>
+        <Text variant="bodyLarge" style={{ color: surfaceColors.secondary, marginTop: 4 }}>
+          Personaliza cómo recibes las notificaciones
+        </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 📅 CALENDARIO (Solo ADMIN puede ver y configurar) */}
-        {isAdmin && (
-          <Surface style={[styles.section, { backgroundColor: surfaceColors.surfaceContainerLow }]}>
-            <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="calendar-alert" size={24} color={surfaceColors.primary} />
-              <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, marginLeft: 12, fontWeight: '600' }}>
-                📅 Calendario
-              </Text>
-            </View>
-            <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 16 }}>
-              Recordatorios de vencimientos y eventos empresariales
-            </Text>
-
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: surfaceColors.onSurface, fontWeight: '500' }}>Activar notificaciones de calendario</Text>
-                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
-                  Recibe alertas de eventos próximos
-                </Text>
-              </View>
-              <Switch 
-                value={preferences?.calendar.enabled} 
-                onValueChange={(val) => handleToggle('calendar', 'enabled', val)}
-                disabled={saving}
-              />
-            </View>
-
-            {preferences?.calendar.enabled && (
-              <>
-                <Divider style={{ marginVertical: 16 }} />
-                
-                <Text variant="labelLarge" style={{ color: surfaceColors.primary, marginBottom: 12, textTransform: 'uppercase' }}>
-                  Tipos de Eventos
-                </Text>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>👥 Parafiscales</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.parafiscales} 
-                    onValueChange={(val) => handleEventToggle('parafiscales', val)}
-                    disabled={saving}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>🎰 Coljuegos</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.coljuegos} 
-                    onValueChange={(val) => handleEventToggle('coljuegos', val)}
-                    disabled={saving}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>👮 UIAF</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.uiaf} 
-                    onValueChange={(val) => handleEventToggle('uiaf', val)}
-                    disabled={saving}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>📄 Contratos</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.contratos} 
-                    onValueChange={(val) => handleEventToggle('contratos', val)}
-                    disabled={saving}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>🇨🇴 Festivos</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.festivos} 
-                    onValueChange={(val) => handleEventToggle('festivos', val)}
-                    disabled={saving}
-                  />
-                </View>
-
-                <View style={styles.row}>
-                  <Text style={{ flex: 1, color: surfaceColors.onSurface }}>📝 Eventos Personales</Text>
-                  <Switch 
-                    value={preferences?.calendar.events.custom} 
-                    onValueChange={(val) => handleEventToggle('custom', val)}
-                    disabled={saving}
-                  />
-                </View>
-              </>
-            )}
-          </Surface>
-        )}
-
-        {/* ⏰ ASISTENCIA */}
-        <Surface style={[styles.section, { backgroundColor: surfaceColors.surfaceContainerLow }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="clock-alert-outline" size={24} color={surfaceColors.secondary} />
-            <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, marginLeft: 12, fontWeight: '600' }}>
-              ⏰ Asistencia
-            </Text>
-          </View>
-          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 16 }}>
-            Recordatorios de tu jornada laboral
+      {/* Info Banner */}
+      <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+        <Surface 
+          style={{ 
+            padding: 16, 
+            borderRadius: 24, 
+            backgroundColor: surfaceColors.primaryContainer,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12
+          }} 
+          elevation={0}
+        >
+          <Avatar.Icon 
+            size={40} 
+            icon="information" 
+            style={{ backgroundColor: surfaceColors.primary }} 
+            color="white" 
+          />
+          <Text 
+            variant="bodyMedium" 
+            style={{ flex: 1, color: surfaceColors.onPrimaryContainer, lineHeight: 20 }}
+          >
+            Tu administrador controla QUÉ notificaciones recibes. Aquí personalizas CÓMO las recibes.
           </Text>
+        </Surface>
+      </View>
 
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
+        {/* Sound */}
+        <Surface style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
           <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: surfaceColors.onSurface, fontWeight: '500' }}>Activar recordatorios de asistencia</Text>
-              <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
-                Recordatorios de salida, breaks y almuerzo
+            <Avatar.Icon size={48} icon="volume-high" style={{ backgroundColor: surfaceColors.secondaryContainer }} color={surfaceColors.onSecondaryContainer} />
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text variant="titleLarge" style={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}>
+                Sonido
+              </Text>
+              <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                Reproducir tono al recibir notificaciones
               </Text>
             </View>
-            <Switch 
-              value={preferences?.attendance.enabled} 
-              onValueChange={(val) => handleToggle('attendance', 'enabled', val)}
-              disabled={saving}
-            />
+            <Switch value={settings.sound} onValueChange={(val) => handleToggle('sound', val)} />
           </View>
-
-          {preferences?.attendance.enabled && (
-            <>
-              <Divider style={{ marginVertical: 16 }} />
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>🏠 Recordatorio de salida (6 PM)</Text>
-                <Switch 
-                  value={preferences?.attendance.exitReminder} 
-                  onValueChange={(val) => handleToggle('attendance', 'exitReminder', val)}
-                  disabled={saving}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>☕ Recordatorio de break (4 horas)</Text>
-                <Switch 
-                  value={preferences?.attendance.breakReminder} 
-                  onValueChange={(val) => handleToggle('attendance', 'breakReminder', val)}
-                  disabled={saving}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>🍽️ Recordatorio de almuerzo (12 PM)</Text>
-                <Switch 
-                  value={preferences?.attendance.lunchReminder} 
-                  onValueChange={(val) => handleToggle('attendance', 'lunchReminder', val)}
-                  disabled={saving}
-                />
-              </View>
-            </>
-          )}
         </Surface>
 
-        {/* 🔔 ALERTAS DEL SISTEMA */}
-        <Surface style={[styles.section, { backgroundColor: surfaceColors.surfaceContainerLow }]}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons name="bell-alert" size={24} color={surfaceColors.tertiary} />
-            <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, marginLeft: 12, fontWeight: '600' }}>
-              🔔 Alertas
-            </Text>
-          </View>
-          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 16 }}>
-            Notificaciones del sistema y mensajes de administradores
-          </Text>
-
+        {/* Vibration */}
+        <Surface style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
           <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: surfaceColors.onSurface, fontWeight: '500' }}>Activar alertas del sistema</Text>
-              <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
-                Notificaciones importantes de la aplicación
+            <Avatar.Icon size={48} icon="vibrate" style={{ backgroundColor: surfaceColors.tertiaryContainer }} color={surfaceColors.onTertiaryContainer} />
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text variant="titleLarge" style={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}>
+                Vibración
+              </Text>
+              <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                Vibrar al recibir notificaciones
               </Text>
             </View>
-            <Switch 
-              value={preferences?.alerts.enabled} 
-              onValueChange={(val) => handleToggle('alerts', 'enabled', val)}
-              disabled={saving}
-            />
+            <Switch value={settings.vibration} onValueChange={(val) => handleToggle('vibration', val)} />
           </View>
-
-          {preferences?.alerts.enabled && (
-            <>
-              <Divider style={{ marginVertical: 16 }} />
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>⚙️ Alertas del sistema</Text>
-                <Switch 
-                  value={preferences?.alerts.systemAlerts} 
-                  onValueChange={(val) => handleToggle('alerts', 'systemAlerts', val)}
-                  disabled={saving}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>💬 Mensajes de administradores</Text>
-                <Switch 
-                  value={preferences?.alerts.adminMessages} 
-                  onValueChange={(val) => handleToggle('alerts', 'adminMessages', val)}
-                  disabled={saving}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <Text style={{ flex: 1, color: surfaceColors.onSurface }}>🚨 Solo notificaciones urgentes</Text>
-                <Switch 
-                  value={preferences?.alerts.urgentOnly} 
-                  onValueChange={(val) => handleToggle('alerts', 'urgentOnly', val)}
-                  disabled={saving}
-                />
-              </View>
-            </>
-          )}
         </Surface>
 
-        <View style={{ height: 100 }} />
+        {/* Badge */}
+        <Surface style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
+          <View style={styles.row}>
+            <Avatar.Icon size={48} icon="numeric" style={{ backgroundColor: surfaceColors.errorContainer }} color={surfaceColors.error} />
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text variant="titleLarge" style={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}>
+                Contador
+              </Text>
+              <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                Mostrar número de notificaciones pendientes
+              </Text>
+            </View>
+            <Switch value={settings.badge} onValueChange={(val) => handleToggle('badge', val)} />
+          </View>
+        </Surface>
+
+        {/* Presentation Style */}
+        <Surface style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Avatar.Icon size={48} icon="card-text-outline" style={{ backgroundColor: surfaceColors.primaryContainer }} color={surfaceColors.onPrimaryContainer} />
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text variant="titleLarge" style={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}>
+                  Presentación
+                </Text>
+                <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                  Nivel de detalle en notificaciones
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <RadioButton.Group onValueChange={handlePresentationChange} value={settings.presentationStyle}>
+            <TouchableOpacity 
+              onPress={() => handlePresentationChange('full')}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 16,
+                backgroundColor: settings.presentationStyle === 'full' ? surfaceColors.primaryContainer : 'transparent',
+                marginBottom: 8
+              }}
+              activeOpacity={0.7}
+            >
+              <RadioButton.Android value="full" color={surfaceColors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text variant="titleMedium" style={{ fontWeight: settings.presentationStyle === 'full' ? '600' : '500' }}>
+                  📱 Completa
+                </Text>
+                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                  Título, mensaje completo y detalles
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => handlePresentationChange('compact')}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 16,
+                backgroundColor: settings.presentationStyle === 'compact' ? surfaceColors.primaryContainer : 'transparent',
+                marginBottom: 8
+              }}
+              activeOpacity={0.7}
+            >
+              <RadioButton.Android value="compact" color={surfaceColors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text variant="titleMedium" style={{ fontWeight: settings.presentationStyle === 'compact' ? '600' : '500' }}>
+                  📋 Compacta
+                </Text>
+                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                  Título y primeras líneas del mensaje
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => handlePresentationChange('minimal')}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 16,
+                backgroundColor: settings.presentationStyle === 'minimal' ? surfaceColors.primaryContainer : 'transparent'
+              }}
+              activeOpacity={0.7}
+            >
+              <RadioButton.Android value="minimal" color={surfaceColors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text variant="titleMedium" style={{ fontWeight: settings.presentationStyle === 'minimal' ? '600' : '500' }}>
+                  🔔 Solo Título
+                </Text>
+                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                  Notificación minimalista sin detalles
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </RadioButton.Group>
+        </Surface>
+
+        {/* Do Not Disturb */}
+        <Surface style={[styles.card, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
+          <View style={styles.row}>
+            <Avatar.Icon size={48} icon="moon-waning-crescent" style={{ backgroundColor: surfaceColors.surfaceContainerHigh }} color={surfaceColors.primary} />
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text variant="titleLarge" style={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}>
+                No Molestar
+              </Text>
+              <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
+                Silenciar notificaciones de 10 PM a 7 AM
+              </Text>
+            </View>
+            <Switch value={settings.doNotDisturb.enabled} onValueChange={handleDNDToggle} />
+          </View>
+        </Surface>
+
+        {/* Explanation */}
+        <View style={{ marginTop: 32, paddingHorizontal: 8 }}>
+          <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center', lineHeight: 20 }}>
+            Las preferencias de contenido (Parafiscales, Asistencia, etc.) son configuradas por tu administrador.
+          </Text>
+        </View>
       </ScrollView>
+
+      {/* Snackbar de confirmación */}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2000}
+        style={{ backgroundColor: surfaceColors.inverseSurface }}
+      >
+        <Text style={{ color: surfaceColors.inverseOnSurface }}>✅ Preferencias guardadas</Text>
+      </Snackbar>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  section: {
-    borderRadius: 24,
+  card: {
     padding: 20,
+    borderRadius: 24,
     marginBottom: 16,
-    elevation: 0,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
   },
 });

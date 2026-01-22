@@ -254,11 +254,6 @@ export default function SettingsScreen({ navigation }) {
             />
           )}
         />
-              }} 
-              color={theme.colors.primary}
-            />
-          )}
-        />
 
         <SettingItem
           title="Biometría"
