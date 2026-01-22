@@ -12,6 +12,7 @@ import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/NotificationService';
 import { logger } from '../utils/logger';
+import { notifyAdminsWorkEvent } from '../utils/notificationHelpers';
 
 const ACTIVE_SESSION_KEY = '@active_session_state';
 
@@ -722,7 +723,15 @@ export const AuthProvider = ({ children }) => {
       // ⚡ OPTIMIZADO: Notificaciones en background (no bloquean el retorno)
       Promise.all([
         NotificationService.notifyWorkDayComplete(9),
-        NotificationService.updateStateNotification('trabajando', now)
+        NotificationService.updateStateNotification('trabajando', now),
+        // 🔔 Notificar a admins configurados sobre inicio de jornada
+        notifyAdminsWorkEvent(
+          'clockIn',
+          userProfile?.name || userProfile?.displayName || email,
+          '👋 Jornada Iniciada',
+          `${userProfile?.name || userProfile?.displayName || email} inició su jornada laboral a las ${now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`,
+          { userName: userProfile?.name, entryTime: now.toISOString() }
+        )
       ]).catch(e => console.log('Error programando notificaciones:', e));
 
       // ✅ NUEVO: Programar recordatorios automáticos
@@ -795,6 +804,15 @@ export const AuthProvider = ({ children }) => {
 
       if (isConnected) {
         await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+        
+        // 🔔 Notificar a admins sobre inicio de break
+        notifyAdminsWorkEvent(
+          'breakStart',
+          userProfile?.name || userProfile?.displayName || user?.email,
+          '☕ Break Iniciado',
+          `${userProfile?.name || userProfile?.displayName || user?.email} inició un break`,
+          { userName: userProfile?.name, breakTime: new Date().toISOString() }
+        ).catch(e => logger.error('Error notificando break:', e));
       } else {
         await queueAction({
           type: 'update_session',
@@ -899,6 +917,15 @@ export const AuthProvider = ({ children }) => {
 
       if (isConnected) {
         await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+        
+        // 🔔 Notificar a admins sobre inicio de almuerzo
+        notifyAdminsWorkEvent(
+          'lunchStart',
+          userProfile?.name || userProfile?.displayName || user?.email,
+          '🍽️ Almuerzo Iniciado',
+          `${userProfile?.name || userProfile?.displayName || user?.email} inició su almuerzo`,
+          { userName: userProfile?.name, lunchTime: new Date().toISOString() }
+        ).catch(e => logger.error('Error notificando almuerzo:', e));
       } else {
         await queueAction({
           type: 'update_session',
@@ -1100,6 +1127,24 @@ export const AuthProvider = ({ children }) => {
       // ⚡ Update a Firestore
       if (isConnected) {
         await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+        
+        // 🔔 OPTIMIZADO: Notificar finalización de jornada a admins configurados
+        try {
+          await notifyAdminsWorkEvent(
+            'clockOut',
+            userProfile.name || userProfile.displayName || userProfile.email,
+            `🏠 Jornada Finalizada - ${userProfile.name || userProfile.displayName || userProfile.email}`,
+            `Horas trabajadas: ${horasTrabajadas} | ${location.tipo || 'Ubicación desconocida'}`,
+            {
+              userId: user.uid,
+              horasTrabajadas: horasTrabajadas,
+              ubicacion: location,
+              fecha: format(salidaDate, 'dd/MM/yyyy HH:mm:ss', { locale: es })
+            }
+          );
+        } catch (notifError) {
+          console.log('Error enviando notificación de salida:', notifError);
+        }
       } else {
         await queueAction({
           type: 'update_session',

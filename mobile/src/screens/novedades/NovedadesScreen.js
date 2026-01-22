@@ -34,6 +34,7 @@ import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { notifyAdminsWorkEvent } from '../../utils/notificationHelpers';
 
 export default function NovedadesScreen({ navigation, isModal = false, onClose }) {
   const { user, userProfile } = useAuth();
@@ -288,6 +289,34 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
         ]);
       } else {
         await addDoc(collection(db, 'novedades'), data);
+        
+        // 🔔 OPTIMIZADO: Notificar incidencia a admins configurados
+        try {
+          const tipoLabels = {
+            permiso: 'Permiso',
+            incapacidad: 'Incapacidad',
+            calamidad: 'Calamidad Doméstica',
+            retraso: 'Retraso',
+            urgencia_medica: 'Urgencia Médica',
+            otro: 'Otro'
+          };
+          
+          await notifyAdminsWorkEvent(
+            'incident',
+            userProfile?.name || userProfile?.displayName || user.email,
+            `⚠️ Nueva Incidencia: ${tipoLabels[type] || type}`,
+            description.trim().substring(0, 100) + (description.length > 100 ? '...' : ''),
+            {
+              userId: user.uid,
+              incidentType: type,
+              hasAttachment: !!attachmentUrl,
+              fecha: format(new Date(), 'dd/MM/yyyy HH:mm:ss', { locale: es })
+            }
+          );
+        } catch (notifError) {
+          console.log('Error enviando notificación de incidencia:', notifError);
+        }
+        
         Alert.alert('Éxito', 'Novedad reportada correctamente', [
           { 
             text: 'Ver Historial', 
