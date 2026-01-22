@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   View, 
   FlatList, 
@@ -27,7 +28,7 @@ import {
   FAB
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { onSnapshot, query, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { onSnapshot, query, collection, addDoc, Timestamp, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -312,7 +313,12 @@ export default function CalendarioScreen({ navigation }) {
   const [filteredEventos, setFilteredEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [changingView, setChangingView] = useState(false); // ✅ Loading para cambio de vista
+  const [changingView, setChangingView] = useState(false);
+  
+  // ✅ Refs para cleanup de listeners
+  const unsubscribeCustomEventsRef = useRef(null);
+  const unsubscribeCommitmentsRef = useRef(null);
+  const unsubscribeCompaniesRef = useRef(null); // ✅ Loading para cambio de vista
   
   // Data Sources
   const [customEvents, setCustomEvents] = useState([]);
@@ -389,61 +395,99 @@ export default function CalendarioScreen({ navigation }) {
     ]).start();
   }, []);
 
-  // 1. Fetch Custom Events
-  useEffect(() => {
-    const q = query(collection(db, 'calendar_events'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const events = snapshot.docs.map(doc => {
-        const data = doc.data();
-        let eventDate = new Date();
-        if (data.date?.toDate) eventDate = data.date.toDate();
-        else if (data.date instanceof Date) eventDate = data.date;
-        else if (typeof data.date === 'string') eventDate = new Date(data.date);
-        else if (data.date?.seconds) eventDate = new Date(data.date.seconds * 1000);
+  // 1. Fetch Custom Events - ✅ useFocusEffect para cleanup al perder foco
+  useFocusEffect(
+    useCallback(() => {
+      // ✅ Solo eventos de los próximos 3 meses para reducir lecturas
+      const now = new Date();
+      const threeMonthsLater = new Date();
+      threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+      
+      const q = query(
+        collection(db, 'calendar_events'),
+        limit(150) // ✅ Máximo 150 eventos (historial + futuros)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const events = snapshot.docs.map(doc => {
+          const data = doc.data();
+          let eventDate = new Date();
+          if (data.date?.toDate) eventDate = data.date.toDate();
+          else if (data.date instanceof Date) eventDate = data.date;
+          else if (typeof data.date === 'string') eventDate = new Date(data.date);
+          else if (data.date?.seconds) eventDate = new Date(data.date.seconds * 1000);
 
-        return { id: doc.id, ...data, date: eventDate, type: 'custom' };
+          return { id: doc.id, ...data, date: eventDate, type: 'custom' };
+        });
+        setCustomEvents(events);
       });
-      setCustomEvents(events);
-    });
-    return () => unsubscribe();
-  }, []);
+      unsubscribeCustomEventsRef.current = unsubscribe;
+      
+      return () => {
+        if (unsubscribeCustomEventsRef.current) {
+          unsubscribeCustomEventsRef.current();
+          unsubscribeCustomEventsRef.current = null;
+        }
+      };
+    }, [])
+  );
 
-  // 2. Fetch Commitments
-  useEffect(() => {
-    const q = query(collection(db, 'commitments'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const comms = snapshot.docs.map(doc => {
-        const data = doc.data();
-        
-        // Handle dueDate
-        let dueDate = new Date();
-        if (data.dueDate?.toDate) dueDate = data.dueDate.toDate();
-        else if (typeof data.dueDate === 'string') dueDate = new Date(data.dueDate);
+  // 2. Fetch Commitments - ✅ useFocusEffect para cleanup al perder foco
+  useFocusEffect(
+    useCallback(() => {
+      const q = query(
+        collection(db, 'commitments'),
+        limit(150) // ✅ Máximo 150 compromisos recientes
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const comms = snapshot.docs.map(doc => {
+          const data = doc.data();
+          
+          // Handle dueDate
+          let dueDate = new Date();
+          if (data.dueDate?.toDate) dueDate = data.dueDate.toDate();
+          else if (typeof data.dueDate === 'string') dueDate = new Date(data.dueDate);
 
-        // Handle paymentDate
-        let paymentDate = null;
-        if (data.paymentDate?.toDate) paymentDate = data.paymentDate.toDate();
-        else if (typeof data.paymentDate === 'string') paymentDate = new Date(data.paymentDate);
-        
-        return { id: doc.id, ...data, dueDate, paymentDate };
+          // Handle paymentDate
+          let paymentDate = null;
+          if (data.paymentDate?.toDate) paymentDate = data.paymentDate.toDate();
+          else if (typeof data.paymentDate === 'string') paymentDate = new Date(data.paymentDate);
+          
+          return { id: doc.id, ...data, dueDate, paymentDate };
+        });
+        setCommitments(comms);
       });
-      setCommitments(comms);
-    });
-    return () => unsubscribe();
-  }, []);
+      unsubscribeCommitmentsRef.current = unsubscribe;
+      
+      return () => {
+        if (unsubscribeCommitmentsRef.current) {
+          unsubscribeCommitmentsRef.current();
+          unsubscribeCommitmentsRef.current = null;
+        }
+      };
+    }, [])
+  );
 
-  // 3. Fetch Companies (Contracts)
-  useEffect(() => {
-    const q = query(collection(db, 'companies'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const comps = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return { id: doc.id, ...data };
+  // 3. Fetch Companies (Contracts) - ✅ useFocusEffect para cleanup al perder foco
+  useFocusEffect(
+    useCallback(() => {
+      const q = query(collection(db, 'companies'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const comps = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return { id: doc.id, ...data };
+        });
+        setCompanies(comps);
       });
-      setCompanies(comps);
-    });
-    return () => unsubscribe();
-  }, []);
+      unsubscribeCompaniesRef.current = unsubscribe;
+      
+      return () => {
+        if (unsubscribeCompaniesRef.current) {
+          unsubscribeCompaniesRef.current();
+          unsubscribeCompaniesRef.current = null;
+        }
+      };
+    }, [])
+  );
 
   // 4. Combine and Generate Events
   useEffect(() => {

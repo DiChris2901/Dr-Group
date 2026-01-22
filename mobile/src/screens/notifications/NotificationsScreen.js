@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking } from 'react-native';
 import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, Divider, SegmentedButtons, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,8 +22,44 @@ export default function NotificationsScreen({ navigation }) {
   // Filters & Pagination
   const [filter, setFilter] = useState('unread'); // all, unread, high
   const [limitCount, setLimitCount] = useState(20);
+  const unsubscribeRef = useRef(null);
 
-  useEffect(() => {
+  // ✅ Memoizar helpers para evitar recreaciones
+  const getIcon = useCallback((type) => {
+    switch (type) {
+      case 'admin_alert': return 'bullhorn';
+      case 'system': return 'information';
+      case 'reminder': return 'clock-outline';
+      default: return 'bell-outline';
+    }
+  }, []);
+
+  const getColor = useCallback((type, priority) => {
+    if (priority === 'high') return theme.colors.error;
+    switch (type) {
+      case 'admin_alert': return theme.colors.primary;
+      case 'system': return theme.colors.secondary;
+      default: return theme.colors.tertiary;
+    }
+  }, [theme]);
+
+  const markAsRead = useCallback(async (id, currentReadStatus) => {
+    if (currentReadStatus) return;
+    try {
+      const notifRef = doc(db, 'notifications', id);
+      await updateDoc(notifRef, { read: true });
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
+  }, []);
+
+  const loadMore = useCallback(() => {
+    setLimitCount(prev => prev + 20);
+  }, []);
+
+  // ✅ useFocusEffect para limpiar listener al perder foco
+  useFocusEffect(
+    useCallback(() => {
     if (!user?.uid) {
       setNotifications([]);
       setLoading(false);
@@ -65,48 +102,24 @@ export default function NotificationsScreen({ navigation }) {
       }
     );
 
-    return () => unsubscribe();
-  }, [user, filter, limitCount]);
+    unsubscribeRef.current = unsubscribe;
 
-  const loadMore = () => {
-    setLimitCount(prev => prev + 20);
-  };
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
+  }, [user, filter, limitCount])
+  );
 
-  const markAsRead = async (id, currentReadStatus) => {
-    if (currentReadStatus) return;
-    try {
-      const notifRef = doc(db, 'notifications', id);
-      await updateDoc(notifRef, { read: true });
-    } catch (error) {
-      console.error("Error marking as read:", error);
-    }
-  };
-
-  const getIcon = (type) => {
-    switch (type) {
-      case 'admin_alert': return 'bullhorn';
-      case 'system': return 'information';
-      case 'reminder': return 'clock-outline';
-      default: return 'bell-outline';
-    }
-  };
-
-  const getColor = (type, priority) => {
-    if (priority === 'high') return theme.colors.error;
-    switch (type) {
-      case 'admin_alert': return theme.colors.primary;
-      case 'system': return theme.colors.secondary;
-      default: return theme.colors.tertiary;
-    }
-  };
-
-  const openDetail = (item) => {
+  const openDetail = useCallback((item) => {
     setSelectedNotification(item);
     setModalVisible(true);
     if (!item.read) {
       markAsRead(item.id, item.read);
     }
-  };
+  }, [markAsRead]);
 
   const renderItem = ({ item }) => {
     const icon = getIcon(item.type);

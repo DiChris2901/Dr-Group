@@ -63,7 +63,7 @@ export default function DashboardScreen() {
   const [localLoading, setLocalLoading] = useState(false); // 🔒 Loading local adicional
 
   // ✅ Memoizar función de formateo para evitar recrearla
-  const formatMs = useMemo(() => (ms) => {
+  const formatMs = useCallback((ms) => {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -72,7 +72,7 @@ export default function DashboardScreen() {
   }, []);
 
   // ✅ Manejador seguro para iniciar jornada con protección contra múltiples taps
-  const handleIniciarJornada = async () => {
+  const handleIniciarJornada = useCallback(async () => {
     // 🔒 CAPA 2: Validación UI inmediata (prevenir doble tap)
     if (localLoading || isStartingSession) {
       console.log('⚠️ Ya se está procesando, ignorando toque duplicado');
@@ -119,7 +119,7 @@ export default function DashboardScreen() {
     } finally {
       setLocalLoading(false); // 🔓 Liberar loading local
     }
-  };
+  }, [localLoading, isStartingSession, iniciarJornada, setNovedadInitialType, setNovedadesVisible]);
 
   // ✅ Timer Logic
   useEffect(() => {
@@ -191,11 +191,11 @@ export default function DashboardScreen() {
     return () => clearInterval(interval);
   }, [activeSession, formatMs]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     // Refresh logic
     setTimeout(() => setRefreshing(false), 1000);
-  };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

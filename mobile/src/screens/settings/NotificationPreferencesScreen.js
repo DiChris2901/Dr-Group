@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, Switch, Surface, useTheme, Avatar, RadioButton, Button, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,11 +27,7 @@ export default function NotificationPreferencesScreen({ navigation }) {
 
   const surfaceColors = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
 
-  useEffect(() => {
-    loadSettings();
-  }, [user]);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     if (!user?.uid) return;
     try {
       const docRef = doc(db, 'users', user.uid, 'settings', 'notificationBehavior');
@@ -42,30 +38,34 @@ export default function NotificationPreferencesScreen({ navigation }) {
     } catch (error) {
       console.error('Error cargando configuración:', error);
     }
-  };
+  }, [user, settings]);
 
-  const handleToggle = (key, value) => {
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const handleToggle = useCallback((key, value) => {
     Haptics.selectionAsync();
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-  };
+  }, [settings]);
 
-  const handleDNDToggle = (value) => {
+  const handleDNDToggle = useCallback((value) => {
     Haptics.selectionAsync();
     const newSettings = { 
       ...settings, 
       doNotDisturb: { ...settings.doNotDisturb, enabled: value }
     };
     setSettings(newSettings);
-  };
+  }, [settings]);
 
-  const handlePresentationChange = (value) => {
+  const handlePresentationChange = useCallback((value) => {
     Haptics.selectionAsync();
     const newSettings = { ...settings, presentationStyle: value };
     setSettings(newSettings);
-  };
+  }, [settings]);
 
-  const saveSettings = async () => {
+  const saveSettings = useCallback(async () => {
     if (!user?.uid) return;
     
     setSaving(true);
@@ -81,7 +81,7 @@ export default function NotificationPreferencesScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, settings]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: surfaceColors.background }}>

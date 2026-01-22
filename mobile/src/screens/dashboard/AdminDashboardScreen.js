@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking } from 'react-native';
 import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge, Button } from 'react-native-paper';
@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppDistribution } from '../../hooks/useAppDistribution';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -38,17 +38,17 @@ export default function AdminDashboardScreen({ navigation }) {
     return allEmployees;
   }, [allEmployees, filter]);
 
-  const handleCall = (phone) => {
+  const handleCall = useCallback((phone) => {
     if (!phone) return;
     Linking.openURL(`tel:${phone}`);
-  };
+  }, []);
 
-  const handleWhatsApp = (phone) => {
+  const handleWhatsApp = useCallback((phone) => {
     if (!phone) return;
     // Remove '+' and spaces for WA link
     const cleanPhone = phone.replace(/\+/g, '').replace(/\s/g, '');
     Linking.openURL(`https://wa.me/${cleanPhone}`);
-  };
+  }, []);
   
   // Stats
   const [stats, setStats] = useState({
@@ -60,14 +60,9 @@ export default function AdminDashboardScreen({ navigation }) {
     absent: 0
   });
   const [activeEmployees, setActiveEmployees] = useState([]);
+  const unsubscribeRef = useRef(null);
 
-  useEffect(() => {
-    if (user?.uid) {
-      fetchData();
-    }
-  }, [user]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user?.uid) return; // ✅ Protección adicional
     
     setLoading(true);
@@ -82,7 +77,11 @@ export default function AdminDashboardScreen({ navigation }) {
 
       // 2. Get Today's Attendance
       const today = format(new Date(), 'yyyy-MM-dd');
-      const attendanceQuery = query(collection(db, 'asistencias'), where('fecha', '==', today));
+      const attendanceQuery = query(
+        collection(db, 'asistencias'), 
+        where('fecha', '==', today),
+        limit(100) // ✅ Máximo 100 asistencias del día
+      );
       
       const unsubscribe = onSnapshot(
         attendanceQuery, 
@@ -129,6 +128,12 @@ export default function AdminDashboardScreen({ navigation }) {
             return (priority[a.status] || 99) - (priority[b.status] || 99);
         });
 
+        // Sort in-place para evitar crear nueva referencia
+        processedList.sort((a, b) => {
+          const order = { trabajando: 1, break: 2, almuerzo: 3, finalizado: 4, ausente: 5 };
+          return (order[a.status] || 99) - (order[b.status] || 99);
+        });
+
         setStats({
           totalEmployees: employeesList.length,
           active,
@@ -147,20 +152,37 @@ export default function AdminDashboardScreen({ navigation }) {
       }
       );
 
-      return () => unsubscribe();
+      unsubscribeRef.current = unsubscribe;
     } catch (error) {
       console.error('Error fetching admin dashboard data:', error);
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const onRefresh = async () => {
+  // ✅ useFocusEffect para limpiar listener cuando pierde foco (optimización para dispositivos lentos)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.uid) {
+        fetchData();
+      }
+
+      // Cleanup: detener listener cuando pierde el foco
+      return () => {
+        if (unsubscribeRef.current) {
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
+        }
+      };
+    }, [user, fetchData])
+  );
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
-  };
+  }, [fetchData]);
 
-  const KPICard = ({ icon, label, value, color, bgColor, filterType }) => {
+  const KPICard = memo(({ icon, label, value, color, bgColor, filterType }) => {
     const isSelected = filter === filterType;
     return (
       <TouchableOpacity 
@@ -188,7 +210,7 @@ export default function AdminDashboardScreen({ navigation }) {
         </Surface>
       </TouchableOpacity>
     );
-  };
+  });
 
   if (loading) {
     return (

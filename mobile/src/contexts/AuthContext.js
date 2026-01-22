@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { 
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
@@ -266,7 +266,7 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user]);
 
-  const checkPreviousOpenSession = async (uid) => {
+  const checkPreviousOpenSession = useCallback(async (uid) => {
     try {
       const q = query(
         collection(db, 'asistencias'),
@@ -288,9 +288,9 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       console.log("Error buscando sesiones previas:", e);
     }
-  };
+  }, []);
 
-  const signIn = async (email, password) => {
+  const signIn = useCallback(async (email, password) => {
     try {
       // 1. Autenticar con Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -320,9 +320,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Error en signIn:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       // ✅ Ya NO finalizamos automáticamente la jornada al cerrar sesión
       // El usuario debe finalizar jornada manualmente antes de salir
@@ -332,7 +332,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error en signOut:', error);
       throw error;
     }
-  };
+  }, []);
 
   // ✅ NUEVA FUNCIÓN: Iniciar jornada laboral manualmente
   const iniciarJornada = async () => {

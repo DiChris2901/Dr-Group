@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   StyleSheet,
@@ -24,7 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import materialTheme from '../../../material-theme.json';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { collection, query, orderBy, getDocs, updateDoc, doc, onSnapshot, where, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, updateDoc, doc, onSnapshot, where, Timestamp, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -76,12 +77,20 @@ export default function AdminNovedadesScreen({ navigation }) {
   const [selectedNovedad, setSelectedNovedad] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // ✅ Real-time listener para actualizaciones automáticas
-  useEffect(() => {
-    setLoading(true);
-    const q = query(collection(db, 'novedades'), orderBy('date', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+  // ✅ Ref para cleanup de listener
+  const unsubscribeRef = useRef(null);
+
+  // ✅ Real-time listener con useFocusEffect para cleanup al perder foco
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      const q = query(
+        collection(db, 'novedades'), 
+        orderBy('date', 'desc'),
+        limit(50) // ✅ Solo últimas 50 novedades
+      );
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNovedades(data);
       // filterData se ejecutará automáticamente por el useEffect que depende de 'novedades'
@@ -93,23 +102,27 @@ export default function AdminNovedadesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     });
+    
+    unsubscribeRef.current = unsubscribe;
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
+  }, [])
+);
 
-  // Mantener fetchNovedades solo para el pull-to-refresh manual si es necesario,
+  // Mantener onRefresh solo para el pull-to-refresh manual si es necesario,
   // aunque con onSnapshot ya no es estrictamente necesario, pero sirve para forzar reload si hay problemas de red.
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     // El onSnapshot se encarga, pero simulamos un delay o podríamos reconectar
     setTimeout(() => setRefreshing(false), 1000);
-  };
+  }, []);
 
-  useEffect(() => {
-    filterData(novedades, searchQuery, filterStatus);
-  }, [searchQuery, filterStatus, novedades]);
-
-  const filterData = (data, query, status) => {
+  const filterData = useCallback((data, query, status) => {
     let filtered = data;
     
     // Filter by Status
@@ -127,7 +140,11 @@ export default function AdminNovedadesScreen({ navigation }) {
     }
 
     setFilteredNovedades(filtered);
-  };
+  }, []);
+
+  useEffect(() => {
+    filterData(novedades, searchQuery, filterStatus);
+  }, [searchQuery, filterStatus, novedades, filterData]);
 
   const handleStatusChange = async (id, newStatus) => {
     try {

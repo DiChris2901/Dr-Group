@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { Text, List, Switch, Avatar, Button, Divider, useTheme as usePaperTheme, Surface, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ export default function SettingsScreen({ navigation }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const handleSavePreferences = async () => {
+  const handleSavePreferences = useCallback(async () => {
     setSaving(true);
     try {
       await saveAllPreferences();
@@ -30,15 +30,11 @@ export default function SettingsScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [saveAllPreferences]);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
 
-  React.useEffect(() => {
-    checkBiometricStatus();
-  }, []);
-
-  const checkBiometricStatus = async () => {
+  const checkBiometricStatus = useCallback(async () => {
     try {
       // 1. Check hardware support
       const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -51,9 +47,13 @@ export default function SettingsScreen({ navigation }) {
     } catch (error) {
       console.log('Error checking biometrics:', error);
     }
-  };
+  }, []);
 
-  const toggleBiometric = async (value) => {
+  React.useEffect(() => {
+    checkBiometricStatus();
+  }, [checkBiometricStatus]);
+
+  const toggleBiometric = useCallback(async (value) => {
     Haptics.selectionAsync();
     
     if (!value) {
@@ -81,9 +81,9 @@ export default function SettingsScreen({ navigation }) {
       // Keep switch off visually until they actually re-login
       setBiometricEnabled(false);
     }
-  };
+  }, [handleSignOut]);
 
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     Alert.alert(
       "Cerrar Sesión",
       "¿Estás seguro que deseas salir?",
@@ -99,9 +99,9 @@ export default function SettingsScreen({ navigation }) {
         }
       ]
     );
-  };
+  }, [signOut]);
 
-  const SettingItem = ({ title, description, icon, right, onPress, color }) => (
+  const SettingItem = useCallback(({ title, description, icon, right, onPress, color }) => (
     <Surface 
       style={[styles.settingItem, { backgroundColor: theme.colors.surface }]} 
       elevation={0}
@@ -121,7 +121,7 @@ export default function SettingsScreen({ navigation }) {
         style={{ paddingVertical: 8 }}
       />
     </Surface>
-  );
+  ), [theme.colors]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

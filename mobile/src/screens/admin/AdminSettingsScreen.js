@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -59,11 +59,7 @@ export default function AdminSettingsScreen({ navigation }) {
     { id: 0, label: 'D', full: 'Domingo' },
   ];
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const getAddressFromCoords = async (lat, lon) => {
+  const getAddressFromCoords = useCallback(async (lat, lon) => {
     try {
       const result = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
       if (result.length > 0) {
@@ -77,9 +73,9 @@ export default function AdminSettingsScreen({ navigation }) {
       console.log('Error reverse geocoding:', error);
     }
     return null;
-  };
+  }, []);
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const scheduleDoc = await getDoc(doc(db, 'settings', 'work_schedule'));
       if (scheduleDoc.exists()) {
@@ -110,7 +106,11 @@ export default function AdminSettingsScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAddressFromCoords]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const toggleDay = (dayId) => {
     Haptics.selectionAsync();

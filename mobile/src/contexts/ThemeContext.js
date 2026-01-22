@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
@@ -135,7 +135,7 @@ export const ThemeProvider = ({ children }) => {
   }, [user]);
 
   // ✅ Helper para guardar en Firestore
-  const savePreferenceToFirestore = async (key, value) => {
+  const savePreferenceToFirestore = useCallback(async (key, value) => {
     if (!user?.uid) return;
     try {
       const userSettingsRef = doc(db, 'userSettings', user.uid);
@@ -147,10 +147,10 @@ export const ThemeProvider = ({ children }) => {
     } catch (error) {
       console.error('Error guardando preferencia en Firestore:', error);
     }
-  };
+  }, [user]);
 
   // ✅ Guardar todas las preferencias manualmente
-  const saveAllPreferences = async () => {
+  const saveAllPreferences = useCallback(async () => {
     if (!user?.uid) return;
     try {
       const userSettingsRef = doc(db, 'userSettings', user.uid);
@@ -166,9 +166,9 @@ export const ThemeProvider = ({ children }) => {
       console.error('Error guardando todas las preferencias:', error);
       throw error;
     }
-  };
+  }, [user, isDarkMode, hapticsEnabled, hapticsIntensity]);
 
-  const toggleDarkMode = async () => {
+  const toggleDarkMode = useCallback(async () => {
     try {
       const newMode = !isDarkMode;
       setIsDarkMode(newMode);
@@ -177,9 +177,9 @@ export const ThemeProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al cambiar modo oscuro:', error);
     }
-  };
+  }, [isDarkMode]);
 
-  const toggleHaptics = async () => {
+  const toggleHaptics = useCallback(async () => {
     try {
       const newState = !hapticsEnabled;
       setHapticsEnabled(newState);
@@ -189,9 +189,9 @@ export const ThemeProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al cambiar haptics:', error);
     }
-  };
+  }, [hapticsEnabled]);
 
-  const setIntensity = async (intensity) => {
+  const setIntensity = useCallback(async (intensity) => {
     try {
       setHapticsIntensity(intensity);
       await AsyncStorage.setItem(HAPTICS_INTENSITY_KEY, intensity);
@@ -203,10 +203,10 @@ export const ThemeProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al cambiar intensidad:', error);
     }
-  };
+  }, []);
 
   // ✅ Wrapper seguro para Haptics
-  const triggerHaptic = (type = 'selection') => {
+  const triggerHaptic = useCallback((type = 'selection') => {
     // Force check if enabled
     if (hapticsEnabled === false) return;
     
@@ -234,9 +234,9 @@ export const ThemeProvider = ({ children }) => {
     } catch (error) {
       console.log('Haptics error:', error);
     }
-  };
+  }, [hapticsEnabled, hapticsIntensity]);
 
-  const value = {
+  const value = useMemo(() => ({
     colors,
     isDarkMode,
     lastUserPhoto, // ✅ Exponer la foto del último usuario
@@ -254,7 +254,7 @@ export const ThemeProvider = ({ children }) => {
     getSecondaryColor: () => colors.secondary,
     getAccentColor: () => colors.accent,
     getErrorColor: () => colors.error
-  };
+  }), [colors, isDarkMode, lastUserPhoto, hapticsEnabled, hapticsIntensity, toggleDarkMode, toggleHaptics, setIntensity, saveAllPreferences, triggerHaptic]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };

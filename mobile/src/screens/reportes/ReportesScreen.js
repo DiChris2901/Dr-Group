@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -385,12 +385,12 @@ export default function ReportesScreen() {
     }
   }, [cargarDatos, userProfile]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     cargarDatos();
-  };
+  }, [cargarDatos]);
 
-  const StatCard = ({ title, value, subtitle, icon, color, style, isHero = false }) => {
+  const StatCard = memo(({ title, value, subtitle, icon, color, style, isHero = false }) => {
     // Detectar si es layout horizontal para ajustar espaciado
     const isRow = style?.flexDirection === 'row' || (typeof style === 'object' && style.flexDirection === 'row');
 
@@ -442,7 +442,7 @@ export default function ReportesScreen() {
         </View>
       </Pressable>
     );
-  };
+  });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>

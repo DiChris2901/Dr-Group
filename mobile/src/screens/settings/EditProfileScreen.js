@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Image, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme as usePaperTheme, IconButton, Avatar, Divider, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,7 +29,7 @@ export default function EditProfileScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordSection, setShowPasswordSection] = useState(false);
 
-  const handlePickImage = async () => {
+  const handlePickImage = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -44,9 +44,9 @@ export default function EditProfileScreen({ navigation }) {
     } catch (error) {
       Alert.alert('Error', 'No se pudo abrir la galería.');
     }
-  };
+  }, []);
 
-  const handleUploadPhoto = async (uri) => {
+  const handleUploadPhoto = useCallback(async (uri) => {
     setUploading(true);
     try {
       // 1. Delete old photo if exists and is from firebase
@@ -78,9 +78,9 @@ export default function EditProfileScreen({ navigation }) {
     } finally {
       setUploading(false);
     }
-  };
+  }, [userProfile, user, setPhotoURL]);
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'El nombre es obligatorio.');
       return;
@@ -115,7 +115,7 @@ export default function EditProfileScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [name, phone, photoURL, user, reloadUserProfile, navigation]);
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {

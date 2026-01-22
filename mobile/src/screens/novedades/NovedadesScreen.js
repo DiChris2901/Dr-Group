@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Pressable
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -88,6 +89,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   // Historial states
   const [historial, setHistorial] = useState([]);
   const [loadingHistorial, setLoadingHistorial] = useState(true);
+  const unsubscribeRef = useRef(null);
 
   const tiposNovedad = [
     { id: 'llegada_tarde', label: 'Llegada Tarde', icon: 'clock-alert-outline' },
@@ -98,25 +100,36 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
     { id: 'otro', label: 'Otro', icon: 'pencil-outline' },
   ];
 
-  useEffect(() => {
-    if (activeTab === 'historial') {
-      const q = query(
-        collection(db, 'novedades'),
-        where('uid', '==', user.uid),
-        orderBy('date', 'desc')
-      );
+  // ✅ useFocusEffect para limpiar listener al perder foco
+  useFocusEffect(
+    useCallback(() => {
+      if (activeTab === 'historial') {
+        const q = query(
+          collection(db, 'novedades'),
+          where('uid', '==', user.uid),
+          orderBy('date', 'desc'),
+          limit(50) // ✅ Solo últimas 50 novedades del usuario
+        );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setHistorial(data);
-        setLoadingHistorial(false);
-      });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setHistorial(data);
+          setLoadingHistorial(false);
+        });
 
-      return () => unsubscribe();
-    }
-  }, [activeTab, user.uid]);
+        unsubscribeRef.current = unsubscribe;
 
-  const pickDocument = async () => {
+        return () => {
+          if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        };
+      }
+    }, [activeTab, user.uid])
+  );
+
+  const pickDocument = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['image/*', 'application/pdf'],
@@ -130,9 +143,9 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
       console.error('Error picking document:', err);
       Alert.alert('Error', 'No se pudo seleccionar el archivo');
     }
-  };
+  }, []);
 
-  const takePhoto = async () => {
+  const takePhoto = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -159,9 +172,9 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
       console.error('Error taking photo:', err);
       Alert.alert('Error', 'No se pudo tomar la foto');
     }
-  };
+  }, []);
 
-  const handleEdit = (item) => {
+  const handleEdit = useCallback((item) => {
     setEditingId(item.id);
     setType(item.type);
     setDescription(item.description);
@@ -175,18 +188,18 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
     }
     setAttachment(null);
     setActiveTab('reportar');
-  };
+  }, []);
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setEditingId(null);
     setType('llegada_tarde');
     setDescription('');
     setAttachment(null);
     setExistingAttachment(null);
     setOriginalAttachment(null);
-  };
+  }, []);
 
-  const handleDelete = (item) => {
+  const handleDelete = useCallback((item) => {
     Alert.alert(
       'Eliminar Reporte',
       '¿Estás seguro de que deseas eliminar este reporte? Esta acción no se puede deshacer.',
@@ -220,9 +233,9 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
         }
       ]
     );
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Por favor describe la novedad');
       return;
@@ -333,7 +346,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
     } finally {
       setLoading(false);
     }
-  };
+  }, [description, type, editingId, attachment, existingAttachment, originalAttachment, user, userProfile, cancelEdit]);
 
   const getStatusColor = (status) => {
     switch (status) {

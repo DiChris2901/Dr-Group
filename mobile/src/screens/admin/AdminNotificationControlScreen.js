@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, Alert, FlatList, TouchableOpacity, Modal as RNModal } from 'react-native';
 import { Text, Surface, Avatar, IconButton, Switch, useTheme as usePaperTheme, ActivityIndicator, Searchbar, Divider, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,11 +27,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
   const surfaceContainer = isDarkMode ? materialTheme.schemes.dark.surfaceContainer : materialTheme.schemes.light.surfaceContainer;
   const surfaceContainerHigh = isDarkMode ? materialTheme.schemes.dark.surfaceContainerHigh : materialTheme.schemes.light.surfaceContainerHigh;
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
       const usersQuery = query(collection(db, 'users'));
@@ -47,9 +44,13 @@ export default function AdminNotificationControlScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const openUserPreferences = async (user) => {
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
+  const openUserPreferences = useCallback(async (user) => {
     triggerHaptic('selection');
     setSelectedUser(user);
     setLoading(true); // Reuse loading state for modal prep (simple UX choice)
@@ -85,7 +86,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [triggerHaptic]);
 
   const getDefaultPreferences = (role) => {
     const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Modal, FlatList, Image } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme as usePaperTheme, SegmentedButtons, IconButton, Avatar, Divider, Checkbox, Searchbar, Chip, ActivityIndicator } from 'react-native-paper';
 import { logger } from '../../utils/logger';
@@ -69,8 +69,7 @@ export default function AdminCreateAlertScreen() {
   }, [message]);
 
   // Cargar historial reciente y usuarios
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async () => {
       try {
         // History
         // ✅ Agrupar alertas por título y fecha para evitar duplicados en el historial
@@ -127,9 +126,11 @@ export default function AdminCreateAlertScreen() {
       } catch (error) {
         console.log('Error fetching data:', error);
       }
-    };
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const toggleUserSelection = (userId) => {
     if (selectedUsers.includes(userId)) {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
@@ -122,7 +122,8 @@ export const NotificationsProvider = ({ children }) => {
       collection(db, 'notifications'),
       where('uid', '==', user.uid),
       where('read', '==', false),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(100) // ✅ Protección: máximo 100 notificaciones no leídas escuchadas
     );
 
     const unsubscribe = onSnapshot(
@@ -239,7 +240,7 @@ export const NotificationsProvider = ({ children }) => {
   }, []);
 
   // ✅ Función para pedir permisos de notificaciones locales
-  async function requestNotificationPermissions() {
+  const requestNotificationPermissions = useCallback(async () => {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -259,10 +260,10 @@ export const NotificationsProvider = ({ children }) => {
       console.error('❌ Error pidiendo permisos:', error);
       return false;
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Registrar dispositivo para Push Notifications y guardar token
-  async function registerForPushNotifications() {
+  const registerForPushNotifications = useCallback(async () => {
     if (!Device.isDevice) {
       logger.warn('Push Notifications requieren dispositivo físico');
       return null;
@@ -307,10 +308,10 @@ export const NotificationsProvider = ({ children }) => {
       logger.error('❌ Error registrando push notifications:', error);
       return null;
     }
-  }
+  }, [user, userProfile, requestNotificationPermissions]);
 
   // Configurar canales de notificación para Android
-  async function setupNotificationChannels() {
+  const setupNotificationChannels = useCallback(async () => {
     try {
       // Canal para jornada laboral (prioridad alta)
       await Notifications.setNotificationChannelAsync('work-session', {
@@ -334,10 +335,10 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error configurando canales:', error);
     }
-  }
+  }, []);
 
   // ✅ Función para programar notificación local
-  async function scheduleNotification(title, body, data = {}, channelId = 'default') {
+  const scheduleNotification = useCallback(async (title, body, data = {}, channelId = 'default') => {
     try {
       // Cargar preferencias del usuario
       let presentationStyle = 'full';
@@ -381,30 +382,30 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error programando notificación:', error);
     }
-  }
+  }, [user]);
 
   // ✅ Función para cancelar notificación por ID
-  async function cancelNotification(notificationId) {
+  const cancelNotification = useCallback(async (notificationId) => {
     try {
       await Notifications.dismissNotificationAsync(notificationId);
       console.log('✅ Notificación cancelada:', notificationId);
     } catch (error) {
       console.error('❌ Error cancelando notificación:', error);
     }
-  }
+  }, []);
 
   // ✅ Función para cancelar todas las notificaciones
-  async function cancelAllNotifications() {
+  const cancelAllNotifications = useCallback(async () => {
     try {
       await Notifications.dismissAllNotificationsAsync();
       console.log('✅ Todas las notificaciones canceladas');
     } catch (error) {
       console.error('❌ Error cancelando notificaciones:', error);
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Programar recordatorio de salida (6:00 PM si no ha registrado salida)
-  async function scheduleExitReminder(preferences = null) {
+  const scheduleExitReminder = useCallback(async (preferences = null) => {
     try {
       // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
       if (preferences && preferences.attendance) {
@@ -442,10 +443,10 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       logger.error('❌ Error programando recordatorio de salida:', error);
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Recordatorio de break después de 4 horas trabajando
-  async function scheduleBreakReminder(startTime, preferences = null) {
+  const scheduleBreakReminder = useCallback(async (startTime, preferences = null) => {
     try {
       // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
       if (preferences && preferences.attendance) {
@@ -477,10 +478,10 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       logger.error('❌ Error programando recordatorio de break:', error);
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Recordatorio de almuerzo (12:00 PM si no lo ha registrado)
-  async function scheduleLunchReminder(preferences = null) {
+  const scheduleLunchReminder = useCallback(async (preferences = null) => {
     try {
       // ✅ VERIFICAR PREFERENCIAS DEL USUARIO
       if (preferences && preferences.attendance) {
@@ -516,10 +517,10 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       logger.error('❌ Error programando recordatorio de almuerzo:', error);
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Cancelar recordatorios específicos por tipo
-  async function cancelScheduledReminders() {
+  const cancelScheduledReminders = useCallback(async () => {
     try {
       const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
       
@@ -533,10 +534,10 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       logger.error('❌ Error cancelando recordatorios:', error);
     }
-  }
+  }, []);
 
   // ✅ NUEVO: Programar notificación de evento de calendario (Solo ADMIN)
-  async function scheduleCalendarEventNotification(event, daysBeforeArray = [2, 0]) {
+  const scheduleCalendarEventNotification = useCallback(async (event, daysBeforeArray = [2, 0]) => {
     if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
       logger.debug('Notificaciones de calendario solo para ADMIN');
       return [];
@@ -603,10 +604,10 @@ export const NotificationsProvider = ({ children }) => {
       logger.error('❌ Error programando notificación de calendario:', error);
       return identifiers;
     }
-  }
+  }, [userProfile]);
 
   // ✅ NUEVO: Cancelar notificaciones de calendario obsoletas
-  async function cancelCalendarNotifications() {
+  const cancelCalendarNotifications = useCallback(async () => {
     try {
       const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
       let canceledCount = 0;
@@ -625,7 +626,7 @@ export const NotificationsProvider = ({ children }) => {
     } catch (error) {
       logger.error('❌ Error cancelando notificaciones de calendario:', error);
     }
-  }
+  }, []);
 
   const value = {
     notification,

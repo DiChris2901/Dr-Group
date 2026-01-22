@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -100,7 +100,7 @@ export default function AsistenciasScreen({ navigation }) {
     }
   }, [userProfile, filterType, activeSession]);
 
-  const cargarUsuarios = async () => {
+  const cargarUsuarios = useCallback(async () => {
     try {
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const userMap = {};
@@ -116,9 +116,9 @@ export default function AsistenciasScreen({ navigation }) {
     } catch (error) {
       console.error('Error cargando usuarios:', error);
     }
-  };
+  }, []);
 
-  const cargarAsistencias = async () => {
+  const cargarAsistencias = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -219,17 +219,17 @@ export default function AsistenciasScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [userProfile, user, filterType]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     cargarAsistencias();
-  };
+  }, [cargarAsistencias]);
 
-  const handleItemPress = (item) => {
+  const handleItemPress = useCallback((item) => {
     setSelectedAsistencia(item);
     setModalVisible(true);
-  };
+  }, []);
 
   // ✅ Exportar reporte PDF (Solo admins)
   const handleExportPDF = async () => {
@@ -277,8 +277,8 @@ export default function AsistenciasScreen({ navigation }) {
     return format(date, 'h:mm a');
   };
 
-  // ✅ NUEVO: Filtrado local por búsqueda (búsqueda inteligente de fechas)
-  const filteredAsistencias = asistencias.filter(item => {
+  // ✅ NUEVO: Filtrado local por búsqueda (búsqueda inteligente de fechas) - Memoizado
+  const filteredAsistencias = useMemo(() => asistencias.filter(item => {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase().trim();
@@ -329,9 +329,9 @@ export default function AsistenciasScreen({ navigation }) {
     } else {
       return fechaFormateada.includes(query);
     }
-  });
+  }), [asistencias, searchQuery, usersMap, userProfile]);
 
-  const AsistenciaItem = ({ item, index }) => {
+  const AsistenciaItem = memo(({ item, index }) => {
     const user = usersMap[item.uid] || {};
     const isCompleted = !!item.salida;
     const isWorking = item.estadoActual === 'trabajando' || item.estadoActual === 'break' || item.estadoActual === 'almuerzo';
@@ -350,10 +350,10 @@ export default function AsistenciasScreen({ navigation }) {
       statusIcon = 'clock';
     }
 
-    const handlePress = () => {
+    const handlePress = useCallback(() => {
       Haptics.selectionAsync(); // ✅ Feedback táctil
       handleItemPress(item);
-    };
+    }, [item]);
 
     return (
       <Pressable
@@ -443,7 +443,7 @@ export default function AsistenciasScreen({ navigation }) {
         </View>
       </Pressable>
     );
-  };
+  });
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
@@ -549,9 +549,19 @@ export default function AsistenciasScreen({ navigation }) {
         <FlatList
           data={filteredAsistencias}
           renderItem={({ item, index }) => <AsistenciaItem item={item} index={index} />}
-          keyExtractor={item => item.id}
+          keyExtractor={useCallback((item) => item.id, [])}
+          getItemLayout={useCallback((data, index) => ({
+            length: 160, // Altura aproximada de cada card
+            offset: 160 * index,
+            index,
+          }), [])}
           contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Espacio extra al final
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
