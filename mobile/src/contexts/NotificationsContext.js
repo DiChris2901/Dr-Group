@@ -70,12 +70,10 @@ const shouldShowNotification = (notification, preferences) => {
 // ✅ Configurar cómo se manejan las notificaciones locales cuando la app está en foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true, // Deprecated pero aún funciona
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    // ✅ Nueva API recomendada:
     shouldShowBanner: true,
     shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
   }),
 });
 
@@ -221,13 +219,11 @@ export const NotificationsProvider = ({ children }) => {
 
     // ✅ Listener para notificaciones recibidas mientras la app está en foreground
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('🔔 Notificación recibida:', notification);
       setNotification(notification);
     });
 
     // ✅ Listener para cuando el usuario toca una notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('👆 Notificación tocada:', response);
       // La navegación se manejará en App.js
     });
 
@@ -258,7 +254,6 @@ export const NotificationsProvider = ({ children }) => {
         return false;
       }
       
-      console.log('✅ Permisos de notificaciones concedidos');
       return true;
     } catch (error) {
       console.error('❌ Error pidiendo permisos:', error);
@@ -284,7 +279,6 @@ export const NotificationsProvider = ({ children }) => {
       const token = tokenData.data;
       
       setExpoPushToken(token);
-      logger.info('✅ Expo Push Token obtenido:', token);
 
       // 3. Guardar token en Firestore con info del dispositivo
       if (user && token) {
@@ -306,7 +300,6 @@ export const NotificationsProvider = ({ children }) => {
         };
 
         await setDoc(doc(db, 'deviceTokens', user.uid), deviceInfo, { merge: true });
-        logger.info('✅ Token guardado en Firestore con preferencias');
       }
 
       return token;
@@ -338,7 +331,6 @@ export const NotificationsProvider = ({ children }) => {
         sound: 'default',
       });
 
-      console.log('✅ Canales de notificación configurados');
     } catch (error) {
       console.error('❌ Error configurando canales:', error);
     }
@@ -603,7 +595,6 @@ export const NotificationsProvider = ({ children }) => {
           });
 
           identifiers.push(identifier);
-          logger.info(`✅ Notificación calendario programada para ${notificationDate.toLocaleString('es-CO')}`);
         }
       }
 

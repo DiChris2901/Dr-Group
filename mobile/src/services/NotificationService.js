@@ -6,7 +6,8 @@ import Constants from 'expo-constants';
 // Configuración global de cómo se muestran las notificaciones
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -53,7 +54,6 @@ class NotificationService {
           projectId,
         })).data;
         
-        console.log('✅ Expo Push Token:', token);
       } catch (e) {
         console.error('❌ Error obteniendo push token:', e);
       }

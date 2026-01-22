@@ -35,7 +35,6 @@ const UpdateBanner = () => {
   const checkForUpdates = async () => {
     // Solo en producción
     if (__DEV__) {
-      console.log('⚠️ UpdateBanner: Modo desarrollo, no verifica actualizaciones');
       return;
     }
 

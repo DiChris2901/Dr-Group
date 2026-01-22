@@ -18,8 +18,6 @@ export const useAppDistribution = () => {
     setIsChecking(true);
     try {
       const currentVersion = Constants.expoConfig?.version || '3.0.0';
-      console.log('🔍 [UPDATE CHECK] Iniciando verificación...');
-      console.log('📱 [UPDATE CHECK] Versión actual:', currentVersion);
       
       // Consultar endpoint público del proyecto (versión simplificada sin auth)
       // Usamos Firestore para almacenar la última versión disponible
@@ -32,49 +30,38 @@ export const useAppDistribution = () => {
         }
       );
 
-      console.log('🌐 [UPDATE CHECK] Response status:', response.status);
-
       if (!response.ok) {
-        console.log('❌ [UPDATE CHECK] No se pudo consultar actualizaciones:', response.status);
+        console.error('❌ [UPDATE CHECK] Error al consultar actualizaciones:', response.status);
         return;
       }
 
       const doc = await response.json();
-      console.log('📄 [UPDATE CHECK] Documento Firestore:', JSON.stringify(doc, null, 2));
       
       const latestVersion = doc.fields?.version?.stringValue;
       const releaseNotes = doc.fields?.releaseNotes?.stringValue || 'Nueva versión disponible';
       const isCritical = doc.fields?.isCritical?.booleanValue || false;
       
-      console.log('🆕 [UPDATE CHECK] Última versión en Firestore:', latestVersion);
-      
       if (!latestVersion) {
-        console.log('⚠️ [UPDATE CHECK] No hay versión configurada en Firestore');
+        console.error('⚠️ [UPDATE CHECK] No hay versión configurada en Firestore');
         return;
       }
       
       // Comparar versiones
       const comparison = compareVersions(latestVersion, currentVersion);
-      console.log(`🔢 [UPDATE CHECK] Comparación: ${latestVersion} vs ${currentVersion} = ${comparison}`);
       
       if (latestVersion !== currentVersion && comparison > 0) {
-        console.log('🎉 [UPDATE CHECK] ¡Actualización disponible! Seteando updateAvailable...');
         const updateData = {
           version: latestVersion,
           downloadUrl: 'https://appdistribution.firebase.google.com/testerapps/1:526970184316:android:4e55364c1a1794daf41ff9',
           releaseNotes: releaseNotes,
           isCritical: isCritical
         };
-        console.log('📦 [UPDATE CHECK] Update data:', JSON.stringify(updateData, null, 2));
         setUpdateAvailable(updateData);
-      } else {
-        console.log('✅ [UPDATE CHECK] App actualizada (no hay nuevas versiones)');
       }
     } catch (error) {
       console.error('❌ [UPDATE CHECK] Error:', error);
     } finally {
       setIsChecking(false);
-      console.log('🏁 [UPDATE CHECK] Verificación completada');
     }
   };
 

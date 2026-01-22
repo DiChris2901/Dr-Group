@@ -623,10 +623,6 @@ export default function CalendarioScreen({ navigation }) {
         for (const event of futureEvents) {
           await scheduleCalendarEventNotification(event, daysBeforeArray);
         }
-
-        if (futureEvents.length > 0) {
-          console.log(`✅ ${futureEvents.length} notificaciones de calendario programadas según preferencias`);
-        }
       } catch (error) {
         console.error('❌ Error programando notificaciones de calendario:', error);
       }
