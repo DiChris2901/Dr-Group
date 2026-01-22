@@ -8,8 +8,8 @@ const { getStorage } = require('firebase-admin/storage');
 // Inicializar Firebase Admin
 initializeApp();
 
-// Importar funciones de notificaciones (Email + Telegram)
-// TODO: Implementar nuevas funciones de notificaciones
+// Importar funciones de notificaciones scheduled
+const notificationSchedulers = require('./notificationSchedulers');
 
 /**
  * Cloud Function para eliminar usuario completo (Auth + Firestore)
@@ -1759,3 +1759,11 @@ exports.forceRecalculateStats = onCall(async (request) => {
     throw new HttpsError('internal', `Error: ${error.message}`);
   }
 });
+
+// ============================================
+// 📅 FUNCIONES SCHEDULED DE NOTIFICACIONES
+// ============================================
+exports.checkExitReminder = notificationSchedulers.checkExitReminder;
+exports.checkBreakReminder = notificationSchedulers.checkBreakReminder;
+exports.checkLunchReminder = notificationSchedulers.checkLunchReminder;
+exports.checkCalendarEvents = notificationSchedulers.checkCalendarEvents;
