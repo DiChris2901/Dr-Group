@@ -13,6 +13,7 @@ import {
   Linking,
   Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   Text, 
   useTheme, 
@@ -23,13 +24,15 @@ import {
   Avatar,
   Divider,
   Searchbar,
-  Button
+  Button,
+  TextInput
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { format, startOfMonth, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth } from 'date-fns';
+import { format, startOfMonth, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -37,6 +40,7 @@ import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { SegmentedButtons } from 'react-native-paper';
 import PDFExportService from '../../services/PDFExportService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -61,11 +65,18 @@ export default function AsistenciasScreen({ navigation }) {
   };
   
   const [asistencias, setAsistencias] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // ✅ Cambiado a false - no carga al inicio
   const [refreshing, setRefreshing] = useState(false);
   const [usersMap, setUsersMap] = useState({});
-  const [filterType, setFilterType] = useState('week'); // 'week' | 'month' | 'last_month' | 'recent'
+  const [filterType, setFilterType] = useState('today'); // 'today' | 'week' | 'month' | 'custom'
   const [searchQuery, setSearchQuery] = useState(''); // ✅ Búsqueda por texto
+  const [hasSearched, setHasSearched] = useState(false); // ✅ Controla si se ha buscado alguna vez
+  
+  // ✅ NUEVO: Estados para rango de fechas personalizado
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   
   // Modal State
   const [selectedAsistencia, setSelectedAsistencia] = useState(null);
@@ -90,15 +101,34 @@ export default function AsistenciasScreen({ navigation }) {
     ]).start();
   }, []);
 
+  // ✅ Función para limpiar filtros y resultados
+  const limpiarFiltros = useCallback(() => {
+    setFilterType('today');
+    setAsistencias([]);
+    setHasSearched(false);
+    setSearchQuery('');
+    setStartDate(new Date());
+    setEndDate(new Date());
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // ✅ Limpiar filtros al salir de la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Cleanup al cambiar de pantalla
+        limpiarFiltros();
+      };
+    }, [limpiarFiltros])
+  );
+
+  // ✅ Solo cargar usuarios al montar (no asistencias)
   useEffect(() => {
     cargarUsuarios();
   }, []);
 
-  useEffect(() => {
-    if (userProfile) {
-      cargarAsistencias();
-    }
-  }, [userProfile, filterType, activeSession]);
+  // ✅ ELIMINADO: useEffect que cargaba asistencias automáticamente
+  // Ahora solo se cargan al presionar "Aplicar Filtros"
 
   const cargarUsuarios = useCallback(async () => {
     try {
@@ -118,81 +148,87 @@ export default function AsistenciasScreen({ navigation }) {
     }
   }, []);
 
+  // ✅ NUEVA: Función de carga bajo demanda (solo cuando usuario aplica filtros)
   const cargarAsistencias = useCallback(async () => {
     try {
       setLoading(true);
+      setHasSearched(true); // Marcar que se realizó una búsqueda
+      Haptics.selectionAsync();
       
       let q;
       
+      // Determinar rango de fechas según filtro seleccionado
+      let startDateStr, endDateStr;
+      const now = new Date();
+      
+      switch (filterType) {
+        case 'today':
+          startDateStr = format(now, 'yyyy-MM-dd');
+          endDateStr = format(now, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          startDateStr = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          endDateStr = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          break;
+        case 'month':
+          startDateStr = format(startOfMonth(now), 'yyyy-MM-dd');
+          endDateStr = format(endOfMonth(now), 'yyyy-MM-dd');
+          break;
+        case 'custom':
+          startDateStr = format(startDate, 'yyyy-MM-dd');
+          endDateStr = format(endDate, 'yyyy-MM-dd');
+          break;
+        default:
+          startDateStr = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          endDateStr = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      }
+      
+      // ✅ Generar clave única para caché
+      const cacheKey = `asistencias_${filterType}_${startDateStr}_${endDateStr}_${user?.uid}`;
+      
+      // ✅ Verificar caché local (válido por 1 hora)
+      try {
+        const cachedData = await AsyncStorage.getItem(cacheKey);
+        if (cachedData) {
+          const { data, timestamp } = JSON.parse(cachedData);
+          const oneHourAgo = Date.now() - (60 * 60 * 1000);
+          
+          if (timestamp > oneHourAgo) {
+            // Caché válido: usar datos guardados (NO leer Firestore)
+            setAsistencias(data);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (cacheError) {
+        console.log('Error leyendo caché:', cacheError);
+      }
+      
       if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
+        // Query para empleado (solo sus registros)
         const targetUid = userProfile?.uid || user?.uid;
         if (!targetUid) {
           setLoading(false);
           return;
         }
         
-        // Base query
-        let constraints = [where('uid', '==', targetUid)];
-        
-        const now = new Date();
-        
-        if (filterType === 'week') {
-          const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-          const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else if (filterType === 'month') {
-          const start = format(startOfMonth(now), 'yyyy-MM-dd');
-          const end = format(endOfMonth(now), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else if (filterType === 'last_month') {
-          const lastMonth = subMonths(now, 1);
-          const start = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
-          const end = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else {
-          // 'recent' or default
-          constraints.push(orderBy('fecha', 'desc'));
-          constraints.push(limit(50));
-        }
-
-        q = query(collection(db, 'asistencias'), ...constraints);
+        q = query(
+          collection(db, 'asistencias'),
+          where('uid', '==', targetUid),
+          where('fecha', '>=', startDateStr),
+          where('fecha', '<=', endDateStr),
+          orderBy('fecha', 'desc'),
+          limit(100) // ✅ Protección
+        );
       } else {
-        // Admin query
-        let constraints = [];
-        
-        const now = new Date();
-        
-        if (filterType === 'week') {
-          const start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-          const end = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else if (filterType === 'month') {
-          const start = format(startOfMonth(now), 'yyyy-MM-dd');
-          const end = format(endOfMonth(now), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else if (filterType === 'last_month') {
-          const lastMonth = subMonths(now, 1);
-          const start = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
-          const end = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
-          constraints.push(where('fecha', '>=', start));
-          constraints.push(where('fecha', '<=', end));
-          constraints.push(orderBy('fecha', 'desc'));
-        } else {
-          constraints.push(orderBy('fecha', 'desc'));
-          constraints.push(limit(50));
-        }
-        
-        q = query(collection(db, 'asistencias'), ...constraints);
+        // Query para admin (todos los registros)
+        q = query(
+          collection(db, 'asistencias'),
+          where('fecha', '>=', startDateStr),
+          where('fecha', '<=', endDateStr),
+          orderBy('fecha', 'desc'),
+          limit(200) // ✅ Admins pueden ver más
+        );
       }
 
       const querySnapshot = await getDocs(q);
@@ -202,24 +238,32 @@ export default function AsistenciasScreen({ navigation }) {
         ...doc.data()
       }));
       
-      // ✅ Ordenar SIEMPRE por createdAt (fuente de verdad más precisa)
+      // ✅ Ordenar por createdAt (más preciso)
       asistenciasData = asistenciasData.sort((a, b) => {
-        // 1. Obtener timestamp de creación o entrada
         const timeA = a.createdAt?.toMillis?.() || a.entrada?.hora?.toMillis?.() || 0;
         const timeB = b.createdAt?.toMillis?.() || b.entrada?.hora?.toMillis?.() || 0;
-        
-        // 2. Ordenar descendente (más reciente primero)
         return timeB - timeA;
       });
       
       setAsistencias(asistenciasData);
+
+      // ✅ Guardar en caché local para futuras consultas
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          data: asistenciasData,
+          timestamp: Date.now()
+        }));
+      } catch (cacheError) {
+        console.log('Error guardando caché:', cacheError);
+      }
     } catch (error) {
       console.error('Error cargando asistencias:', error);
+      Alert.alert('Error', 'No se pudieron cargar los registros. Intenta nuevamente.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userProfile, user, filterType]);
+  }, [userProfile, user, filterType, startDate, endDate]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -498,44 +542,175 @@ export default function AsistenciasScreen({ navigation }) {
         />
       </View>
 
-      <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
-        {[
-          { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
-          { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
-          { value: 'last_month', label: 'Mes Pasado', icon: 'calendar-arrow-left' },
-          { value: 'recent', label: 'Recientes', icon: 'history' },
-        ].map((option) => {
-          const isSelected = filterType === option.value;
-          return (
-            <Chip
-              key={option.value}
-              selected={isSelected}
-              showSelectedOverlay
-              onPress={() => {
-                Haptics.selectionAsync();
-                setFilterType(option.value);
-              }}
-              icon={option.icon}
-              mode={isSelected ? 'flat' : 'outlined'}
-              style={{
-                backgroundColor: isSelected ? surfaceColors.secondaryContainer : 'transparent',
-                borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                borderRadius: 16,
-                width: '48%',
-              }}
-              textStyle={{
-                color: isSelected ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant,
-                fontWeight: isSelected ? '600' : '400',
-                textAlign: 'center',
-                flex: 1,
-                marginRight: 4
-              }}
-            >
-              {option.label}
-            </Chip>
-          );
-        })}
+      {/* ✅ NUEVO: Filtros Rápidos (Chips) */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+          Filtros Rápidos
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {[
+            { value: 'today', label: 'Hoy', icon: 'calendar-today' },
+            { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
+            { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
+            { value: 'custom', label: 'Rango Personalizado', icon: 'calendar-range' },
+          ].map((option) => {
+            const isSelected = filterType === option.value;
+            return (
+              <Chip
+                key={option.value}
+                selected={isSelected}
+                showSelectedOverlay
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setFilterType(option.value);
+                }}
+                icon={option.icon}
+                mode={isSelected ? 'flat' : 'outlined'}
+                style={{
+                  backgroundColor: isSelected ? surfaceColors.primaryContainer : 'transparent',
+                  borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                  borderRadius: 16,
+                }}
+                textStyle={{
+                  color: isSelected ? surfaceColors.onPrimaryContainer : surfaceColors.onSurfaceVariant,
+                  fontWeight: isSelected ? '600' : '400',
+                }}
+              >
+                {option.label}
+              </Chip>
+            );
+          })}
+        </View>
       </View>
+
+      {/* ✅ NUEVO: Selectores de Fecha (Solo si filterType === 'custom') */}
+      {filterType === 'custom' && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {/* Fecha Inicio */}
+            <View style={{ flex: 1 }}>
+              <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                Desde
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowStartDatePicker(true);
+                }}
+                style={{
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  borderRadius: 12,
+                  padding: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderWidth: 1,
+                  borderColor: surfaceColors.outline,
+                }}
+              >
+                <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                  {format(startDate, 'dd/MM/yyyy')}
+                </Text>
+                <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+              </Pressable>
+            </View>
+
+            {/* Fecha Fin */}
+            <View style={{ flex: 1 }}>
+              <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                Hasta
+              </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowEndDatePicker(true);
+                }}
+                style={{
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  borderRadius: 12,
+                  padding: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderWidth: 1,
+                  borderColor: surfaceColors.outline,
+                }}
+              >
+                <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                  {format(endDate, 'dd/MM/yyyy')}
+                </Text>
+                <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* ✅ NUEVO: Botón Aplicar Filtros */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', gap: 12 }}>
+        <Button
+          mode="outlined"
+          onPress={limpiarFiltros}
+          disabled={loading}
+          icon="filter-off-outline"
+          style={{
+            flex: 1,
+            borderRadius: 16,
+            borderColor: surfaceColors.outline,
+          }}
+          contentStyle={{ paddingVertical: 6 }}
+          labelStyle={{ fontSize: 15, fontWeight: '600', color: surfaceColors.onSurfaceVariant }}
+        >
+          Limpiar
+        </Button>
+        <Button
+          mode="contained"
+          onPress={cargarAsistencias}
+          loading={loading}
+          disabled={loading}
+          icon="magnify"
+          style={{
+            flex: 2,
+            borderRadius: 16,
+            paddingVertical: 6,
+          }}
+          contentStyle={{ paddingVertical: 6 }}
+          labelStyle={{ fontSize: 16, fontWeight: '600', letterSpacing: 0.2 }}
+        >
+          {loading ? 'Buscando...' : 'Aplicar Filtros'}
+        </Button>
+      </View>
+
+      {/* ✅ Date Pickers (Modal nativo) */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowStartDatePicker(false);
+            if (selectedDate) {
+              setStartDate(selectedDate);
+            }
+          }}
+          maximumDate={new Date()}
+        />
+      )}
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowEndDatePicker(false);
+            if (selectedDate) {
+              setEndDate(selectedDate);
+            }
+          }}
+          maximumDate={new Date()}
+          minimumDate={startDate}
+        />
+      )}
 
       <Animated.View style={[
         styles.sheetContainer,
@@ -587,13 +762,19 @@ export default function AsistenciasScreen({ navigation }) {
                   justifyContent: 'center',
                   marginBottom: 24
                 }}>
-                  <MaterialCommunityIcons name="clock-time-eight-outline" size={64} color={surfaceColors.primary} />
+                  <MaterialCommunityIcons 
+                    name={hasSearched ? "clock-time-eight-outline" : "filter-outline"} 
+                    size={64} 
+                    color={surfaceColors.primary} 
+                  />
                 </View>
                 <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
-                  Sin registros
+                  {hasSearched ? 'Sin registros' : 'Selecciona filtros'}
                 </Text>
                 <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center' }}>
-                  No hay asistencias para el filtro seleccionado
+                  {hasSearched 
+                    ? 'No hay asistencias para el filtro seleccionado' 
+                    : 'Elige un período y presiona "Aplicar Filtros" para buscar'}
                 </Text>
               </View>
             )
