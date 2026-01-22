@@ -29,12 +29,14 @@ export const useColombianHolidays = (year = new Date().getFullYear()) => {
         const fecha = parseISO(fechaISO);
         const diaSemana = getDay(fecha); // 0 = domingo, 1 = lunes, etc.
         
-        if (diaSemana === 0) { // Si cae domingo
+        if (diaSemana === 1) { // Si ya es lunes, no se mueve
+          return fecha;
+        } else if (diaSemana === 0) { // Si cae domingo
           return addDays(fecha, 1); // Mover al lunes (día siguiente)
-        } else if (diaSemana > 1) { // Si cae martes a sábado
-          return addDays(fecha, 8 - diaSemana); // Mover al lunes siguiente
-        } else {
-          return fecha; // Si ya es lunes, no se mueve
+        } else { // Si cae martes (2) a sábado (6)
+          // Calcular días hasta el próximo lunes
+          const diasHastaProximoLunes = (8 - diaSemana);
+          return addDays(fecha, diasHastaProximoLunes);
         }
       };
 
@@ -60,6 +62,16 @@ export const useColombianHolidays = (year = new Date().getFullYear()) => {
           };
         }
       });
+
+      // ✅ Agregar manualmente el 1 de enero (Año Nuevo) si no está incluido
+      const tieneAnoNuevo = formattedHolidays.some(h => h.date === `${year}-01-01`);
+      if (!tieneAnoNuevo) {
+        formattedHolidays.unshift({
+          date: `${year}-01-01`,
+          name: 'Año Nuevo',
+          type: 'civil'
+        });
+      }
 
       return formattedHolidays;
     } catch (error) {

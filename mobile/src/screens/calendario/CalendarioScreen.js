@@ -7,8 +7,14 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Pressable
+  Pressable,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   Text, 
   useTheme as usePaperTheme, 
@@ -16,10 +22,11 @@ import {
   SegmentedButtons,
   Portal,
   Modal,
-  Button
+  Button,
+  FAB
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { onSnapshot, query, collection } from 'firebase/firestore';
+import { onSnapshot, query, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -52,6 +59,18 @@ import {
   isValid
 } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Calendar, CalendarList, Agenda } from 'react-native-calendars';
+import { LocaleConfig } from 'react-native-calendars';
+
+// Configurar locale español para react-native-calendars
+LocaleConfig.locales['es'] = {
+  monthNames: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+  monthNamesShort: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+  dayNames: ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],
+  dayNamesShort: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'],
+  today: 'Hoy'
+};
+LocaleConfig.defaultLocale = 'es';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 
@@ -299,11 +318,40 @@ export default function CalendarioScreen({ navigation }) {
   const [companies, setCompanies] = useState([]);
   
   // View State
-  const [viewMode, setViewMode] = useState('month'); // 'day', 'week', 'month'
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('month'); // 'day', 'week', 'month', 'year'
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar a medianoche
+    return today;
+  });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const viewShotRef = useRef();
+  
+  // ✅ Estado para modal de eventos del día en vista anual
+  const [dayEventsModalVisible, setDayEventsModalVisible] = useState(false);
+  const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+  const [selectedDayDate, setSelectedDayDate] = useState(null);
+  
+  // ✅ Estados para crear evento manual
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [newEventForm, setNewEventForm] = useState({
+    title: '',
+    description: '',
+    date: new Date(),
+    allDay: true,
+    priority: 'medium',
+    notifications: [
+      { time: 10, unit: 'minutes', enabled: true }
+    ],
+    recurrence: {
+      enabled: false,
+      frequency: 'none', // 'daily', 'weekly', 'monthly', 'yearly'
+      endDate: null
+    }
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   const holidays = useColombianHolidays(selectedDate.getFullYear());
 
@@ -417,8 +465,8 @@ export default function CalendarioScreen({ navigation }) {
 
     // --- B. Eventos del Sistema (Coljuegos, UIAF, Parafiscales) ---
     for (let month = 0; month < 12; month++) {
-      // 1. Coljuegos (10mo día hábil)
-      const coljuegosDate = calculateTenthBusinessDay(year, month + 1, holidays);
+      // 1. Coljuegos (10mo día hábil) - Usar month 0-based como el dashboard web
+      const coljuegosDate = calculateTenthBusinessDay(year, month, holidays);
       generatedEvents.push({
         id: `coljuegos-${year}-${month}`,
         title: '🎰 Pago Coljuegos',
@@ -429,8 +477,8 @@ export default function CalendarioScreen({ navigation }) {
         description: 'Vencimiento pago Derechos de Explotación y Gastos de Administración'
       });
 
-      // 2. Parafiscales (3er día hábil)
-      const parafiscalesDate = calculateThirdBusinessDay(year, month + 1, holidays);
+      // 2. Parafiscales (3er día hábil) - Usar month 0-based como el dashboard web
+      const parafiscalesDate = calculateThirdBusinessDay(year, month, holidays);
       generatedEvents.push({
         id: `parafiscales-${year}-${month}`,
         title: '👥 Parafiscales',
@@ -600,15 +648,26 @@ export default function CalendarioScreen({ navigation }) {
         case 'day':
           return isSameDay(eventDate, selectedDate);
         case 'week':
-          return isSameWeek(eventDate, selectedDate, { weekStartsOn: 1 });
+          // En vista semana, mostrar eventos del día seleccionado (igual que en mes)
+          return isSameDay(eventDate, selectedDate);
         case 'month':
-          return isSameMonth(eventDate, selectedDate);
+          // En vista mes, mostrar eventos del día seleccionado
+          return isSameDay(eventDate, selectedDate);
         default:
           return true;
       }
     });
     setFilteredEventos(filtered);
   }, [allEventos, viewMode, selectedDate]);
+
+  // ✅ Resetear a fecha actual al cambiar a vista semana
+  useEffect(() => {
+    if (viewMode === 'week') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setSelectedDate(today);
+    }
+  }, [viewMode]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -620,6 +679,7 @@ export default function CalendarioScreen({ navigation }) {
       case 'day': setSelectedDate(subDays(selectedDate, 1)); break;
       case 'week': setSelectedDate(subWeeks(selectedDate, 1)); break;
       case 'month': setSelectedDate(subMonths(selectedDate, 1)); break;
+      case 'year': setSelectedDate(new Date(selectedDate.getFullYear() - 1, 0, 1)); break;
     }
   };
 
@@ -628,6 +688,7 @@ export default function CalendarioScreen({ navigation }) {
       case 'day': setSelectedDate(addDays(selectedDate, 1)); break;
       case 'week': setSelectedDate(addWeeks(selectedDate, 1)); break;
       case 'month': setSelectedDate(addMonths(selectedDate, 1)); break;
+      case 'year': setSelectedDate(new Date(selectedDate.getFullYear() + 1, 0, 1)); break;
     }
   };
 
@@ -636,13 +697,84 @@ export default function CalendarioScreen({ navigation }) {
       case 'day':
         return format(selectedDate, "EEEE d 'de' MMMM", { locale: es });
       case 'week':
-        const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
-        const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
-        return `${format(start, 'd MMM')} - ${format(end, 'd MMM', { locale: es })}`;
+        const start = startOfWeek(selectedDate, { weekStartsOn: 0 });
+        const end = endOfWeek(selectedDate, { weekStartsOn: 0 });
+        return `${format(start, 'd MMM', { locale: es })} - ${format(end, 'd MMM', { locale: es })}`;
       case 'month':
         return format(selectedDate, 'MMMM yyyy', { locale: es });
+      case 'year':
+        return format(selectedDate, 'yyyy', { locale: es });
       default:
         return '';
+    }
+  };
+
+  // ✅ Crear evento manual
+  const handleCreateEvent = async () => {
+    if (!newEventForm.title.trim()) {
+      Alert.alert('Error', 'El título del evento es obligatorio');
+      return;
+    }
+
+    // Validar recurrencia
+    if (newEventForm.recurrence.enabled && newEventForm.recurrence.frequency === 'none') {
+      Alert.alert('Error', 'Selecciona una frecuencia para la recurrencia');
+      return;
+    }
+
+    if (newEventForm.recurrence.enabled && !newEventForm.recurrence.endDate) {
+      Alert.alert('Error', 'Selecciona una fecha de finalización para la recurrencia');
+      return;
+    }
+
+    setCreatingEvent(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    try {
+      const eventData = {
+        title: newEventForm.title.trim(),
+        description: newEventForm.description.trim() || '',
+        date: Timestamp.fromDate(newEventForm.date),
+        allDay: newEventForm.allDay,
+        priority: newEventForm.priority,
+        type: 'custom',
+        createdBy: userProfile?.uid || 'unknown',
+        createdByName: userProfile?.name || userProfile?.displayName || 'Usuario',
+        createdAt: Timestamp.now(),
+        notifications: newEventForm.notifications,
+        recurrence: newEventForm.recurrence.enabled ? {
+          enabled: true,
+          frequency: newEventForm.recurrence.frequency,
+          endDate: Timestamp.fromDate(newEventForm.recurrence.endDate)
+        } : { enabled: false }
+      };
+
+      await addDoc(collection(db, 'calendar_events'), eventData);
+
+      // Resetear formulario
+      setNewEventForm({
+        title: '',
+        description: '',
+        date: new Date(),
+        allDay: true,
+        priority: 'medium',
+        notifications: [
+          { time: 10, unit: 'minutes', enabled: true }
+        ],
+        recurrence: {
+          enabled: false,
+          frequency: 'none',
+          endDate: null
+        }
+      });
+
+      setShowCreateModal(false);
+      Alert.alert('¡Listo!', 'Evento creado exitosamente');
+    } catch (error) {
+      console.error('Error creando evento:', error);
+      Alert.alert('Error', 'No se pudo crear el evento');
+    } finally {
+      setCreatingEvent(false);
     }
   };
 
@@ -687,6 +819,7 @@ export default function CalendarioScreen({ navigation }) {
             { value: 'day', label: 'Día', icon: 'calendar-today' },
             { value: 'week', label: 'Semana', icon: 'calendar-week' },
             { value: 'month', label: 'Mes', icon: 'calendar-month' },
+            { value: 'year', label: 'Año', icon: 'calendar' },
           ]}
         />
       </View>
@@ -724,21 +857,7 @@ export default function CalendarioScreen({ navigation }) {
       </View>
 
       <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }], opacity: fadeAnim }}>
-        <FlatList
-          data={filteredEventos}
-          renderItem={({ item, index }) => (
-            <EventoItem 
-              item={item} 
-              index={index} 
-              surfaceColors={surfaceColors} 
-              onPress={(event) => {
-                setSelectedEvent(event);
-                setModalVisible(true);
-              }}
-            />
-          )}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+        <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -748,54 +867,673 @@ export default function CalendarioScreen({ navigation }) {
               tintColor={surfaceColors.primary}
             />
           }
-          ListEmptyComponent={
-            !loading && (
-              <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
-                <View style={{ 
-                  width: 120, 
-                  height: 120, 
-                  borderRadius: 60, 
-                  backgroundColor: surfaceColors.surfaceContainerHigh, 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  marginBottom: 24
-                }}>
-                  <MaterialCommunityIcons name="calendar-blank" size={64} color={surfaceColors.primary} />
+        >
+          {/* Calendario Visual - Solo en vista Mes y Semana */}
+          {viewMode === 'month' && (
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <Calendar
+                key={format(selectedDate, 'yyyy-MM')}
+                current={format(selectedDate, 'yyyy-MM-dd')}
+                hideArrows={true}
+                hideExtraDays={false}
+                disableMonthChange={true}
+                renderHeader={() => null}
+                markedDates={{
+                  ...allEventos.reduce((acc, event) => {
+                    const dateKey = format(event.date, 'yyyy-MM-dd');
+                    
+                    // Determinar color según tipo de evento
+                    let dotColor = surfaceColors.primary; // Default
+                    
+                    if (event.type === 'commitment') {
+                      dotColor = '#f44336'; // Rojo para compromisos
+                    } else if (event.type === 'contract') {
+                      dotColor = '#2196f3'; // Azul para contratos
+                    } else if (event.type === 'custom') {
+                      dotColor = '#4caf50'; // Verde para eventos personalizados
+                    }
+                    
+                    if (!acc[dateKey]) {
+                      acc[dateKey] = { dots: [] };
+                    }
+                    
+                    // Evitar duplicados
+                    if (!acc[dateKey].dots.some(d => d.color === dotColor)) {
+                      acc[dateKey].dots.push({ color: dotColor });
+                    }
+                    
+                    return acc;
+                  }, {}),
+                  ...holidays.reduce((acc, holiday) => {
+                    const dateKey = holiday.date;
+                    if (!acc[dateKey]) {
+                      acc[dateKey] = { dots: [] };
+                    }
+                    
+                    // Color según tipo de festivo
+                    const holidayColor = holiday.type === 'civil' ? '#1976d2' : '#9c27b0';
+                    
+                    if (!acc[dateKey].dots.some(d => d.color === holidayColor)) {
+                      acc[dateKey].dots.push({ color: holidayColor });
+                    }
+                    
+                    return acc;
+                  }, {}),
+                  [format(selectedDate, 'yyyy-MM-dd')]: {
+                    selected: true,
+                    selectedColor: surfaceColors.primary,
+                    dots: [
+                      ...allEventos
+                        .filter(e => isSameDay(e.date, selectedDate))
+                        .map(e => {
+                          let color = surfaceColors.primary;
+                          if (e.type === 'commitment') color = '#f44336';
+                          else if (e.type === 'contract') color = '#2196f3';
+                          else if (e.type === 'custom') color = '#4caf50';
+                          return { color: 'white' }; // Blanco cuando está seleccionado
+                        })
+                    ]
+                  }
+                }}
+                markingType={'multi-dot'}
+                dayComponent={({date, state, marking}) => {
+                  // ✅ Crear fecha en zona local para evitar desfase UTC
+                  const [year, month, day] = date.dateString.split('-').map(Number);
+                  const dayDate = new Date(year, month - 1, day); // Mes es 0-indexed
+                  const dayOfWeek = dayDate.getDay(); // 0=domingo, 1=lunes, ..., 6=sábado
+                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const isHoliday = holidays.some(h => h.date === date.dateString);
+                  const isNonWorkingDay = isWeekend || isHoliday;
+                  const isSelected = marking?.selected;
+                  
+                  // ✅ Detectar eventos del sistema para este día
+                  const daySystemEvents = allEventos.filter(e => 
+                    format(e.date, 'yyyy-MM-dd') === date.dateString && e.type === 'system'
+                  );
+                  const hasColjuegos = daySystemEvents.some(e => e.title?.includes('Coljuegos'));
+                  const hasUIAF = daySystemEvents.some(e => e.title?.includes('UIAF'));
+                  const hasParafiscales = daySystemEvents.some(e => e.title?.includes('Parafiscales'));
+                  
+                  return (
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        // ✅ Crear fecha en zona local para evitar desfase UTC
+                        const [year, month, dayNum] = date.dateString.split('-').map(Number);
+                        setSelectedDate(new Date(year, month - 1, dayNum));
+                      }}
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: 8,
+                        backgroundColor: isSelected 
+                          ? surfaceColors.primary
+                          : 'transparent',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Patrón de rayas para festivos/weekends */}
+                      {isNonWorkingDay && !isSelected && state !== 'disabled' && (
+                        <View style={{
+                          position: 'absolute',
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 8,
+                          opacity: 0.15,
+                          backgroundColor: surfaceColors.primary
+                        }} />
+                      )}
+                      
+                      <Text style={{
+                        fontFamily: 'Roboto-Flex',
+                        fontSize: 14,
+                        fontWeight: isSelected ? '600' : '400',
+                        color: isSelected 
+                          ? 'white'
+                          : state === 'disabled' 
+                            ? surfaceColors.onSurfaceVariant
+                            : state === 'today'
+                              ? surfaceColors.primary
+                              : surfaceColors.onSurface
+                      }}>
+                        {date.day}
+                      </Text>
+                      
+                      {/* 🎰 Barra para Coljuegos */}
+                      {hasColjuegos && (
+                        <View style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 3,
+                          backgroundColor: '#ff9800',
+                          borderBottomLeftRadius: 8,
+                          borderBottomRightRadius: 8
+                        }} />
+                      )}
+                      
+                      {/* 👮 Barra para UIAF */}
+                      {hasUIAF && (
+                        <View style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 3,
+                          backgroundColor: '#9c27b0',
+                          borderBottomLeftRadius: 8,
+                          borderBottomRightRadius: 8
+                        }} />
+                      )}
+                      
+                      {/* 👥 Barra para Parafiscales */}
+                      {hasParafiscales && (
+                        <View style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 3,
+                          backgroundColor: '#607d8b',
+                          borderBottomLeftRadius: 8,
+                          borderBottomRightRadius: 8
+                        }} />
+                      )}
+                      
+                      {/* Marcadores de eventos (puntos) - Solo si no hay barra del sistema */}
+                      {marking?.dots && marking.dots.length > 0 && !hasColjuegos && !hasUIAF && !hasParafiscales && (
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          gap: 2, 
+                          position: 'absolute', 
+                          bottom: 2 
+                        }}>
+                          {marking.dots.slice(0, 3).map((dot, index) => (
+                            <View
+                              key={index}
+                              style={{
+                                width: 4,
+                                height: 4,
+                                borderRadius: 2,
+                                backgroundColor: dot.color
+                              }}
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                }}
+                theme={{
+                  backgroundColor: 'transparent',
+                  calendarBackground: surfaceColors.surface,
+                  textSectionTitleColor: surfaceColors.onSurfaceVariant,
+                  textDayFontFamily: 'Roboto-Flex',
+                  textMonthFontFamily: 'Roboto-Flex',
+                  textDayHeaderFontFamily: 'Roboto-Flex',
+                  textDayFontWeight: '400',
+                  textMonthFontWeight: '600',
+                  textDayHeaderFontWeight: '500',
+                  textDayFontSize: 14,
+                  textMonthFontSize: 18,
+                  textDayHeaderFontSize: 12
+                }}
+                style={{
+                  borderRadius: 16,
+                  backgroundColor: surfaceColors.surfaceContainerLow,
+                  padding: 8,
+                  elevation: 0,
+                  shadowOpacity: 0
+                }}
+              />
+            </View>
+          )}
+
+          {viewMode === 'week' && (
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <View style={{
+                borderRadius: 16,
+                backgroundColor: surfaceColors.surfaceContainerLow,
+                padding: 16,
+                elevation: 0,
+                shadowOpacity: 0
+              }}>
+                {/* Header de la semana */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 }}>
+                  {['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'].map((day, index) => (
+                    <View key={day} style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{
+                        fontFamily: 'Roboto-Flex',
+                        fontSize: 12,
+                        fontWeight: '500',
+                        color: surfaceColors.onSurfaceVariant,
+                        textTransform: 'uppercase'
+                      }}>
+                        {day}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={{ 
-                  fontFamily: 'Roboto-Flex', 
-                  fontSize: 22, 
-                  color: surfaceColors.onSurface,
-                  fontVariationSettings: [{ axis: 'wdth', value: 110 }]
-                }}>
-                  Sin eventos
-                </Text>
-                <Text style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, marginBottom: 24 }}>
-                  No hay nada programado para esta fecha
-                </Text>
-                <Pressable 
-                  style={({ pressed }) => [{
-                    paddingHorizontal: 24,
-                    paddingVertical: 12,
-                    borderRadius: 100,
-                    borderWidth: 1,
-                    borderColor: surfaceColors.outline,
-                    backgroundColor: pressed ? surfaceColors.surfaceContainerHigh : 'transparent'
-                  }]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setViewMode('month');
-                    setSelectedDate(new Date());
-                  }}
-                >
-                  <Text style={{ color: surfaceColors.primary, fontWeight: '600' }}>
-                    Ir a Hoy
-                  </Text>
-                </Pressable>
+
+                {/* Días de la semana */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                  {Array.from({ length: 7 }).map((_, index) => {
+                    const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+                    const dayDate = addDays(weekStart, index);
+                    const isSelected = isSameDay(dayDate, selectedDate);
+                    const isToday = isSameDay(dayDate, new Date());
+                    
+                    // Verificar festivos y weekends
+                    const dayOfWeek = dayDate.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const dateKey = format(dayDate, 'yyyy-MM-dd');
+                    const isHoliday = holidays.some(h => h.date === dateKey);
+                    const isNonWorkingDay = isWeekend || isHoliday;
+                    
+                    // Obtener eventos del día
+                    const dayEvents = allEventos.filter(e => isSameDay(e.date, dayDate));
+                    const dayHoliday = holidays.find(h => h.date === dateKey);
+                    
+                    // ✅ Detectar eventos del sistema
+                    const daySystemEvents = dayEvents.filter(e => e.type === 'system');
+                    const hasColjuegos = daySystemEvents.some(e => e.title?.includes('Coljuegos'));
+                    const hasUIAF = daySystemEvents.some(e => e.title?.includes('UIAF'));
+                    const hasParafiscales = daySystemEvents.some(e => e.title?.includes('Parafiscales'));
+                    const hasSystemEvent = hasColjuegos || hasUIAF || hasParafiscales;
+                    
+                    // Calcular marcadores
+                    const markers = [];
+                    if (dayHoliday) {
+                      markers.push({ color: dayHoliday.type === 'civil' ? '#1976d2' : '#9c27b0' });
+                    }
+                    dayEvents.forEach(e => {
+                      let color = surfaceColors.primary;
+                      if (e.type === 'commitment') color = '#f44336';
+                      else if (e.type === 'contract') color = '#2196f3';
+                      else if (e.type === 'custom') color = '#4caf50';
+                      
+                      if (!markers.some(m => m.color === color)) {
+                        markers.push({ color });
+                      }
+                    });
+
+                    return (
+                      <Pressable
+                        key={index}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setSelectedDate(dayDate);
+                        }}
+                        style={({ pressed }) => ({
+                          flex: 1,
+                          alignItems: 'center',
+                          paddingVertical: 8,
+                          borderRadius: 12,
+                          backgroundColor: isSelected 
+                            ? surfaceColors.primary 
+                            : isNonWorkingDay
+                              ? surfaceColors.surfaceContainerHigh + '40' // 25% opacidad
+                              : pressed 
+                                ? surfaceColors.surfaceContainerHigh 
+                                : 'transparent',
+                          position: 'relative'
+                        })}
+                      >
+                        <Text style={{
+                          fontFamily: 'Roboto-Flex',
+                          fontSize: 18,
+                          fontWeight: isSelected ? '600' : '400',
+                          color: isSelected 
+                            ? 'white' 
+                            : isToday 
+                              ? surfaceColors.primary 
+                              : surfaceColors.onSurface
+                        }}>
+                          {format(dayDate, 'd')}
+                        </Text>
+                        
+                        {/* 🎰 Barra para Coljuegos */}
+                        {hasColjuegos && (
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 3,
+                            backgroundColor: isSelected ? 'rgba(255,255,255,0.7)' : '#ff9800',
+                            borderBottomLeftRadius: 12,
+                            borderBottomRightRadius: 12
+                          }} />
+                        )}
+                        
+                        {/* 👮 Barra para UIAF */}
+                        {hasUIAF && (
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 3,
+                            backgroundColor: isSelected ? 'rgba(255,255,255,0.7)' : '#9c27b0',
+                            borderBottomLeftRadius: 12,
+                            borderBottomRightRadius: 12
+                          }} />
+                        )}
+                        
+                        {/* 👥 Barra para Parafiscales */}
+                        {hasParafiscales && (
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 3,
+                            backgroundColor: isSelected ? 'rgba(255,255,255,0.7)' : '#607d8b',
+                            borderBottomLeftRadius: 12,
+                            borderBottomRightRadius: 12
+                          }} />
+                        )}
+                        
+                        {/* Marcadores de eventos (puntos) - Solo si no hay barra del sistema */}
+                        {markers.length > 0 && !hasSystemEvent && (
+                          <View style={{ 
+                            flexDirection: 'row', 
+                            gap: 2, 
+                            marginTop: 4 
+                          }}>
+                            {markers.slice(0, 3).map((marker, i) => (
+                              <View
+                                key={i}
+                                style={{
+                                  width: 4,
+                                  height: 4,
+                                  borderRadius: 2,
+                                  backgroundColor: isSelected ? 'white' : marker.color
+                                }}
+                              />
+                            ))}
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-            )
-          }
-        />
+            </View>
+          )}
+
+          {/* Vista Anual - Cuadrícula de 12 meses */}
+          {viewMode === 'year' && (
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <View style={{ 
+                flexDirection: 'row', 
+                flexWrap: 'wrap', 
+                justifyContent: 'space-between',
+                gap: 12
+              }}>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const monthDate = new Date(selectedDate.getFullYear(), i, 1);
+                  const daysInMonth = new Date(selectedDate.getFullYear(), i + 1, 0).getDate();
+                  const firstDayOfMonth = new Date(selectedDate.getFullYear(), i, 1).getDay();
+                  const monthHolidays = holidays.filter(h => {
+                    // ✅ Parsing UTC-safe: dividir el string y usar componentes
+                    const [year, month, day] = h.date.split('-').map(Number);
+                    return month - 1 === i && year === selectedDate.getFullYear();
+                  });
+                  const monthEvents = allEventos.filter(e => {
+                    const eventDate = new Date(e.date);
+                    return eventDate.getMonth() === i && eventDate.getFullYear() === selectedDate.getFullYear();
+                  });
+
+                  return (
+                    <View key={i} style={{ 
+                      width: '31%', 
+                      backgroundColor: surfaceColors.surfaceContainerLow,
+                      borderRadius: 16,
+                      padding: 8,
+                      marginBottom: 8
+                    }}>
+                      {/* Nombre del mes */}
+                      <Text style={{
+                        fontFamily: 'Roboto-Flex',
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: surfaceColors.onSurface,
+                        textAlign: 'center',
+                        marginBottom: 8,
+                        textTransform: 'capitalize'
+                      }}>
+                        {format(monthDate, 'MMM', { locale: es })}
+                      </Text>
+
+                      {/* Días de la semana (iniciales) */}
+                      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, idx) => (
+                          <Text key={idx} style={{
+                            flex: 1,
+                            fontFamily: 'Roboto-Flex',
+                            fontSize: 9,
+                            color: surfaceColors.onSurfaceVariant,
+                            textAlign: 'center',
+                            fontWeight: '500'
+                          }}>
+                            {day}
+                          </Text>
+                        ))}
+                      </View>
+
+                      {/* Días del mes */}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {/* Espacios vacíos antes del primer día */}
+                        {Array.from({ length: firstDayOfMonth }, (_, idx) => (
+                          <View key={`empty-${idx}`} style={{ width: '14.28%', height: 18 }} />
+                        ))}
+                        
+                        {/* Días del mes */}
+                        {Array.from({ length: daysInMonth }, (_, day) => {
+                          const dayNum = day + 1;
+                          const dateStr = `${selectedDate.getFullYear()}-${String(i + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                          const dayDate = new Date(selectedDate.getFullYear(), i, dayNum);
+                          const dayOfWeek = dayDate.getDay();
+                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                          const isHoliday = monthHolidays.some(h => h.date === dateStr);
+                          const hasEvent = monthEvents.some(e => format(e.date, 'yyyy-MM-dd') === dateStr);
+                          const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                          
+                          // ✅ Detectar eventos del sistema en este día específico
+                          const dayEvents = monthEvents.filter(e => format(e.date, 'yyyy-MM-dd') === dateStr);
+                          const hasColjuegosPago = dayEvents.some(e => e.type === 'system' && e.title?.includes('Coljuegos'));
+                          const hasUIAF = dayEvents.some(e => e.type === 'system' && e.title?.includes('UIAF'));
+                          const hasParafiscales = dayEvents.some(e => e.type === 'system' && e.title?.includes('Parafiscales'));
+
+                          return (
+                            <Pressable
+                              key={dayNum}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                // Filtrar eventos del día seleccionado
+                                const eventsOfDay = allEventos.filter(e => 
+                                  format(e.date, 'yyyy-MM-dd') === dateStr
+                                );
+                                setSelectedDayDate(dayDate);
+                                setSelectedDayEvents(eventsOfDay);
+                                setDayEventsModalVisible(true);
+                              }}
+                              style={{
+                                width: '14.28%',
+                                height: 18,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                position: 'relative'
+                              }}
+                            >
+                              {/* Fondo para festivos/fines de semana */}
+                              {(isWeekend || isHoliday) && (
+                                <View style={{
+                                  position: 'absolute',
+                                  width: '100%',
+                                  height: '100%',
+                                  opacity: 0.15,
+                                  backgroundColor: surfaceColors.primary,
+                                  borderRadius: 2
+                                }} />
+                              )}
+                              
+                              {/* Indicador de hoy */}
+                              {isToday && (
+                                <View style={{
+                                  position: 'absolute',
+                                  width: '100%',
+                                  height: '100%',
+                                  borderRadius: 2,
+                                  borderWidth: 1,
+                                  borderColor: surfaceColors.primary
+                                }} />
+                              )}
+
+                              <Text style={{
+                                fontFamily: 'Roboto-Flex',
+                                fontSize: 8,
+                                color: isToday 
+                                  ? surfaceColors.primary
+                                  : (isWeekend || isHoliday)
+                                    ? surfaceColors.onSurfaceVariant
+                                    : surfaceColors.onSurface,
+                                fontWeight: isToday ? '600' : '400'
+                              }}>
+                                {dayNum}
+                              </Text>
+
+                              {/* 🎰 Barra inferior para Coljuegos (Naranja) */}
+                              {hasColjuegosPago && (
+                                <View style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: 2,
+                                  backgroundColor: '#ff9800', // Naranja
+                                  borderBottomLeftRadius: 2,
+                                  borderBottomRightRadius: 2
+                                }} />
+                              )}
+                              
+                              {/* 👮 Barra inferior para UIAF (Morado) */}
+                              {hasUIAF && (
+                                <View style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: 2,
+                                  backgroundColor: '#9c27b0', // Morado
+                                  borderBottomLeftRadius: 2,
+                                  borderBottomRightRadius: 2
+                                }} />
+                              )}
+                              
+                              {/* 👥 Barra inferior para Parafiscales (Azul grisáceo) */}
+                              {hasParafiscales && (
+                                <View style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: 2,
+                                  backgroundColor: '#607d8b', // Azul grisáceo
+                                  borderBottomLeftRadius: 2,
+                                  borderBottomRightRadius: 2
+                                }} />
+                              )}
+
+                              {/* Punto indicador de eventos (ocultar si hay barra del sistema) */}
+                              {hasEvent && !hasColjuegosPago && !hasUIAF && !hasParafiscales && (
+                                <View style={{
+                                  position: 'absolute',
+                                  bottom: 1,
+                                  width: 2,
+                                  height: 2,
+                                  borderRadius: 1,
+                                  backgroundColor: surfaceColors.primary
+                                }} />
+                              )}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Lista de Eventos del Día Seleccionado - Ocultar en vista anual */}
+          {viewMode !== 'year' && (
+            <View style={{ paddingHorizontal: 24, paddingBottom: 100 }}>
+              {filteredEventos.length > 0 ? (
+              filteredEventos.map((item, index) => (
+                <EventoItem 
+                  key={item.id}
+                  item={item} 
+                  index={index} 
+                  surfaceColors={surfaceColors} 
+                  onPress={(event) => {
+                    setSelectedEvent(event);
+                    setModalVisible(true);
+                  }}
+                />
+              ))
+            ) : (
+              !loading && (
+                <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+                  <View style={{ 
+                    width: 120, 
+                    height: 120, 
+                    borderRadius: 60, 
+                    backgroundColor: surfaceColors.surfaceContainerHigh, 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    marginBottom: 24
+                  }}>
+                    <MaterialCommunityIcons name="calendar-blank" size={64} color={surfaceColors.primary} />
+                  </View>
+                  <Text style={{ 
+                    fontFamily: 'Roboto-Flex', 
+                    fontSize: 22, 
+                    color: surfaceColors.onSurface,
+                    fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+                  }}>
+                    Sin eventos
+                  </Text>
+                  <Text style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, marginBottom: 24, textAlign: 'center' }}>
+                    No hay eventos programados para este día
+                  </Text>
+                  <Pressable 
+                    style={({ pressed }) => [{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 100,
+                      backgroundColor: pressed ? surfaceColors.primary + '20' : surfaceColors.primaryContainer
+                    }]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setViewMode('month');
+                    }}
+                  >
+                    <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600' }}>
+                      Ver Mes Completo
+                    </Text>
+                  </Pressable>
+                </View>
+              )
+            )}
+            </View>
+          )}
+        </ScrollView>
       </Animated.View>
 
       {/* Event Details Modal */}
@@ -1076,6 +1814,785 @@ export default function CalendarioScreen({ navigation }) {
           )}
         </Modal>
       </Portal>
+
+      {/* ✅ Modal Crear Evento */}
+      <Portal>
+        <Modal 
+          visible={showCreateModal} 
+          onDismiss={() => setShowCreateModal(false)}
+          contentContainerStyle={{
+            backgroundColor: surfaceColors.background,
+            margin: 20,
+            borderRadius: 24,
+            maxHeight: '90%'
+          }}
+        >
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ maxHeight: '100%' }}
+          >
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ padding: 24 }}>
+                {/* Header */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <Text style={{ 
+                    fontFamily: 'Roboto-Flex', 
+                    fontSize: 24, 
+                    fontWeight: '500',
+                    color: surfaceColors.onSurface,
+                    fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+                  }}>
+                    Nuevo Evento
+                  </Text>
+                  <IconButton 
+                    icon="close" 
+                    iconColor={surfaceColors.onSurfaceVariant}
+                    onPress={() => setShowCreateModal(false)}
+                  />
+                </View>
+
+                {/* Formulario */}
+                <View style={{ gap: 20 }}>
+                  {/* Título */}
+                  <View>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '600',
+                      color: surfaceColors.onSurfaceVariant,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8
+                    }}>
+                      Título *
+                    </Text>
+                    <TextInput
+                      value={newEventForm.title}
+                      onChangeText={(text) => setNewEventForm(prev => ({ ...prev, title: text }))}
+                      placeholder="Ej: Reunión con cliente"
+                      placeholderTextColor={surfaceColors.onSurfaceVariant}
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainer,
+                        borderRadius: 12,
+                        padding: 16,
+                        fontSize: 16,
+                        color: surfaceColors.onSurface,
+                        fontFamily: 'Roboto-Flex'
+                      }}
+                      maxLength={100}
+                    />
+                  </View>
+
+                  {/* Descripción */}
+                  <View>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '600',
+                      color: surfaceColors.onSurfaceVariant,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8
+                    }}>
+                      Descripción
+                    </Text>
+                    <TextInput
+                      value={newEventForm.description}
+                      onChangeText={(text) => setNewEventForm(prev => ({ ...prev, description: text }))}
+                      placeholder="Detalles adicionales (opcional)"
+                      placeholderTextColor={surfaceColors.onSurfaceVariant}
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainer,
+                        borderRadius: 12,
+                        padding: 16,
+                        fontSize: 15,
+                        color: surfaceColors.onSurface,
+                        fontFamily: 'Roboto-Flex',
+                        minHeight: 100
+                      }}
+                      maxLength={500}
+                    />
+                  </View>
+
+                  {/* Fecha */}
+                  <View>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '600',
+                      color: surfaceColors.onSurfaceVariant,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8
+                    }}>
+                      Fecha
+                    </Text>
+                    <View style={{
+                      backgroundColor: surfaceColors.surfaceContainer,
+                      borderRadius: 12,
+                      padding: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <MaterialCommunityIcons name="calendar" size={24} color={surfaceColors.primary} />
+                        <Text style={{ fontSize: 16, color: surfaceColors.onSurface, fontWeight: '500' }}>
+                          {format(newEventForm.date, "d 'de' MMMM, yyyy", { locale: es })}
+                        </Text>
+                      </View>
+                      <IconButton 
+                        icon="calendar-edit" 
+                        iconColor={surfaceColors.primary}
+                        size={20}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setShowDatePicker(true);
+                        }}
+                      />
+                      {showDatePicker && (
+                        <DateTimePicker
+                          value={newEventForm.date}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={(event, selectedDate) => {
+                            setShowDatePicker(Platform.OS === 'ios');
+                            if (selectedDate) {
+                              setNewEventForm(prev => ({ ...prev, date: selectedDate }));
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            }
+                          }}
+                          minimumDate={new Date()}
+                        />
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Prioridad */}
+                  <View>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontWeight: '600',
+                      color: surfaceColors.onSurfaceVariant,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      marginBottom: 8
+                    }}>
+                      Prioridad
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {[
+                        { value: 'low', label: 'Baja', icon: 'alert-circle-outline', color: surfaceColors.tertiary },
+                        { value: 'medium', label: 'Media', icon: 'alert', color: surfaceColors.secondary },
+                        { value: 'high', label: 'Alta', icon: 'alert-octagon', color: surfaceColors.error }
+                      ].map((priority) => (
+                        <Pressable
+                          key={priority.value}
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            setNewEventForm(prev => ({ ...prev, priority: priority.value }));
+                          }}
+                          style={{
+                            flex: 1,
+                            backgroundColor: newEventForm.priority === priority.value 
+                              ? surfaceColors.secondaryContainer 
+                              : surfaceColors.surfaceContainer,
+                            borderRadius: 12,
+                            padding: 12,
+                            alignItems: 'center',
+                            borderWidth: 2,
+                            borderColor: newEventForm.priority === priority.value 
+                              ? priority.color 
+                              : 'transparent'
+                          }}
+                        >
+                          <MaterialCommunityIcons 
+                            name={priority.icon} 
+                            size={24} 
+                            color={newEventForm.priority === priority.value 
+                              ? priority.color 
+                              : surfaceColors.onSurfaceVariant
+                            } 
+                          />
+                          <Text style={{ 
+                            fontSize: 12, 
+                            fontWeight: '600',
+                            color: newEventForm.priority === priority.value 
+                              ? surfaceColors.onSecondaryContainer 
+                              : surfaceColors.onSurfaceVariant,
+                            marginTop: 4
+                          }}>
+                            {priority.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Notificaciones */}
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ 
+                        fontSize: 12, 
+                        fontWeight: '600',
+                        color: surfaceColors.onSurfaceVariant,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5
+                      }}>
+                        Alertas
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 12, 
+                        color: surfaceColors.primary,
+                        fontWeight: '600'
+                      }}>
+                        {newEventForm.notifications.filter(n => n.enabled).length}
+                      </Text>
+                    </View>
+                    <View style={{ gap: 8 }}>
+                      {[
+                        { time: 0, unit: 'minutes', label: 'A la hora del evento', icon: 'bell-ring' },
+                        { time: 10, unit: 'minutes', label: '10 minutos antes', icon: 'clock-fast' },
+                        { time: 1, unit: 'hours', label: '1 hora antes', icon: 'clock-alert-outline' },
+                        { time: 1, unit: 'days', label: '1 día antes', icon: 'calendar-today' }
+                      ].map((notif, index) => {
+                        const isActive = newEventForm.notifications.some(
+                          n => n.time === notif.time && n.unit === notif.unit && n.enabled
+                        );
+                        
+                        return (
+                          <Pressable
+                            key={`${notif.time}-${notif.unit}`}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setNewEventForm(prev => {
+                                const existingIndex = prev.notifications.findIndex(
+                                  n => n.time === notif.time && n.unit === notif.unit
+                                );
+                                
+                                let newNotifications;
+                                if (existingIndex >= 0) {
+                                  // Toggle existing
+                                  newNotifications = [...prev.notifications];
+                                  newNotifications[existingIndex] = {
+                                    ...newNotifications[existingIndex],
+                                    enabled: !newNotifications[existingIndex].enabled
+                                  };
+                                } else {
+                                  // Add new
+                                  newNotifications = [...prev.notifications, { ...notif, enabled: true }];
+                                }
+                                
+                                return { ...prev, notifications: newNotifications };
+                              });
+                            }}
+                            style={{
+                              backgroundColor: surfaceColors.surfaceContainer,
+                              borderRadius: 12,
+                              padding: 14,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              borderWidth: 2,
+                              borderColor: isActive ? surfaceColors.primary : 'transparent'
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                              <MaterialCommunityIcons 
+                                name={notif.icon} 
+                                size={22} 
+                                color={isActive ? surfaceColors.primary : surfaceColors.onSurfaceVariant} 
+                              />
+                              <Text style={{ 
+                                fontSize: 15, 
+                                color: isActive ? surfaceColors.onSurface : surfaceColors.onSurfaceVariant,
+                                fontWeight: isActive ? '600' : '400'
+                              }}>
+                                {notif.label}
+                              </Text>
+                            </View>
+                            <View style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: isActive ? surfaceColors.primary : surfaceColors.outline,
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}>
+                              {isActive && (
+                                <MaterialCommunityIcons 
+                                  name="check" 
+                                  size={16} 
+                                  color={surfaceColors.onPrimary} 
+                                />
+                              )}
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                      
+                      {/* Botón agregar alerta personalizada */}
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          Alert.alert(
+                            'Alerta personalizada',
+                            'Próximamente podrás configurar alertas con tiempos personalizados',
+                            [{ text: 'OK' }]
+                          );
+                        }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          borderRadius: 12,
+                          padding: 14,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          borderWidth: 2,
+                          borderColor: surfaceColors.outline,
+                          borderStyle: 'dashed'
+                        }}
+                      >
+                        <MaterialCommunityIcons 
+                          name="plus-circle-outline" 
+                          size={22} 
+                          color={surfaceColors.primary} 
+                        />
+                        <Text style={{ 
+                          fontSize: 15, 
+                          color: surfaceColors.primary,
+                          fontWeight: '600'
+                        }}>
+                          Agregar alerta personalizada
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Recurrencia */}
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ 
+                        fontSize: 12, 
+                        fontWeight: '600',
+                        color: surfaceColors.onSurfaceVariant,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5
+                      }}>
+                        Repetir evento
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setNewEventForm(prev => ({
+                            ...prev,
+                            recurrence: {
+                              ...prev.recurrence,
+                              enabled: !prev.recurrence.enabled
+                            }
+                          }));
+                        }}
+                        style={{
+                          width: 44,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: newEventForm.recurrence.enabled 
+                            ? surfaceColors.primary 
+                            : surfaceColors.outline,
+                          justifyContent: 'center',
+                          paddingHorizontal: 2
+                        }}
+                      >
+                        <View style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 10,
+                          backgroundColor: surfaceColors.onPrimary,
+                          alignSelf: newEventForm.recurrence.enabled ? 'flex-end' : 'flex-start'
+                        }} />
+                      </Pressable>
+                    </View>
+
+                    {newEventForm.recurrence.enabled && (
+                      <View style={{ gap: 12 }}>
+                        {/* Frecuencia */}
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          {[
+                            { value: 'daily', label: 'Diario', icon: 'calendar-today' },
+                            { value: 'weekly', label: 'Semanal', icon: 'calendar-week' },
+                            { value: 'monthly', label: 'Mensual', icon: 'calendar-month' },
+                            { value: 'yearly', label: 'Anual', icon: 'calendar' }
+                          ].map((freq) => (
+                            <Pressable
+                              key={freq.value}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                setNewEventForm(prev => ({
+                                  ...prev,
+                                  recurrence: {
+                                    ...prev.recurrence,
+                                    frequency: freq.value
+                                  }
+                                }));
+                              }}
+                              style={{
+                                flex: 1,
+                                backgroundColor: newEventForm.recurrence.frequency === freq.value 
+                                  ? surfaceColors.primaryContainer 
+                                  : surfaceColors.surfaceContainer,
+                                borderRadius: 12,
+                                padding: 10,
+                                alignItems: 'center',
+                                borderWidth: 2,
+                                borderColor: newEventForm.recurrence.frequency === freq.value 
+                                  ? surfaceColors.primary 
+                                  : 'transparent'
+                              }}
+                            >
+                              <MaterialCommunityIcons 
+                                name={freq.icon} 
+                                size={20} 
+                                color={newEventForm.recurrence.frequency === freq.value 
+                                  ? surfaceColors.primary 
+                                  : surfaceColors.onSurfaceVariant
+                                } 
+                              />
+                              <Text style={{ 
+                                fontSize: 11, 
+                                fontWeight: '600',
+                                color: newEventForm.recurrence.frequency === freq.value 
+                                  ? surfaceColors.onPrimaryContainer 
+                                  : surfaceColors.onSurfaceVariant,
+                                marginTop: 4,
+                                textAlign: 'center'
+                              }}>
+                                {freq.label}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+
+                        {/* Fecha de finalización */}
+                        <View>
+                          <Text style={{ 
+                            fontSize: 12, 
+                            fontWeight: '600',
+                            color: surfaceColors.onSurfaceVariant,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                            marginBottom: 8
+                          }}>
+                            Finaliza el
+                          </Text>
+                          <View style={{
+                            backgroundColor: surfaceColors.surfaceContainer,
+                            borderRadius: 12,
+                            padding: 14,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                              <MaterialCommunityIcons name="calendar-remove" size={22} color={surfaceColors.error} />
+                              <Text style={{ 
+                                fontSize: 15, 
+                                color: newEventForm.recurrence.endDate 
+                                  ? surfaceColors.onSurface 
+                                  : surfaceColors.onSurfaceVariant,
+                                fontWeight: newEventForm.recurrence.endDate ? '500' : '400'
+                              }}>
+                                {newEventForm.recurrence.endDate 
+                                  ? format(newEventForm.recurrence.endDate, "d 'de' MMMM, yyyy", { locale: es })
+                                  : 'Seleccionar fecha'
+                                }
+                              </Text>
+                            </View>
+                            <IconButton 
+                              icon="calendar-edit" 
+                              iconColor={surfaceColors.primary}
+                              size={20}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                // Por ahora usar fecha 30 días después como placeholder
+                                const endDate = new Date(newEventForm.date);
+                                endDate.setDate(endDate.getDate() + 30);
+                                setNewEventForm(prev => ({
+                                  ...prev,
+                                  recurrence: {
+                                    ...prev.recurrence,
+                                    endDate: endDate
+                                  }
+                                }));
+                                Alert.alert('Info', 'Fecha establecida a 30 días desde el evento');
+                              }}
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Botones */}
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 32 }}>
+                  <Button 
+                    mode="outlined" 
+                    onPress={() => setShowCreateModal(false)}
+                    style={{ flex: 1 }}
+                    textColor={surfaceColors.onSurfaceVariant}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    mode="contained" 
+                    onPress={handleCreateEvent}
+                    loading={creatingEvent}
+                    disabled={creatingEvent || !newEventForm.title.trim()}
+                    style={{ flex: 1 }}
+                    buttonColor={surfaceColors.primary}
+                    textColor={surfaceColors.onPrimary}
+                    icon="check"
+                  >
+                    Crear
+                  </Button>
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
+
+      {/* Modal de Eventos del Día (Vista Anual) */}
+      <Portal>
+        <Modal
+          visible={dayEventsModalVisible}
+          onDismiss={() => setDayEventsModalVisible(false)}
+          contentContainerStyle={{
+            backgroundColor: surfaceColors.surfaceContainerHigh,
+            margin: 20,
+            borderRadius: 24,
+            maxHeight: '70%'
+          }}
+        >
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={{ 
+              padding: 24, 
+              borderBottomWidth: 1, 
+              borderBottomColor: `${surfaceColors.outline}30`,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontFamily: 'Roboto-Flex',
+                  fontSize: 20,
+                  fontWeight: '600',
+                  color: surfaceColors.onSurface,
+                  fontVariationSettings: [{ axis: 'wdth', value: 110 }],
+                  textTransform: 'capitalize'
+                }}>
+                  {selectedDayDate && format(selectedDayDate, "EEEE d 'de' MMMM", { locale: es })}
+                </Text>
+                <Text style={{
+                  fontFamily: 'Roboto-Flex',
+                  fontSize: 14,
+                  color: surfaceColors.onSurfaceVariant,
+                  marginTop: 4
+                }}>
+                  {selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'evento' : 'eventos'}
+                </Text>
+              </View>
+              <IconButton
+                icon="close"
+                size={24}
+                iconColor={surfaceColors.onSurface}
+                onPress={() => setDayEventsModalVisible(false)}
+              />
+            </View>
+
+            {/* Lista de eventos */}
+            <View style={{ padding: 16 }}>
+              {selectedDayEvents.length > 0 ? (
+                selectedDayEvents.map((event, index) => (
+                  <Pressable
+                    key={event.id}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedEvent(event);
+                      setDayEventsModalVisible(false);
+                      setModalVisible(true);
+                    }}
+                    style={({ pressed }) => ({
+                      backgroundColor: pressed 
+                        ? surfaceColors.surfaceContainer 
+                        : surfaceColors.surfaceContainerLow,
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: index < selectedDayEvents.length - 1 ? 12 : 0,
+                      borderLeftWidth: 4,
+                      borderLeftColor: 
+                        event.type === 'commitment' ? '#f44336' :
+                        event.type === 'contract' ? '#2196f3' :
+                        '#4caf50'
+                    })}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                      <View style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: 
+                          event.type === 'commitment' ? '#f4433615' :
+                          event.type === 'contract' ? '#2196f315' :
+                          '#4caf5015',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        <MaterialCommunityIcons
+                          name={
+                            event.type === 'commitment' ? 'file-document' :
+                            event.type === 'contract' ? 'handshake' :
+                            'calendar-star'
+                          }
+                          size={22}
+                          color={
+                            event.type === 'commitment' ? '#f44336' :
+                            event.type === 'contract' ? '#2196f3' :
+                            '#4caf50'
+                          }
+                        />
+                      </View>
+                      
+                      <View style={{ flex: 1 }}>
+                        <Text style={{
+                          fontFamily: 'Roboto-Flex',
+                          fontSize: 16,
+                          fontWeight: '600',
+                          color: surfaceColors.onSurface,
+                          marginBottom: 4
+                        }}>
+                          {event.title}
+                        </Text>
+                        
+                        {event.description && (
+                          <Text 
+                            style={{
+                              fontSize: 14,
+                              color: surfaceColors.onSurfaceVariant,
+                              marginBottom: 8
+                            }}
+                            numberOfLines={2}
+                          >
+                            {event.description}
+                          </Text>
+                        )}
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <View style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 8,
+                            backgroundColor: surfaceColors.surfaceContainer
+                          }}>
+                            <Text style={{
+                              fontSize: 11,
+                              color: surfaceColors.onSurfaceVariant,
+                              textTransform: 'uppercase',
+                              fontWeight: '600'
+                            }}>
+                              {event.type === 'commitment' ? 'Compromiso' :
+                               event.type === 'contract' ? 'Contrato' :
+                               'Personal'}
+                            </Text>
+                          </View>
+
+                          {event.priority && (
+                            <View style={{
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 8,
+                              backgroundColor: 
+                                event.priority === 'high' ? '#f4433615' :
+                                event.priority === 'medium' ? '#ff980015' :
+                                '#4caf5015'
+                            }}>
+                              <Text style={{
+                                fontSize: 11,
+                                color: 
+                                  event.priority === 'high' ? '#f44336' :
+                                  event.priority === 'medium' ? '#ff9800' :
+                                  '#4caf50',
+                                textTransform: 'uppercase',
+                                fontWeight: '600'
+                              }}>
+                                {event.priority === 'high' ? '🔴 Alta' :
+                                 event.priority === 'medium' ? '🟡 Media' :
+                                 '🟢 Baja'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={24}
+                        color={surfaceColors.onSurfaceVariant}
+                      />
+                    </View>
+                  </Pressable>
+                ))
+              ) : (
+                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                  <View style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: surfaceColors.surfaceContainer,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 16
+                  }}>
+                    <MaterialCommunityIcons
+                      name="calendar-blank"
+                      size={40}
+                      color={surfaceColors.onSurfaceVariant}
+                    />
+                  </View>
+                  <Text style={{
+                    fontFamily: 'Roboto-Flex',
+                    fontSize: 16,
+                    color: surfaceColors.onSurfaceVariant,
+                    textAlign: 'center'
+                  }}>
+                    No hay eventos programados
+                  </Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </Modal>
+      </Portal>
+
+      {/* ✅ FAB Crear Evento */}
+      <FAB
+        icon="plus"
+        label="Evento"
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: 16,
+          backgroundColor: surfaceColors.primary,
+          borderRadius: 16
+        }}
+        color={surfaceColors.onPrimary}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setShowCreateModal(true);
+        }}
+      />
     </SafeAreaView>
   );
 }

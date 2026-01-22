@@ -67,6 +67,11 @@ export default function AdminNotificationControlScreen({ navigation }) {
           ...data,
           calendar: { ...defaults.calendar, ...(data.calendar || {}) },
           events: { ...defaults.calendar.events, ...(data.calendar?.events || {}) },
+          workEvents: { 
+            ...defaults.workEvents, 
+            ...(data.workEvents || {}),
+            events: { ...defaults.workEvents.events, ...(data.workEvents?.events || {}) }
+          },
           attendance: { ...defaults.attendance, ...(data.attendance || {}) },
           alerts: { ...defaults.alerts, ...(data.alerts || {}) }
         });
@@ -94,13 +99,25 @@ export default function AdminNotificationControlScreen({ navigation }) {
         daysBeforeArray: [2, 0],
         notificationTime: "08:00"
       },
+      workEvents: {
+        enabled: isAdmin,
+        events: {
+          clockIn: isAdmin,
+          clockOut: isAdmin,
+          breakStart: isAdmin,
+          lunchStart: isAdmin,
+          incidents: isAdmin
+        }
+      },
       attendance: {
         enabled: true,
         exitReminder: true, breakReminder: true, lunchReminder: true
       },
       alerts: {
         enabled: true,
-        systemAlerts: true, adminMessages: true, urgentOnly: false
+        general: true,
+        highPriority: true,
+        adminOnly: isAdmin
       }
     };
   };
@@ -122,6 +139,17 @@ export default function AdminNotificationControlScreen({ navigation }) {
          events: { ...prev.calendar.events, [key]: !prev.calendar.events[key] }
        }
      }));
+  };
+
+  const handleWorkEventToggle = (key) => {
+    triggerHaptic('selection');
+    setUserPreferences(prev => ({
+      ...prev,
+      workEvents: {
+        ...prev.workEvents,
+        events: { ...prev.workEvents.events, [key]: !prev.workEvents.events[key] }
+      }
+    }));
   };
 
   const handleAttendanceToggle = (key) => {
@@ -329,6 +357,26 @@ export default function AdminNotificationControlScreen({ navigation }) {
                 <Surface style={styles.settingCard} elevation={0}>
                   <View style={styles.cardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                       <Avatar.Icon size={40} icon="account-clock" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.onPrimaryContainer} />
+                       <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Eventos de Jornada</Text>
+                    </View>
+                    <Switch value={userPreferences.workEvents.enabled} onValueChange={() => handleToggleSection('workEvents')} color={getPrimaryColor()} />
+                  </View>
+                  {userPreferences.workEvents.enabled && (
+                     <View style={{ marginTop: 12, gap: 8 }}>
+                        <Divider />
+                        <View style={styles.row}><Text variant="bodyLarge">Inicio de Jornada</Text><Switch value={userPreferences.workEvents.events.clockIn} onValueChange={() => handleWorkEventToggle('clockIn')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Finalización de Jornada</Text><Switch value={userPreferences.workEvents.events.clockOut} onValueChange={() => handleWorkEventToggle('clockOut')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Inicio de Break</Text><Switch value={userPreferences.workEvents.events.breakStart} onValueChange={() => handleWorkEventToggle('breakStart')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Inicio de Almuerzo</Text><Switch value={userPreferences.workEvents.events.lunchStart} onValueChange={() => handleWorkEventToggle('lunchStart')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Novedades Generadas</Text><Switch value={userPreferences.workEvents.events.incidents} onValueChange={() => handleWorkEventToggle('incidents')} color={getPrimaryColor()} /></View>
+                     </View>
+                  )}
+                </Surface>
+
+                <Surface style={styles.settingCard} elevation={0}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                        <Avatar.Icon size={40} icon="clock-check-outline" style={{ backgroundColor: theme.colors.tertiaryContainer }} color={theme.colors.onTertiaryContainer} />
                        <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Asistencia</Text>
                     </View>
@@ -355,9 +403,9 @@ export default function AdminNotificationControlScreen({ navigation }) {
                   {userPreferences.alerts.enabled && (
                      <View style={{ marginTop: 12, gap: 8 }}>
                         <Divider />
-                        <View style={styles.row}><Text variant="bodyLarge">Mantenimiento Sistema</Text><Switch value={userPreferences.alerts.systemAlerts} onValueChange={() => handleAlertsToggle('systemAlerts')} color={getPrimaryColor()} /></View>
-                        <View style={styles.row}><Text variant="bodyLarge">Mensajes Admin</Text><Switch value={userPreferences.alerts.adminMessages} onValueChange={() => handleAlertsToggle('adminMessages')} color={getPrimaryColor()} /></View>
-                        <View style={styles.row}><Text variant="bodyLarge">Solo Urgentes</Text><Switch value={userPreferences.alerts.urgentOnly} onValueChange={() => handleAlertsToggle('urgentOnly')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Alertas Generales</Text><Switch value={userPreferences.alerts.general} onValueChange={() => handleAlertsToggle('general')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Alertas Prioritarias</Text><Switch value={userPreferences.alerts.highPriority} onValueChange={() => handleAlertsToggle('highPriority')} color={getPrimaryColor()} /></View>
+                        <View style={styles.row}><Text variant="bodyLarge">Alertas Solo Admin</Text><Switch value={userPreferences.alerts.adminOnly} onValueChange={() => handleAlertsToggle('adminOnly')} color={getPrimaryColor()} /></View>
                      </View>
                   )}
                 </Surface>

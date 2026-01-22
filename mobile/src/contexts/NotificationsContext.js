@@ -22,12 +22,17 @@ export const useNotifications = () => {
 const shouldShowNotification = (notification, preferences) => {
   if (!preferences) return true; // Si no hay preferencias cargadas, mostrar por seguridad
 
-  // 1. Verificar alertas generales (Sistema, Admin)
-  if (notification.type === 'alert' || !notification.type) { 
+  // 1. Verificar alertas generales (Admin)
+  if (notification.type === 'admin_alert' || notification.type === 'alert') { 
     if (!preferences.alerts?.enabled) return false;
-    if (notification.subType === 'system' && !preferences.alerts.systemAlerts) return false;
-    if (notification.subType === 'admin' && !preferences.alerts.adminMessages) return false;
-    if (preferences.alerts.urgentOnly && !notification.urgent) return false;
+    
+    // Filtrar por audiencia
+    if (notification.audience === 'admins' && !preferences.alerts.adminOnly) return false;
+    
+    // Filtrar por prioridad
+    if (notification.priority === 'high' && !preferences.alerts.highPriority) return false;
+    if (notification.priority === 'normal' && !preferences.alerts.general) return false;
+    
     return true;
   }
 
@@ -45,6 +50,17 @@ const shouldShowNotification = (notification, preferences) => {
     if (notification.subType === 'exit' && !preferences.attendance.exitReminder) return false;
     if (notification.subType === 'break' && !preferences.attendance.breakReminder) return false;
     if (notification.subType === 'lunch' && !preferences.attendance.lunchReminder) return false;
+    return true;
+  }
+
+  // 4. Verificar eventos de jornada laboral
+  if (notification.type === 'work_event') {
+    if (!preferences.workEvents?.enabled) return false;
+    if (notification.subType === 'clockIn' && !preferences.workEvents.events?.clockIn) return false;
+    if (notification.subType === 'clockOut' && !preferences.workEvents.events?.clockOut) return false;
+    if (notification.subType === 'breakStart' && !preferences.workEvents.events?.breakStart) return false;
+    if (notification.subType === 'lunchStart' && !preferences.workEvents.events?.lunchStart) return false;
+    if (notification.subType === 'incident' && !preferences.workEvents.events?.incidents) return false;
     return true;
   }
 

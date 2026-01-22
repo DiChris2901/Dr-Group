@@ -39,13 +39,13 @@ export const sumarDiasHabiles = (fechaBase, diasAsumar, holidays) => {
 /**
  * Calcula el décimo día hábil de un mes específico
  * excluyendo fines de semana y festivos colombianos
+ * @param {number} year - Año
+ * @param {number} month - Mes 0-based (0=Enero, 11=Diciembre)
+ * @param {Array} holidays - Array de festivos
  */
 export const calculateTenthBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
-  // month es 1-based (1=Enero), así que month-1 es el índice 0-based del mes actual.
-  // new Date(year, monthIndex, 0) da el último día del mes ANTERIOR a monthIndex.
-  // Si queremos el último día del mes anterior a "month", usamos new Date(year, month-1, 0).
-  const fechaBase = new Date(year, month - 1, 0); 
+  const fechaBase = new Date(year, month, 0); 
   
   // Sumar 10 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 10, holidays);
@@ -56,10 +56,13 @@ export const calculateTenthBusinessDay = (year, month, holidays) => {
 /**
  * Calcula el tercer día hábil de un mes específico
  * excluyendo fines de semana y festivos colombianos
+ * @param {number} year - Año
+ * @param {number} month - Mes 0-based (0=Enero, 11=Diciembre)
+ * @param {Array} holidays - Array de festivos
  */
 export const calculateThirdBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
-  const fechaBase = new Date(year, month - 1, 0); 
+  const fechaBase = new Date(year, month, 0); 
   
   // Sumar 3 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 3, holidays);
