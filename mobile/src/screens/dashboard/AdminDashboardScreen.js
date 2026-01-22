@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking } from 'react-native';
-import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge } from 'react-native-paper';
+import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useAppDistribution } from '../../hooks/useAppDistribution';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
@@ -17,6 +18,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const { getPrimaryColor, isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
   const { user, userProfile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
+  const { updateAvailable, showUpdateDialog } = useAppDistribution();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -281,6 +283,45 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
       </ScrollView>
 
+      {/* Update Banner */}
+      {updateAvailable && (
+        <Surface 
+          style={[styles.updateBanner, { 
+            backgroundColor: updateAvailable.isCritical ? theme.colors.errorContainer : theme.colors.tertiaryContainer,
+            marginHorizontal: 24,
+            marginBottom: 16
+          }]} 
+          elevation={2}
+        >
+          <View style={styles.updateContent}>
+            <Avatar.Icon 
+              size={40} 
+              icon={updateAvailable.isCritical ? "alert-circle" : "cloud-download"} 
+              style={{ 
+                backgroundColor: updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary 
+              }} 
+              color="#FFFFFF"
+            />
+            <View style={styles.updateText}>
+              <Text variant="titleSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+                {updateAvailable.isCritical ? '⚠️ Actualización Crítica' : '🎉 Nueva Versión'} {updateAvailable.version}
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
+                {updateAvailable.releaseNotes}
+              </Text>
+            </View>
+          </View>
+          <Button 
+            mode="contained" 
+            onPress={showUpdateDialog}
+            style={{ marginTop: 8 }}
+            buttonColor={updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary}
+          >
+            {updateAvailable.isCritical ? 'Actualizar Ahora' : 'Descargar'}
+          </Button>
+        </Surface>
+      )}
+
       <ScrollView 
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -502,5 +543,18 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     // backgroundColor: '#f1f5f9', // Removed hardcoded color
+  },
+  updateBanner: {
+    padding: 16,
+    borderRadius: 24,
+    elevation: 2,
+  },
+  updateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  updateText: {
+    flex: 1,
   }
 });

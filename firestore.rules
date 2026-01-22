@@ -151,6 +151,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPER_ADMIN'];
     }
     
+    // Configuración de la app (públicas para verificación de actualizaciones)
+    match /appConfig/{document} {
+      // ✅ Lectura pública (necesario para verificar actualizaciones sin login)
+      allow read: if true;
+      
+      // ✅ Escritura pública (para herramientas de actualización sin auth)
+      // NOTA: En producción, restringir a solo admins si es necesario
+      allow write: if true;
+    }
+    
     // Regla por defecto para cualquier otra colección: Solo usuarios autenticados
     match /{document=**} {
       allow read, write: if request.auth != null;

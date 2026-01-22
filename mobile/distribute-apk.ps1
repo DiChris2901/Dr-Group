@@ -9,6 +9,7 @@ param(
 
 $APP_ID = "1:526970184316:android:4e55364c1a1794daf41ff9"
 $APK_PATH = "android\app\build\outputs\apk\release\app-release.apk"
+$TESTERS_FILE = "firebase-testers.txt"
 
 Write-Host "======================================" -ForegroundColor Cyan
 Write-Host "  FIREBASE APP DISTRIBUTION" -ForegroundColor Cyan
@@ -21,6 +22,14 @@ if (-Not (Test-Path $APK_PATH)) {
     Write-Host ""
     Write-Host "Compila primero en Android Studio" -ForegroundColor Yellow
     exit 1
+}
+
+# Si no se especificaron testers, cargar desde archivo
+if ([string]::IsNullOrEmpty($Testers) -and (Test-Path $TESTERS_FILE)) {
+    $testersArray = Get-Content $TESTERS_FILE | Where-Object { $_.Trim() -ne "" }
+    $Testers = $testersArray -join ","
+    Write-Host "Verificadores cargados desde $TESTERS_FILE" -ForegroundColor Green
+    Write-Host "Total: $($testersArray.Count) usuarios" -ForegroundColor Green
 }
 
 if ([string]::IsNullOrEmpty($Version)) {
@@ -49,7 +58,8 @@ Write-Host "APK:     $APK_PATH" -ForegroundColor White
 Write-Host "Version: $Version" -ForegroundColor White
 Write-Host "Notas:   $ReleaseNotes" -ForegroundColor White
 if (-Not [string]::IsNullOrEmpty($Testers)) {
-    Write-Host "Testers: $Testers" -ForegroundColor White
+    $testersCount = ($Testers -split ",").Count
+    Write-Host "Testers: $testersCount verificadores" -ForegroundColor White
 }
 Write-Host ""
 Write-Host "Subiendo APK..." -ForegroundColor Yellow
@@ -65,6 +75,50 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "DISTRIBUCION COMPLETADA" -ForegroundColor Green
     Write-Host ""
+    
+    # ========================================
+    # ACTUALIZAR FIRESTORE AUTOMATICAMENTE
+    # ========================================
+    Write-Host "Actualizando version en Firestore..." -ForegroundColor Yellow
+    
+    try {
+        $firestoreUrl = "https://firestore.googleapis.com/v1/projects/dr-group-cd21b/databases/(default)/documents/appConfig/latestVersion"
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        
+        $body = @{
+            fields = @{
+                version = @{
+                    stringValue = $Version
+                }
+                releaseNotes = @{
+                    stringValue = $ReleaseNotes
+                }
+                isCritical = @{
+                    booleanValue = $false
+                }
+                updatedAt = @{
+                    stringValue = $timestamp
+                }
+            }
+        } | ConvertTo-Json -Depth 10
+        
+        $headers = @{
+            "Content-Type" = "application/json"
+        }
+        
+        $response = Invoke-RestMethod -Uri $firestoreUrl -Method Patch -Body $body -Headers $headers -ErrorAction Stop
+        
+        Write-Host "Version $Version configurada en Firestore" -ForegroundColor Green
+        Write-Host "Las apps con versiones anteriores detectaran esta actualizacion automaticamente" -ForegroundColor Cyan
+        Write-Host ""
+    } catch {
+        Write-Host "Advertencia: No se pudo actualizar Firestore automaticamente" -ForegroundColor Yellow
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Puedes actualizar manualmente en:" -ForegroundColor Yellow
+        Write-Host "file:///$PWD/update-version-firestore.html" -ForegroundColor Blue
+        Write-Host ""
+    }
+    
     Write-Host "Los usuarios recibiran notificacion por email" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Dashboard:" -ForegroundColor White

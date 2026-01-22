@@ -29,6 +29,7 @@ import RingChart from '../../components/RingChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
+import { useAppDistribution } from '../../hooks/useAppDistribution';
 import designSystem from '../../../design-system.json';
 
 const { width } = Dimensions.get('window');
@@ -38,6 +39,8 @@ export default function DashboardScreen() {
   const theme = usePaperTheme();
   const { isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
   const { unreadCount } = useNotifications();
+  const { updateAvailable, showUpdateDialog } = useAppDistribution();
+  
   const { 
     user, 
     userProfile, 
@@ -300,6 +303,43 @@ export default function DashboardScreen() {
           </View>
         </ScrollView>
 
+        {/* Update Banner */}
+        {updateAvailable && (
+          <Surface 
+            style={[styles.updateBanner, { 
+              backgroundColor: updateAvailable.isCritical ? theme.colors.errorContainer : theme.colors.tertiaryContainer 
+            }]} 
+            elevation={2}
+          >
+            <View style={styles.updateContent}>
+              <Avatar.Icon 
+                size={40} 
+                icon={updateAvailable.isCritical ? "alert-circle" : "cloud-download"} 
+                style={{ 
+                  backgroundColor: updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary 
+                }} 
+                color="#FFFFFF"
+              />
+              <View style={styles.updateText}>
+                <PaperText variant="titleSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+                  {updateAvailable.isCritical ? '⚠️ Actualización Crítica' : '🎉 Nueva Versión'} {updateAvailable.version}
+                </PaperText>
+                <PaperText variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
+                  {updateAvailable.releaseNotes}
+                </PaperText>
+              </View>
+            </View>
+            <Button 
+              mode="contained" 
+              onPress={showUpdateDialog}
+              style={{ marginTop: 8 }}
+              buttonColor={updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary}
+            >
+              {updateAvailable.isCritical ? 'Actualizar Ahora' : 'Descargar'}
+            </Button>
+          </Surface>
+        )}
+
         {/* Ring Chart Section */}
         <View style={styles.chartContainer}>
           <RingChart 
@@ -451,6 +491,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statText: {
+    flex: 1,
+  },
+  updateBanner: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 24,
+  },
+  updateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  updateText: {
     flex: 1,
   },
   actionCard: {

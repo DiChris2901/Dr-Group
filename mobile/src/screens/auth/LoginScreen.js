@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -296,12 +296,11 @@ export default function LoginScreen() {
               ]} 
               elevation={0}
             >
-              <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center' }}>
-                ⏱️ Al iniciar sesión se registrará tu hora de entrada automáticamente.
+              <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center', lineHeight: 18 }}>
+                📍 Al iniciar se registra tu hora y ubicación (para identificar trabajo remoto u oficina) para control de asistencias
               </Text>
             </Surface>
 
-            {/* 🔢 Versión de la App */}
             <View style={{ alignItems: 'center', marginTop: 24, gap: 4 }}>
               <Text style={{ 
                 fontSize: 11, 
