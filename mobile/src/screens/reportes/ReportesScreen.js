@@ -11,6 +11,7 @@ import {
   FlatList,
   TouchableOpacity
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   Text, 
   Surface, 
@@ -18,17 +19,20 @@ import {
   Card, 
   Avatar, 
   useTheme, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Button
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import { collection, query, getDocs, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { es } from 'date-fns/locale';
 
 const { width } = Dimensions.get('window');
@@ -50,12 +54,17 @@ export default function ReportesScreen() {
     textSecondary: { color: surfaceColors.onSurfaceVariant }
   };
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // ✅ No auto-carga
   const [refreshing, setRefreshing] = useState(false);
-  const [rangoSeleccionado, setRangoSeleccionado] = useState('semana');
+  const [hasSearched, setHasSearched] = useState(false); // ✅ Rastrear si ya buscó
+  const [rangoSeleccionado, setRangoSeleccionado] = useState('day'); // ✅ Día por defecto
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState('todos'); // UID o 'todos'
   const [empleados, setEmpleados] = useState([]); // Lista de empleados
   const [menuVisible, setMenuVisible] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [stats, setStats] = useState({
     totalHoras: 0,
     diasTrabajados: 0,
@@ -67,26 +76,88 @@ export default function ReportesScreen() {
     chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
   });
 
+  // ✅ Limpiar filtros y resultados
+  const limpiarFiltros = useCallback(() => {
+    setRangoSeleccionado('day');
+    setEmpleadoSeleccionado('todos');
+    setHasSearched(false);
+    setStartDate(new Date());
+    setEndDate(new Date());
+    setStats({
+      totalHoras: 0,
+      diasTrabajados: 0,
+      promedioDiario: 0,
+      puntualidad: null,
+      onTimeCount: 0,
+      punctualityBaseCount: 0,
+      chartData: [0, 0, 0, 0, 0, 0, 0],
+      chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // ✅ Limpiar al salir de la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        limpiarFiltros();
+      };
+    }, [limpiarFiltros])
+  );
+
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
+      setHasSearched(true); // ✅ Marcar búsqueda realizada
+      Haptics.selectionAsync();
       const hoy = new Date();
       let fechaDesde, fechaHasta;
       
-      if (rangoSeleccionado === 'semana') {
-        fechaDesde = startOfWeek(hoy, { weekStartsOn: 1 });
-        fechaHasta = endOfWeek(hoy, { weekStartsOn: 1 });
-      } else if (rangoSeleccionado === 'mes') {
-        fechaDesde = startOfMonth(hoy);
-        fechaHasta = endOfMonth(hoy);
-      } else {
-        // Año actual
-        fechaDesde = startOfYear(hoy);
-        fechaHasta = endOfYear(hoy);
+      switch (rangoSeleccionado) {
+        case 'day':
+          fechaDesde = startOfDay(hoy);
+          fechaHasta = endOfDay(hoy);
+          break;
+        case 'semana':
+          fechaDesde = startOfWeek(hoy, { weekStartsOn: 1 });
+          fechaHasta = endOfWeek(hoy, { weekStartsOn: 1 });
+          break;
+        case 'mes':
+          fechaDesde = startOfMonth(hoy);
+          fechaHasta = endOfMonth(hoy);
+          break;
+        case 'custom':
+          fechaDesde = startOfDay(startDate);
+          fechaHasta = endOfDay(endDate);
+          break;
+        default:
+          fechaDesde = startOfDay(hoy);
+          fechaHasta = endOfDay(hoy);
       }
       
       const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
       const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
+      
+      // ✅ Generar clave única para caché
+      const cacheKey = `reportes_${rangoSeleccionado}_${empleadoSeleccionado}_${user?.uid}`;
+      
+      // ✅ Verificar caché local (válido por 30 minutos)
+      try {
+        const cachedData = await AsyncStorage.getItem(cacheKey);
+        if (cachedData) {
+          const { data, timestamp } = JSON.parse(cachedData);
+          const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+          
+          if (timestamp > thirtyMinutesAgo) {
+            // Caché válido: usar datos guardados
+            setStats(data);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (cacheError) {
+        console.log('Error leyendo caché:', cacheError);
+      }
       
       let q;
       
@@ -163,7 +234,27 @@ export default function ReportesScreen() {
       let chartData = [];
       let chartLabels = [];
       
-      if (rangoSeleccionado === 'semana') {
+      if (rangoSeleccionado === 'day') {
+        // Vista Diaria: Horas trabajadas por hora del día
+        chartLabels = ['8AM', '10AM', '12PM', '2PM', '4PM', '6PM'];
+        chartData = new Array(6).fill(0);
+        
+        // Solo mostrar total de horas (chart simplificado para día)
+        const totalHoras = asistenciasValidas.reduce((sum, a) => {
+          if (a.horasTrabajadas) {
+            const parts = a.horasTrabajadas.split(':');
+            if (parts.length >= 2) {
+              const h = Number(parts[0]) || 0;
+              const m = Number(parts[1]) || 0;
+              return sum + h + (m / 60);
+            }
+          }
+          return sum;
+        }, 0);
+        
+        // Distribuir proporcionalmente en el día
+        chartData = chartData.map((_, i) => Number((totalHoras / 6).toFixed(1)));
+      } else if (rangoSeleccionado === 'semana') {
         chartLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
         const days = new Array(7).fill(0);
         
@@ -328,7 +419,7 @@ export default function ReportesScreen() {
         }
       }
 
-      setStats({
+      const statsData = {
         totalHoras: Number.isFinite(totalMinutos) ? Math.floor(totalMinutos / 60) : 0,
         diasTrabajados: diasReales,
         promedioDiario: promedioDiarioCalculado,
@@ -337,7 +428,19 @@ export default function ReportesScreen() {
         punctualityBaseCount,
         chartData,
         chartLabels
-      });
+      };
+
+      setStats(statsData);
+
+      // ✅ Guardar en caché
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          data: statsData,
+          timestamp: Date.now()
+        }));
+      } catch (cacheError) {
+        console.log('Error guardando caché:', cacheError);
+      }
       
     } catch (err) {
       console.error(err);
@@ -345,7 +448,7 @@ export default function ReportesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [rangoSeleccionado, empleadoSeleccionado, userProfile, user, activeSession]);
+  }, [rangoSeleccionado, empleadoSeleccionado, startDate, endDate, userProfile, user, activeSession]);
 
   // 🎯 Cargar lista de empleados (solo para ADMIN)
   useEffect(() => {
@@ -379,11 +482,8 @@ export default function ReportesScreen() {
     cargarEmpleados();
   }, [userProfile]);
 
-  useEffect(() => {
-    if (userProfile) {
-      cargarDatos();
-    }
-  }, [cargarDatos, userProfile]);
+  // ✅ ELIMINADO: useEffect de auto-carga
+  // Ahora solo carga al presionar "Aplicar Filtros"
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -623,23 +723,206 @@ export default function ReportesScreen() {
             </View>
           )}
 
-          <SegmentedButtons
-            value={rangoSeleccionado}
-            onValueChange={(value) => {
-              Haptics.selectionAsync();
-              setRangoSeleccionado(value);
-            }}
-            buttons={[
-              { value: 'semana', label: 'Semana', icon: 'calendar-week' },
-              { value: 'mes', label: 'Mes', icon: 'calendar-month' },
-              { value: 'anio', label: 'Año', icon: 'calendar-today' },
-            ]}
-            style={{ marginBottom: 8 }}
-          />
+          {/* ✅ Filtros Rápidos en Grid 2x2 */}
+          <View style={{ marginBottom: 16 }}>
+            <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              Período
+            </Text>
+            <View style={{ gap: 8 }}>
+              {/* Fila 1: Día | Semana */}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[
+                  { value: 'day', label: 'Hoy', icon: 'calendar-today' },
+                  { value: 'semana', label: 'Esta Semana', icon: 'calendar-week' },
+                ].map((option) => {
+                  const isSelected = rangoSeleccionado === option.value;
+                  return (
+                    <Button
+                      key={option.value}
+                      mode={isSelected ? 'contained' : 'outlined'}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setRangoSeleccionado(option.value);
+                      }}
+                      icon={option.icon}
+                      style={{
+                        flex: 1,
+                        borderRadius: 16,
+                        borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                      }}
+                      contentStyle={{ paddingVertical: 4 }}
+                      labelStyle={{
+                        fontSize: 14,
+                        fontWeight: isSelected ? '600' : '400',
+                      }}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })
+              }
+              </View>
+
+              {/* Fila 2: Mes | Rango */}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[
+                  { value: 'mes', label: 'Este Mes', icon: 'calendar-month' },
+                  { value: 'custom', label: 'Rango', icon: 'calendar-range' },
+                ].map((option) => {
+                    const isSelected = rangoSeleccionado === option.value;
+                    return (
+                      <Button
+                        key={option.value}
+                        mode={isSelected ? 'contained' : 'outlined'}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setRangoSeleccionado(option.value);
+                        }}
+                        icon={option.icon}
+                        style={{
+                          flex: 1,
+                          borderRadius: 16,
+                          borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                        }}
+                        contentStyle={{ paddingVertical: 4 }}
+                        labelStyle={{
+                          fontSize: 14,
+                          fontWeight: isSelected ? '600' : '400',
+                        }}
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })
+                }
+              </View>
+            </View>
+          </View>
+
+          {/* ✅ Date Pickers (Solo si custom) */}
+          {rangoSeleccionado === 'custom' && (
+            <View style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                    Desde
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setShowStartDatePicker(true);
+                    }}
+                    style={{
+                      backgroundColor: surfaceColors.surfaceContainerHigh,
+                      borderRadius: 12,
+                      padding: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderWidth: 1,
+                      borderColor: surfaceColors.outline,
+                    }}
+                  >
+                    <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                      {format(startDate, 'dd/MM/yyyy')}
+                    </Text>
+                    <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+                  </Pressable>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                    Hasta
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setShowEndDatePicker(true);
+                    }}
+                    style={{
+                      backgroundColor: surfaceColors.surfaceContainerHigh,
+                      borderRadius: 12,
+                      padding: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderWidth: 1,
+                      borderColor: surfaceColors.outline,
+                    }}
+                  >
+                    <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                      {format(endDate, 'dd/MM/yyyy')}
+                    </Text>
+                    <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ✅ NUEVO: Botones Aplicar/Limpiar */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button
+              mode="outlined"
+              onPress={limpiarFiltros}
+              disabled={loading}
+              icon="filter-off-outline"
+              style={{
+                flex: 1,
+                borderRadius: 16,
+                borderColor: surfaceColors.outline,
+              }}
+              contentStyle={{ paddingVertical: 6 }}
+              labelStyle={{ fontSize: 15, fontWeight: '600', color: surfaceColors.onSurfaceVariant }}
+            >
+              Limpiar
+            </Button>
+            <Button
+              mode="contained"
+              onPress={cargarDatos}
+              loading={loading}
+              disabled={loading}
+              icon="magnify"
+              style={{
+                flex: 1,
+                borderRadius: 16,
+                paddingVertical: 6,
+              }}
+              contentStyle={{ paddingVertical: 6 }}
+              labelStyle={{ fontSize: 15, fontWeight: '600', letterSpacing: 0.2 }}
+            >
+              {loading ? 'Analizando...' : 'Aplicar'}
+            </Button>
+          </View>
         </View>
 
         {loading ? (
           <ActivityIndicator style={{ marginTop: 50 }} size="large" />
+        ) : !hasSearched ? (
+          // ✅ Estado inicial: sin buscar
+          <View style={{ alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 }}>
+            <View style={{
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              backgroundColor: surfaceColors.surfaceContainerHigh,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24
+            }}>
+              <MaterialCommunityIcons 
+                name="chart-bar" 
+                size={64} 
+                color={surfaceColors.primary} 
+              />
+            </View>
+            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
+              Selecciona filtros
+            </Text>
+            <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center' }}>
+              Configura el período y presiona "Aplicar Filtros" para ver tus estadísticas
+            </Text>
+          </View>
         ) : (
           <>
             {/* 1. Hero Card: Total Horas (KPI Principal) */}
@@ -741,6 +1024,37 @@ export default function ReportesScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ✅ Date Pickers (Modal nativo) */}
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowStartDatePicker(false);
+            if (selectedDate) {
+              setStartDate(selectedDate);
+              Haptics.selectionAsync();
+            }
+          }}
+        />
+      )}
+
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShowEndDatePicker(false);
+            if (selectedDate) {
+              setEndDate(selectedDate);
+              Haptics.selectionAsync();
+            }
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -175,8 +175,16 @@ export default function AsistenciasScreen({ navigation }) {
           endDateStr = format(endOfMonth(now), 'yyyy-MM-dd');
           break;
         case 'custom':
-          startDateStr = format(startDate, 'yyyy-MM-dd');
-          endDateStr = format(endDate, 'yyyy-MM-dd');
+          if (!startDate || !endDate) {
+            Alert.alert('Error', 'Por favor selecciona ambas fechas');
+            setLoading(false);
+            return;
+          }
+          // Validar que sean fechas válidas
+          const validStartDate = startDate instanceof Date && !isNaN(startDate) ? startDate : new Date();
+          const validEndDate = endDate instanceof Date && !isNaN(endDate) ? endDate : new Date();
+          startDateStr = format(validStartDate, 'yyyy-MM-dd');
+          endDateStr = format(validEndDate, 'yyyy-MM-dd');
           break;
         default:
           startDateStr = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -317,8 +325,17 @@ export default function AsistenciasScreen({ navigation }) {
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '--:--';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return format(date, 'h:mm a');
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      // Validar que sea una fecha válida
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return '--:--';
+      }
+      return format(date, 'h:mm a');
+    } catch (error) {
+      console.log('Error formateando fecha:', error);
+      return '--:--';
+    }
   };
 
   // ✅ NUEVO: Filtrado local por búsqueda (búsqueda inteligente de fechas) - Memoizado
@@ -547,39 +564,73 @@ export default function AsistenciasScreen({ navigation }) {
         <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
           Filtros Rápidos
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {[
-            { value: 'today', label: 'Hoy', icon: 'calendar-today' },
-            { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
-            { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
-            { value: 'custom', label: 'Rango Personalizado', icon: 'calendar-range' },
-          ].map((option) => {
-            const isSelected = filterType === option.value;
-            return (
-              <Chip
-                key={option.value}
-                selected={isSelected}
-                showSelectedOverlay
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setFilterType(option.value);
-                }}
-                icon={option.icon}
-                mode={isSelected ? 'flat' : 'outlined'}
-                style={{
-                  backgroundColor: isSelected ? surfaceColors.primaryContainer : 'transparent',
-                  borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                  borderRadius: 16,
-                }}
-                textStyle={{
-                  color: isSelected ? surfaceColors.onPrimaryContainer : surfaceColors.onSurfaceVariant,
-                  fontWeight: isSelected ? '600' : '400',
-                }}
-              >
-                {option.label}
-              </Chip>
-            );
-          })}
+        {/* Grid 2x2 */}
+        <View style={{ gap: 8 }}>
+          {/* Fila 1: Hoy | Esta Semana */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              { value: 'today', label: 'Hoy', icon: 'calendar-today' },
+              { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
+            ].map((option) => {
+              const isSelected = filterType === option.value;
+              return (
+                <Button
+                  key={option.value}
+                  mode={isSelected ? 'contained' : 'outlined'}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setFilterType(option.value);
+                  }}
+                  icon={option.icon}
+                  style={{
+                    flex: 1,
+                    borderRadius: 16,
+                    borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                  }}
+                  contentStyle={{ paddingVertical: 4 }}
+                  labelStyle={{
+                    fontSize: 14,
+                    fontWeight: isSelected ? '600' : '400',
+                  }}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </View>
+
+          {/* Fila 2: Este Mes | Rango Personalizado */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
+              { value: 'custom', label: 'Rango', icon: 'calendar-range' },
+            ].map((option) => {
+              const isSelected = filterType === option.value;
+              return (
+                <Button
+                  key={option.value}
+                  mode={isSelected ? 'contained' : 'outlined'}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setFilterType(option.value);
+                  }}
+                  icon={option.icon}
+                  style={{
+                    flex: 1,
+                    borderRadius: 16,
+                    borderColor: isSelected ? 'transparent' : surfaceColors.outline,
+                  }}
+                  contentStyle={{ paddingVertical: 4 }}
+                  labelStyle={{
+                    fontSize: 14,
+                    fontWeight: isSelected ? '600' : '400',
+                  }}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -609,7 +660,9 @@ export default function AsistenciasScreen({ navigation }) {
                 }}
               >
                 <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
-                  {format(startDate, 'dd/MM/yyyy')}
+                  {startDate && startDate instanceof Date && !isNaN(startDate) 
+                    ? format(startDate, 'dd/MM/yyyy') 
+                    : format(new Date(), 'dd/MM/yyyy')}
                 </Text>
                 <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
               </Pressable>
@@ -637,7 +690,9 @@ export default function AsistenciasScreen({ navigation }) {
                 }}
               >
                 <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
-                  {format(endDate, 'dd/MM/yyyy')}
+                  {endDate && endDate instanceof Date && !isNaN(endDate) 
+                    ? format(endDate, 'dd/MM/yyyy') 
+                    : format(new Date(), 'dd/MM/yyyy')}
                 </Text>
                 <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
               </Pressable>
@@ -670,21 +725,21 @@ export default function AsistenciasScreen({ navigation }) {
           disabled={loading}
           icon="magnify"
           style={{
-            flex: 2,
+            flex: 1,
             borderRadius: 16,
             paddingVertical: 6,
           }}
           contentStyle={{ paddingVertical: 6 }}
-          labelStyle={{ fontSize: 16, fontWeight: '600', letterSpacing: 0.2 }}
+          labelStyle={{ fontSize: 15, fontWeight: '600', letterSpacing: 0.2 }}
         >
-          {loading ? 'Buscando...' : 'Aplicar Filtros'}
+          {loading ? 'Buscando...' : 'Aplicar'}
         </Button>
       </View>
 
       {/* ✅ Date Pickers (Modal nativo) */}
       {showStartDatePicker && (
         <DateTimePicker
-          value={startDate}
+          value={startDate instanceof Date && !isNaN(startDate) ? startDate : new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, selectedDate) => {
@@ -698,7 +753,7 @@ export default function AsistenciasScreen({ navigation }) {
       )}
       {showEndDatePicker && (
         <DateTimePicker
-          value={endDate}
+          value={endDate instanceof Date && !isNaN(endDate) ? endDate : new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, selectedDate) => {
