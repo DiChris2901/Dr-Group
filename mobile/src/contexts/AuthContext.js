@@ -473,30 +473,81 @@ export const AuthProvider = ({ children }) => {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status === 'granted') {
+            // 🎯 ESTRATEGIA HÍBRIDA: GPS → Network → LastKnown
+            let provider = 'GPS';
+            let accuracy = null;
+            let isMocked = false;
+            
             try {
-              // ⚡ OPTIMIZADO: Timeout reducido a 5 segundos (antes 10)
+              // ⭐ INTENTO 1: GPS (Alta precisión)
               const locationPromise = Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.Balanced,
+                accuracy: Location.Accuracy.High, // GPS provider
               });
               const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout')), 5000) // ⚡ 5s en lugar de 10s
+                setTimeout(() => reject(new Error('GPS Timeout')), 5000)
               );
               
               const loc = await Promise.race([locationPromise, timeoutPromise]);
+              
+              // 🚫 DETECCIÓN DE UBICACIÓN FALSA
+              if (loc.mocked) {
+                console.warn('⚠️ ALERTA: Ubicación falsa detectada (Mock Location)');
+                isMocked = true;
+                throw new Error('Se detectó uso de aplicación para falsificar ubicación');
+              }
+              
               location = {
                 lat: loc.coords.latitude,
                 lon: loc.coords.longitude
               };
-            } catch (currentLocError) {
-              console.warn('Timeout GPS, usando última ubicación conocida...');
-              // ⚡ Fallback inmediato a última ubicación conocida
-              const lastLoc = await Location.getLastKnownPositionAsync();
-              if (lastLoc) {
+              accuracy = loc.coords.accuracy;
+              provider = 'GPS';
+              
+            } catch (gpsError) {
+              console.warn('GPS no disponible, intentando Network (WiFi/Celular)...');
+              
+              try {
+                // ⭐ INTENTO 2: Network (WiFi + Torres Celulares)
+                const netLocationPromise = Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced, // Network provider
+                });
+                const netTimeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Network Timeout')), 5000)
+                );
+                
+                const netLoc = await Promise.race([netLocationPromise, netTimeoutPromise]);
+                
+                // 🚫 DETECCIÓN DE UBICACIÓN FALSA (también en Network)
+                if (netLoc.mocked) {
+                  console.warn('⚠️ ALERTA: Ubicación falsa detectada en Network');
+                  isMocked = true;
+                  throw new Error('Se detectó uso de aplicación para falsificar ubicación');
+                }
+                
                 location = {
-                  lat: lastLoc.coords.latitude,
-                  lon: lastLoc.coords.longitude,
-                  isFallback: true
+                  lat: netLoc.coords.latitude,
+                  lon: netLoc.coords.longitude
                 };
+                accuracy = netLoc.coords.accuracy;
+                provider = 'Network';
+                
+              } catch (networkError) {
+                console.warn('Network también falló, usando última ubicación conocida...');
+                
+                // ⭐ INTENTO 3: Última ubicación conocida (Fallback final)
+                const lastLoc = await Location.getLastKnownPositionAsync();
+                if (lastLoc) {
+                  location = {
+                    lat: lastLoc.coords.latitude,
+                    lon: lastLoc.coords.longitude,
+                    isFallback: true
+                  };
+                  accuracy = lastLoc.coords.accuracy;
+                  provider = 'LastKnown';
+                } else {
+                  // 🚫 CASO EXTREMO: Sin ubicación disponible
+                  throw new Error('No se pudo obtener ubicación. Verifica que GPS o WiFi estén activos.');
+                }
               }
             }
 
@@ -578,6 +629,14 @@ export const AuthProvider = ({ children }) => {
         }
       }
       
+      // 📊 AUDITORÍA: Preparar metadatos de ubicación
+      const locationMetadata = {
+        provider: provider || 'Unknown',
+        accuracy: accuracy || null,
+        isMocked: isMocked || false,
+        obtainedAt: new Date().toISOString()
+      };
+      
       const asistenciaData = {
         uid: user.uid,
         empleadoEmail: user.email,
@@ -587,7 +646,12 @@ export const AuthProvider = ({ children }) => {
         entrada: {
           hora: Timestamp.now(),
           ubicacion: location,
-          dispositivo: `${deviceInfo.brand} ${deviceInfo.modelName}`
+          dispositivo: `${deviceInfo.brand} ${deviceInfo.modelName}`,
+          // 🎯 NUEVOS CAMPOS DE AUDITORÍA GPS
+          locationProvider: locationMetadata.provider,
+          locationAccuracy: locationMetadata.accuracy,
+          locationIsMocked: locationMetadata.isMocked,
+          locationObtainedAt: locationMetadata.obtainedAt
         },
         breaks: [],
         almuerzo: null,
