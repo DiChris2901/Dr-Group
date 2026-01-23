@@ -29,7 +29,7 @@ function AppNavigator({ navigation }, ref) {
   const { user, userProfile, loading } = useAuth();
   
   // ✅ Hook para notificar cambios de permisos en tiempo real
-  usePermissionChangeNotifier();
+  const { renderDialog } = usePermissionChangeNotifier();
 
   // ✅ Esperar a que tanto user como userProfile estén cargados
   if (loading || (user && !userProfile)) {
@@ -45,12 +45,13 @@ function AppNavigator({ navigation }, ref) {
   const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
   return (
-    <NavigationContainer ref={ref}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            {/* ✅ TODOS: Acceso con Bottom Tab Navigator (Tabs dinámicos por rol) */}
-            <Stack.Screen name="Main" component={BottomTabNavigator} />
+    <>
+      <NavigationContainer ref={ref}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {user ? (
+            <>
+              {/* ✅ TODOS: Acceso con Bottom Tab Navigator (Tabs dinámicos por rol) */}
+              <Stack.Screen name="Main" component={BottomTabNavigator} />
             
             {/* ✅ Pantallas Comunes (Accesibles por Stack) */}
             <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />
@@ -71,6 +72,10 @@ function AppNavigator({ navigation }, ref) {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    
+    {/* ✅ Renderizar diálogo de permisos fuera del NavigationContainer */}
+    {renderDialog()}
+  </>
   );
 }
 

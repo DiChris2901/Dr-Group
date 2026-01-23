@@ -37,7 +37,30 @@ if ([string]::IsNullOrEmpty($Version)) {
     if (Test-Path $appJsonPath) {
         $appJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
         $Version = $appJson.expo.version
-        Write-Host "Version detectada: $Version" -ForegroundColor Green
+        $versionCode = $appJson.expo.android.versionCode
+        Write-Host "Version detectada: $Version (Build $versionCode)" -ForegroundColor Green
+        
+        # ========================================
+        # SINCRONIZAR BUILD.GRADLE CON APP.JSON
+        # ========================================
+        $buildGradlePath = "android\app\build.gradle"
+        if (Test-Path $buildGradlePath) {
+            Write-Host "Sincronizando build.gradle..." -ForegroundColor Yellow
+            
+            $buildGradle = Get-Content $buildGradlePath -Raw
+            
+            # Actualizar versionCode
+            $buildGradle = $buildGradle -replace 'versionCode \d+', "versionCode $versionCode"
+            
+            # Actualizar versionName
+            $buildGradle = $buildGradle -replace 'versionName "[^"]+"', "versionName `"$Version`""
+            
+            $buildGradle | Out-File $buildGradlePath -Encoding UTF8 -NoNewline
+            
+            Write-Host "build.gradle actualizado: v$Version (Build $versionCode)" -ForegroundColor Green
+        } else {
+            Write-Host "Advertencia: No se encontro build.gradle" -ForegroundColor Yellow
+        }
     } else {
         $Version = "Unknown"
     }

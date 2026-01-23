@@ -31,6 +31,7 @@ import { useNavigation } from '@react-navigation/native';
 import {
   collection,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   setDoc,
@@ -71,6 +72,10 @@ export default function UsersScreen() {
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState([]);
   const [saving, setSaving] = useState(false);
+  
+  // Diálogo de confirmación de guardado
+  const [successDialogVisible, setSuccessDialogVisible] = useState(false);
+  const [successDialogData, setSuccessDialogData] = useState({ userName: '', newRole: '', oldRole: '', permissionsCount: 0, totalPermissions: 0 });
 
   // ========================================
   // 🏷️ FUNCIÓN PARA NOMBRES DESCRIPTIVOS
@@ -146,29 +151,27 @@ export default function UsersScreen() {
       const usersQuery = query(usersRef, orderBy('name', 'asc'));
       const usersSnap = await getDocs(usersQuery);
 
-      const usersData = [];
+      // ✅ OPTIMIZACIÓN PARALELA: Cargar todos los permisos simultáneamente
+      const usersData = await Promise.all(
+        usersSnap.docs.map(async (userDoc) => {
+          const userData = userDoc.data();
 
-      for (const userDoc of usersSnap.docs) {
-        const userData = userDoc.data();
+          // Cargar permisos en paralelo
+          const permissionsRef = doc(db, 'PermissionsApp', userDoc.id);
+          const permissionsSnap = await getDoc(permissionsRef);
+          
+          const userPermissions = permissionsSnap.exists() 
+            ? (permissionsSnap.data().permissions || [])
+            : [];
 
-        // Cargar permisos desde PermissionsApp/{uid}
-        const permissionsRef = doc(db, 'PermissionsApp', userDoc.id);
-        const permissionsSnap = await getDocs(collection(db, 'PermissionsApp'));
-        
-        let userPermissions = [];
-        permissionsSnap.forEach((permDoc) => {
-          if (permDoc.id === userDoc.id) {
-            userPermissions = permDoc.data().permissions || [];
-          }
-        });
-
-        usersData.push({
-          uid: userDoc.id,
-          ...userData,
-          permissions: userPermissions,
-          permissionCount: userPermissions.length,
-        });
-      }
+          return {
+            uid: userDoc.id,
+            ...userData,
+            permissions: userPermissions,
+            permissionCount: userPermissions.length,
+          };
+        })
+      );
 
       setUsers(usersData);
       setFilteredUsers(usersData);
@@ -239,14 +242,38 @@ export default function UsersScreen() {
     setSelectedPermissions((prev) => {
       const isCurrentlySelected = prev.includes(permission);
       
-      // ✅ PERMISOS MUTUAMENTE EXCLUYENTES
+      // ✅ PERMISOS MUTUAMENTE EXCLUYENTES CON DASHBOARD OBLIGATORIO
       
-      // 1. DASHBOARD: ADMIN_DASHBOARD vs DASHBOARD
-      if (permission === APP_PERMISSIONS.ADMIN_DASHBOARD && !isCurrentlySelected) {
-        return [...prev.filter(p => p !== APP_PERMISSIONS.DASHBOARD), permission];
+      // 1. DASHBOARD: ADMIN_DASHBOARD vs DASHBOARD (mutuamente excluyentes + uno siempre activo)
+      if (permission === APP_PERMISSIONS.ADMIN_DASHBOARD) {
+        if (!isCurrentlySelected) {
+          // Activar AdminDashboard → Desactivar Dashboard
+          return [...prev.filter(p => p !== APP_PERMISSIONS.DASHBOARD), permission];
+        } else {
+          // Desactivar AdminDashboard → Activar Dashboard + Eliminar sub-permisos
+          return [
+            ...prev.filter(p => 
+              p !== APP_PERMISSIONS.ADMIN_DASHBOARD &&
+              p !== APP_PERMISSIONS.ADMIN_CREATE_ALERT &&
+              p !== APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL &&
+              p !== APP_PERMISSIONS.ADMIN_SETTINGS
+            ),
+            APP_PERMISSIONS.DASHBOARD
+          ];
+        }
       }
-      if (permission === APP_PERMISSIONS.DASHBOARD && !isCurrentlySelected) {
-        return [...prev.filter(p => p !== APP_PERMISSIONS.ADMIN_DASHBOARD), permission];
+      
+      if (permission === APP_PERMISSIONS.DASHBOARD) {
+        if (!isCurrentlySelected) {
+          // Activar Dashboard → Desactivar AdminDashboard
+          return [...prev.filter(p => p !== APP_PERMISSIONS.ADMIN_DASHBOARD), permission];
+        } else {
+          // Desactivar Dashboard → Activar AdminDashboard
+          return [
+            ...prev.filter(p => p !== APP_PERMISSIONS.DASHBOARD),
+            APP_PERMISSIONS.ADMIN_DASHBOARD
+          ];
+        }
       }
       
       // 2. ASISTENCIAS: Ver todos vs Ver mis registros
@@ -362,10 +389,15 @@ export default function UsersScreen() {
         rol: newAppRole,
       });
 
-      Alert.alert(
-        '✅ Permisos Actualizados',
-        `${selectedUser.name} ahora es ${newAppRole}\n\n${uniquePermissions.length}/${totalPermissionsAvailable} permisos activos${selectedUser.appRole !== newAppRole ? `\n\nCambio: ${selectedUser.appRole} → ${newAppRole}` : ''}`
-      );
+      // Mostrar diálogo Material You
+      setSuccessDialogData({
+        userName: selectedUser.name,
+        newRole: newAppRole,
+        oldRole: selectedUser.appRole,
+        permissionsCount: uniquePermissions.length,
+        totalPermissions: totalPermissionsAvailable,
+      });
+      setSuccessDialogVisible(true);
 
       setEditModalVisible(false);
       setSelectedUser(null);
@@ -781,6 +813,149 @@ export default function UsersScreen() {
               </Button>
             </View>
           </ScrollView>
+        </Modal>
+      </Portal>
+
+      {/* ✅ Diálogo de éxito Material You */}
+      <Portal>
+        <Modal
+          visible={successDialogVisible}
+          onDismiss={() => {
+            triggerHaptic('selection');
+            setSuccessDialogVisible(false);
+            loadUsers();
+          }}
+          contentContainerStyle={{
+            margin: 20,
+            borderRadius: 32,
+            backgroundColor: theme.colors.surfaceContainerHigh,
+            padding: 0,
+          }}
+        >
+          {/* Header con ícono */}
+          <View style={{ alignItems: 'center', paddingTop: 24, paddingBottom: 0 }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: `${getPrimaryColor()}20`,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="check-circle" size={32} color={getPrimaryColor()} />
+            </View>
+          </View>
+
+          {/* Título */}
+          <View style={{ paddingHorizontal: 24, paddingTop: 16 }}>
+            <Text
+              variant="headlineSmall"
+              style={{
+                fontFamily: 'Roboto-Flex',
+                fontWeight: '500',
+                fontSize: 24,
+                letterSpacing: -0.5,
+                textAlign: 'center',
+                color: theme.colors.onSurface,
+              }}
+            >
+              Permisos Actualizados
+            </Text>
+          </View>
+
+          {/* Contenido */}
+          <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 12 }}>
+            <View
+              style={{
+                backgroundColor: theme.colors.surfaceContainerLow,
+                padding: 16,
+                borderRadius: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="account" size={20} color={theme.colors.primary} />
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+              >
+                {successDialogData.userName} ahora es {successDialogData.newRole}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                backgroundColor: theme.colors.surfaceContainerLow,
+                padding: 16,
+                borderRadius: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="shield-check" size={20} color={theme.colors.secondary} />
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+              >
+                {successDialogData.permissionsCount}/{successDialogData.totalPermissions} permisos activos
+              </Text>
+            </View>
+
+            {successDialogData.oldRole !== successDialogData.newRole && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.surfaceContainerLow,
+                  padding: 16,
+                  borderRadius: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <MaterialCommunityIcons name="swap-horizontal" size={20} color={theme.colors.tertiary} />
+                <Text
+                  variant="bodyMedium"
+                  style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+                >
+                  {successDialogData.oldRole} → {successDialogData.newRole}
+                </Text>
+              </View>
+            )}
+
+            <Text
+              variant="bodySmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                textAlign: 'center',
+                marginTop: 8,
+              }}
+            >
+              Los cambios se aplicarán de inmediato
+            </Text>
+          </View>
+
+          {/* Botón */}
+          <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 24 }}>
+            <Button
+              mode="contained"
+              onPress={() => {
+                triggerHaptic('selection');
+                setSuccessDialogVisible(false);
+                loadUsers();
+              }}
+              style={{ borderRadius: 24 }}
+              contentStyle={{ paddingVertical: 8 }}
+              labelStyle={{
+                fontFamily: 'Roboto-Flex',
+                fontWeight: '500',
+                letterSpacing: 0.5,
+              }}
+              buttonColor={getPrimaryColor()}
+            >
+              Entendido
+            </Button>
+          </View>
         </Modal>
       </Portal>
     </SafeAreaView>

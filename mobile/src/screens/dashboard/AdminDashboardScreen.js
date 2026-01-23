@@ -529,21 +529,27 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={{ marginTop: 24 }}>
           <OverlineText color={getPrimaryColor()}>ACCIONES RÁPIDAS</OverlineText>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-              <IconButton icon="bell-ring-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
-              <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
-            </Surface>
-            <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-              <IconButton icon="bell-cog" size={32} iconColor={theme.colors.primary} onPress={() => {
-                triggerHaptic('selection');
-                navigation.navigate('AdminNotificationControl');
-              }} />
-              <Text variant="labelMedium" style={{ textAlign: 'center' }}>Notificaciones</Text>
-            </Surface>
-            <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-              <IconButton icon="cog-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminSettings')} />
-              <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
-            </Surface>
+            {can(APP_PERMISSIONS.ADMIN_CREATE_ALERT) && (
+              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="bell-ring-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
+                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
+              </Surface>
+            )}
+            {can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL) && (
+              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="bell-cog" size={32} iconColor={theme.colors.primary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('AdminNotificationControl');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Notificaciones</Text>
+              </Surface>
+            )}
+            {can(APP_PERMISSIONS.ADMIN_SETTINGS) && (
+              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="cog-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminSettings')} />
+                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
+              </Surface>
+            )}
           </View>
           {can(APP_PERMISSIONS.USUARIOS_GESTIONAR) && (
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
