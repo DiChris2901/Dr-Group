@@ -2,7 +2,7 @@
     "expo":  {
                  "name":  "DR Group Asistencia",
                  "slug":  "drgroup-mobile",
-                 "version":  "3.2.0",
+                 "version":  "3.3.0",
                  "orientation":  "default",
                  "icon":  "./assets/icon.png",
                  "userInterfaceStyle":  "light",
@@ -17,7 +17,7 @@
                              "bundleIdentifier":  "com.drgroup.asistencia"
                          },
                  "android":  {
-                                 "versionCode":  22,
+                                 "versionCode":  23,
                                  "adaptiveIcon":  {
                                                       "foregroundImage":  "./assets/adaptive-icon.png",
                                                       "backgroundColor":  "#004A98"
