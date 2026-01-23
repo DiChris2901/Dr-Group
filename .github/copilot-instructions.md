@@ -53,6 +53,9 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **NUNCA** usar patrones inconsistentes con el proyecto
 - **NUNCA** omitir error handling o loading states
 - **NUNCA** hardcodear valores que deberían ser configurables
+- **NUNCA** ejecutar servidores de desarrollo con run_in_terminal:
+  - ❌ **MAL:** `npx expo start`, `npm run dev` directamente en terminal
+  - ✅ **BIEN:** Usar run_task con el nombre de la tarea apropiada
 - **NUNCA** ejecutar comandos de Expo/npm sin `Set-Location mobile;` primero (Windows PowerShell)
 - **NUNCA** ejecutar comandos de Expo/npm sin `cd mobile &&` primero (Linux/macOS)
 - **NUNCA** hardcodear colores en la APK (usar getPrimaryColor(), getSecondaryColor())
@@ -67,6 +70,10 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **SIEMPRE** iniciar con mapeo completo del proyecto
 - **SIEMPRE** detectar el sistema operativo del usuario (Windows vs Linux/macOS)
 - **SIEMPRE** identificar si la tarea es para Dashboard Web o APK móvil
+- **SIEMPRE** ejecutar servidores de desarrollo como TAREAS de VS Code (run_task), NUNCA como run_in_terminal:
+  - **Dashboard Web:** Tarea "dev" (npm run dev) - NUNCA ejecutar directamente
+  - **App Móvil:** Tarea "Start Mobile App (Background)" - NUNCA ejecutar directamente
+  - **Razón:** Los comandos en terminal se cierran al ejecutar otro comando, las tareas permanecen activas
 - **SIEMPRE** usar comandos apropiados según el OS:
   - **Windows PowerShell:** `Set-Location mobile;` para APK
   - **Linux/macOS bash/sh:** `cd mobile &&` para APK

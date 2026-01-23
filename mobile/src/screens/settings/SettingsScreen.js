@@ -4,6 +4,7 @@ import { Text, List, Switch, Avatar, Button, Divider, useTheme as usePaperTheme,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions'; // ✅ RBAC
 import { OverlineText } from '../../components';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ export default function SettingsScreen({ navigation }) {
   const theme = usePaperTheme();
   const { isDarkMode, toggleDarkMode, getPrimaryColor, hapticsEnabled, toggleHaptics, hapticsIntensity, setIntensity, saveAllPreferences } = useTheme();
   const { userProfile, signOut } = useAuth();
+  const { can, appRole, permissionCount, isSuperAdmin } = usePermissions(); // ✅ RBAC
   
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -283,6 +285,47 @@ export default function SettingsScreen({ navigation }) {
         </Button>
 
         <View style={{ height: 24 }} />
+
+        {/* ✅ RBAC: Información de Permisos */}
+        <OverlineText color={theme.colors.primary} style={{ marginBottom: 12 }}>PERMISOS</OverlineText>
+        
+        <Surface style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1 }}>
+              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>
+                Rol en la App
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons 
+                  name={
+                    isSuperAdmin ? "shield-crown" : 
+                    appRole === 'ADMIN' ? "shield-account" : 
+                    "shield-check"
+                  } 
+                  size={20} 
+                  color={
+                    isSuperAdmin ? "#ff6b6b" : 
+                    appRole === 'ADMIN' ? "#4ecdc4" : 
+                    "#95e1d3"
+                  } 
+                />
+                <Text variant="titleMedium" style={{ fontWeight: '600' }}>
+                  {appRole || 'USER'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+                {permissionCount}/35
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Permisos activos
+              </Text>
+            </View>
+          </View>
+        </Surface>
+
+        <Divider style={{ marginVertical: 24 }} />
 
         {/* Support & Info */}
         <OverlineText color={theme.colors.primary} style={{ marginBottom: 12 }}>SOPORTE</OverlineText>

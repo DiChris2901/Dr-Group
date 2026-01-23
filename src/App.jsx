@@ -48,6 +48,9 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
 
+// Herramienta de migración de permisos
+import PermissionsMigrationTool from './components/admin/PermissionsMigrationTool';
+
 // Administración - Limpieza de Storage
 import OrphanFilesPage from './pages/OrphanFilesPage';
 
@@ -387,6 +390,16 @@ const DashboardLayout = () => {
           <AdminOnlyRoute>
             <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
               <ActivityLogsPage />
+            </MainLayout>
+          </AdminOnlyRoute>
+        }
+      />
+      <Route 
+        path="/admin/migrate-permissions" 
+        element={
+          <AdminOnlyRoute>
+            <MainLayout title="Migración de Permisos" breadcrumbs={['Administración', 'Migración']}>
+              <PermissionsMigrationTool />
             </MainLayout>
           </AdminOnlyRoute>
         }

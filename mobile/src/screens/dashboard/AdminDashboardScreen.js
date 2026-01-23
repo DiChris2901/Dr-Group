@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppDistribution } from '../../hooks/useAppDistribution';
+import { usePermissions } from '../../hooks/usePermissions';
 import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const { user, userProfile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
   const { updateAvailable, showUpdateDialog } = useAppDistribution();
+  const { isSuperAdmin } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -533,6 +535,17 @@ export default function AdminDashboardScreen({ navigation }) {
               <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
             </Surface>
           </View>
+          {isSuperAdmin ? (
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="shield-account" size={32} iconColor={theme.colors.primary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('Users');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Permisos</Text>
+              </Surface>
+            </View>
+          ) : null}
         </View>
 
       </ScrollView>

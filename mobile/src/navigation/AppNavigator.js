@@ -13,6 +13,7 @@ import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
 import AdminCreateAlertScreen from '../screens/admin/AdminCreateAlertScreen';
+import UsersScreen from '../screens/admin/UsersScreen'; // ✅ RBAC: Gestión de usuarios y permisos
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
@@ -53,6 +54,7 @@ function AppNavigator({ navigation }, ref) {
             <Stack.Screen name="AdminNovedades" component={AdminNovedadesScreen} />
             <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} />
             <Stack.Screen name="AdminCreateAlert" component={AdminCreateAlertScreen} />
+            <Stack.Screen name="Users" component={UsersScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />

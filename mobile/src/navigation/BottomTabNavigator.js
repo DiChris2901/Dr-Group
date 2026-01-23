@@ -77,7 +77,6 @@ export default function BottomTabNavigator() {
         />
       )}
     >
-      {/* 1. INICIO (Jornada vs Torre de Control) */}
       <Tab.Screen 
         name="Dashboard" 
         component={isAdmin ? AdminDashboardScreen : DashboardScreen}
@@ -93,43 +92,39 @@ export default function BottomTabNavigator() {
         }}
       />
 
-      {isAdmin ? (
-        <>
-          <Tab.Screen 
-            name="Calendario" 
-            component={CalendarioScreen}
-            options={{
-              tabBarLabel: 'Calendario',
-              tabBarIcon: ({ focused, color }) => (
-                <MaterialCommunityIcons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen 
-            name="AdminNovedades" 
-            component={AdminNovedadesScreen}
-            options={{
-              tabBarLabel: 'Novedades',
-              tabBarIcon: ({ focused, color }) => (
-                <MaterialCommunityIcons name={focused ? "inbox-full" : "inbox-outline"} size={24} color={color} />
-              ),
-            }}
-          />
-        </>
-      ) : (
-        <Tab.Screen 
-          name="Novedades" 
-          component={NovedadesScreen}
-          options={{
-            tabBarLabel: 'Novedades',
-            tabBarIcon: ({ focused, color }) => (
-              <MaterialCommunityIcons name={focused ? "bell" : "bell-outline"} size={24} color={color} />
-            ),
-          }}
-        />
-      )}
-      
-      {/* COMMON TABS */}
+      {isAdmin ? <Tab.Screen 
+        name="Calendario" 
+        component={CalendarioScreen}
+        options={{
+          tabBarLabel: 'Calendario',
+          tabBarIcon: ({ focused, color}) => (
+            <MaterialCommunityIcons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+          ),
+        }}
+      /> : null}
+
+      {isAdmin ? <Tab.Screen 
+        name="AdminNovedades" 
+        component={AdminNovedadesScreen}
+        options={{
+          tabBarLabel: 'Novedades',
+          tabBarIcon: ({ focused, color }) => (
+            <MaterialCommunityIcons name={focused ? "inbox-full" : "inbox-outline"} size={24} color={color} />
+          ),
+        }}
+      /> : null}
+
+      {!isAdmin ? <Tab.Screen 
+        name="Novedades" 
+        component={NovedadesScreen}
+        options={{
+          tabBarLabel: 'Novedades',
+          tabBarIcon: ({ focused, color }) => (
+            <MaterialCommunityIcons name={focused ? "bell" : "bell-outline"} size={24} color={color} />
+          ),
+        }}
+      /> : null}
+
       <Tab.Screen 
         name="Reportes" 
         component={ReportesScreen}
