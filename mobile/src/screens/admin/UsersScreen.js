@@ -236,11 +236,40 @@ export default function UsersScreen() {
   };
 
   const togglePermission = (permission) => {
-    setSelectedPermissions((prev) =>
-      prev.includes(permission)
+    setSelectedPermissions((prev) => {
+      const isCurrentlySelected = prev.includes(permission);
+      
+      // ✅ PERMISOS MUTUAMENTE EXCLUYENTES
+      
+      // 1. DASHBOARD: ADMIN_DASHBOARD vs DASHBOARD
+      if (permission === APP_PERMISSIONS.ADMIN_DASHBOARD && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.DASHBOARD), permission];
+      }
+      if (permission === APP_PERMISSIONS.DASHBOARD && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.ADMIN_DASHBOARD), permission];
+      }
+      
+      // 2. ASISTENCIAS: Ver todos vs Ver mis registros
+      if (permission === APP_PERMISSIONS.ASISTENCIAS_TODOS && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.ASISTENCIAS_PROPIAS), permission];
+      }
+      if (permission === APP_PERMISSIONS.ASISTENCIAS_PROPIAS && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.ASISTENCIAS_TODOS), permission];
+      }
+      
+      // 3. REPORTES: Ver todos vs Ver mis reportes
+      if (permission === APP_PERMISSIONS.REPORTES_TODOS && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.REPORTES_PROPIOS), permission];
+      }
+      if (permission === APP_PERMISSIONS.REPORTES_PROPIOS && !isCurrentlySelected) {
+        return [...prev.filter(p => p !== APP_PERMISSIONS.REPORTES_TODOS), permission];
+      }
+      
+      // Comportamiento normal para otros permisos
+      return isCurrentlySelected
         ? prev.filter((p) => p !== permission)
-        : [...prev, permission]
-    );
+        : [...prev, permission];
+    });
   };
 
   const toggleCategory = (category) => {

@@ -3,7 +3,7 @@
 // ROL = Identificación visual | PERMISO = Control de acceso real
 
 // ========================================
-// 🎯 DEFINICIÓN DE PERMISOS (17 TOTAL)
+// 🎯 DEFINICIÓN DE PERMISOS (16 TOTAL)
 // ========================================
 
 export const APP_PERMISSIONS = {
@@ -30,9 +30,8 @@ export const APP_PERMISSIONS = {
   ASISTENCIAS_PROPIAS: 'asistencias.propias',      // Ver SOLO mis registros
   ASISTENCIAS_TODOS: 'asistencias.todos',          // Ver registros de TODOS
 
-  // NOVEDADES (2 permisos)
+  // NOVEDADES (1 permiso)
   NOVEDADES_REPORTAR: 'novedades.reportar',        // Reportar mis incidentes
-  NOVEDADES_GESTIONAR: 'novedades.gestionar',      // Gestionar todas las novedades
 
   // REPORTES (2 permisos)
   REPORTES_PROPIOS: 'reportes.propios',            // Ver SOLO mi desempeño
@@ -66,7 +65,6 @@ export const PERMISSION_CATEGORIES = [
       APP_PERMISSIONS.ASISTENCIAS_PROPIAS,
       APP_PERMISSIONS.ASISTENCIAS_TODOS,
       APP_PERMISSIONS.NOVEDADES_REPORTAR,
-      APP_PERMISSIONS.NOVEDADES_GESTIONAR,
       APP_PERMISSIONS.REPORTES_PROPIOS,
       APP_PERMISSIONS.REPORTES_TODOS,
     ],
@@ -91,7 +89,7 @@ export const PERMISSION_CATEGORIES = [
 // 📊 CONSTANTES DEL SISTEMA
 // ========================================
 
-export const TOTAL_PERMISSIONS = 17; // Total de permisos en el sistema v2.0
+export const TOTAL_PERMISSIONS = 16; // Total de permisos en el sistema v2.0
 
 // ========================================
 // 🎭 ROLES Y PERMISOS POR DEFECTO

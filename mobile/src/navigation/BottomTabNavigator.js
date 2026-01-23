@@ -11,8 +11,7 @@ import { APP_PERMISSIONS } from '../constants/permissions';
 import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import CalendarioScreen from '../screens/calendario/CalendarioScreen';
-import AdminDashboardScreen from '../screens/dashboard/AdminDashboardScreen';
-import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import DashboardWrapper from '../components/DashboardWrapper';
 import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
@@ -87,40 +86,22 @@ export default function BottomTabNavigator() {
         />
       )}
     >
-      {/* Dashboard: Mostrar AdminDashboard si tiene permiso, sino DashboardScreen si tiene permiso */}
-      {canAccessAdminDashboard && (
-        <Tab.Screen 
-          name="Dashboard" 
-          component={AdminDashboardScreen}
-          options={{
-            tabBarLabel: 'Control',
-            tabBarIcon: ({ focused, color }) => (
-              <MaterialCommunityIcons 
-                name={focused ? "view-dashboard" : "view-dashboard-outline"} 
-                size={24} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-      )}
-      
-      {!canAccessAdminDashboard && canAccessDashboard && (
-        <Tab.Screen 
-          name="Dashboard" 
-          component={DashboardScreen}
-          options={{
-            tabBarLabel: 'Mi Jornada',
-            tabBarIcon: ({ focused, color }) => (
-              <MaterialCommunityIcons 
-                name={focused ? "timer" : "timer-outline"} 
-                size={24} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-      )}
+      {/* Dashboard: SIEMPRE renderizado primero para ser la pantalla inicial */}
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardWrapper}
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({ focused, color }) => (
+            <MaterialCommunityIcons 
+              name={focused ? "view-dashboard" : "view-dashboard-outline"} 
+              size={24} 
+              color={color} 
+            />
+          ),
+          tabBarItemStyle: (canAccessAdminDashboard || canAccessDashboard) ? {} : { display: 'none' }
+        }}
+      />
 
       {/* Calendario: Solo si tiene permiso */}
       {canAccessCalendario && (

@@ -5,13 +5,24 @@ import { useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { usePermissions } from './usePermissions';
+import { useAuth } from '../contexts/AuthContext';
 
 export const usePermissionChangeNotifier = () => {
   const { permissions, loading } = usePermissions();
+  const { user } = useAuth();
   const previousPermissionsRef = useRef(null);
   const isInitialLoadRef = useRef(true);
+  const previousUserIdRef = useRef(null);
 
   useEffect(() => {
+    // Si cambia el usuario (logout/login), resetear el estado
+    if (user?.uid !== previousUserIdRef.current) {
+      previousPermissionsRef.current = null;
+      isInitialLoadRef.current = true;
+      previousUserIdRef.current = user?.uid;
+      return;
+    }
+
     // Esperar a que termine la carga inicial
     if (loading) return;
 
@@ -74,5 +85,5 @@ export const usePermissionChangeNotifier = () => {
       // Actualizar referencia
       previousPermissionsRef.current = permissions;
     }
-  }, [permissions, loading]);
+  }, [permissions, loading, user]);
 };
