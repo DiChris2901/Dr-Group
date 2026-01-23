@@ -44,24 +44,7 @@ export default function ReportesScreen() {
   const { can } = usePermissions();
   const theme = useTheme();
   
-  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
-  const puedeVerTodos = can(APP_PERMISSIONS.REPORTES_TODOS);
-  const puedeVerPropios = can(APP_PERMISSIONS.REPORTES_PROPIOS);
-  const tieneAcceso = puedeVerTodos || puedeVerPropios;
-  
-  // ✅ Surface colors dinámicos (Material You Expressive)
-  const surfaceColors = theme.dark 
-    ? materialTheme.schemes.dark 
-    : materialTheme.schemes.light;
-  
-  const dynamicStyles = {
-    container: { backgroundColor: surfaceColors.surface },
-    surfaceContainerLow: { backgroundColor: surfaceColors.surfaceContainerLow },
-    surfaceContainer: { backgroundColor: surfaceColors.surfaceContainer },
-    text: { color: surfaceColors.onSurface },
-    textSecondary: { color: surfaceColors.onSurfaceVariant }
-  };
-  
+  // ✅ TODOS LOS HOOKS PRIMERO (Rules of Hooks)
   const [loading, setLoading] = useState(false); // ✅ No auto-carga
   const [refreshing, setRefreshing] = useState(false);
   const [hasSearched, setHasSearched] = useState(false); // ✅ Rastrear si ya buscó
@@ -83,6 +66,23 @@ export default function ReportesScreen() {
     chartData: [0, 0, 0, 0, 0, 0, 0],
     chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
   });
+  
+  // 🔒 Validación de permisos (NO bloquear UI, solo controlar contenido)
+  const puedeVerTodos = can(APP_PERMISSIONS.REPORTES_TODOS);
+  const puedeVerPropios = can(APP_PERMISSIONS.REPORTES_PROPIOS);
+  
+  // ✅ Surface colors dinámicos (Material You Expressive)
+  const surfaceColors = theme.dark 
+    ? materialTheme.schemes.dark 
+    : materialTheme.schemes.light;
+  
+  const dynamicStyles = {
+    container: { backgroundColor: surfaceColors.surface },
+    surfaceContainerLow: { backgroundColor: surfaceColors.surfaceContainerLow },
+    surfaceContainer: { backgroundColor: surfaceColors.surfaceContainer },
+    text: { color: surfaceColors.onSurface },
+    textSecondary: { color: surfaceColors.onSurfaceVariant }
+  };
 
   // ✅ Limpiar filtros y resultados
   const limpiarFiltros = useCallback(() => {
@@ -112,6 +112,27 @@ export default function ReportesScreen() {
       };
     }, [limpiarFiltros])
   );
+
+  // ✅ NUEVO: Detectar cambios de permisos y limpiar datos
+  useEffect(() => {
+    // Si los permisos cambian, limpiar resultados y caché
+    if (hasSearched) {
+      setStats({
+        totalDias: 0,
+        horasTrabajadas: 0,
+        diasTrabajados: 0,
+        promedioDiario: 0,
+        totalBreaks: 0,
+        totalAlmuerzos: 0
+      });
+      setHasSearched(false);
+      // Limpiar caché relacionada con reportes
+      AsyncStorage.getAllKeys().then(keys => {
+        const reportesKeys = keys.filter(key => key.startsWith('reportes_'));
+        AsyncStorage.multiRemove(reportesKeys);
+      });
+    }
+  }, [puedeVerTodos, puedeVerPropios]); // Ejecutar cuando cambien los permisos
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -558,25 +579,11 @@ export default function ReportesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-      {/* 🔒 VALIDACIÓN DE ACCESO */}
-      {!tieneAcceso ? (
-        <View style={styles.deniedContainer}>
-          <Surface style={{ padding: 32, alignItems: 'center', borderRadius: 28, backgroundColor: surfaceColors.surfaceContainerLow }} elevation={0}>
-            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
-            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
-              🔒 Acceso Denegado
-            </Text>
-            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
-              No tienes permiso para ver reportes.
-            </Text>
-          </Surface>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-          }
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+        }
         >
           {/* Header */}
           <View style={styles.header}>
@@ -1050,7 +1057,6 @@ export default function ReportesScreen() {
           </>
         )}
       </ScrollView>
-      )}
 
       {/* ✅ Date Pickers (Modal nativo) */}
       {showStartDatePicker && (

@@ -51,27 +51,7 @@ export default function AsistenciasScreen({ navigation }) {
   const { can } = usePermissions();
   const theme = useTheme();
   
-  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
-  const puedeVerTodos = can(APP_PERMISSIONS.ASISTENCIAS_TODOS);
-  const puedeVerPropias = can(APP_PERMISSIONS.ASISTENCIAS_PROPIAS);
-  const tieneAcceso = puedeVerTodos || puedeVerPropias;
-  
-  // 🎨 Material You Expressive: Surface colors para profundidad (no sombras)
-  const surfaceColors = theme.dark 
-    ? materialTheme.schemes.dark 
-    : materialTheme.schemes.light;
-    
-  const dynamicStyles = {
-    container: { backgroundColor: surfaceColors.background },
-    surfaceContainerLow: { backgroundColor: surfaceColors.surfaceContainerLow },
-    surfaceContainer: { backgroundColor: surfaceColors.surfaceContainer },
-    text: { color: surfaceColors.onSurface },
-    textSecondary: { color: surfaceColors.onSurfaceVariant },
-    primary: { color: surfaceColors.primary },
-    modalOverlay: { backgroundColor: theme.dark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' },
-    modalSurface: { backgroundColor: surfaceColors.surface }
-  };
-  
+  // ✅ TODOS LOS HOOKS PRIMERO (Rules of Hooks)
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(false); // ✅ Cambiado a false - no carga al inicio
   const [refreshing, setRefreshing] = useState(false);
@@ -93,6 +73,34 @@ export default function AsistenciasScreen({ navigation }) {
   // Animations
   const slideAnim = useRef(new Animated.Value(height * 0.3)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // ✅ FIX: Mover callbacks fuera del JSX (Rules of Hooks)
+  const keyExtractor = useCallback((item) => item.id, []);
+  const getItemLayout = useCallback((data, index) => ({
+    length: 160, // Altura aproximada de cada card
+    offset: 160 * index,
+    index,
+  }), []);
+  
+  // 🔒 Validación de permisos (NO bloquear UI, solo controlar contenido)
+  const puedeVerTodos = can(APP_PERMISSIONS.ASISTENCIAS_TODOS);
+  const puedeVerPropias = can(APP_PERMISSIONS.ASISTENCIAS_PROPIAS);
+  
+  // 🎨 Material You Expressive: Surface colors para profundidad (no sombras)
+  const surfaceColors = theme.dark 
+    ? materialTheme.schemes.dark 
+    : materialTheme.schemes.light;
+    
+  const dynamicStyles = {
+    container: { backgroundColor: surfaceColors.background },
+    surfaceContainerLow: { backgroundColor: surfaceColors.surfaceContainerLow },
+    surfaceContainer: { backgroundColor: surfaceColors.surfaceContainer },
+    text: { color: surfaceColors.onSurface },
+    textSecondary: { color: surfaceColors.onSurfaceVariant },
+    primary: { color: surfaceColors.primary },
+    modalOverlay: { backgroundColor: theme.dark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)' },
+    modalSurface: { backgroundColor: surfaceColors.surface }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -134,6 +142,21 @@ export default function AsistenciasScreen({ navigation }) {
   useEffect(() => {
     cargarUsuarios();
   }, []);
+
+  // ✅ NUEVO: Detectar cambios de permisos y limpiar datos
+  useEffect(() => {
+    // Si los permisos cambian (puedeVerTodos o puedeVerPropias), limpiar resultados
+    // Esto fuerza al usuario a buscar nuevamente con sus nuevos permisos
+    if (hasSearched) {
+      setAsistencias([]);
+      setHasSearched(false);
+      // Limpiar caché de AsyncStorage relacionada con permisos
+      AsyncStorage.getAllKeys().then(keys => {
+        const asistenciasKeys = keys.filter(key => key.startsWith('asistencias_'));
+        AsyncStorage.multiRemove(asistenciasKeys);
+      });
+    }
+  }, [puedeVerTodos, puedeVerPropias]); // Ejecutar cuando cambien los permisos
 
   // ✅ ELIMINADO: useEffect que cargaba asistencias automáticamente
   // Ahora solo se cargan al presionar "Aplicar Filtros"
@@ -522,33 +545,19 @@ export default function AsistenciasScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
-      {/* 🔒 VALIDACIÓN DE ACCESO */}
-      {!tieneAcceso ? (
-        <View style={styles.deniedContainer}>
-          <SobrioCard style={{ padding: 32, alignItems: 'center', borderRadius: 28 }}>
-            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
-            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
-              🔒 Acceso Denegado
-            </Text>
-            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
-              No tienes permiso para ver registros de asistencias.
-            </Text>
-          </SobrioCard>
-        </View>
-      ) : (
-        <>
-          <View style={[styles.header, puedeVerTodos && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-            <View>
-              <Text 
-                variant="displaySmall" 
-                style={{ 
-                  fontWeight: '400', 
-                  color: surfaceColors.onSurface,
-                  letterSpacing: -0.5,
-                  fontFamily: 'Roboto-Flex',
-                  marginBottom: 4
-                }}
-              >
+      {/* Header con título y descripción */}
+      <View style={[styles.header, puedeVerTodos && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View>
+          <Text 
+            variant="displaySmall" 
+            style={{ 
+              fontWeight: '400', 
+              color: surfaceColors.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4
+            }}
+          >
                 Historial
               </Text>
               <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
@@ -808,12 +817,8 @@ export default function AsistenciasScreen({ navigation }) {
         <FlatList
           data={filteredAsistencias}
           renderItem={({ item, index }) => <AsistenciaItem item={item} index={index} />}
-          keyExtractor={useCallback((item) => item.id, [])}
-          getItemLayout={useCallback((data, index) => ({
-            length: 160, // Altura aproximada de cada card
-            offset: 160 * index,
-            index,
-          }), [])}
+          keyExtractor={keyExtractor}
+          getItemLayout={getItemLayout}
           contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]} // Espacio extra al final
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={true}
@@ -1199,8 +1204,6 @@ export default function AsistenciasScreen({ navigation }) {
           </Surface>
         </View>
       </Modal>
-      </>
-      )}
     </SafeAreaView>
   );
 }

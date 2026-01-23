@@ -18,20 +18,6 @@ export default function AdminNotificationControlScreen({ navigation }) {
   const { getPrimaryColor, isDarkMode, triggerHaptic } = useTheme();
   const { can } = usePermissions();
   
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para controlar notificaciones</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   // State
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState([]);
@@ -250,6 +236,20 @@ export default function AdminNotificationControlScreen({ navigation }) {
       </SobrioCard>
     );
   };
+
+  // ✅ Validación de permiso (después de todos los hooks)
+  if (!can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL)) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para controlar notificaciones</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>

@@ -35,20 +35,6 @@ export default function AdminSettingsScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor, getSecondaryColor } = useTheme();
   const { can } = usePermissions();
-  
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.ADMIN_SETTINGS)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para configuración laboral</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -301,6 +287,20 @@ export default function AdminSettingsScreen({ navigation }) {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
+    );
+  }
+
+  // ✅ Validación de permiso (después de todos los hooks)
+  if (!can(APP_PERMISSIONS.ADMIN_SETTINGS)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para configuración laboral</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
     );
   }
 

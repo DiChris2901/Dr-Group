@@ -26,20 +26,6 @@ export default function AdminCreateAlertScreen() {
   const { can } = usePermissions();
   const navigation = useNavigation();
   
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.ADMIN_CREATE_ALERT)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para crear alertas</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState('normal'); // normal, high
@@ -503,6 +489,20 @@ export default function AdminCreateAlertScreen() {
       setLoading(false);
     }
   };
+
+  // ✅ Validación de permiso (después de todos los hooks)
+  if (!can(APP_PERMISSIONS.ADMIN_CREATE_ALERT)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para crear alertas</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

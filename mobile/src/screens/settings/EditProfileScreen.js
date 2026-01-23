@@ -21,20 +21,6 @@ export default function EditProfileScreen({ navigation }) {
   const { user, userProfile, reloadUserProfile } = useAuth();
   const { can } = usePermissions();
   
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.PERFIL)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para editar perfil</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   const [name, setName] = useState(userProfile?.displayName || userProfile?.name || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
   const [photoURL, setPhotoURL] = useState(userProfile?.photoURL || null);
@@ -169,6 +155,20 @@ export default function EditProfileScreen({ navigation }) {
       setConfirmPassword('');
     }
   };
+
+  // ✅ Validación de permiso (después de todos los hooks)
+  if (!can(APP_PERMISSIONS.PERFIL)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.deniedContainer}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para editar perfil</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

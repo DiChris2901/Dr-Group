@@ -19,20 +19,6 @@ export default function SettingsScreen({ navigation }) {
   const { userProfile, signOut } = useAuth();
   const { can, appRole, permissionCount, isSuperAdmin } = usePermissions(); // ✅ RBAC
   
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.SETTINGS)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para acceder a configuración</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -139,6 +125,20 @@ export default function SettingsScreen({ navigation }) {
       />
     </Surface>
   ), [theme.colors]);
+
+  // ✅ Validación de permiso (después de todos los hooks)
+  if (!can(APP_PERMISSIONS.SETTINGS)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.deniedContainer}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para acceder a configuración</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>

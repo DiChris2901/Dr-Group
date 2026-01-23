@@ -45,20 +45,6 @@ export default function DashboardScreen() {
   const { updateAvailable, showUpdateDialog } = useAppDistribution();
   const { can } = usePermissions();
   
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.DASHBOARD)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <PaperText variant="headlineSmall" style={styles.deniedTitle}>🔒 Acceso Denegado</PaperText>
-          <PaperText variant="bodyMedium" style={styles.deniedMessage}>No tienes permiso para marcar jornada laboral</PaperText>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   const { 
     user, 
     userProfile, 

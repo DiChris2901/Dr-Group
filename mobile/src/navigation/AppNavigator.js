@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissionChangeNotifier } from '../hooks/usePermissionChangeNotifier';
 import { ActivityIndicator, View } from 'react-native';
 
 // Screens
@@ -26,6 +27,9 @@ const Stack = createNativeStackNavigator();
 
 function AppNavigator({ navigation }, ref) {
   const { user, userProfile, loading } = useAuth();
+  
+  // ✅ Hook para notificar cambios de permisos en tiempo real
+  usePermissionChangeNotifier();
 
   // ✅ Esperar a que tanto user como userProfile estén cargados
   if (loading || (user && !userProfile)) {

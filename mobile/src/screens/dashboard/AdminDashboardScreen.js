@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking } from 'react-native';
 import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
@@ -22,26 +23,12 @@ export default function AdminDashboardScreen({ navigation }) {
   const { unreadCount } = useNotifications();
   const { updateAvailable, showUpdateDialog } = useAppDistribution();
   const { can } = usePermissions();
-  
-  // ✅ Validación de permiso
-  if (!can(APP_PERMISSIONS.ADMIN_DASHBOARD)) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
-          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
-          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para acceder al panel administrativo</Text>
-          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
-  
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [filter, setFilter] = useState('working'); // Default to 'working'
   const [allEmployees, setAllEmployees] = useState([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // ✅ Controlar primera carga
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
@@ -83,7 +70,11 @@ export default function AdminDashboardScreen({ navigation }) {
   const fetchData = useCallback(async () => {
     if (!user?.uid) return; // ✅ Protección adicional
     
-    setLoading(true);
+    // ✅ Solo mostrar loading en la primera carga, no al cambiar de pantallas
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+    
     try {
       // 1. Get Total Employees
       const usersQuery = query(collection(db, 'users'), where('role', '!=', 'ADMIN')); 
@@ -163,10 +154,12 @@ export default function AdminDashboardScreen({ navigation }) {
         
         setAllEmployees(processedList);
         setLoading(false);
+        setIsInitialLoad(false); // ✅ Marcar que ya cargó la primera vez
       },
       (error) => {
         console.log("⚠️ Error en listener de asistencias (esperado al cerrar sesión):", error.code);
         setLoading(false);
+        setIsInitialLoad(false); // ✅ Marcar que ya cargó aunque haya error
       }
       );
 
@@ -174,8 +167,9 @@ export default function AdminDashboardScreen({ navigation }) {
     } catch (error) {
       console.error('Error fetching admin dashboard data:', error);
       setLoading(false);
+      setIsInitialLoad(false); // ✅ Marcar que ya cargó aunque haya error
     }
-  }, [user]);
+  }, [user, isInitialLoad]); // ✅ Agregar isInitialLoad a dependencias
 
   // ✅ useFocusEffect para limpiar listener cuando pierde foco (optimización para dispositivos lentos)
   useFocusEffect(

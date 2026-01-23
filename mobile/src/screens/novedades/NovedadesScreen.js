@@ -44,10 +44,26 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   const { can } = usePermissions();
   const theme = useTheme();
   
-  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
+  // ✅ TODOS LOS HOOKS PRIMERO (Rules of Hooks)
+  const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
+  const [type, setType] = useState('llegada_tarde');
+  const [description, setDescription] = useState('');
+  const [attachment, setAttachment] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Edit states
+  const [editingId, setEditingId] = useState(null);
+  const [existingAttachment, setExistingAttachment] = useState(null);
+  const [originalAttachment, setOriginalAttachment] = useState(null);
+  
+  // Historial states
+  const [historial, setHistorial] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(true);
+  const unsubscribeRef = useRef(null);
+  
+  // 🔒 Validación de permisos (NO bloquear UI, solo controlar contenido)
   const puedeGestionar = can(APP_PERMISSIONS.NOVEDADES_GESTIONAR);
   const puedeReportar = can(APP_PERMISSIONS.NOVEDADES_REPORTAR);
-  const tieneAcceso = puedeGestionar || puedeReportar;
   
   // Surface colors dinámicos
   const surfaceColors = useMemo(() => {
@@ -82,22 +98,6 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
     text: { color: surfaceColors.onSurface },
     textSecondary: { color: surfaceColors.onSurfaceVariant }
   };
-  
-  const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
-  const [type, setType] = useState('llegada_tarde');
-  const [description, setDescription] = useState('');
-  const [attachment, setAttachment] = useState(null);
-  const [loading, setLoading] = useState(false);
-  
-  // Edit states
-  const [editingId, setEditingId] = useState(null);
-  const [existingAttachment, setExistingAttachment] = useState(null);
-  const [originalAttachment, setOriginalAttachment] = useState(null);
-  
-  // Historial states
-  const [historial, setHistorial] = useState([]);
-  const [loadingHistorial, setLoadingHistorial] = useState(true);
-  const unsubscribeRef = useRef(null);
 
   const tiposNovedad = [
     { id: 'llegada_tarde', label: 'Llegada Tarde', icon: 'clock-alert-outline' },
@@ -501,23 +501,8 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]} edges={['top', 'left', 'right']}>
-      {/* 🔒 VALIDACIÓN DE ACCESO */}
-      {!tieneAcceso ? (
-        <View style={styles.deniedContainer}>
-          <Surface style={{ padding: 32, alignItems: 'center', borderRadius: 28, backgroundColor: surfaceColors.surfaceContainerLow }} elevation={0}>
-            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
-            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
-              🔒 Acceso Denegado
-            </Text>
-            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
-              No tienes permiso para gestionar novedades.
-            </Text>
-          </Surface>
-        </View>
-      ) : (
-        <>
-          {/* Header */}
-          <View style={styles.header}>
+      {/* Header */}
+      <View style={styles.header}>
             <View>
               <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
                 Novedades
@@ -845,8 +830,6 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
             />
           )}
         </View>
-      )}
-      </>
       )}
     </SafeAreaView>
   );
