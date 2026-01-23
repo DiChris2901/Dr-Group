@@ -8,39 +8,35 @@
 
 export const APP_PERMISSIONS = {
   // ====================================
-  // 📱 BÁSICOS (7 permisos) - Acceso a pantallas principales
+  // 📱 PANTALLAS INDIVIDUALES (11 permisos)
   // ====================================
-  DASHBOARD: 'dashboard',           // Ver DashboardScreen
-  CALENDARIO: 'calendario',         // Ver CalendarioScreen
-  HISTORIAL: 'historial',          // Ver HistorialScreen
-  PERFIL: 'perfil',                // Ver PerfilScreen
-  CONFIGURACION: 'configuracion',   // Ver SettingsScreen
-  NOTIFICACIONES: 'notificaciones', // Ver NotificacionesScreen
-  CHAT: 'chat',                    // Ver ChatScreen
+  DASHBOARD: 'dashboard',                          // DashboardScreen (marcar jornada)
+  SETTINGS: 'settings',                            // SettingsScreen
+  NOTIFICACIONES: 'notificaciones',                // NotificacionesScreen
+  PERFIL: 'perfil',                                // Editar Perfil
+  CALENDARIO: 'calendario',                        // CalendarioScreen
+  ADMIN_DASHBOARD: 'admin.dashboard',              // AdminDashboardScreen → Define ROL: ADMIN
+  ADMIN_NOVEDADES: 'admin.novedades',              // AdminNovedadesScreen
+  ADMIN_CREATE_ALERT: 'admin.create_alert',        // AdminCreateAlert
+  ADMIN_NOTIFICATION_CONTROL: 'admin.notification_control', // AdminNotificationControl
+  ADMIN_SETTINGS: 'admin.settings',                // AdminSettings
+  USUARIOS_GESTIONAR: 'usuarios.gestionar',        // UsersScreen → Define ROL: SUPERADMIN
 
   // ====================================
   // 🔀 DIVIDIDOS (6 permisos) - Dos niveles de acceso
   // ====================================
   
-  // ASISTENCIAS (2 permisos) - Control de visibilidad de registros
-  ASISTENCIAS_PROPIAS: 'asistencias.propias',  // ← Ve SOLO sus registros
-  ASISTENCIAS_TODOS: 'asistencias.todos',      // ← Ve registros de TODOS
+  // ASISTENCIAS (2 permisos)
+  ASISTENCIAS_PROPIAS: 'asistencias.propias',      // Ver SOLO mis registros
+  ASISTENCIAS_TODOS: 'asistencias.todos',          // Ver registros de TODOS
 
-  // NOVEDADES (2 permisos) - Control de acciones
-  NOVEDADES_REPORTAR: 'novedades.reportar',    // ← Reportar incidentes propios
-  NOVEDADES_GESTIONAR: 'novedades.gestionar',  // ← Gestionar todas las novedades
+  // NOVEDADES (2 permisos)
+  NOVEDADES_REPORTAR: 'novedades.reportar',        // Reportar mis incidentes
+  NOVEDADES_GESTIONAR: 'novedades.gestionar',      // Gestionar todas las novedades
 
-  // REPORTES (2 permisos) - Control de visibilidad de reportes
-  REPORTES_PROPIOS: 'reportes.propios',        // ← Ve SOLO sus reportes
-  REPORTES_TODOS: 'reportes.todos',            // ← Ve reportes de TODOS
-
-  // ====================================
-  // 👑 ADMIN (4 permisos) - Acceso a funciones administrativas
-  // ====================================
-  ADMIN_DASHBOARD: 'admin.dashboard',          // ← Define ROL: ADMIN
-  USUARIOS_GESTIONAR: 'usuarios.gestionar',    // ← Define ROL: SUPERADMIN (gestión de permisos)
-  STORAGE: 'storage',                          // ← Acceso a gestión de archivos
-  AUDITORIA: 'auditoria'                       // ← Ver logs del sistema
+  // REPORTES (2 permisos)
+  REPORTES_PROPIOS: 'reportes.propios',            // Ver SOLO mi desempeño
+  REPORTES_TODOS: 'reportes.todos',                // Ver desempeño de TODOS
 };
 
 // ========================================
@@ -49,18 +45,16 @@ export const APP_PERMISSIONS = {
 
 export const PERMISSION_CATEGORIES = [
   {
-    id: 'basicos',
-    name: '📱 Básicos',
-    description: 'Acceso a pantallas principales de la app',
-    icon: 'apps',
+    id: 'pantallas',
+    name: '📱 Pantallas Generales',
+    description: 'Acceso a pantallas principales',
+    icon: 'view-dashboard',
     permissions: [
       APP_PERMISSIONS.DASHBOARD,
-      APP_PERMISSIONS.CALENDARIO,
-      APP_PERMISSIONS.HISTORIAL,
-      APP_PERMISSIONS.PERFIL,
-      APP_PERMISSIONS.CONFIGURACION,
+      APP_PERMISSIONS.SETTINGS,
       APP_PERMISSIONS.NOTIFICACIONES,
-      APP_PERMISSIONS.CHAT,
+      APP_PERMISSIONS.PERFIL,
+      APP_PERMISSIONS.CALENDARIO,
     ],
   },
   {
@@ -84,12 +78,20 @@ export const PERMISSION_CATEGORIES = [
     icon: 'shield-crown',
     permissions: [
       APP_PERMISSIONS.ADMIN_DASHBOARD,
+      APP_PERMISSIONS.ADMIN_NOVEDADES,
+      APP_PERMISSIONS.ADMIN_CREATE_ALERT,
+      APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL,
+      APP_PERMISSIONS.ADMIN_SETTINGS,
       APP_PERMISSIONS.USUARIOS_GESTIONAR,
-      APP_PERMISSIONS.STORAGE,
-      APP_PERMISSIONS.AUDITORIA,
     ],
   },
 ];
+
+// ========================================
+// 📊 CONSTANTES DEL SISTEMA
+// ========================================
+
+export const TOTAL_PERMISSIONS = 17; // Total de permisos en el sistema v2.0
 
 // ========================================
 // 🎭 ROLES Y PERMISOS POR DEFECTO

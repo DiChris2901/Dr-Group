@@ -48,6 +48,7 @@ import {
   PERMISSION_CATEGORIES,
   calculateAppRole,
   SUPERADMIN_PERMISSIONS,
+  TOTAL_PERMISSIONS,
 } from '../../constants/permissions';
 
 export default function UsersScreen() {
@@ -72,17 +73,62 @@ export default function UsersScreen() {
   const [saving, setSaving] = useState(false);
 
   // ========================================
+  // 🏷️ FUNCIÓN PARA NOMBRES DESCRIPTIVOS
+  // ========================================
+
+  const getPermissionDisplayName = (permission) => {
+    const names = {
+      // Pantallas Generales
+      'dashboard': '📊 Dashboard (Marcar Jornada)',
+      'settings': '⚙️ Configuración',
+      'notificaciones': '🔔 Notificaciones',
+      'perfil': '👤 Editar Perfil',
+      'calendario': '📅 Calendario',
+      
+      // Asistencias
+      'asistencias.propias': '✅ Ver mis registros',
+      'asistencias.todos': '👥 Ver todos los registros',
+      
+      // Reportes
+      'reportes.propios': '📈 Ver mi desempeño',
+      'reportes.todos': '📊 Ver desempeño del equipo',
+      
+      // Novedades
+      'novedades.reportar': '📝 Reportar incidencias',
+      'novedades.gestionar': '🔧 Gestionar incidencias',
+      
+      // Admin
+      'admin.dashboard': '🎛️ Panel Admin',
+      'admin.novedades': '📋 Admin Novedades',
+      'admin.create_alert': '🚨 Crear Alertas',
+      'admin.notification_control': '📬 Control de Notificaciones',
+      'admin.settings': '🔧 Configuración Laboral',
+      'usuarios.gestionar': '👑 Gestionar Usuarios',
+    };
+    
+    return names[permission] || permission;
+  };
+
+  // ========================================
   // 🔒 VALIDACIÓN DE ACCESO
   // ========================================
 
-  const hasAccessToScreen = isSuperAdmin || can(APP_PERMISSIONS.USUARIOS_PERMISSIONS);
+  const hasAccessToScreen = can(APP_PERMISSIONS.USUARIOS_GESTIONAR);
 
   useEffect(() => {
+    // Solo mostrar alert si los permisos ya cargaron y no tiene acceso
+    if (selectedPermissions.length === 0) return; // Permisos aún no cargados
+    
     if (!hasAccessToScreen) {
       Alert.alert(
         '🔒 Acceso Denegado',
         'No tienes permisos para gestionar usuarios.',
-        [{ text: 'Entendido' }]
+        [
+          { 
+            text: 'Entendido', 
+            onPress: () => navigation.goBack() 
+          }
+        ]
       );
     }
   }, [hasAccessToScreen]);
@@ -169,7 +215,22 @@ export default function UsersScreen() {
 
   const openEditModal = (userToEdit) => {
     setSelectedUser(userToEdit);
-    setSelectedPermissions(userToEdit.permissions || []);
+    
+    // Filtrar solo permisos válidos del sistema v2.0 (eliminar permisos obsoletos del v1.0)
+    const validPermissions = Object.values(APP_PERMISSIONS);
+    const userValidPermissions = (userToEdit.permissions || []).filter(perm => 
+      validPermissions.includes(perm)
+    );
+    
+    console.log('🔍 Abriendo modal de edición:', {
+      usuario: userToEdit.name,
+      permisosEnFirestore: userToEdit.permissions?.length || 0,
+      permisosObsoletos: (userToEdit.permissions || []).filter(p => !validPermissions.includes(p)),
+      permisosValidos: userValidPermissions.length,
+      permisos: userValidPermissions,
+    });
+    
+    setSelectedPermissions(userValidPermissions);
     setExpandedCategories([]);
     setEditModalVisible(true);
   };
@@ -464,7 +525,7 @@ export default function UsersScreen() {
                         marginLeft: 4,
                       }}
                     >
-                      {userItem.permissionCount}/17
+                      {userItem.permissionCount}/{TOTAL_PERMISSIONS}
                     </Text>
                   </Surface>
                   
@@ -506,7 +567,7 @@ export default function UsersScreen() {
                     style={[
                       styles.permissionCounter,
                       { 
-                        backgroundColor: selectedPermissions.length === 17 
+                        backgroundColor: selectedPermissions.length === TOTAL_PERMISSIONS 
                           ? theme.colors.primaryContainer 
                           : theme.colors.secondaryContainer 
                       }
@@ -516,17 +577,17 @@ export default function UsersScreen() {
                     <MaterialCommunityIcons
                       name="shield-check"
                       size={16}
-                      color={selectedPermissions.length === 17 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer}
+                      color={selectedPermissions.length === TOTAL_PERMISSIONS ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer}
                     />
                     <Text 
                       variant="labelLarge" 
                       style={{ 
-                        color: selectedPermissions.length === 17 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer,
+                        color: selectedPermissions.length === TOTAL_PERMISSIONS ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer,
                         fontWeight: '600',
                         marginLeft: 4,
                       }}
                     >
-                      {selectedPermissions.length}/17
+                      {selectedPermissions.length}/{TOTAL_PERMISSIONS}
                     </Text>
                   </Surface>
                 </View>
@@ -545,20 +606,20 @@ export default function UsersScreen() {
                 mode="outlined"
                 onPress={() => {
                   triggerHaptic('selection');
-                  if (selectedPermissions.length === 17) {
+                  if (selectedPermissions.length === TOTAL_PERMISSIONS) {
                     // Desmarcar todo
                     setSelectedPermissions([]);
                   } else {
-                    // Seleccionar todo (17 permisos)
+                    // Seleccionar todo (todos los permisos del sistema)
                     const allPerms = Object.values(APP_PERMISSIONS);
                     console.log('✨ Seleccionando TODOS los permisos:', allPerms.length);
                     setSelectedPermissions(allPerms);
                   }
                 }}
                 style={{ borderRadius: 20 }}
-                icon={selectedPermissions.length === 17 ? "close-circle" : "check-all"}
+                icon={selectedPermissions.length === TOTAL_PERMISSIONS ? "close-circle" : "check-all"}
               >
-                {selectedPermissions.length === 17 ? 'Desmarcar Todo' : 'Seleccionar Todo (17)'}
+                {selectedPermissions.length === TOTAL_PERMISSIONS ? 'Desmarcar Todo' : `Seleccionar Todo (${TOTAL_PERMISSIONS})`}
               </Button>
             </View>
 
@@ -648,7 +709,7 @@ export default function UsersScreen() {
                               fontWeight: selectedPermissions.includes(perm) ? '600' : '400',
                             }}
                           >
-                            {perm.split('.')[1].replace(/_/g, ' ')}
+                            {getPermissionDisplayName(perm)}
                           </Text>
                           <Switch
                             value={selectedPermissions.includes(perm)}
