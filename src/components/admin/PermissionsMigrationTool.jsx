@@ -51,41 +51,39 @@ export default function PermissionsMigrationTool() {
     <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
       <Paper sx={{ p: 4, borderRadius: 3 }}>
         <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          🔐 Migración de Permisos
+          🔐 Migración de Permisos v2.0
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Script de inicialización del sistema RBAC para la app móvil
+          Sistema RBAC v2.0 - 14 permisos simplificados para la app móvil
         </Typography>
 
         {/* Warning */}
         <Alert severity="warning" icon={<Warning />} sx={{ mb: 3 }}>
           <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            ⚠️ Advertencia - Leer antes de ejecutar
+            👤 Script Individual - Solo para tu usuario
           </Typography>
           <Typography variant="body2">
-            Este script creará la colección <strong>PermissionsApp</strong> y agregará el campo{' '}
-            <strong>appRole</strong> a los usuarios existentes.{' '}
-            <strong>NO modificará el campo 'role' del dashboard web.</strong>
+            Este script <strong>SOLO procesará daruedagu@gmail.com</strong> y le asignará los 14 permisos de SUPERADMIN.{' '}
+            Los demás usuarios NO serán afectados y podrás gestionarlos desde UsersScreen.
           </Typography>
         </Alert>
 
         {/* Info Box */}
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-            📋 Qué hace este script:
+            📋 Proceso del Script:
           </Typography>
           <Box component="ul" sx={{ mt: 1, pl: 2 }}>
-            <li>Crea la colección <strong>PermissionsApp/{'{uid}'}</strong> para cada usuario</li>
-            <li>
-              Asigna permisos según el rol actual del dashboard:
+            <li>Buscar usuario <strong>daruedagu@gmail.com</strong> en Firestore</li>
+            <li>Crear documento <strong>PermissionsApp/{'{uid}'}</strong> con 14 permisos</li>
+            <li>Actualizar campo <strong>appRole: 'SUPERADMIN'</strong> en users/{'{uid}'}</li>
+            <li>Permisos asignados:
               <Box component="ul" sx={{ mt: 0.5 }}>
-                <li><strong>ADMIN</strong> → 18 permisos (ADMIN en app)</li>
-                <li><strong>EMPLEADO</strong> → 9 permisos (USER en app)</li>
-                <li><strong>daruedagu@gmail.com</strong> → 35 permisos (SUPERADMIN en app)</li>
+                <li>Básicos (6): dashboard, calendario, historial, perfil, config, notif</li>
+                <li>Divididos (6): asistencias.*, reportes.*, novedades.*</li>
+                <li>Admin (2): admin.dashboard, usuarios.gestionar</li>
               </Box>
             </li>
-            <li>Agrega el campo <strong>appRole</strong> a users/{'{uid}'} (independiente de 'role')</li>
-            <li>Registra todos los cambios en el log</li>
           </Box>
         </Alert>
 

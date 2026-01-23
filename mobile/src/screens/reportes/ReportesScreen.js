@@ -31,6 +31,8 @@ import { LineChart } from 'react-native-chart-kit';
 import { collection, query, getDocs, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { es } from 'date-fns/locale';
@@ -39,7 +41,13 @@ const { width } = Dimensions.get('window');
 
 export default function ReportesScreen() {
   const { userProfile, user, activeSession } = useAuth();
+  const { can } = usePermissions();
   const theme = useTheme();
+  
+  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
+  const puedeVerTodos = can(APP_PERMISSIONS.REPORTES_TODOS);
+  const puedeVerPropios = can(APP_PERMISSIONS.REPORTES_PROPIOS);
+  const tieneAcceso = puedeVerTodos || puedeVerPropios;
   
   // ✅ Surface colors dinámicos (Material You Expressive)
   const surfaceColors = theme.dark 
@@ -161,10 +169,10 @@ export default function ReportesScreen() {
       
       let q;
       
-      // 🎯 FILTRO POR EMPLEADO SELECCIONADO
-      if (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') {
+      // 🔒 CONTROL DE ACCESO BASADO EN PERMISOS
+      if (puedeVerTodos) {
+        // PERMISO: reportes.todos → Ver reportes de TODOS los usuarios
         if (empleadoSeleccionado === 'todos') {
-          // Ver todos los empleados (sin ADMIN)
           q = query(
             collection(db, 'asistencias'),
             where('fecha', '>=', fechaDesdeStr),
@@ -179,8 +187,8 @@ export default function ReportesScreen() {
             where('fecha', '<=', fechaHastaStr)
           );
         }
-      } else {
-        // Usuario normal: solo ver sus propios datos
+      } else if (puedeVerPropios) {
+        // PERMISO: reportes.propios → Ver SOLO sus reportes
         const targetUid = userProfile?.uid || user?.uid;
         if (!targetUid) {
           setLoading(false);
@@ -192,14 +200,18 @@ export default function ReportesScreen() {
           where('fecha', '>=', fechaDesdeStr),
           where('fecha', '<=', fechaHastaStr)
         );
+      } else {
+        // Sin permisos: no cargar nada
+        setLoading(false);
+        return;
       }
       
       const querySnapshot = await getDocs(q);
       let asistencias = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // 🎯 FILTRAR ADMIN: Solo si es vista "todos"
-      if ((userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && empleadoSeleccionado === 'todos') {
-        // Obtener UIDs de usuarios ADMIN para excluirlos
+      // 🎯 FILTRAR ADMIN: Solo si tiene permiso reportes.todos y vista "todos"
+      if (puedeVerTodos && empleadoSeleccionado === 'todos') {
+        // Obtener UIDs de usuarios ADMIN para excluirlos de reportes generales
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const adminUIDs = new Set();
         
@@ -546,26 +558,40 @@ export default function ReportesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5, fontFamily: 'Roboto-Flex', fontVariationSettings: "'wdth' 110" }}>
-            Estadísticas
-          </Text>
-          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
-            Tu desempeño laboral
-          </Text>
+      {/* 🔒 VALIDACIÓN DE ACCESO */}
+      {!tieneAcceso ? (
+        <View style={styles.deniedContainer}>
+          <Surface style={{ padding: 32, alignItems: 'center', borderRadius: 28, backgroundColor: surfaceColors.surfaceContainerLow }} elevation={0}>
+            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
+            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
+              🔒 Acceso Denegado
+            </Text>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
+              No tienes permiso para ver reportes.
+            </Text>
+          </Surface>
         </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+          }
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5, fontFamily: 'Roboto-Flex', fontVariationSettings: "'wdth' 110" }}>
+              Estadísticas
+            </Text>
+            <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+              {puedeVerTodos ? 'Desempeño del equipo' : 'Tu desempeño laboral'}
+            </Text>
+          </View>
 
-        {/* Filters (SegmentedButtons como en Novedades) */}
-        <View style={styles.filterContainer}>
-          {/* Dropdown de Empleados (solo ADMIN) - Material You Expressive */}
-          {userProfile?.role === 'ADMIN' && (
+          {/* Filters (SegmentedButtons como en Novedades) */}
+          <View style={styles.filterContainer}>
+            {/* Dropdown de Empleados (solo con permiso reportes.todos) - Material You Expressive */}
+            {puedeVerTodos && (
             <View style={{ marginBottom: 16 }}>
               <Pressable
                 onPress={() => {
@@ -1024,6 +1050,7 @@ export default function ReportesScreen() {
           </>
         )}
       </ScrollView>
+      )}
 
       {/* ✅ Date Pickers (Modal nativo) */}
       {showStartDatePicker && (
@@ -1101,5 +1128,11 @@ const styles = StyleSheet.create({
   },
   statContent: {
     alignItems: 'flex-start',
-  }
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
 });

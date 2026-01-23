@@ -32,6 +32,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { format, startOfMonth, parseISO, startOfWeek, endOfWeek, subMonths, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
@@ -46,7 +48,13 @@ const { width, height } = Dimensions.get('window');
 
 export default function AsistenciasScreen({ navigation }) {
   const { userProfile, user, activeSession } = useAuth();
+  const { can } = usePermissions();
   const theme = useTheme();
+  
+  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
+  const puedeVerTodos = can(APP_PERMISSIONS.ASISTENCIAS_TODOS);
+  const puedeVerPropias = can(APP_PERMISSIONS.ASISTENCIAS_PROPIAS);
+  const tieneAcceso = puedeVerTodos || puedeVerPropias;
   
   // 🎨 Material You Expressive: Surface colors para profundidad (no sombras)
   const surfaceColors = theme.dark 
@@ -192,7 +200,7 @@ export default function AsistenciasScreen({ navigation }) {
       }
       
       // ✅ Generar clave única para caché
-      const cacheKey = `asistencias_${filterType}_${startDateStr}_${endDateStr}_${user?.uid}`;
+      const cacheKey = `asistencias_${filterType}_${startDateStr}_${endDateStr}_${user?.uid}_${puedeVerTodos}`;
       
       // ✅ Verificar caché local (válido por 1 hora)
       try {
@@ -212,8 +220,18 @@ export default function AsistenciasScreen({ navigation }) {
         console.log('Error leyendo caché:', cacheError);
       }
       
-      if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
-        // Query para empleado (solo sus registros)
+      // 🔒 CONTROL DE ACCESO BASADO EN PERMISOS
+      if (puedeVerTodos) {
+        // PERMISO: asistencias.todos → Ver registros de TODOS los usuarios
+        q = query(
+          collection(db, 'asistencias'),
+          where('fecha', '>=', startDateStr),
+          where('fecha', '<=', endDateStr),
+          orderBy('fecha', 'desc'),
+          limit(200) // Puede ver más registros
+        );
+      } else if (puedeVerPropias) {
+        // PERMISO: asistencias.propias → Ver SOLO sus registros
         const targetUid = userProfile?.uid || user?.uid;
         if (!targetUid) {
           setLoading(false);
@@ -226,17 +244,13 @@ export default function AsistenciasScreen({ navigation }) {
           where('fecha', '>=', startDateStr),
           where('fecha', '<=', endDateStr),
           orderBy('fecha', 'desc'),
-          limit(100) // ✅ Protección
+          limit(100) // Límite menor para usuarios básicos
         );
       } else {
-        // Query para admin (todos los registros)
-        q = query(
-          collection(db, 'asistencias'),
-          where('fecha', '>=', startDateStr),
-          where('fecha', '<=', endDateStr),
-          orderBy('fecha', 'desc'),
-          limit(200) // ✅ Admins pueden ver más
-        );
+        // Sin permisos: no cargar nada
+        setAsistencias([]);
+        setLoading(false);
+        return;
       }
 
       const querySnapshot = await getDocs(q);
@@ -508,38 +522,53 @@ export default function AsistenciasScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
-      <View style={[styles.header, (userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <View>
-          <Text 
-            variant="displaySmall" 
-            style={{ 
-              fontWeight: '400', 
-              color: surfaceColors.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4
-            }}
-          >
-            Historial
-          </Text>
-          <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
-            Registro de Asistencias
-          </Text>
+      {/* 🔒 VALIDACIÓN DE ACCESO */}
+      {!tieneAcceso ? (
+        <View style={styles.deniedContainer}>
+          <SobrioCard style={{ padding: 32, alignItems: 'center', borderRadius: 28 }}>
+            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
+            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
+              🔒 Acceso Denegado
+            </Text>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
+              No tienes permiso para ver registros de asistencias.
+            </Text>
+          </SobrioCard>
         </View>
-        {/* ✅ Botón Exportar PDF (Solo admins) */}
-        {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
-          <IconButton
-            icon="file-pdf-box"
-            size={28}
-            iconColor={surfaceColors.primary}
-            style={{ 
-              backgroundColor: surfaceColors.primaryContainer,
-              borderRadius: 16 
-            }}
-            onPress={handleExportPDF}
-          />
-        )}
-      </View>
+      ) : (
+        <>
+          <View style={[styles.header, puedeVerTodos && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View>
+              <Text 
+                variant="displaySmall" 
+                style={{ 
+                  fontWeight: '400', 
+                  color: surfaceColors.onSurface,
+                  letterSpacing: -0.5,
+                  fontFamily: 'Roboto-Flex',
+                  marginBottom: 4
+                }}
+              >
+                Historial
+              </Text>
+              <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
+                {puedeVerTodos ? 'Registro de Todos' : 'Tus Registros'}
+              </Text>
+            </View>
+            {/* ✅ Botón Exportar PDF (Solo con permiso asistencias.todos) */}
+            {puedeVerTodos && (
+              <IconButton
+                icon="file-pdf-box"
+                size={28}
+                iconColor={surfaceColors.primary}
+                style={{ 
+                  backgroundColor: surfaceColors.primaryContainer,
+                  borderRadius: 16 
+                }}
+                onPress={handleExportPDF}
+              />
+            )}
+          </View>
 
       {/* ✅ Búsqueda por texto */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
@@ -1170,6 +1199,8 @@ export default function AsistenciasScreen({ navigation }) {
           </Surface>
         </View>
       </Modal>
+      </>
+      )}
     </SafeAreaView>
   );
 }
@@ -1277,6 +1308,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
   // ✅ Expressive Detail Card (border radius 24px, padding 20px)
   expressiveDetailCard: {

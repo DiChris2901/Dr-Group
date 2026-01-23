@@ -29,17 +29,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, query, where, orderBy, onSnapshot, deleteDoc, doc, updateDoc, limit } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { notifyAdminsWorkEvent } from '../../utils/notificationHelpers';
 
 export default function NovedadesScreen({ navigation, isModal = false, onClose }) {
   const { user, userProfile } = useAuth();
+  const { can } = usePermissions();
   const theme = useTheme();
+  
+  // 🔒 CONTROL DE ACCESO: Verificar permisos divididos
+  const puedeGestionar = can(APP_PERMISSIONS.NOVEDADES_GESTIONAR);
+  const puedeReportar = can(APP_PERMISSIONS.NOVEDADES_REPORTAR);
+  const tieneAcceso = puedeGestionar || puedeReportar;
   
   // Surface colors dinámicos
   const surfaceColors = useMemo(() => {
@@ -100,16 +108,34 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
     { id: 'otro', label: 'Otro', icon: 'pencil-outline' },
   ];
 
-  // ✅ useFocusEffect para limpiar listener al perder foco
+  // ✅ useFocusEffect para cargar datos según permisos
   useFocusEffect(
     useCallback(() => {
       if (activeTab === 'historial') {
-        const q = query(
-          collection(db, 'novedades'),
-          where('uid', '==', user.uid),
-          orderBy('date', 'desc'),
-          limit(50) // ✅ Solo últimas 50 novedades del usuario
-        );
+        let q;
+        
+        // 🔒 CONTROL DE ACCESO: Cargar según permisos
+        if (puedeGestionar) {
+          // PERMISO: novedades.gestionar → Ver TODAS las novedades
+          q = query(
+            collection(db, 'novedades'),
+            orderBy('date', 'desc'),
+            limit(100) // Más registros para gestión
+          );
+        } else if (puedeReportar) {
+          // PERMISO: novedades.reportar → Ver SOLO las suyas
+          q = query(
+            collection(db, 'novedades'),
+            where('uid', '==', user.uid),
+            orderBy('date', 'desc'),
+            limit(50)
+          );
+        } else {
+          // Sin permisos: no cargar nada
+          setHistorial([]);
+          setLoadingHistorial(false);
+          return;
+        }
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -126,7 +152,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
           }
         };
       }
-    }, [activeTab, user.uid])
+    }, [activeTab, user.uid, puedeGestionar, puedeReportar])
   );
 
   const pickDocument = useCallback(async () => {
@@ -475,45 +501,60 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
-            Novedades
-          </Text>
-          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
-            Reporta incidencias laborales
-          </Text>
+      {/* 🔒 VALIDACIÓN DE ACCESO */}
+      {!tieneAcceso ? (
+        <View style={styles.deniedContainer}>
+          <Surface style={{ padding: 32, alignItems: 'center', borderRadius: 28, backgroundColor: surfaceColors.surfaceContainerLow }} elevation={0}>
+            <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
+            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 16, textAlign: 'center' }}>
+              🔒 Acceso Denegado
+            </Text>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}>
+              No tienes permiso para gestionar novedades.
+            </Text>
+          </Surface>
         </View>
-        {isModal && (
-          <IconButton icon="close" onPress={onClose} />
-        )}
-      </View>
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
+                Novedades
+              </Text>
+              <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+                {puedeGestionar ? 'Gestionar incidencias del equipo' : 'Reporta tus incidencias laborales'}
+              </Text>
+            </View>
+            {isModal && (
+              <IconButton icon="close" onPress={onClose} />
+            )}
+          </View>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <SegmentedButtons
-          value={activeTab}
-          onValueChange={(value) => {
-            Haptics.selectionAsync();
-            setActiveTab(value);
-          }}
-          buttons={[
-            {
-              value: 'reportar',
-              label: 'Reportar',
-              icon: 'pencil-plus',
-            },
-            {
-              value: 'historial',
-              label: 'Historial',
-              icon: 'history',
-            },
-          ]}
-        />
-      </View>
+          {/* Tabs - Solo mostrar tab "Reportar" si tiene permiso */}
+          <View style={styles.tabContainer}>
+            <SegmentedButtons
+              value={activeTab}
+              onValueChange={(value) => {
+                Haptics.selectionAsync();
+                setActiveTab(value);
+              }}
+              buttons={[
+                ...(puedeReportar ? [{
+                  value: 'reportar',
+                  label: 'Reportar',
+                  icon: 'pencil-plus',
+                }] : []),
+                {
+                  value: 'historial',
+                  label: puedeGestionar ? 'Gestionar' : 'Historial',
+                  icon: 'history',
+                },
+              ]}
+            />
+          </View>
 
-      {activeTab === 'reportar' ? (
+          {activeTab === 'reportar' && puedeReportar ? (
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
@@ -805,6 +846,8 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
           )}
         </View>
       )}
+      </>
+      )}
     </SafeAreaView>
   );
 }
@@ -898,5 +941,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     marginBottom: 16,
-  }
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
 });
