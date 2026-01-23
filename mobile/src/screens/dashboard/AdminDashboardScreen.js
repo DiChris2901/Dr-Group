@@ -76,8 +76,11 @@ export default function AdminDashboardScreen({ navigation }) {
     }
     
     try {
-      // 1. Get Total Employees
-      const usersQuery = query(collection(db, 'users'), where('role', '!=', 'ADMIN')); 
+      // 1. Get Total Employees (excluir ADMIN y SUPERADMIN)
+      const usersQuery = query(
+        collection(db, 'users'), 
+        where('appRole', 'in', ['USER', 'EMPLOYEE'])
+      ); 
       const usersSnapshot = await getDocs(usersQuery);
       const employeesList = [];
       usersSnapshot.docs.forEach(doc => {
@@ -171,22 +174,20 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   }, [user, isInitialLoad]); // ✅ Agregar isInitialLoad a dependencias
 
-  // ✅ useFocusEffect para limpiar listener cuando pierde foco (optimización para dispositivos lentos)
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.uid) {
-        fetchData();
-      }
+  // ✅ useEffect para listener permanente - NO se detiene al cambiar de tab
+  useEffect(() => {
+    if (user?.uid) {
+      fetchData();
+    }
 
-      // Cleanup: detener listener cuando pierde el foco
-      return () => {
-        if (unsubscribeRef.current) {
-          unsubscribeRef.current();
-          unsubscribeRef.current = null;
-        }
-      };
-    }, [user, fetchData])
-  );
+    // Cleanup: solo al desmontar componente (logout)
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
+  }, [user, fetchData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

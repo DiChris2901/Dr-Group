@@ -38,7 +38,45 @@ if ([string]::IsNullOrEmpty($Version)) {
         $appJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
         $Version = $appJson.expo.version
         $versionCode = $appJson.expo.android.versionCode
-        Write-Host "Version detectada: $Version (Build $versionCode)" -ForegroundColor Green
+        
+        # ========================================
+        # DETECTAR TIPO DE VERSION (PATCH/MINOR/MAJOR)
+        # ========================================
+        $versionParts = $Version -split '\.'
+        $major = [int]$versionParts[0]
+        $minor = [int]$versionParts[1]
+        $patch = [int]$versionParts[2]
+        
+        $versionType = "UNKNOWN"
+        $versionPrefix = "[?]"
+        
+        # Leer version anterior del ultimo commit (si existe)
+        try {
+            $lastVersion = git show HEAD~1:mobile/app.json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty expo | Select-Object -ExpandProperty version
+            if ($lastVersion) {
+                $lastParts = $lastVersion -split '\.'
+                $lastMajor = [int]$lastParts[0]
+                $lastMinor = [int]$lastParts[1]
+                $lastPatch = [int]$lastParts[2]
+                
+                if ($major -gt $lastMajor) {
+                    $versionType = "MAJOR"
+                    $versionPrefix = "[MAJOR]"
+                } elseif ($minor -gt $lastMinor) {
+                    $versionType = "MINOR"
+                    $versionPrefix = "[MINOR]"
+                } elseif ($patch -gt $lastPatch) {
+                    $versionType = "PATCH"
+                    $versionPrefix = "[PATCH]"
+                }
+            }
+        } catch {
+            # Si no se puede leer la version anterior, asumir MINOR
+            $versionType = "MINOR"
+            $versionPrefix = "[MINOR]"
+        }
+        
+        Write-Host "$versionPrefix Version detectada: v$Version (Build $versionCode) - $versionType" -ForegroundColor Green
         
         # ========================================
         # SINCRONIZAR BUILD.GRADLE CON APP.JSON
