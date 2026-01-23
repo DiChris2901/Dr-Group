@@ -1,65 +1,46 @@
-// 📋 SISTEMA DE PERMISOS GRANULARES - APP MÓVIL
-// Versión 1.0.0 - Enero 2026
+// 📋 SISTEMA DE PERMISOS SIMPLIFICADO - APP MÓVIL
+// Versión 2.0.0 - Enero 2026
+// ROL = Identificación visual | PERMISO = Control de acceso real
 
 // ========================================
-// 🎯 DEFINICIÓN DE PERMISOS (35 TOTAL)
+// 🎯 DEFINICIÓN DE PERMISOS (17 TOTAL)
 // ========================================
 
 export const APP_PERMISSIONS = {
-  // 1. DASHBOARD (3 permisos)
-  DASHBOARD_VIEW: 'dashboard.view',
-  DASHBOARD_STATS: 'dashboard.stats',
-  DASHBOARD_CHARTS: 'dashboard.charts',
+  // ====================================
+  // 📱 BÁSICOS (7 permisos) - Acceso a pantallas principales
+  // ====================================
+  DASHBOARD: 'dashboard',           // Ver DashboardScreen
+  CALENDARIO: 'calendario',         // Ver CalendarioScreen
+  HISTORIAL: 'historial',          // Ver HistorialScreen
+  PERFIL: 'perfil',                // Ver PerfilScreen
+  CONFIGURACION: 'configuracion',   // Ver SettingsScreen
+  NOTIFICACIONES: 'notificaciones', // Ver NotificacionesScreen
+  CHAT: 'chat',                    // Ver ChatScreen
 
-  // 2. ASISTENCIAS (5 permisos)
-  ASISTENCIAS_VIEW: 'asistencias.view',
-  ASISTENCIAS_REGISTRO: 'asistencias.registro',
-  ASISTENCIAS_BREAK: 'asistencias.break',
-  ASISTENCIAS_ALMUERZO: 'asistencias.almuerzo',
-  ASISTENCIAS_EXPORT: 'asistencias.export',
+  // ====================================
+  // 🔀 DIVIDIDOS (6 permisos) - Dos niveles de acceso
+  // ====================================
+  
+  // ASISTENCIAS (2 permisos) - Control de visibilidad de registros
+  ASISTENCIAS_PROPIAS: 'asistencias.propias',  // ← Ve SOLO sus registros
+  ASISTENCIAS_TODOS: 'asistencias.todos',      // ← Ve registros de TODOS
 
-  // 3. REPORTES (4 permisos)
-  REPORTES_VIEW: 'reportes.view',
-  REPORTES_STATS: 'reportes.stats',
-  REPORTES_CHARTS: 'reportes.charts',
-  REPORTES_EXPORT: 'reportes.export',
+  // NOVEDADES (2 permisos) - Control de acciones
+  NOVEDADES_REPORTAR: 'novedades.reportar',    // ← Reportar incidentes propios
+  NOVEDADES_GESTIONAR: 'novedades.gestionar',  // ← Gestionar todas las novedades
 
-  // 4. CALENDARIO (3 permisos)
-  CALENDARIO_VIEW: 'calendario.view',
-  CALENDARIO_EVENTOS: 'calendario.eventos',
-  CALENDARIO_FESTIVOS: 'calendario.festivos',
+  // REPORTES (2 permisos) - Control de visibilidad de reportes
+  REPORTES_PROPIOS: 'reportes.propios',        // ← Ve SOLO sus reportes
+  REPORTES_TODOS: 'reportes.todos',            // ← Ve reportes de TODOS
 
-  // 5. NOVEDADES (4 permisos)
-  NOVEDADES_VIEW: 'novedades.view',
-  NOVEDADES_CREATE: 'novedades.create',
-  NOVEDADES_EDIT: 'novedades.edit',
-  NOVEDADES_DELETE: 'novedades.delete',
-
-  // 6. USUARIOS (4 permisos)
-  USUARIOS_VIEW: 'usuarios.view',
-  USUARIOS_PERMISSIONS: 'usuarios.permissions', // ← CRÍTICO: Solo SUPERADMIN
-  USUARIOS_CREATE: 'usuarios.create',
-  USUARIOS_EDIT: 'usuarios.edit',
-
-  // 7. CONFIGURACIÓN (3 permisos)
-  CONFIG_VIEW: 'config.view',
-  CONFIG_THEME: 'config.theme',
-  CONFIG_APP: 'config.app',
-
-  // 8. PERFIL (3 permisos)
-  PERFIL_VIEW: 'perfil.view',
-  PERFIL_EDIT: 'perfil.edit',
-  PERFIL_PHOTO: 'perfil.photo',
-
-  // 9. NOTIFICACIONES (3 permisos)
-  NOTIFICACIONES_VIEW: 'notificaciones.view',
-  NOTIFICACIONES_MANAGE: 'notificaciones.manage',
-  NOTIFICACIONES_SEND: 'notificaciones.send',
-
-  // 10. AVANZADO (3 permisos)
-  STORAGE_VIEW: 'storage.view',
-  LOGS_VIEW: 'logs.view',
-  ADMIN_TOOLS: 'admin.tools',
+  // ====================================
+  // 👑 ADMIN (4 permisos) - Acceso a funciones administrativas
+  // ====================================
+  ADMIN_DASHBOARD: 'admin.dashboard',          // ← Define ROL: ADMIN
+  USUARIOS_GESTIONAR: 'usuarios.gestionar',    // ← Define ROL: SUPERADMIN (gestión de permisos)
+  STORAGE: 'storage',                          // ← Acceso a gestión de archivos
+  AUDITORIA: 'auditoria'                       // ← Ver logs del sistema
 };
 
 // ========================================
@@ -68,108 +49,44 @@ export const APP_PERMISSIONS = {
 
 export const PERMISSION_CATEGORIES = [
   {
-    id: 'dashboard',
-    name: 'Dashboard',
-    icon: 'view-dashboard',
+    id: 'basicos',
+    name: '📱 Básicos',
+    description: 'Acceso a pantallas principales de la app',
+    icon: 'apps',
     permissions: [
-      APP_PERMISSIONS.DASHBOARD_VIEW,
-      APP_PERMISSIONS.DASHBOARD_STATS,
-      APP_PERMISSIONS.DASHBOARD_CHARTS,
+      APP_PERMISSIONS.DASHBOARD,
+      APP_PERMISSIONS.CALENDARIO,
+      APP_PERMISSIONS.HISTORIAL,
+      APP_PERMISSIONS.PERFIL,
+      APP_PERMISSIONS.CONFIGURACION,
+      APP_PERMISSIONS.NOTIFICACIONES,
+      APP_PERMISSIONS.CHAT,
     ],
   },
   {
-    id: 'asistencias',
-    name: 'Asistencias',
-    icon: 'clock-check-outline',
+    id: 'divididos',
+    name: '🔀 Acceso Dividido',
+    description: 'Permisos con dos niveles (propios vs todos)',
+    icon: 'account-switch',
     permissions: [
-      APP_PERMISSIONS.ASISTENCIAS_VIEW,
-      APP_PERMISSIONS.ASISTENCIAS_REGISTRO,
-      APP_PERMISSIONS.ASISTENCIAS_BREAK,
-      APP_PERMISSIONS.ASISTENCIAS_ALMUERZO,
-      APP_PERMISSIONS.ASISTENCIAS_EXPORT,
+      APP_PERMISSIONS.ASISTENCIAS_PROPIAS,
+      APP_PERMISSIONS.ASISTENCIAS_TODOS,
+      APP_PERMISSIONS.NOVEDADES_REPORTAR,
+      APP_PERMISSIONS.NOVEDADES_GESTIONAR,
+      APP_PERMISSIONS.REPORTES_PROPIOS,
+      APP_PERMISSIONS.REPORTES_TODOS,
     ],
   },
   {
-    id: 'reportes',
-    name: 'Reportes',
-    icon: 'chart-line',
-    permissions: [
-      APP_PERMISSIONS.REPORTES_VIEW,
-      APP_PERMISSIONS.REPORTES_STATS,
-      APP_PERMISSIONS.REPORTES_CHARTS,
-      APP_PERMISSIONS.REPORTES_EXPORT,
-    ],
-  },
-  {
-    id: 'calendario',
-    name: 'Calendario',
-    icon: 'calendar',
-    permissions: [
-      APP_PERMISSIONS.CALENDARIO_VIEW,
-      APP_PERMISSIONS.CALENDARIO_EVENTOS,
-      APP_PERMISSIONS.CALENDARIO_FESTIVOS,
-    ],
-  },
-  {
-    id: 'novedades',
-    name: 'Novedades',
-    icon: 'newspaper-variant-outline',
-    permissions: [
-      APP_PERMISSIONS.NOVEDADES_VIEW,
-      APP_PERMISSIONS.NOVEDADES_CREATE,
-      APP_PERMISSIONS.NOVEDADES_EDIT,
-      APP_PERMISSIONS.NOVEDADES_DELETE,
-    ],
-  },
-  {
-    id: 'usuarios',
-    name: 'Usuarios',
-    icon: 'account-group',
-    permissions: [
-      APP_PERMISSIONS.USUARIOS_VIEW,
-      APP_PERMISSIONS.USUARIOS_PERMISSIONS,
-      APP_PERMISSIONS.USUARIOS_CREATE,
-      APP_PERMISSIONS.USUARIOS_EDIT,
-    ],
-  },
-  {
-    id: 'config',
-    name: 'Configuración',
-    icon: 'cog',
-    permissions: [
-      APP_PERMISSIONS.CONFIG_VIEW,
-      APP_PERMISSIONS.CONFIG_THEME,
-      APP_PERMISSIONS.CONFIG_APP,
-    ],
-  },
-  {
-    id: 'perfil',
-    name: 'Perfil',
-    icon: 'account-circle',
-    permissions: [
-      APP_PERMISSIONS.PERFIL_VIEW,
-      APP_PERMISSIONS.PERFIL_EDIT,
-      APP_PERMISSIONS.PERFIL_PHOTO,
-    ],
-  },
-  {
-    id: 'notificaciones',
-    name: 'Notificaciones',
-    icon: 'bell',
-    permissions: [
-      APP_PERMISSIONS.NOTIFICACIONES_VIEW,
-      APP_PERMISSIONS.NOTIFICACIONES_MANAGE,
-      APP_PERMISSIONS.NOTIFICACIONES_SEND,
-    ],
-  },
-  {
-    id: 'avanzado',
-    name: 'Avanzado',
+    id: 'admin',
+    name: '👑 Administrativos',
+    description: 'Funciones de administración y control',
     icon: 'shield-crown',
     permissions: [
-      APP_PERMISSIONS.STORAGE_VIEW,
-      APP_PERMISSIONS.LOGS_VIEW,
-      APP_PERMISSIONS.ADMIN_TOOLS,
+      APP_PERMISSIONS.ADMIN_DASHBOARD,
+      APP_PERMISSIONS.USUARIOS_GESTIONAR,
+      APP_PERMISSIONS.STORAGE,
+      APP_PERMISSIONS.AUDITORIA,
     ],
   },
 ];
@@ -178,34 +95,27 @@ export const PERMISSION_CATEGORIES = [
 // 🎭 ROLES Y PERMISOS POR DEFECTO
 // ========================================
 
-// USER: Permisos básicos (9 permisos)
+// USER: Permisos básicos (7 permisos)
 export const USER_PERMISSIONS = [
-  APP_PERMISSIONS.DASHBOARD_VIEW,
-  APP_PERMISSIONS.ASISTENCIAS_VIEW,
-  APP_PERMISSIONS.ASISTENCIAS_REGISTRO,
-  APP_PERMISSIONS.ASISTENCIAS_BREAK,
-  APP_PERMISSIONS.ASISTENCIAS_ALMUERZO,
-  APP_PERMISSIONS.CALENDARIO_VIEW,
-  APP_PERMISSIONS.PERFIL_VIEW,
-  APP_PERMISSIONS.PERFIL_EDIT,
-  APP_PERMISSIONS.PERFIL_PHOTO,
+  APP_PERMISSIONS.DASHBOARD,
+  APP_PERMISSIONS.CALENDARIO,
+  APP_PERMISSIONS.HISTORIAL,
+  APP_PERMISSIONS.PERFIL,
+  APP_PERMISSIONS.CONFIGURACION,
+  APP_PERMISSIONS.NOTIFICACIONES,
+  APP_PERMISSIONS.CHAT,
 ];
 
-// ADMIN: Permisos extendidos (18 permisos por defecto)
+// ADMIN: Permisos básicos + admin.dashboard + algunos divididos (11 permisos sugeridos)
 export const ADMIN_DEFAULT_PERMISSIONS = [
-  ...USER_PERMISSIONS, // 9 permisos base
-  APP_PERMISSIONS.DASHBOARD_STATS,
-  APP_PERMISSIONS.DASHBOARD_CHARTS,
-  APP_PERMISSIONS.ASISTENCIAS_EXPORT,
-  APP_PERMISSIONS.REPORTES_VIEW,
-  APP_PERMISSIONS.REPORTES_STATS,
-  APP_PERMISSIONS.REPORTES_CHARTS,
-  APP_PERMISSIONS.CALENDARIO_EVENTOS,
-  APP_PERMISSIONS.NOVEDADES_VIEW,
-  APP_PERMISSIONS.CONFIG_VIEW,
+  ...USER_PERMISSIONS,              // 7 básicos
+  APP_PERMISSIONS.ADMIN_DASHBOARD,  // ← Define ROL: ADMIN
+  APP_PERMISSIONS.ASISTENCIAS_TODOS,
+  APP_PERMISSIONS.REPORTES_TODOS,
+  APP_PERMISSIONS.NOVEDADES_GESTIONAR,
 ];
 
-// SUPERADMIN: Todos los permisos (35 permisos)
+// SUPERADMIN: Todos los permisos (17 permisos)
 export const SUPERADMIN_PERMISSIONS = Object.values(APP_PERMISSIONS);
 
 // ========================================
@@ -213,13 +123,25 @@ export const SUPERADMIN_PERMISSIONS = Object.values(APP_PERMISSIONS);
 // ========================================
 
 /**
- * Calcula el appRole según la cantidad de permisos
- * @param {number} permCount - Cantidad de permisos activos
+ * Calcula el appRole según permisos específicos
+ * IMPORTANTE: El ROL es solo identificación visual
+ * Los PERMISOS individuales controlan el acceso real
+ * 
+ * @param {string[]} permissions - Array de permisos activos
  * @returns {'SUPERADMIN' | 'ADMIN' | 'USER'}
  */
-export const calculateAppRole = (permCount) => {
-  if (permCount === 35) return 'SUPERADMIN';
-  if (permCount >= 8 && permCount <= 34) return 'ADMIN';
+export const calculateAppRole = (permissions) => {
+  // SUPERADMIN: Tiene permiso de gestionar usuarios
+  if (permissions.includes(APP_PERMISSIONS.USUARIOS_GESTIONAR)) {
+    return 'SUPERADMIN';
+  }
+  
+  // ADMIN: Tiene acceso al AdminDashboard
+  if (permissions.includes(APP_PERMISSIONS.ADMIN_DASHBOARD)) {
+    return 'ADMIN';
+  }
+  
+  // USER: No tiene permisos administrativos
   return 'USER';
 };
 

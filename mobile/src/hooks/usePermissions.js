@@ -1,11 +1,12 @@
 // 🔐 HOOK DE PERMISOS - APP MÓVIL
 // Lee permisos desde PermissionsApp/{uid} y provee helpers
+// IMPORTANTE: El ROL es solo identificación | Los PERMISOS controlan el acceso
 
 import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { isValidPermission, getAllPermissions } from '../constants/permissions';
+import { isValidPermission, getAllPermissions, APP_PERMISSIONS } from '../constants/permissions';
 
 /**
  * Hook para gestión de permisos granulares
@@ -59,28 +60,32 @@ export const usePermissions = () => {
   }, [user?.uid]);
 
   // ========================================
-  // 🎭 INFORMACIÓN DE ROL
+  // 🎭 INFORMACIÓN DE ROL (Solo identificación)
   // ========================================
 
   /**
    * Rol calculado desde userProfile.appRole (campo en users/{uid})
+   * IMPORTANTE: El rol es SOLO para mostrar en UI, NO controla acceso
    */
   const appRole = userProfile?.appRole || 'USER';
 
   /**
-   * ¿Es SUPERADMIN? (único que puede editar permisos)
+   * ¿Es SUPERADMIN? (tiene permiso usuarios.gestionar)
+   * IMPORTANTE: Usar can(APP_PERMISSIONS.USUARIOS_GESTIONAR) para control de acceso real
    */
-  const isSuperAdmin = appRole === 'SUPERADMIN';
+  const isSuperAdmin = permissions.includes(APP_PERMISSIONS.USUARIOS_GESTIONAR);
 
   /**
-   * ¿Es ADMIN o superior?
+   * ¿Es ADMIN? (tiene permiso admin.dashboard pero NO usuarios.gestionar)
+   * IMPORTANTE: Usar can(APP_PERMISSIONS.ADMIN_DASHBOARD) para control de acceso real
    */
-  const isAdmin = appRole === 'ADMIN' || appRole === 'SUPERADMIN';
+  const isAdmin = permissions.includes(APP_PERMISSIONS.ADMIN_DASHBOARD) && !isSuperAdmin;
 
   /**
-   * ¿Es USER básico?
+   * ¿Es USER básico? (sin permisos admin)
+   * IMPORTANTE: Verificar permisos específicos, no solo el rol
    */
-  const isUser = appRole === 'USER';
+  const isUser = !isAdmin && !isSuperAdmin;
 
   // ========================================
   // 🔍 HELPERS DE PERMISOS
@@ -88,6 +93,7 @@ export const usePermissions = () => {
 
   /**
    * Verifica si el usuario tiene UN permiso específico
+   * ESTA ES LA FUNCIÓN CRÍTICA PARA CONTROL DE ACCESO
    * @param {string} permission - Permiso a verificar
    * @returns {boolean}
    */
@@ -98,13 +104,11 @@ export const usePermissions = () => {
         console.warn(`⚠️ Permiso inválido: ${permission}`);
         return false;
       }
-      
-      // SUPERADMIN siempre tiene todos los permisos
-      if (isSuperAdmin) return true;
 
+      // Verificar si tiene el permiso específico
       return permissions.includes(permission);
     },
-    [permissions, isSuperAdmin]
+    [permissions]
   );
 
   /**

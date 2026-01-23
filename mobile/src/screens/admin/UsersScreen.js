@@ -233,15 +233,19 @@ export default function UsersScreen() {
         permisos: uniquePermissions,
       });
 
-      // Calcular nuevo appRole con permisos únicos
-      const newAppRole = calculateAppRole(uniquePermissions.length);
+      // Calcular nuevo appRole basado en permisos específicos (NO en cantidad)
+      const newAppRole = calculateAppRole(uniquePermissions);
       
       console.log('📊 Cálculo de rol:', {
         cantidadPermisos: uniquePermissions.length,
         rolCalculado: newAppRole,
-        logica: uniquePermissions.length === 35 ? 'SUPERADMIN (35 permisos)' : 
-                uniquePermissions.length >= 8 ? 'ADMIN (8-34 permisos)' : 
-                'USER (0-7 permisos)',
+        logica: uniquePermissions.includes('usuarios.gestionar') ? 'SUPERADMIN (tiene usuarios.gestionar)' : 
+                uniquePermissions.includes('admin.dashboard') ? 'ADMIN (tiene admin.dashboard)' : 
+                'USER (sin permisos admin)',
+        permisosRelevantes: {
+          usuariosGestionar: uniquePermissions.includes('usuarios.gestionar'),
+          adminDashboard: uniquePermissions.includes('admin.dashboard'),
+        },
       });
 
       // Actualizar PermissionsApp/{uid} con permisos únicos
@@ -460,7 +464,7 @@ export default function UsersScreen() {
                         marginLeft: 4,
                       }}
                     >
-                      {userItem.permissionCount}/35
+                      {userItem.permissionCount}/17
                     </Text>
                   </Surface>
                   
@@ -502,7 +506,7 @@ export default function UsersScreen() {
                     style={[
                       styles.permissionCounter,
                       { 
-                        backgroundColor: selectedPermissions.length === 35 
+                        backgroundColor: selectedPermissions.length === 17 
                           ? theme.colors.primaryContainer 
                           : theme.colors.secondaryContainer 
                       }
@@ -512,17 +516,17 @@ export default function UsersScreen() {
                     <MaterialCommunityIcons
                       name="shield-check"
                       size={16}
-                      color={selectedPermissions.length === 35 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer}
+                      color={selectedPermissions.length === 17 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer}
                     />
                     <Text 
                       variant="labelLarge" 
                       style={{ 
-                        color: selectedPermissions.length === 35 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer,
+                        color: selectedPermissions.length === 17 ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer,
                         fontWeight: '600',
                         marginLeft: 4,
                       }}
                     >
-                      {selectedPermissions.length}/35
+                      {selectedPermissions.length}/17
                     </Text>
                   </Surface>
                 </View>
@@ -541,20 +545,20 @@ export default function UsersScreen() {
                 mode="outlined"
                 onPress={() => {
                   triggerHaptic('selection');
-                  if (selectedPermissions.length === 35) {
+                  if (selectedPermissions.length === 17) {
                     // Desmarcar todo
                     setSelectedPermissions([]);
                   } else {
-                    // Seleccionar todo (35 permisos)
+                    // Seleccionar todo (17 permisos)
                     const allPerms = Object.values(APP_PERMISSIONS);
                     console.log('✨ Seleccionando TODOS los permisos:', allPerms.length);
                     setSelectedPermissions(allPerms);
                   }
                 }}
                 style={{ borderRadius: 20 }}
-                icon={selectedPermissions.length === 35 ? "close-circle" : "check-all"}
+                icon={selectedPermissions.length === 17 ? "close-circle" : "check-all"}
               >
-                {selectedPermissions.length === 35 ? 'Desmarcar Todo' : 'Seleccionar Todo (35)'}
+                {selectedPermissions.length === 17 ? 'Desmarcar Todo' : 'Seleccionar Todo (17)'}
               </Button>
             </View>
 
