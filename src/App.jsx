@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
@@ -12,20 +11,21 @@ import { CustomThemeProvider } from './context/ThemeContext';
 import ToastProvider from './context/ToastContext';
 
 // Components
-import LoginForm from './components/auth/LoginForm';
 import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
+import LoginForm from './components/auth/LoginForm';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
-import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 
 // Pages
 import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
 import AdminSetupPage from './pages/AdminSetupPage';
+import ClientesPage from './pages/ClientesPage';
 import CommitmentsPage from './pages/CommitmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
-import ClientesPage from './pages/ClientesPage';
 import DataPage from './pages/DataPage';
+import EmpleadosPage from './pages/EmpleadosPage';
 import NewCommitmentPage from './pages/NewCommitmentPage';
 import NewPaymentPage from './pages/NewPaymentPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -35,12 +35,11 @@ import ReportsConceptPage from './pages/reports/ReportsConceptPage';
 import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import UserManagementPage from './pages/UserManagementPage';
-import EmpleadosPage from './pages/EmpleadosPage';
 
 // Módulo de Ingresos
-import IncomePage from './pages/IncomePage';
-import IncomeHistoryPage from './pages/IncomeHistoryPage';
 import BankAccountsPage from './pages/BankAccountsPage';
+import IncomeHistoryPage from './pages/IncomeHistoryPage';
+import IncomePage from './pages/IncomePage';
 
 // Nuevos módulos profesionales
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
@@ -48,18 +47,15 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
 
-// Herramienta de migración de permisos
-import PermissionsMigrationTool from './components/admin/PermissionsMigrationTool';
-
 // Administración - Limpieza de Storage
 import OrphanFilesPage from './pages/OrphanFilesPage';
 
 // Módulo de Liquidaciones
+import LiquidacionesEstadisticasPage from './pages/LiquidacionesEstadisticasPage';
+import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
 import LiquidacionesPage from './pages/LiquidacionesPage';
 import LiquidacionesPageV1 from './pages/LiquidacionesPageV1';
-import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
 import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
-import LiquidacionesEstadisticasPage from './pages/LiquidacionesEstadisticasPage';
 
 // Módulo de Facturación
 import FacturacionPage from './pages/FacturacionPage';
@@ -390,16 +386,6 @@ const DashboardLayout = () => {
           <AdminOnlyRoute>
             <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
               <ActivityLogsPage />
-            </MainLayout>
-          </AdminOnlyRoute>
-        }
-      />
-      <Route 
-        path="/admin/migrate-permissions" 
-        element={
-          <AdminOnlyRoute>
-            <MainLayout title="Migración de Permisos" breadcrumbs={['Administración', 'Migración']}>
-              <PermissionsMigrationTool />
             </MainLayout>
           </AdminOnlyRoute>
         }
