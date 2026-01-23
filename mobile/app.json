@@ -1,71 +1,71 @@
 {
-  "expo": {
-    "name": "DR Group Asistencia",
-    "slug": "drgroup-mobile",
-    "version": "3.1.13",
-    "orientation": "default",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": false,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#004A98"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.drgroup.asistencia"
-    },
-    "android": {
-      "versionCode": 21,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#004A98"
-      },
-      "package": "com.drgroup.asistencia",
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "POST_NOTIFICATIONS",
-        "VIBRATE",
-        "USE_BIOMETRIC",
-        "INTERNET"
-      ],
-      "edgeToEdgeEnabled": true
-    },
-    "notification": {
-      "icon": "./assets/notification-icon.png",
-      "color": "#004A98"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/169f6749-ebbd-4386-9359-b60f7afe299d",
-      "fallbackToCacheTimeout": 0
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDpjCcOe4CRvAdeClCskt0-jLQeXGf62tY",
-      "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "dr-group-cd21b.firebaseapp.com",
-      "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "dr-group-cd21b",
-      "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "dr-group-cd21b.firebasestorage.app",
-      "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "629470690851",
-      "EXPO_PUBLIC_FIREBASE_APP_ID": "1:629470690851:web:cbda5f4b29c0a93bb17e97",
-      "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "https://dr-group-cd21b-default-rtdb.firebaseio.com",
-      "eas": {
-        "projectId": "169f6749-ebbd-4386-9359-b60f7afe299d"
-      }
-    },
-    "plugins": [
-      "expo-location",
-      "expo-notifications",
-      "expo-secure-store",
-      "expo-updates",
-      "expo-font",
-      "@react-native-community/datetimepicker"
-    ]
-  }
+    "expo":  {
+                 "name":  "DR Group Asistencia",
+                 "slug":  "drgroup-mobile",
+                 "version":  "3.2.0",
+                 "orientation":  "default",
+                 "icon":  "./assets/icon.png",
+                 "userInterfaceStyle":  "light",
+                 "newArchEnabled":  false,
+                 "splash":  {
+                                "image":  "./assets/splash-icon.png",
+                                "resizeMode":  "contain",
+                                "backgroundColor":  "#004A98"
+                            },
+                 "ios":  {
+                             "supportsTablet":  true,
+                             "bundleIdentifier":  "com.drgroup.asistencia"
+                         },
+                 "android":  {
+                                 "versionCode":  22,
+                                 "adaptiveIcon":  {
+                                                      "foregroundImage":  "./assets/adaptive-icon.png",
+                                                      "backgroundColor":  "#004A98"
+                                                  },
+                                 "package":  "com.drgroup.asistencia",
+                                 "permissions":  [
+                                                     "ACCESS_FINE_LOCATION",
+                                                     "ACCESS_COARSE_LOCATION",
+                                                     "POST_NOTIFICATIONS",
+                                                     "VIBRATE",
+                                                     "USE_BIOMETRIC",
+                                                     "INTERNET"
+                                                 ],
+                                 "edgeToEdgeEnabled":  true
+                             },
+                 "notification":  {
+                                      "icon":  "./assets/notification-icon.png",
+                                      "color":  "#004A98"
+                                  },
+                 "updates":  {
+                                 "url":  "https://u.expo.dev/169f6749-ebbd-4386-9359-b60f7afe299d",
+                                 "fallbackToCacheTimeout":  0
+                             },
+                 "runtimeVersion":  {
+                                        "policy":  "appVersion"
+                                    },
+                 "web":  {
+                             "favicon":  "./assets/favicon.png"
+                         },
+                 "extra":  {
+                               "EXPO_PUBLIC_FIREBASE_API_KEY":  "AIzaSyDpjCcOe4CRvAdeClCskt0-jLQeXGf62tY",
+                               "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN":  "dr-group-cd21b.firebaseapp.com",
+                               "EXPO_PUBLIC_FIREBASE_PROJECT_ID":  "dr-group-cd21b",
+                               "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET":  "dr-group-cd21b.firebasestorage.app",
+                               "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID":  "629470690851",
+                               "EXPO_PUBLIC_FIREBASE_APP_ID":  "1:629470690851:web:cbda5f4b29c0a93bb17e97",
+                               "EXPO_PUBLIC_FIREBASE_DATABASE_URL":  "https://dr-group-cd21b-default-rtdb.firebaseio.com",
+                               "eas":  {
+                                           "projectId":  "169f6749-ebbd-4386-9359-b60f7afe299d"
+                                       }
+                           },
+                 "plugins":  [
+                                 "expo-location",
+                                 "expo-notifications",
+                                 "expo-secure-store",
+                                 "expo-updates",
+                                 "expo-font",
+                                 "@react-native-community/datetimepicker"
+                             ]
+             }
 }
