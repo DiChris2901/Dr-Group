@@ -3,8 +3,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, Alert, FlatList, TouchableOpacity, Modal as RNModal } from 'react-native';
 import { Text, Surface, Avatar, IconButton, Switch, useTheme as usePaperTheme, ActivityIndicator, Searchbar, Divider, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { collection, query, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { SobrioCard } from '../../components'; 
@@ -13,6 +16,21 @@ import materialTheme from '../../../material-theme.json';
 export default function AdminNotificationControlScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor, isDarkMode, triggerHaptic } = useTheme();
+  const { can } = usePermissions();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para controlar notificaciones</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   // State
   const [loading, setLoading] = useState(true);
@@ -426,6 +444,15 @@ export default function AdminNotificationControlScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
   settingCard: {
     padding: 16,
     borderRadius: 20,

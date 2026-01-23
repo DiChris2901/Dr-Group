@@ -22,6 +22,7 @@ import {
     useTheme as usePaperTheme,
     Badge
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FloatingActionBar from '../../components/FloatingActionBar';
 import NovedadesSheet from '../../components/NovedadesSheet';
@@ -30,6 +31,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppDistribution } from '../../hooks/useAppDistribution';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import designSystem from '../../../design-system.json';
 
 const { width } = Dimensions.get('window');
@@ -40,6 +43,21 @@ export default function DashboardScreen() {
   const { isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
   const { unreadCount } = useNotifications();
   const { updateAvailable, showUpdateDialog } = useAppDistribution();
+  const { can } = usePermissions();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.DASHBOARD)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.deniedContainer}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <PaperText variant="headlineSmall" style={styles.deniedTitle}>🔒 Acceso Denegado</PaperText>
+          <PaperText variant="bodyMedium" style={styles.deniedMessage}>No tienes permiso para marcar jornada laboral</PaperText>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   const { 
     user, 
@@ -461,6 +479,21 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  deniedTitle: {
+    marginTop: 16,
+    fontWeight: '600',
+  },
+  deniedMessage: {
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   scrollContent: {
     padding: 24,

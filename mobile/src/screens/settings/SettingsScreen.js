@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions'; // ✅ RBAC
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { OverlineText } from '../../components';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +18,20 @@ export default function SettingsScreen({ navigation }) {
   const { isDarkMode, toggleDarkMode, getPrimaryColor, hapticsEnabled, toggleHaptics, hapticsIntensity, setIntensity, saveAllPreferences } = useTheme();
   const { userProfile, signOut } = useAuth();
   const { can, appRole, permissionCount, isSuperAdmin } = usePermissions(); // ✅ RBAC
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.SETTINGS)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.deniedContainer}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para acceder a configuración</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -370,6 +385,12 @@ export default function SettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   header: {
     flexDirection: 'row',

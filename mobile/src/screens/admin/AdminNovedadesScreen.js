@@ -33,6 +33,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Custom Hooks & Components
 import { useTheme } from '../../contexts/ThemeContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import ExpressiveCard from '../../components/ExpressiveCard';
 import DetailRow from '../../components/DetailRow';
 import OverlineText from '../../components/OverlineText';
@@ -42,7 +44,22 @@ const { width } = Dimensions.get('window');
 export default function AdminNovedadesScreen({ navigation }) {
   const paperTheme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
+  const { can } = usePermissions();
   const primaryColor = getPrimaryColor();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.ADMIN_NOVEDADES)) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={paperTheme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para administrar novedades</Text>
+          <Text variant="bodyMedium" onPress={() => navigation.goBack()} style={{ marginTop: 16, color: primaryColor, fontWeight: '600' }}>Volver</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Surface colors dinámicos
   const surfaceColors = useMemo(() => {

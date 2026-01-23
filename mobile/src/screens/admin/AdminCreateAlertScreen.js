@@ -10,6 +10,8 @@ import { db, storage } from '../../services/firebase';
 import { OverlineText } from '../../components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format, addMonths, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -21,7 +23,22 @@ export default function AdminCreateAlertScreen() {
   const theme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
   const { user, userProfile } = useAuth();
+  const { can } = usePermissions();
   const navigation = useNavigation();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.ADMIN_CREATE_ALERT)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para crear alertas</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');

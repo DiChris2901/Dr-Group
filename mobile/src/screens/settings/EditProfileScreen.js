@@ -4,7 +4,10 @@ import { Text, TextInput, Button, Surface, useTheme as usePaperTheme, IconButton
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { OverlineText } from '../../components';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -16,6 +19,21 @@ export default function EditProfileScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
   const { user, userProfile, reloadUserProfile } = useAuth();
+  const { can } = usePermissions();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.PERFIL)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.deniedContainer}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para editar perfil</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   const [name, setName] = useState(userProfile?.displayName || userProfile?.name || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
@@ -318,6 +336,12 @@ export default function EditProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   header: {
     flexDirection: 'row',

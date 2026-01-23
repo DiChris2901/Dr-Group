@@ -21,9 +21,12 @@ import {
 } from 'react-native-paper';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import * as Haptics from 'expo-haptics';
@@ -31,6 +34,21 @@ import * as Haptics from 'expo-haptics';
 export default function AdminSettingsScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor, getSecondaryColor } = useTheme();
+  const { can } = usePermissions();
+  
+  // ✅ Validación de permiso
+  if (!can(APP_PERMISSIONS.ADMIN_SETTINGS)) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para configuración laboral</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -545,6 +563,12 @@ export default function AdminSettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  deniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   header: {
     flexDirection: 'row',

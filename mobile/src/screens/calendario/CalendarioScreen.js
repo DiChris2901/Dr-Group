@@ -33,6 +33,8 @@ import { db } from '../../services/firebase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../../constants/permissions';
 import { useNotificationPreferences } from '../../hooks/useNotificationPreferences';
 import { useColombianHolidays } from '../../hooks/useColombianHolidays';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -276,6 +278,23 @@ const EventoItem = ({ item, index, surfaceColors, onPress }) => {
 };
 
 export default function CalendarioScreen({ navigation }) {
+  const { can } = usePermissions();
+  const theme = usePaperTheme();
+  
+  // ✅ Validación de permiso (early return)
+  if (!can(APP_PERMISSIONS.CALENDARIO)) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
+          <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para ver el calendario</Text>
+          <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   const paperTheme = usePaperTheme();
   const { getPrimaryColor } = useTheme();
   const { scheduleCalendarEventNotification, cancelCalendarNotifications } = useNotifications();
