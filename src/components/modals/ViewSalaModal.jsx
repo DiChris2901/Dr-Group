@@ -635,6 +635,9 @@ const ViewSalaModal = ({
                       </Paper>
                     </Grid>
                   )}
+                      </>
+                    );
+                  })()}
                 </Grid>
               </Box>
             )}
