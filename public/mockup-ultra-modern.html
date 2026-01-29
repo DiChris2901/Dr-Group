@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DR Group Dashboard - Ultra Modern Experience</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Ultra Modern Color Palette */
+      --primary: #0ea5e9;
+      --primary-light: #38bdf8;
+      --primary-dark: #0284c7;
+      --secondary: #8b5cf6;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      
+      /* Dark Surfaces */
+      --bg-base: #0a0e27;
+      --bg-elevated: #0f172a;
+      --bg-card: rgba(15, 23, 42, 0.6);
+      --bg-card-hover: rgba(15, 23, 42, 0.8);
+      
+      /* Text Colors */
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      
+      /* Borders */
+      --border-subtle: rgba(148, 163, 184, 0.08);
+      --border-medium: rgba(148, 163, 184, 0.12);
+      
+      /* Shadows & Glows */
+      --glow-blue: 0 0 60px rgba(14, 165, 233, 0.3);
+      --glow-purple: 0 0 60px rgba(139, 92, 246, 0.3);
+      --glow-cyan: 0 0 60px rgba(34, 211, 238, 0.3);
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* =============== ANIMATED BACKGROUND =============== */
+    .background-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .bg-gradient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.3;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+      top: -200px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+      bottom: -150px;
+      right: -100px;
+      animation-delay: 5s;
+    }
+
+    .orb-3 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: 10s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(50px, -50px) scale(1.1); }
+      50% { transform: translate(-30px, 30px) scale(0.9); }
+      75% { transform: translate(40px, 20px) scale(1.05); }
+    }
+
+    /* Grid Pattern Overlay */
+    .grid-pattern {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* =============== SIDEBAR - FLOATING =============== */
+    .sidebar {
+      width: 280px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      position: fixed;
+      height: 100vh;
+      z-index: 50;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar-logo:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+      box-shadow: var(--glow-blue);
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), transparent);
+      transition: width 0.3s ease;
+      opacity: 0.2;
+    }
+
+    .nav-item:hover {
+      color: var(--text-primary);
+      background: rgba(14, 165, 233, 0.08);
+      transform: translateX(4px);
+    }
+
+    .nav-item:hover::before {
+      width: 4px;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      background: rgba(14, 165, 233, 0.12);
+      font-weight: 600;
+    }
+
+    .nav-item.active::before {
+      width: 4px;
+      background: var(--primary);
+      opacity: 1;
+    }
+
+    .nav-item-icon {
+      font-size: 20px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .sidebar-footer:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-medium);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--secondary), var(--primary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 8px 16px rgba(139, 92, 246, 0.3);
+    }
+
+    .user-info {
+      flex: 1;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-role {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* =============== MAIN CONTENT =============== */
+    .main-content {
+      flex: 1;
+      margin-left: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* INVISIBLE TOPBAR - Fusionado con el fondo */
+    .topbar {
+      padding: 32px 48px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(10, 14, 39, 0.3);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .search-bar {
+      width: 380px;
+      height: 44px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      transition: all 0.3s ease;
+    }
+
+    .search-bar:hover {
+      border-color: var(--border-medium);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+
+    .search-bar:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+    }
+
+    .search-bar input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-bar input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-icon {
+      color: var(--text-muted);
+      font-size: 20px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .action-button {
+      width: 44px;
+      height: 44px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .action-button:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .action-button .badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg-base);
+      box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+    }
+
+    /* =============== CONTENT =============== */
+    .content {
+      padding: 24px 48px 48px;
+    }
+
+    .welcome-section {
+      margin-bottom: 40px;
+      animation: fadeInUp 0.8s ease;
+    }
+
+    .welcome-title {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .welcome-subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* =============== STATS GRID =============== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 24px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      animation: fadeInUp 0.6s ease backwards;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .stat-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-medium);
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      position: relative;
+    }
+
+    .stat-card:nth-child(1) .stat-icon {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(14, 165, 233, 0.05));
+      color: var(--primary-light);
+      box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2);
+    }
+
+    .stat-card:nth-child(2) .stat-icon {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+      color: var(--success);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
+    }
+
+    .stat-card:nth-child(3) .stat-icon {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.05));
+      color: var(--secondary);
+      box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+    }
+
+    .stat-card:nth-child(4) .stat-icon {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.05));
+      color: var(--accent);
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.2);
+    }
+
+    .stat-menu {
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .stat-card:hover .stat-menu {
+      opacity: 1;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    .stat-change.positive {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+    }
+
+    .stat-change.negative {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--danger);
+    }
+
+    .stat-change .material-icons {
+      font-size: 16px;
+    }
+
+    /* =============== CHARTS SECTION =============== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 28px;
+      animation: fadeInUp 0.6s ease 0.5s backwards;
+      transition: all 0.3s ease;
+    }
+
+    .chart-card:hover {
+      border-color: var(--border-medium);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .chart-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .chart-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .chart-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chart-action-btn {
+      padding: 6px 14px;
+      background: rgba(148, 163, 184, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chart-action-btn:hover {
+      background: rgba(14, 165, 233, 0.12);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .chart-action-btn.active {
+      background: rgba(14, 165, 233, 0.15);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Area Chart Visualization */
+    .area-chart {
+      height: 280px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      padding: 20px 0;
+    }
+
+    .chart-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .chart-bar {
+      width: 100%;
+      background: linear-gradient(180deg, var(--primary-light), var(--primary));
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 -4px 20px rgba(14, 165, 233, 0.3);
+    }
+
+    .chart-bar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 4px 4px 0 0;
+    }
+
+    .chart-column:hover .chart-bar {
+      background: linear-gradient(180deg, #22d3ee, var(--primary-light));
+      transform: scaleY(1.05);
+      box-shadow: 0 -8px 30px rgba(34, 211, 238, 0.5);
+    }
+
+    .chart-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    /* Circular Progress */
+    .circular-progress-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .progress-ring {
+      width: 160px;
+      height: 160px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .progress-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring-bg {
+      fill: none;
+      stroke: rgba(148, 163, 184, 0.1);
+      stroke-width: 12;
+    }
+
+    .progress-ring-fill {
+      fill: none;
+      stroke: url(#gradient);
+      stroke-width: 12;
+      stroke-linecap: round;
+      stroke-dasharray: 440;
+      stroke-dashoffset: 44;
+      transition: stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1);
+      filter: drop-shadow(0 0 12px rgba(14, 165, 233, 0.6));
+    }
+
+    .progress-value {
+      position: absolute;
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .progress-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* =============== PROJECTS TABLE =============== */
+    .projects-section {
+      animation: fadeInUp 0.6s ease 0.7s backwards;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .view-all-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s ease;
+    }
+
+    .view-all-link:hover {
+      gap: 8px;
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .project-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .project-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-medium);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .project-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .project-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .project-card:nth-child(1) .project-icon {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(14, 165, 233, 0.05));
+      color: var(--primary-light);
+    }
+
+    .project-card:nth-child(2) .project-icon {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.05));
+      color: var(--secondary);
+    }
+
+    .project-card:nth-child(3) .project-icon {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+      color: var(--success);
+    }
+
+    .project-info {
+      flex: 1;
+    }
+
+    .project-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .project-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .project-progress {
+      margin-bottom: 12px;
+    }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .progress-label-sm {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .progress-percent {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .progress-bar-container {
+      height: 6px;
+      background: rgba(148, 163, 184, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary-light), var(--primary));
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
+    }
+
+    .project-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .project-team {
+      display: flex;
+      align-items: center;
+    }
+
+    .team-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-card);
+      margin-left: -8px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .team-avatar:first-child {
+      margin-left: 0;
+    }
+
+    .project-status {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-active {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+    }
+
+    .status-pending {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--accent);
+    }
+
+    /* =============== ANIMATIONS =============== */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* =============== SCROLLBAR =============== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, var(--primary-light), var(--primary));
+    }
+
+    /* =============== RESPONSIVE =============== */
+    @media (max-width: 1400px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .projects-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .projects-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="background-canvas">
+    <div class="bg-gradient-orb orb-1"></div>
+    <div class="bg-gradient-orb orb-2"></div>
+    <div class="bg-gradient-orb orb-3"></div>
+  </div>
+  <div class="grid-pattern"></div>
+
+  <div class="layout">
+    <!-- =============== SIDEBAR =============== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">💎</div>
+        <div class="logo-text">DR Group</div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Principal</div>
+        <a href="#" class="nav-item active">
+          <span class="material-icons nav-item-icon">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">assignment</span>
+          <span>Compromisos</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">payments</span>
+          <span>Pagos</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">trending_up</span>
+          <span>Ingresos</span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Administración</div>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">people</span>
+          <span>Usuarios</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">assessment</span>
+          <span>Auditoría</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="material-icons nav-item-icon">settings</span>
+          <span>Configuración</span>
+        </a>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="user-avatar">DR</div>
+          <div class="user-info">
+            <div class="user-name">Diego Rueda</div>
+            <div class="user-role">Administrator</div>
+          </div>
+          <span class="material-icons" style="color: var(--text-muted); font-size: 18px;">expand_more</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =============== MAIN CONTENT =============== -->
+    <main class="main-content">
+      <!-- INVISIBLE TOPBAR - Fusionado con el fondo -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="search-bar">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" placeholder="Buscar en todo el dashboard...">
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="action-button">
+            <span class="material-icons">notifications</span>
+            <div class="badge">7</div>
+          </div>
+          <div class="action-button">
+            <span class="material-icons">mail</span>
+          </div>
+          <div class="action-button">
+            <span class="material-icons">settings</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <div class="welcome-section">
+          <h1 class="welcome-title">Bienvenido de nuevo, Diego</h1>
+          <p class="welcome-subtitle">Aquí está tu resumen ejecutivo y métricas clave del sistema</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon">💰</div>
+              <span class="material-icons stat-menu">more_vert</span>
+            </div>
+            <div class="stat-label">Ingresos del Día</div>
+            <div class="stat-value">$53,000</div>
+            <div class="stat-change positive">
+              <span class="material-icons">trending_up</span>
+              <span>+55%</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon">👥</div>
+              <span class="material-icons stat-menu">more_vert</span>
+            </div>
+            <div class="stat-label">Usuarios Activos</div>
+            <div class="stat-value">2,300</div>
+            <div class="stat-change positive">
+              <span class="material-icons">trending_up</span>
+              <span>+3%</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon">📋</div>
+              <span class="material-icons stat-menu">more_vert</span>
+            </div>
+            <div class="stat-label">Compromisos Activos</div>
+            <div class="stat-value">3,462</div>
+            <div class="stat-change negative">
+              <span class="material-icons">trending_down</span>
+              <span>-2%</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <div class="stat-icon">🛒</div>
+              <span class="material-icons stat-menu">more_vert</span>
+            </div>
+            <div class="stat-label">Ventas Totales</div>
+            <div class="stat-value">$103,430</div>
+            <div class="stat-change positive">
+              <span class="material-icons">trending_up</span>
+              <span>+5%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Resumen de Ventas</div>
+                <div class="chart-subtitle">Últimos 7 días • +12% vs semana anterior</div>
+              </div>
+              <div class="chart-actions">
+                <button class="chart-action-btn">Día</button>
+                <button class="chart-action-btn active">Semana</button>
+                <button class="chart-action-btn">Mes</button>
+              </div>
+            </div>
+            <div class="area-chart">
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 140px;"></div>
+                <div class="chart-label">Lun</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 200px;"></div>
+                <div class="chart-label">Mar</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 120px;"></div>
+                <div class="chart-label">Mié</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 240px;"></div>
+                <div class="chart-label">Jue</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 180px;"></div>
+                <div class="chart-label">Vie</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 260px;"></div>
+                <div class="chart-label">Sáb</div>
+              </div>
+              <div class="chart-column">
+                <div class="chart-bar" style="height: 220px;"></div>
+                <div class="chart-label">Dom</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Tasa de Satisfacción</div>
+                <div class="chart-subtitle">Basado en feedback de clientes</div>
+              </div>
+            </div>
+            <div class="circular-progress-card">
+              <div class="progress-ring">
+                <svg width="160" height="160">
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="progress-ring-bg" cx="80" cy="80" r="70"></circle>
+                  <circle class="progress-ring-fill" cx="80" cy="80" r="70"></circle>
+                </svg>
+                <div class="progress-value">95%</div>
+              </div>
+              <div class="progress-label">Excelente calificación este mes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projects Section -->
+        <div class="projects-section">
+          <div class="section-header">
+            <h2 class="section-title">Proyectos Activos</h2>
+            <a href="#" class="view-all-link">
+              Ver todos
+              <span class="material-icons" style="font-size: 18px;">arrow_forward</span>
+            </a>
+          </div>
+
+          <div class="projects-grid">
+            <div class="project-card">
+              <div class="project-header">
+                <div class="project-icon">📱</div>
+                <div class="project-info">
+                  <div class="project-name">App Móvil DR Group</div>
+                  <div class="project-meta">Actualizado hace 2 horas</div>
+                </div>
+              </div>
+              <div class="project-progress">
+                <div class="progress-header">
+                  <span class="progress-label-sm">Progreso</span>
+                  <span class="progress-percent">85%</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" style="width: 85%;"></div>
+                </div>
+              </div>
+              <div class="project-footer">
+                <div class="project-team">
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6);">DR</div>
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #10b981, #0ea5e9);">JM</div>
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #f59e0b, #10b981);">AS</div>
+                </div>
+                <div class="project-status status-active">Activo</div>
+              </div>
+            </div>
+
+            <div class="project-card">
+              <div class="project-header">
+                <div class="project-icon">🌐</div>
+                <div class="project-info">
+                  <div class="project-name">Dashboard Web</div>
+                  <div class="project-meta">Actualizado hace 5 horas</div>
+                </div>
+              </div>
+              <div class="project-progress">
+                <div class="progress-header">
+                  <span class="progress-label-sm">Progreso</span>
+                  <span class="progress-percent">100%</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" style="width: 100%;"></div>
+                </div>
+              </div>
+              <div class="project-footer">
+                <div class="project-team">
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">DR</div>
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #ec4899, #f59e0b);">LG</div>
+                </div>
+                <div class="project-status status-active">Activo</div>
+              </div>
+            </div>
+
+            <div class="project-card">
+              <div class="project-header">
+                <div class="project-icon">📊</div>
+                <div class="project-info">
+                  <div class="project-name">Sistema de Analytics</div>
+                  <div class="project-meta">Actualizado hace 1 día</div>
+                </div>
+              </div>
+              <div class="project-progress">
+                <div class="progress-header">
+                  <span class="progress-label-sm">Progreso</span>
+                  <span class="progress-percent">45%</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" style="width: 45%;"></div>
+                </div>
+              </div>
+              <div class="project-footer">
+                <div class="project-team">
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #10b981, #0ea5e9);">MC</div>
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">PD</div>
+                  <div class="team-avatar" style="background: linear-gradient(135deg, #0ea5e9, #8b5cf6);">DR</div>
+                </div>
+                <div class="project-status status-pending">Pendiente</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    console.log('🚀 DR Group Dashboard - Ultra Modern Experience Loaded');
+
+    // Animación de barras del chart con delay
+    document.addEventListener('DOMContentLoaded', () => {
+      const bars = document.querySelectorAll('.chart-bar');
+      bars.forEach((bar, index) => {
+        const originalHeight = bar.style.height;
+        bar.style.height = '0';
+        setTimeout(() => {
+          bar.style.transition = 'height 1s cubic-bezier(0.4, 0, 0.2, 1)';
+          bar.style.height = originalHeight;
+        }, 800 + (index * 100));
+      });
+
+      // Animación del progress ring
+      const progressRing = document.querySelector('.progress-ring-fill');
+      setTimeout(() => {
+        progressRing.style.strokeDashoffset = '44'; // 90% = 44 offset
+      }, 1200);
+
+      // Animación de progress bars
+      const progressBars = document.querySelectorAll('.progress-bar-fill');
+      progressBars.forEach((bar, index) => {
+        const targetWidth = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+          bar.style.width = targetWidth;
+        }, 1000 + (index * 200));
+      });
+    });
+  </script>
+</body>
+</html>
