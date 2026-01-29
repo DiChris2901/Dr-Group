@@ -26,7 +26,8 @@ import {
   MenuItem,
   TextField,
   IconButton,
-  Collapse
+  Collapse,
+  Grid
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -43,7 +44,17 @@ import {
   Clear as ClearIcon,
   PictureAsPdf as PdfIcon,
   LocationOn as LocationOnIcon,
-  Title as TitleIcon
+  Title as TitleIcon,
+  ToggleOff as ToggleOffIcon,
+  ToggleOn as ToggleOnIcon,
+  Apartment as ApartmentIcon,
+  Wifi as WifiIcon,
+  PersonOutline as PersonOutlineIcon,
+  Description as DescriptionIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  TrendingFlat as TrendingFlatIcon,
+  Badge as BadgeIcon
 } from '@mui/icons-material';
 import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -246,19 +257,22 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
   const getChangeIcon = (changeType) => {
     switch (changeType) {
       case 'estado':
-        return <SwapIcon />;
+        return <ToggleOnIcon />;
       case 'empresa':
-        return <BusinessIcon />;
+        return <ApartmentIcon />;
       case 'proveedor_online':
-        return <BusinessIcon />;
+        return <WifiIcon />;
       case 'propietario':
         return <BusinessIcon />;
       case 'representante_legal':
-        return <AccountCircleIcon />;
+      case 'representante_legal_principal':
+        return <BadgeIcon />;
+      case 'representante_legal_suplente':
+        return <PersonOutlineIcon />;
       case 'contacto_principal':
         return <PersonIcon />;
       case 'contacto_secundario':
-        return <PersonIcon />;
+        return <PersonOutlineIcon />;
       case 'nombre_sala':
         return <TitleIcon />;
       case 'direccion':
@@ -266,7 +280,7 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       case 'documento_camara_comercio':
       case 'documento_uso_suelos':
       case 'documento_validacion_uso_suelos':
-        return <PdfIcon />;
+        return <DescriptionIcon />;
       default:
         return <EditIcon />;
     }
@@ -283,6 +297,9 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       case 'propietario':
         return 'primary';
       case 'representante_legal':
+      case 'representante_legal_principal':
+        return 'secondary';
+      case 'representante_legal_suplente':
         return 'secondary';
       case 'contacto_principal':
         return 'warning';
@@ -310,6 +327,8 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       proveedor_online: 'Cambio de Proveedor Online',
       propietario: 'Cambio de Propietario',
       representante_legal: 'Cambio de Representante Legal',
+      representante_legal_principal: 'Cambio de Representante Legal Principal',
+      representante_legal_suplente: 'Cambio de Representante Legal Suplente',
       contacto_principal: 'Cambio de Contacto Principal',
       contacto_secundario: 'Cambio de Contacto Secundario',
       nombre_sala: 'Cambio de Nombre de Sala',
@@ -375,11 +394,21 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       );
     }
 
-    if (changeType === 'representante_legal') {
+    if (changeType === 'representante_legal' || changeType === 'representante_legal_principal') {
+      const getTipoDocLabel = (tipo) => {
+        const labels = {
+          CC: 'Cédula de Ciudadanía',
+          NIT: 'NIT',
+          CE: 'Cédula de Extranjería',
+          PP: 'Pasaporte'
+        };
+        return labels[tipo] || tipo;
+      };
+
       return (
         <Box>
           {change.changes?.nombreRepLegal && (
-            <Box sx={{ mb: 1 }}>
+            <Box sx={{ mb: 0.75 }}>
               <Typography variant="caption" color="text.secondary" display="block">
                 Nombre:
               </Typography>
@@ -387,9 +416,25 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                 <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
                   {change.changes.nombreRepLegal.old || 'No especificado'}
                 </Typography>
-                <SwapIcon fontSize="small" color="action" />
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
                 <Typography variant="body2" fontWeight={600}>
                   {change.changes.nombreRepLegal.new}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          {change.changes?.tipoDocumentoRepLegal && (
+            <Box sx={{ mb: 0.75 }}>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Tipo de Documento:
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+                  {getTipoDocLabel(change.changes.tipoDocumentoRepLegal.old) || 'No especificado'}
+                </Typography>
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
+                <Typography variant="body2" fontWeight={600}>
+                  {getTipoDocLabel(change.changes.tipoDocumentoRepLegal.new)}
                 </Typography>
               </Box>
             </Box>
@@ -397,15 +442,80 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
           {change.changes?.cedulaRepLegal && (
             <Box>
               <Typography variant="caption" color="text.secondary" display="block">
-                Cédula:
+                Número de Documento:
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                 <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
                   {change.changes.cedulaRepLegal.old || 'No especificado'}
                 </Typography>
-                <SwapIcon fontSize="small" color="action" />
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
                 <Typography variant="body2" fontWeight={600}>
                   {change.changes.cedulaRepLegal.new}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
+      );
+    }
+
+    if (changeType === 'representante_legal_suplente') {
+      const getTipoDocLabel = (tipo) => {
+        const labels = {
+          CC: 'Cédula de Ciudadanía',
+          NIT: 'NIT',
+          CE: 'Cédula de Extranjería',
+          PP: 'Pasaporte'
+        };
+        return labels[tipo] || tipo;
+      };
+
+      return (
+        <Box>
+          {change.changes?.nombreRepLegalSuplente && (
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Nombre:
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+                  {change.changes.nombreRepLegalSuplente.old || 'No especificado'}
+                </Typography>
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
+                <Typography variant="body2" fontWeight={600}>
+                  {change.changes.nombreRepLegalSuplente.new}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          {change.changes?.tipoDocumentoRepLegalSuplente && (
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Tipo de Documento:
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+                  {getTipoDocLabel(change.changes.tipoDocumentoRepLegalSuplente.old) || 'No especificado'}
+                </Typography>
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
+                <Typography variant="body2" fontWeight={600}>
+                  {getTipoDocLabel(change.changes.tipoDocumentoRepLegalSuplente.new)}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          {change.changes?.cedulaRepLegalSuplente && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Número de Documento:
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+                  {change.changes.cedulaRepLegalSuplente.old || 'No especificado'}
+                </Typography>
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
+                <Typography variant="body2" fontWeight={600}>
+                  {change.changes.cedulaRepLegalSuplente.new}
                 </Typography>
               </Box>
             </Box>
@@ -426,7 +536,7 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                 <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
                   {change.changes.nombre.old || 'No especificado'}
                 </Typography>
-                <SwapIcon fontSize="small" color="action" />
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
                 <Typography variant="body2" fontWeight={600}>
                   {change.changes.nombre.new}
                 </Typography>
@@ -443,7 +553,7 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                 <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
                   {change.changes.telefono.old || 'No especificado'}
                 </Typography>
-                <SwapIcon fontSize="small" color="action" />
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
                 <Typography variant="body2" fontWeight={600}>
                   {change.changes.telefono.new}
                 </Typography>
@@ -460,7 +570,7 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                 <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
                   {change.changes.email.old || 'No especificado'}
                 </Typography>
-                <SwapIcon fontSize="small" color="action" />
+                <TrendingFlatIcon fontSize="small" sx={{ color: alpha(theme.palette.primary.main, 0.6) }} />
                 <Typography variant="body2" fontWeight={600}>
                   {change.changes.email.new}
                 </Typography>
@@ -497,30 +607,54 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
     
     // Cambios de documentos
     if (['documento_camara_comercio', 'documento_uso_suelos', 'documento_validacion_uso_suelos'].includes(changeType)) {
-      const actionLabels = {
-        'carga': '📤 Documento Cargado',
-        'eliminación': '🗑️ Documento Eliminado',
-        'reemplazo': '🔄 Documento Reemplazado'
+      const actionColors = {
+        carga: 'success',
+        eliminación: 'error',
+        reemplazo: 'warning'
       };
       
-      const actionColors = {
-        'carga': theme.palette.success.main,
-        'eliminación': theme.palette.error.main,
-        'reemplazo': theme.palette.warning.main
+      const actionIcons = {
+        carga: <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />,
+        eliminación: <DeleteOutlineIcon sx={{ fontSize: 18 }} />,
+        reemplazo: <TrendingFlatIcon sx={{ fontSize: 18 }} />
+      };
+      
+      const actionLabels = {
+        carga: 'Documento Cargado',
+        eliminación: 'Documento Eliminado',
+        reemplazo: 'Documento Reemplazado'
       };
       
       return (
         <Box>
-          <Chip 
-            label={actionLabels[change.action] || change.action}
-            size="small"
+          <Box 
             sx={{ 
-              bgcolor: alpha(actionColors[change.action] || theme.palette.info.main, 0.12),
-              color: actionColors[change.action] || theme.palette.info.main,
-              fontWeight: 600,
-              mb: 1.5
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              mb: 1.25,
+              px: 1.5,
+              py: 0.5,
+              bgcolor: alpha(theme.palette[actionColors[change.action]].main, 0.1),
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette[actionColors[change.action]].main, 0.3)}`
             }}
-          />
+          >
+            <Box sx={{ 
+              color: theme.palette[actionColors[change.action]].main,
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              {actionIcons[change.action]}
+            </Box>
+            <Typography 
+              variant="body2" 
+              fontWeight={600}
+              sx={{ color: theme.palette[actionColors[change.action]].main }}
+            >
+              {actionLabels[change.action]}
+            </Typography>
+          </Box>
           {change.action === 'reemplazo' && (
             <Box>
               {oldValue && (
@@ -786,33 +920,40 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
             )}
           </Box>
         ) : (
-          <List sx={{ width: '100%' }}>
+          <Grid container spacing={2}>
             {changes.map((change, index) => (
-              <Box key={change.id} sx={{ mb: 2 }}>
+              <Grid item xs={12} md={6} key={change.id}>
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 2.5,
-                    border: `1px solid ${alpha(theme.palette[getChangeColor(change.changeType)].main, 0.6)}`,
-                    borderRadius: 1,
+                    p: 1.75,
+                    border: `1px solid ${alpha(theme.palette[getChangeColor(change.changeType)].main, 0.2)}`,
+                    borderRadius: 2,
                     bgcolor: theme.palette.background.paper,
                     position: 'relative',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    height: '100%',
                     '&:hover': {
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      borderColor: alpha(theme.palette[getChangeColor(change.changeType)].main, 0.8)
+                      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                      borderColor: alpha(theme.palette[getChangeColor(change.changeType)].main, 0.4),
+                      transform: 'translateY(-2px)'
                     }
                   }}
                 >
                   {/* Header con fecha y usuario */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Avatar 
                         sx={{ 
-                          bgcolor: theme.palette[getChangeColor(change.changeType)].main,
-                          width: 40,
-                          height: 40
+                          background: `linear-gradient(135deg, ${theme.palette[getChangeColor(change.changeType)].main} 0%, ${theme.palette[getChangeColor(change.changeType)].dark} 100%)`,
+                          width: 36,
+                          height: 36,
+                          boxShadow: `0 4px 12px ${alpha(theme.palette[getChangeColor(change.changeType)].main, 0.3)}`,
+                          transition: 'transform 0.2s ease',
+                          '& svg': {
+                            fontSize: 20
+                          }
                         }}
                       >
                         {getChangeIcon(change.changeType)}
@@ -829,9 +970,27 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                     <Chip 
                       label={change.changedBy?.name || 'Usuario'}
                       size="small"
+                      avatar={
+                        <Avatar 
+                          sx={{ 
+                            bgcolor: 'transparent',
+                            color: theme.palette[getChangeColor(change.changeType)].main,
+                            fontSize: 16,
+                            fontWeight: 700
+                          }}
+                        >
+                          {(change.changedBy?.name || 'U').charAt(0).toUpperCase()}
+                        </Avatar>
+                      }
                       sx={{ 
-                        bgcolor: alpha(theme.palette[getChangeColor(change.changeType)].main, 0.15),
-                        fontWeight: 600
+                        bgcolor: alpha(theme.palette[getChangeColor(change.changeType)].main, 0.1),
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        px: 0.5,
+                        border: `1px solid ${alpha(theme.palette[getChangeColor(change.changeType)].main, 0.2)}`,
+                        '& .MuiChip-label': {
+                          px: 1
+                        }
                       }}
                     />
                   </Box>
@@ -844,8 +1003,8 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                   {/* Motivo (si existe) */}
                   {change.reason && (
                     <Box sx={{ 
-                      mt: 2, 
-                      p: 1.5, 
+                      mt: 1.5, 
+                      p: 1.25, 
                       bgcolor: alpha(theme.palette.info.main, 0.05), 
                       borderRadius: 1,
                       borderLeft: `3px solid ${theme.palette.info.main}`
@@ -859,25 +1018,9 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                     </Box>
                   )}
                 </Paper>
-                
-                {/* Conector visual entre cambios */}
-                {index < changes.length - 1 && (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    my: 1 
-                  }}>
-                    <Box sx={{ 
-                      width: 2, 
-                      height: 20, 
-                      bgcolor: theme.palette.divider,
-                      borderRadius: 1
-                    }} />
-                  </Box>
-                )}
-              </Box>
+              </Grid>
             ))}
-          </List>
+          </Grid>
         )}
 
         {/* Controles de Paginación */}

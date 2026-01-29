@@ -97,15 +97,39 @@ const EditSalaModal = ({
     return value.replace(/\D/g, '');
   };
 
-  // Detectar si cambió información crítica (nombre, dirección, rep. legal)
+  // Helper: Formatear NIT (900.123.456-7)
+  const formatNIT = (nit) => {
+    if (!nit) return '';
+    const cleaned = String(nit).replace(/\D/g, '');
+    if (cleaned.length <= 9) {
+      return cleaned.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3').replace(/\.$/, '');
+    }
+    const num = cleaned.slice(0, -1);
+    const dv = cleaned.slice(-1);
+    return num.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3') + '-' + dv;
+  };
+
+  // Helper: Limpiar NIT (solo números)
+  const parseNIT = (nit) => {
+    if (!nit) return '';
+    return String(nit).replace(/[^\d]/g, '');
+  };
+
+  // Detectar si cambió información crítica (nombre, dirección, rep. legal principal o suplente)
   const hasChangedCriticalInfo = () => {
     if (!selectedSala) return false;
     
     const nameChanged = formData.name?.trim() !== selectedSala.name?.trim();
-    const addressChanged = formData.address?.trim() !== selectedSala.address?.trim();
+    const addressChanged = formData.direccion?.trim() !== selectedSala.direccion?.trim();
     const repLegalChanged = parseCedula(formData.cedulaRepLegal) !== parseCedula(selectedSala.cedulaRepLegal);
     
-    return nameChanged || addressChanged || repLegalChanged;
+    // Verificar cambios en representante legal suplente
+    const supletenteNombreChanged = (formData.nombreRepLegalSuplente || '').trim() !== (selectedSala.nombreRepLegalSuplente || '').trim();
+    const suplenteTipoChanged = (formData.tipoDocumentoRepLegalSuplente || 'CC') !== (selectedSala.tipoDocumentoRepLegalSuplente || 'CC');
+    const suplenteDocChanged = parseCedula(formData.cedulaRepLegalSuplente || '') !== parseCedula(selectedSala.cedulaRepLegalSuplente || '');
+    const supletenteChanged = supletenteNombreChanged || suplenteTipoChanged || suplenteDocChanged;
+    
+    return nameChanged || addressChanged || repLegalChanged || supletenteChanged;
   };
 
   // Handler: Validar antes de guardar
@@ -531,13 +555,20 @@ const EditSalaModal = ({
             />
           </Grid>
           
+          {/* Representante Legal Principal */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
+              📋 Representante Legal Principal
+            </Typography>
+          </Grid>
+
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Nombre Representante Legal"
+              label="Nombre Representante Legal Principal"
               value={formData.nombreRepLegal || ''}
               onChange={(e) => onFormChange('nombreRepLegal', toTitleCase(e.target.value))}
-              helperText="Nombre completo del representante legal (se formatea automáticamente)"
+              helperText="Nombre completo del representante legal principal"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -546,18 +577,162 @@ const EditSalaModal = ({
             />
           </Grid>
           
+          <Grid item xs={12} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Tipo de Documento"
+              value={formData.tipoDocumentoRepLegal || 'CC'}
+              onChange={(e) => {
+                onFormChange('tipoDocumentoRepLegal', e.target.value);
+                onFormChange('cedulaRepLegal', ''); // Limpiar número al cambiar tipo
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            >
+              <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
+              <MenuItem value="NIT">NIT</MenuItem>
+              <MenuItem value="CE">Cédula de Extranjería</MenuItem>
+              <MenuItem value="PP">Pasaporte</MenuItem>
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              label={{
+                CC: 'Número de Cédula',
+                NIT: 'Número de NIT',
+                CE: 'Número de Cédula Extranjería',
+                PP: 'Número de Pasaporte'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              value={(() => {
+                const tipo = formData.tipoDocumentoRepLegal || 'CC';
+                const valor = formData.cedulaRepLegal || '';
+                if (tipo === 'CC' || tipo === 'CE') return formatCedula(valor);
+                if (tipo === 'NIT') return formatNIT(valor);
+                return valor; // Pasaporte sin formato
+              })()}
+              onChange={(e) => {
+                const tipo = formData.tipoDocumentoRepLegal || 'CC';
+                let rawValue = e.target.value;
+                if (tipo === 'CC' || tipo === 'CE') {
+                  rawValue = parseCedula(e.target.value);
+                } else if (tipo === 'NIT') {
+                  rawValue = parseNIT(e.target.value);
+                } else {
+                  rawValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                }
+                onFormChange('cedulaRepLegal', rawValue);
+              }}
+              placeholder={{
+                CC: '25.456.325',
+                NIT: '900.123.456-7',
+                CE: '1.234.567',
+                PP: 'AB1234567'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              helperText={{
+                CC: 'Formato automático: 12.345.678',
+                NIT: 'Formato automático: 900.123.456-7',
+                CE: 'Formato automático: 1.234.567',
+                PP: 'Solo letras y números (mayúsculas)'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </Grid>
+
+          {/* Representante Legal Suplente */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'secondary.main', mb: 1, mt: 2 }}>
+              👥 Representante Legal Suplente (Opcional)
+            </Typography>
+          </Grid>
+
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Cédula Representante Legal"
-              value={formatCedula(formData.cedulaRepLegal) || ''}
-              onChange={(e) => {
-                const formattedValue = formatCedula(e.target.value);
-                const rawValue = parseCedula(e.target.value);
-                onFormChange('cedulaRepLegal', rawValue);
+              label="Nombre Representante Legal Suplente"
+              value={formData.nombreRepLegalSuplente || ''}
+              onChange={(e) => onFormChange('nombreRepLegalSuplente', toTitleCase(e.target.value))}
+              helperText="Nombre completo del representante legal suplente (opcional)"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
               }}
-              placeholder="Ej: 25.456.325"
-              helperText="Número de cédula (formato automático con puntos)"
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Tipo de Documento"
+              value={formData.tipoDocumentoRepLegalSuplente || 'CC'}
+              onChange={(e) => {
+                onFormChange('tipoDocumentoRepLegalSuplente', e.target.value);
+                onFormChange('cedulaRepLegalSuplente', '');
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            >
+              <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
+              <MenuItem value="NIT">NIT</MenuItem>
+              <MenuItem value="CE">Cédula de Extranjería</MenuItem>
+              <MenuItem value="PP">Pasaporte</MenuItem>
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              label={{
+                CC: 'Número de Cédula',
+                NIT: 'Número de NIT',
+                CE: 'Número de Cédula Extranjería',
+                PP: 'Número de Pasaporte'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
+              value={(() => {
+                const tipo = formData.tipoDocumentoRepLegalSuplente || 'CC';
+                const valor = formData.cedulaRepLegalSuplente || '';
+                if (tipo === 'CC' || tipo === 'CE') return formatCedula(valor);
+                if (tipo === 'NIT') return formatNIT(valor);
+                return valor;
+              })()}
+              onChange={(e) => {
+                const tipo = formData.tipoDocumentoRepLegalSuplente || 'CC';
+                let rawValue = e.target.value;
+                if (tipo === 'CC' || tipo === 'CE') {
+                  rawValue = parseCedula(e.target.value);
+                } else if (tipo === 'NIT') {
+                  rawValue = parseNIT(e.target.value);
+                } else {
+                  rawValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                }
+                onFormChange('cedulaRepLegalSuplente', rawValue);
+              }}
+              placeholder={{
+                CC: '25.456.325',
+                NIT: '900.123.456-7',
+                CE: '1.234.567',
+                PP: 'AB1234567'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
+              helperText={{
+                CC: 'Formato automático: 12.345.678',
+                NIT: 'Formato automático: 900.123.456-7',
+                CE: 'Formato automático: 1.234.567',
+                PP: 'Solo letras y números (mayúsculas)'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2

@@ -58,6 +58,18 @@ const ViewSalaModal = ({
     return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
+  // Helper: Formatear NIT (900.123.456-7)
+  const formatNIT = (nit) => {
+    if (!nit) return '';
+    const cleaned = String(nit).replace(/\D/g, '');
+    if (cleaned.length <= 9) {
+      return cleaned.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3').replace(/\.$/, '');
+    }
+    const num = cleaned.slice(0, -1);
+    const dv = cleaned.slice(-1);
+    return num.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3') + '-' + dv;
+  };
+
   const handleViewDocument = (doc, title) => {
     setCurrentDocument({ url: doc.url, title });
     setPdfViewerOpen(true);
@@ -199,7 +211,7 @@ const ViewSalaModal = ({
                     {selectedSala.propietario || 'No especificado'}
                   </Typography>
                   
-                  {/* Representante Legal */}
+                  {/* Representante Legal Principal */}
                   {(selectedSala.nombreRepLegal || selectedSala.cedulaRepLegal) && (
                     <Box sx={{ 
                       mt: 2, 
@@ -207,7 +219,7 @@ const ViewSalaModal = ({
                       borderTop: `1px solid ${theme.palette.divider}` 
                     }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                        📋 Representante Legal
+                        📋 Representante Legal Principal
                       </Typography>
                       {selectedSala.nombreRepLegal && (
                         <Typography variant="body2" color="text.primary" sx={{ display: 'block', mb: 0.5 }}>
@@ -216,7 +228,66 @@ const ViewSalaModal = ({
                       )}
                       {selectedSala.cedulaRepLegal && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          CC: {formatCedula(selectedSala.cedulaRepLegal)}
+                          {(() => {
+                            const tipo = selectedSala.tipoDocumentoRepLegal || 'CC';
+                            const valor = selectedSala.cedulaRepLegal;
+                            const tipoLabel = {
+                              CC: 'CC',
+                              NIT: 'NIT',
+                              CE: 'CE',
+                              PP: 'Pasaporte'
+                            }[tipo];
+                            
+                            let valorFormateado = valor;
+                            if (tipo === 'CC' || tipo === 'CE') {
+                              valorFormateado = formatCedula(valor);
+                            } else if (tipo === 'NIT') {
+                              valorFormateado = formatNIT(valor);
+                            }
+                            
+                            return `${tipoLabel}: ${valorFormateado}`;
+                          })()}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Representante Legal Suplente */}
+                  {(selectedSala.nombreRepLegalSuplente || selectedSala.cedulaRepLegalSuplente) && (
+                    <Box sx={{ 
+                      mt: 2, 
+                      pt: 2, 
+                      borderTop: `1px solid ${theme.palette.divider}` 
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                        👥 Representante Legal Suplente
+                      </Typography>
+                      {selectedSala.nombreRepLegalSuplente && (
+                        <Typography variant="body2" color="text.primary" sx={{ display: 'block', mb: 0.5 }}>
+                          {selectedSala.nombreRepLegalSuplente}
+                        </Typography>
+                      )}
+                      {selectedSala.cedulaRepLegalSuplente && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {(() => {
+                            const tipo = selectedSala.tipoDocumentoRepLegalSuplente || 'CC';
+                            const valor = selectedSala.cedulaRepLegalSuplente;
+                            const tipoLabel = {
+                              CC: 'CC',
+                              NIT: 'NIT',
+                              CE: 'CE',
+                              PP: 'Pasaporte'
+                            }[tipo];
+                            
+                            let valorFormateado = valor;
+                            if (tipo === 'CC' || tipo === 'CE') {
+                              valorFormateado = formatCedula(valor);
+                            } else if (tipo === 'NIT') {
+                              valorFormateado = formatNIT(valor);
+                            }
+                            
+                            return `${tipoLabel}: ${valorFormateado}`;
+                          })()}
                         </Typography>
                       )}
                     </Box>

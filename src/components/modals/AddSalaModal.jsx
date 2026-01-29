@@ -78,19 +78,35 @@ const AddSalaModal = ({
       .join(' ');
   };
 
-  // Helper: Formatear cédula con puntos (ej: 25456325 → 25.456.325)
-  const formatCedula = (value) => {
-    if (!value) return '';
-    // Remover todo lo que no sea número
-    const numbers = value.replace(/\D/g, '');
-    // Agregar puntos cada 3 dígitos desde el final
-    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  // Helper: Formatear Cédula (12.345.678)
+  const formatCedula = (cedula) => {
+    if (!cedula) return '';
+    const cleaned = String(cedula).replace(/\D/g, '');
+    return cleaned.replace(/(\d{1,3})(?=(\d{3})+(?!\d))/g, '$1.');
   };
 
-  // Helper: Limpiar formato de cédula para guardar (25.456.325 → 25456325)
-  const parseCedula = (value) => {
-    if (!value) return '';
-    return value.replace(/\D/g, '');
+  // Helper: Limpiar Cédula (solo números)
+  const parseCedula = (cedula) => {
+    if (!cedula) return '';
+    return String(cedula).replace(/\D/g, '');
+  };
+
+  // Helper: Formatear NIT (900.123.456-7)
+  const formatNIT = (nit) => {
+    if (!nit) return '';
+    const cleaned = String(nit).replace(/\D/g, '');
+    if (cleaned.length <= 9) {
+      return cleaned.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3').replace(/\.$/, '');
+    }
+    const num = cleaned.slice(0, -1);
+    const dv = cleaned.slice(-1);
+    return num.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3') + '-' + dv;
+  };
+
+  // Helper: Limpiar NIT (solo números)
+  const parseNIT = (nit) => {
+    if (!nit) return '';
+    return String(nit).replace(/[^\d]/g, '');
   };
 
   return (
@@ -433,13 +449,20 @@ const AddSalaModal = ({
             />
           </Grid>
           
+          {/* Representante Legal Principal */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
+              📋 Representante Legal Principal
+            </Typography>
+          </Grid>
+
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Nombre Representante Legal"
+              label="Nombre Representante Legal Principal"
               value={formData.nombreRepLegal || ''}
               onChange={(e) => handleFormChange('nombreRepLegal', toTitleCase(e.target.value))}
-              helperText="Nombre completo del representante legal (se formatea automáticamente)"
+              helperText="Nombre completo del representante legal principal"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -448,18 +471,162 @@ const AddSalaModal = ({
             />
           </Grid>
           
+          <Grid item xs={12} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Tipo de Documento"
+              value={formData.tipoDocumentoRepLegal || 'CC'}
+              onChange={(e) => {
+                handleFormChange('tipoDocumentoRepLegal', e.target.value);
+                handleFormChange('cedulaRepLegal', ''); // Limpiar número al cambiar tipo
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            >
+              <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
+              <MenuItem value="NIT">NIT</MenuItem>
+              <MenuItem value="CE">Cédula de Extranjería</MenuItem>
+              <MenuItem value="PP">Pasaporte</MenuItem>
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              label={{
+                CC: 'Número de Cédula',
+                NIT: 'Número de NIT',
+                CE: 'Número de Cédula Extranjería',
+                PP: 'Número de Pasaporte'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              value={(() => {
+                const tipo = formData.tipoDocumentoRepLegal || 'CC';
+                const valor = formData.cedulaRepLegal || '';
+                if (tipo === 'CC' || tipo === 'CE') return formatCedula(valor);
+                if (tipo === 'NIT') return formatNIT(valor);
+                return valor; // Pasaporte sin formato
+              })()}
+              onChange={(e) => {
+                const tipo = formData.tipoDocumentoRepLegal || 'CC';
+                let rawValue = e.target.value;
+                if (tipo === 'CC' || tipo === 'CE') {
+                  rawValue = parseCedula(e.target.value);
+                } else if (tipo === 'NIT') {
+                  rawValue = parseNIT(e.target.value);
+                } else {
+                  rawValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                }
+                handleFormChange('cedulaRepLegal', rawValue);
+              }}
+              placeholder={{
+                CC: '25.456.325',
+                NIT: '900.123.456-7',
+                CE: '1.234.567',
+                PP: 'AB1234567'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              helperText={{
+                CC: 'Formato automático: 12.345.678',
+                NIT: 'Formato automático: 900.123.456-7',
+                CE: 'Formato automático: 1.234.567',
+                PP: 'Solo letras y números (mayúsculas)'
+              }[formData.tipoDocumentoRepLegal || 'CC']}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </Grid>
+
+          {/* Representante Legal Suplente */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'secondary.main', mb: 1, mt: 2 }}>
+              👥 Representante Legal Suplente (Opcional)
+            </Typography>
+          </Grid>
+
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Cédula Representante Legal"
-              value={formatCedula(formData.cedulaRepLegal) || ''}
-              onChange={(e) => {
-                const formattedValue = formatCedula(e.target.value);
-                const rawValue = parseCedula(e.target.value);
-                handleFormChange('cedulaRepLegal', rawValue);
+              label="Nombre Representante Legal Suplente"
+              value={formData.nombreRepLegalSuplente || ''}
+              onChange={(e) => handleFormChange('nombreRepLegalSuplente', toTitleCase(e.target.value))}
+              helperText="Nombre completo del representante legal suplente (opcional)"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
               }}
-              placeholder="Ej: 25.456.325"
-              helperText="Número de cédula (formato automático con puntos)"
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={3}>
+            <TextField
+              select
+              fullWidth
+              label="Tipo de Documento"
+              value={formData.tipoDocumentoRepLegalSuplente || 'CC'}
+              onChange={(e) => {
+                handleFormChange('tipoDocumentoRepLegalSuplente', e.target.value);
+                handleFormChange('cedulaRepLegalSuplente', '');
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            >
+              <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
+              <MenuItem value="NIT">NIT</MenuItem>
+              <MenuItem value="CE">Cédula de Extranjería</MenuItem>
+              <MenuItem value="PP">Pasaporte</MenuItem>
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              label={{
+                CC: 'Número de Cédula',
+                NIT: 'Número de NIT',
+                CE: 'Número de Cédula Extranjería',
+                PP: 'Número de Pasaporte'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
+              value={(() => {
+                const tipo = formData.tipoDocumentoRepLegalSuplente || 'CC';
+                const valor = formData.cedulaRepLegalSuplente || '';
+                if (tipo === 'CC' || tipo === 'CE') return formatCedula(valor);
+                if (tipo === 'NIT') return formatNIT(valor);
+                return valor;
+              })()}
+              onChange={(e) => {
+                const tipo = formData.tipoDocumentoRepLegalSuplente || 'CC';
+                let rawValue = e.target.value;
+                if (tipo === 'CC' || tipo === 'CE') {
+                  rawValue = parseCedula(e.target.value);
+                } else if (tipo === 'NIT') {
+                  rawValue = parseNIT(e.target.value);
+                } else {
+                  rawValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                }
+                handleFormChange('cedulaRepLegalSuplente', rawValue);
+              }}
+              placeholder={{
+                CC: '25.456.325',
+                NIT: '900.123.456-7',
+                CE: '1.234.567',
+                PP: 'AB1234567'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
+              helperText={{
+                CC: 'Formato automático: 12.345.678',
+                NIT: 'Formato automático: 900.123.456-7',
+                CE: 'Formato automático: 1.234.567',
+                PP: 'Solo letras y números (mayúsculas)'
+              }[formData.tipoDocumentoRepLegalSuplente || 'CC']}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2

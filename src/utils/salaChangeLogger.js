@@ -205,16 +205,18 @@ export const logSalaChange = async (salaId, salaName, oldData, newData, user, re
       });
     }
 
-    // Detectar cambio de representante legal (solo si hay un cambio real, no vacío → vacío)
+    // Detectar cambio de representante legal principal (solo si hay un cambio real, no vacío → vacío)
     const hasRealRepLegalChange = () => {
       const nombreChanged = oldData.nombreRepLegal !== newData.nombreRepLegal;
+      const tipoDocChanged = oldData.tipoDocumentoRepLegal !== newData.tipoDocumentoRepLegal;
       const cedulaChanged = oldData.cedulaRepLegal !== newData.cedulaRepLegal;
       
       // Solo registrar si hay un valor nuevo Y es diferente al anterior
       const nombreHasRealChange = nombreChanged && (oldData.nombreRepLegal || newData.nombreRepLegal);
+      const tipoDocHasRealChange = tipoDocChanged && (oldData.tipoDocumentoRepLegal || newData.tipoDocumentoRepLegal);
       const cedulaHasRealChange = cedulaChanged && (oldData.cedulaRepLegal || newData.cedulaRepLegal);
       
-      return nombreHasRealChange || cedulaHasRealChange;
+      return nombreHasRealChange || tipoDocHasRealChange || cedulaHasRealChange;
     };
 
     if (hasRealRepLegalChange()) {
@@ -224,6 +226,13 @@ export const logSalaChange = async (salaId, salaName, oldData, newData, user, re
         repLegalChanges.nombreRepLegal = {
           old: oldData.nombreRepLegal || '',
           new: newData.nombreRepLegal || ''
+        };
+      }
+      
+      if (oldData.tipoDocumentoRepLegal !== newData.tipoDocumentoRepLegal && (oldData.tipoDocumentoRepLegal || newData.tipoDocumentoRepLegal)) {
+        repLegalChanges.tipoDocumentoRepLegal = {
+          old: oldData.tipoDocumentoRepLegal || 'CC',
+          new: newData.tipoDocumentoRepLegal || 'CC'
         };
       }
       
@@ -239,8 +248,62 @@ export const logSalaChange = async (salaId, salaName, oldData, newData, user, re
         changes.push({
           salaId,
           salaName,
-          changeType: 'representante_legal',
+          changeType: 'representante_legal_principal',
           changes: repLegalChanges,
+          timestamp: serverTimestamp(),
+          changedBy: {
+            uid: user.uid,
+            name: user.displayName || user.email,
+            email: user.email
+          },
+          reason
+        });
+      }
+    }
+
+    // Detectar cambio de representante legal SUPLENTE
+    const hasRealRepLegalSuplenteChange = () => {
+      const nombreChanged = oldData.nombreRepLegalSuplente !== newData.nombreRepLegalSuplente;
+      const tipoDocChanged = oldData.tipoDocumentoRepLegalSuplente !== newData.tipoDocumentoRepLegalSuplente;
+      const cedulaChanged = oldData.cedulaRepLegalSuplente !== newData.cedulaRepLegalSuplente;
+      
+      const nombreHasRealChange = nombreChanged && (oldData.nombreRepLegalSuplente || newData.nombreRepLegalSuplente);
+      const tipoDocHasRealChange = tipoDocChanged && (oldData.tipoDocumentoRepLegalSuplente || newData.tipoDocumentoRepLegalSuplente);
+      const cedulaHasRealChange = cedulaChanged && (oldData.cedulaRepLegalSuplente || newData.cedulaRepLegalSuplente);
+      
+      return nombreHasRealChange || tipoDocHasRealChange || cedulaHasRealChange;
+    };
+
+    if (hasRealRepLegalSuplenteChange()) {
+      const repLegalSuplenteChanges = {};
+      
+      if (oldData.nombreRepLegalSuplente !== newData.nombreRepLegalSuplente && (oldData.nombreRepLegalSuplente || newData.nombreRepLegalSuplente)) {
+        repLegalSuplenteChanges.nombreRepLegalSuplente = {
+          old: oldData.nombreRepLegalSuplente || '',
+          new: newData.nombreRepLegalSuplente || ''
+        };
+      }
+      
+      if (oldData.tipoDocumentoRepLegalSuplente !== newData.tipoDocumentoRepLegalSuplente && (oldData.tipoDocumentoRepLegalSuplente || newData.tipoDocumentoRepLegalSuplente)) {
+        repLegalSuplenteChanges.tipoDocumentoRepLegalSuplente = {
+          old: oldData.tipoDocumentoRepLegalSuplente || 'CC',
+          new: newData.tipoDocumentoRepLegalSuplente || 'CC'
+        };
+      }
+      
+      if (oldData.cedulaRepLegalSuplente !== newData.cedulaRepLegalSuplente && (oldData.cedulaRepLegalSuplente || newData.cedulaRepLegalSuplente)) {
+        repLegalSuplenteChanges.cedulaRepLegalSuplente = {
+          old: oldData.cedulaRepLegalSuplente || '',
+          new: newData.cedulaRepLegalSuplente || ''
+        };
+      }
+
+      if (Object.keys(repLegalSuplenteChanges).length > 0) {
+        changes.push({
+          salaId,
+          salaName,
+          changeType: 'representante_legal_suplente',
+          changes: repLegalSuplenteChanges,
           timestamp: serverTimestamp(),
           changedBy: {
             uid: user.uid,
