@@ -49,6 +49,15 @@ const ViewSalaModal = ({
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [currentDocument, setCurrentDocument] = useState(null);
 
+  // Helper: Formatear cédula con puntos (ej: 25456325 → 25.456.325)
+  const formatCedula = (value) => {
+    if (!value) return '';
+    // Remover todo lo que no sea número
+    const numbers = value.toString().replace(/\D/g, '');
+    // Agregar puntos cada 3 dígitos desde el final
+    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
   const handleViewDocument = (doc, title) => {
     setCurrentDocument({ url: doc.url, title });
     setPdfViewerOpen(true);
@@ -207,7 +216,7 @@ const ViewSalaModal = ({
                       )}
                       {selectedSala.cedulaRepLegal && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          CC: {selectedSala.cedulaRepLegal}
+                          CC: {formatCedula(selectedSala.cedulaRepLegal)}
                         </Typography>
                       )}
                     </Box>
@@ -428,7 +437,7 @@ const ViewSalaModal = ({
             </Grid>
 
             {/* Sección: Documentos Adjuntos */}
-            {(selectedSala.attachments?.camaraComercio || selectedSala.attachments?.usoSuelos) && (
+            {(selectedSala.attachments?.camaraComercio || selectedSala.attachments?.usoSuelos || selectedSala.attachments?.validacionUsoSuelos) && (
               <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
@@ -440,14 +449,30 @@ const ViewSalaModal = ({
                   <DocumentIcon color="primary" />
                   Documentos Adjuntos
                 </Typography>
-                <Grid container spacing={2}>
-                  {/* Cámara de Comercio */}
-                  {selectedSala.attachments?.camaraComercio && (
-                    <Grid item xs={12} md={6}>
+                <Grid container spacing={2} justifyContent="center">
+                  {(() => {
+                    // Contar documentos disponibles
+                    const availableDocuments = [
+                      selectedSala.attachments?.camaraComercio,
+                      selectedSala.attachments?.usoSuelos,
+                      selectedSala.attachments?.validacionUsoSuelos
+                    ].filter(Boolean).length;
+
+                    // Calcular tamaño de Grid: 3 docs = md{4}, 2 docs = md{6}, 1 doc = md{8}
+                    const gridSize = availableDocuments === 3 ? 4 : availableDocuments === 2 ? 6 : 8;
+                    
+                    return (
+                      <>
+                        {/* Cámara de Comercio */}
+                        {selectedSala.attachments?.camaraComercio && (
+                          <Grid item xs={12} md={gridSize}>
                       <Paper 
                         elevation={0}
                         sx={{ 
-                          p: 2.5, 
+                          p: 2.5,
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
                           border: `2px solid ${theme.palette.primary.main}`,
                           borderRadius: 2,
                           backgroundColor: alpha(theme.palette.primary.main, 0.05),
@@ -484,7 +509,8 @@ const ViewSalaModal = ({
                           sx={{ 
                             borderRadius: 2,
                             textTransform: 'none',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            mt: 'auto'
                           }}
                         >
                           Ver Documento
@@ -495,11 +521,14 @@ const ViewSalaModal = ({
 
                   {/* Uso de Suelos */}
                   {selectedSala.attachments?.usoSuelos && (
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={gridSize}>
                       <Paper 
                         elevation={0}
                         sx={{ 
-                          p: 2.5, 
+                          p: 2.5,
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
                           border: `2px solid ${theme.palette.secondary.main}`,
                           borderRadius: 2,
                           backgroundColor: alpha(theme.palette.secondary.main, 0.05),
@@ -537,7 +566,68 @@ const ViewSalaModal = ({
                           sx={{ 
                             borderRadius: 2,
                             textTransform: 'none',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            mt: 'auto'
+                          }}
+                        >
+                          Ver Documento
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  )}
+
+                  {/* Validación Uso de Suelos */}
+                  {selectedSala.attachments?.validacionUsoSuelos && (
+                    <Grid item xs={12} md={gridSize}>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2.5,
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          border: `2px solid ${theme.palette.primary.dark}`,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.primary.dark, 0.05),
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.dark, 0.15)}`,
+                            transform: 'translateY(-2px)'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                          <Avatar sx={{ 
+                            bgcolor: 'primary.dark', 
+                            color: 'primary.contrastText',
+                            width: 40,
+                            height: 40
+                          }}>
+                            <PdfIcon />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'primary.dark' }}>
+                              Validación Uso de Suelos
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {selectedSala.attachments.validacionUsoSuelos.name || 'Documento PDF'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewDocument(selectedSala.attachments.validacionUsoSuelos, 'Validación Uso de Suelos')}
+                          sx={{ 
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: 'primary.dark',
+                            mt: 'auto',
+                            '&:hover': {
+                              bgcolor: 'primary.main'
+                            }
                           }}
                         >
                           Ver Documento

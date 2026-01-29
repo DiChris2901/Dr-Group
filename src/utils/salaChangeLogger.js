@@ -34,6 +34,115 @@ export const logSalaChange = async (salaId, salaName, oldData, newData, user, re
         reason
       });
     }
+    
+    // 1.5 Detectar cambio de NOMBRE DE SALA
+    if (oldData.name !== newData.name && (oldData.name || newData.name)) {
+      changes.push({
+        salaId,
+        salaName: newData.name || oldData.name, // Usar el nuevo nombre
+        changeType: 'nombre_sala',
+        oldValue: oldData.name || '',
+        newValue: newData.name || '',
+        timestamp: serverTimestamp(),
+        changedBy: {
+          uid: user.uid,
+          name: user.displayName || user.email,
+          email: user.email
+        },
+        reason
+      });
+    }
+    
+    // 1.6 Detectar cambio de DIRECCIÓN
+    if (oldData.address !== newData.address && (oldData.address || newData.address)) {
+      changes.push({
+        salaId,
+        salaName,
+        changeType: 'direccion',
+        oldValue: oldData.address || '',
+        newValue: newData.address || '',
+        timestamp: serverTimestamp(),
+        changedBy: {
+          uid: user.uid,
+          name: user.displayName || user.email,
+          email: user.email
+        },
+        reason
+      });
+    }
+    
+    // 1.7 Detectar cambios en DOCUMENTOS (attachments)
+    const oldAttachments = oldData.attachments || {};
+    const newAttachments = newData.attachments || {};
+    
+    // Cambio en Cámara de Comercio
+    if (JSON.stringify(oldAttachments.camaraComercio) !== JSON.stringify(newAttachments.camaraComercio)) {
+      const actionType = !oldAttachments.camaraComercio && newAttachments.camaraComercio ? 'carga' :
+                        oldAttachments.camaraComercio && !newAttachments.camaraComercio ? 'eliminación' :
+                        'reemplazo';
+      
+      changes.push({
+        salaId,
+        salaName,
+        changeType: 'documento_camara_comercio',
+        action: actionType,
+        oldValue: oldAttachments.camaraComercio?.name || '',
+        newValue: newAttachments.camaraComercio?.name || '',
+        timestamp: serverTimestamp(),
+        changedBy: {
+          uid: user.uid,
+          name: user.displayName || user.email,
+          email: user.email
+        },
+        reason
+      });
+    }
+    
+    // Cambio en Uso de Suelos
+    if (JSON.stringify(oldAttachments.usoSuelos) !== JSON.stringify(newAttachments.usoSuelos)) {
+      const actionType = !oldAttachments.usoSuelos && newAttachments.usoSuelos ? 'carga' :
+                        oldAttachments.usoSuelos && !newAttachments.usoSuelos ? 'eliminación' :
+                        'reemplazo';
+      
+      changes.push({
+        salaId,
+        salaName,
+        changeType: 'documento_uso_suelos',
+        action: actionType,
+        oldValue: oldAttachments.usoSuelos?.name || '',
+        newValue: newAttachments.usoSuelos?.name || '',
+        timestamp: serverTimestamp(),
+        changedBy: {
+          uid: user.uid,
+          name: user.displayName || user.email,
+          email: user.email
+        },
+        reason
+      });
+    }
+    
+    // Cambio en Validación Uso de Suelos
+    if (JSON.stringify(oldAttachments.validacionUsoSuelos) !== JSON.stringify(newAttachments.validacionUsoSuelos)) {
+      const actionType = !oldAttachments.validacionUsoSuelos && newAttachments.validacionUsoSuelos ? 'carga' :
+                        oldAttachments.validacionUsoSuelos && !newAttachments.validacionUsoSuelos ? 'eliminación' :
+                        'reemplazo';
+      
+      changes.push({
+        salaId,
+        salaName,
+        changeType: 'documento_validacion_uso_suelos',
+        action: actionType,
+        oldValue: oldAttachments.validacionUsoSuelos?.name || '',
+        newValue: newAttachments.validacionUsoSuelos?.name || '',
+        timestamp: serverTimestamp(),
+        changedBy: {
+          uid: user.uid,
+          name: user.displayName || user.email,
+          email: user.email
+        },
+        reason
+      });
+    }
 
     // 2. Detectar cambio de EMPRESA
     if (oldData.companyId !== newData.companyId || oldData.companyName !== newData.companyName) {

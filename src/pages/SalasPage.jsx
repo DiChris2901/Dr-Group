@@ -195,6 +195,7 @@ const SalasPage = () => {
   // Estados para archivos adjuntos
   const [camaraComercioFile, setCamaraComercioFile] = useState(null);
   const [usoSuelosFile, setUsoSuelosFile] = useState(null);
+  const [validacionUsoSuelosFile, setValidacionUsoSuelosFile] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
 
@@ -545,6 +546,7 @@ const SalasPage = () => {
     });
     setCamaraComercioFile(null);
     setUsoSuelosFile(null);
+    setValidacionUsoSuelosFile(null);
   };
 
   // Crear nueva sala
@@ -589,7 +591,7 @@ const SalasPage = () => {
       const docRef = await addDoc(collection(db, 'salas'), salaData);
       
       // Subir archivos adjuntos si existen
-      if (camaraComercioFile || usoSuelosFile) {
+      if (camaraComercioFile || usoSuelosFile || validacionUsoSuelosFile) {
         setUploadingFiles(true);
         const attachments = {};
         
@@ -602,6 +604,11 @@ const SalasPage = () => {
           if (usoSuelosFile) {
             const usoSuelosData = await uploadFileToStorage(usoSuelosFile, docRef.id, 'uso_suelos');
             attachments.usoSuelos = usoSuelosData;
+          }
+          
+          if (validacionUsoSuelosFile) {
+            const validacionData = await uploadFileToStorage(validacionUsoSuelosFile, docRef.id, 'validacion_uso_suelos');
+            attachments.validacionUsoSuelos = validacionData;
           }
           
           // Actualizar documento con URLs de archivos
@@ -623,7 +630,7 @@ const SalasPage = () => {
         companyName: formData.companyName,
         proveedorOnline: formData.proveedorOnline,
         ciudad: formData.ciudad,
-        hasAttachments: !!(camaraComercioFile || usoSuelosFile)
+        hasAttachments: !!(camaraComercioFile || usoSuelosFile || validacionUsoSuelosFile)
       }, currentUser.uid, userProfile?.displayName, userProfile?.email);
 
       addNotification('Sala creada exitosamente', 'success');
@@ -653,7 +660,7 @@ const SalasPage = () => {
       };
 
       // Subir archivos nuevos si los hay
-      if (camaraComercioFile || usoSuelosFile) {
+      if (camaraComercioFile || usoSuelosFile || validacionUsoSuelosFile) {
         setUploadingFiles(true);
         
         try {
@@ -691,8 +698,24 @@ const SalasPage = () => {
             attachments.usoSuelos = usoSuelosData;
           }
           
+          // Reemplazar Validación Uso de Suelos (eliminar anterior si existe)
+          if (validacionUsoSuelosFile) {
+            // Eliminar archivo anterior de Storage
+            if (attachments.validacionUsoSuelos?.path) {
+              try {
+                const oldFileRef = ref(storage, attachments.validacionUsoSuelos.path);
+                await deleteObject(oldFileRef);
+              } catch (deleteError) {
+                console.warn('Error eliminando archivo anterior:', deleteError);
+              }
+            }
+            // Subir nuevo archivo
+            const validacionData = await uploadFileToStorage(validacionUsoSuelosFile, selectedSala.id, 'validacion_uso_suelos');
+            attachments.validacionUsoSuelos = validacionData;
+          }
+          
           updateData.attachments = attachments;
-          updateData.hasAttachments = !!(attachments.camaraComercio || attachments.usoSuelos);
+          updateData.hasAttachments = !!(attachments.camaraComercio || attachments.usoSuelos || attachments.validacionUsoSuelos);
           
         } catch (fileError) {
           console.error('Error subiendo archivos:', fileError);
@@ -744,6 +767,7 @@ const SalasPage = () => {
       clearForm();
       setCamaraComercioFile(null);
       setUsoSuelosFile(null);
+      setValidacionUsoSuelosFile(null);
       
     } catch (error) {
       console.error('Error actualizando sala:', error);
@@ -791,6 +815,9 @@ const SalasPage = () => {
       } else if (documentType === 'usoSuelos' && attachments.usoSuelos) {
         filePathToDelete = attachments.usoSuelos.path;
         delete attachments.usoSuelos;
+      } else if (documentType === 'validacionUsoSuelos' && attachments.validacionUsoSuelos) {
+        filePathToDelete = attachments.validacionUsoSuelos.path;
+        delete attachments.validacionUsoSuelos;
       }
       
       // Eliminar archivo de Storage si existe
@@ -806,7 +833,7 @@ const SalasPage = () => {
       // Actualizar Firestore
       await updateDoc(salaRef, {
         attachments,
-        hasAttachments: !!(attachments.camaraComercio || attachments.usoSuelos),
+        hasAttachments: !!(attachments.camaraComercio || attachments.usoSuelos || attachments.validacionUsoSuelos),
         updatedAt: serverTimestamp()
       });
       
@@ -2193,6 +2220,7 @@ const SalasPage = () => {
         propietariosConDatos={propietariosConDatos}
         camaraComercioFile={camaraComercioFile}
         usoSuelosFile={usoSuelosFile}
+        validacionUsoSuelosFile={validacionUsoSuelosFile}
         saving={saving}
         uploadingFiles={uploadingFiles}
         handleFormChange={handleFormChange}
@@ -2202,6 +2230,7 @@ const SalasPage = () => {
         handleContacto2Change={handleContacto2Change}
         setCamaraComercioFile={setCamaraComercioFile}
         setUsoSuelosFile={setUsoSuelosFile}
+        setValidacionUsoSuelosFile={setValidacionUsoSuelosFile}
         handleCreateSala={handleCreateSala}
         formatCurrencyInput={formatCurrencyInput}
         parseCurrencyValue={parseCurrencyValue}
@@ -2217,6 +2246,8 @@ const SalasPage = () => {
           clearForm();
           setCamaraComercioFile(null);
           setUsoSuelosFile(null);
+          setValidacionUsoSuelosFile(null);
+          setValidacionUsoSuelosFile(null);
         }}
         formData={formData}
         onFormChange={handleFormChange}
@@ -2231,13 +2262,17 @@ const SalasPage = () => {
         parseCurrencyValue={parseCurrencyValue}
         existingCamaraComercio={selectedSala?.attachments?.camaraComercio}
         existingUsoSuelos={selectedSala?.attachments?.usoSuelos}
+        existingValidacionUsoSuelos={selectedSala?.attachments?.validacionUsoSuelos}
         camaraComercioFile={camaraComercioFile}
         setCamaraComercioFile={setCamaraComercioFile}
         usoSuelosFile={usoSuelosFile}
         setUsoSuelosFile={setUsoSuelosFile}
+        validacionUsoSuelosFile={validacionUsoSuelosFile}
+        setValidacionUsoSuelosFile={setValidacionUsoSuelosFile}
         onDeleteDocument={handleDeleteDocument}
         uploadingFiles={uploadingFiles}
         addNotification={addNotification}
+        selectedSala={selectedSala}
       />
 
       {/* Modal Ver Sala */}

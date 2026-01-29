@@ -50,6 +50,7 @@ const AddSalaModal = ({
   propietariosConDatos,
   camaraComercioFile,
   usoSuelosFile,
+  validacionUsoSuelosFile,
   saving,
   uploadingFiles,
   handleFormChange,
@@ -59,6 +60,7 @@ const AddSalaModal = ({
   handleContacto2Change,
   setCamaraComercioFile,
   setUsoSuelosFile,
+  setValidacionUsoSuelosFile,
   handleCreateSala,
   formatCurrencyInput,
   parseCurrencyValue,
@@ -74,6 +76,21 @@ const AddSalaModal = ({
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  // Helper: Formatear cédula con puntos (ej: 25456325 → 25.456.325)
+  const formatCedula = (value) => {
+    if (!value) return '';
+    // Remover todo lo que no sea número
+    const numbers = value.replace(/\D/g, '');
+    // Agregar puntos cada 3 dígitos desde el final
+    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Helper: Limpiar formato de cédula para guardar (25.456.325 → 25456325)
+  const parseCedula = (value) => {
+    if (!value) return '';
+    return value.replace(/\D/g, '');
   };
 
   return (
@@ -435,9 +452,14 @@ const AddSalaModal = ({
             <TextField
               fullWidth
               label="Cédula Representante Legal"
-              value={formData.cedulaRepLegal || ''}
-              onChange={(e) => handleFormChange('cedulaRepLegal', e.target.value)}
-              helperText="Número de cédula del representante legal"
+              value={formatCedula(formData.cedulaRepLegal) || ''}
+              onChange={(e) => {
+                const formattedValue = formatCedula(e.target.value);
+                const rawValue = parseCedula(e.target.value);
+                handleFormChange('cedulaRepLegal', rawValue);
+              }}
+              placeholder="Ej: 25.456.325"
+              helperText="Número de cédula (formato automático con puntos)"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -857,6 +879,70 @@ const AddSalaModal = ({
                     onClick={() => {
                       setUsoSuelosFile(null);
                       document.getElementById('uso-suelos-file').value = '';
+                    }}
+                    sx={{ p: 0.5 }}
+                  >
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+              )}
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box>
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="validacion-uso-suelos-file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      addNotification('El archivo no debe superar 10MB', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setValidacionUsoSuelosFile(file);
+                    addNotification('Archivo de Validación Uso de Suelos seleccionado', 'success');
+                  }
+                }}
+              />
+              <label htmlFor="validacion-uso-suelos-file">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  fullWidth
+                  startIcon={validacionUsoSuelosFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.5,
+                    borderColor: validacionUsoSuelosFile ? 'success.main' : 'primary.main',
+                    color: validacionUsoSuelosFile ? 'success.main' : 'primary.main',
+                    borderStyle: 'dashed',
+                    borderWidth: 2,
+                    '&:hover': {
+                      borderWidth: 2,
+                      borderStyle: 'dashed',
+                      backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                    }
+                  }}
+                >
+                  {validacionUsoSuelosFile ? 'Validación Uso de Suelos ✓' : 'Adjuntar Validación Uso de Suelos'}
+                </Button>
+              </label>
+              {validacionUsoSuelosFile && (
+                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                    {validacionUsoSuelosFile.name}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setValidacionUsoSuelosFile(null);
+                      document.getElementById('validacion-uso-suelos-file').value = '';
                     }}
                     sx={{ p: 0.5 }}
                   >

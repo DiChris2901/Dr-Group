@@ -20,6 +20,7 @@ import {
   alpha
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -32,6 +33,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
+import WarningIcon from '@mui/icons-material/Warning';
 
 const EditSalaModal = ({
   open,
@@ -50,17 +52,25 @@ const EditSalaModal = ({
   // Documentos existentes
   existingCamaraComercio,
   existingUsoSuelos,
+  existingValidacionUsoSuelos,
   // Archivos nuevos
   camaraComercioFile,
   setCamaraComercioFile,
   usoSuelosFile,
   setUsoSuelosFile,
+  validacionUsoSuelosFile,
+  setValidacionUsoSuelosFile,
   // Handlers
   onDeleteDocument,
   uploadingFiles,
-  addNotification
+  addNotification,
+  // Sala original para detectar cambios
+  selectedSala
 }) => {
   const theme = useTheme();
+  
+  // Estado para el dialog de advertencia
+  const [showWarningDialog, setShowWarningDialog] = useState(false);
 
   // Helper: Formatear texto a Title Case (Primera Letra Mayúscula)
   const toTitleCase = (str) => {
@@ -72,7 +82,134 @@ const EditSalaModal = ({
       .join(' ');
   };
 
+  // Helper: Formatear cédula con puntos (ej: 25456325 → 25.456.325)
+  const formatCedula = (value) => {
+    if (!value) return '';
+    // Remover todo lo que no sea número
+    const numbers = value.replace(/\D/g, '');
+    // Agregar puntos cada 3 dígitos desde el final
+    return numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Helper: Limpiar formato de cédula para guardar (25.456.325 → 25456325)
+  const parseCedula = (value) => {
+    if (!value) return '';
+    return value.replace(/\D/g, '');
+  };
+
+  // Detectar si cambió información crítica (nombre, dirección, rep. legal)
+  const hasChangedCriticalInfo = () => {
+    if (!selectedSala) return false;
+    
+    const nameChanged = formData.name?.trim() !== selectedSala.name?.trim();
+    const addressChanged = formData.address?.trim() !== selectedSala.address?.trim();
+    const repLegalChanged = parseCedula(formData.cedulaRepLegal) !== parseCedula(selectedSala.cedulaRepLegal);
+    
+    return nameChanged || addressChanged || repLegalChanged;
+  };
+
+  // Handler: Validar antes de guardar
+  const handleSave = () => {
+    const requiresNewCamaraComercio = hasChangedCriticalInfo();
+    
+    if (requiresNewCamaraComercio && !camaraComercioFile) {
+      setShowWarningDialog(true);
+      return;
+    }
+    
+    onSave();
+  };
+
   return (
+    <>
+      {/* Dialog de Advertencia */}
+      <Dialog
+        open={showWarningDialog}
+        onClose={() => setShowWarningDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            border: `2px solid ${theme.palette.error.main}`,
+            boxShadow: `0 8px 32px ${alpha(theme.palette.error.main, 0.3)}`
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{ 
+            background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+            color: 'white',
+            textAlign: 'center',
+            py: 3
+          }}
+        >
+          <Box display="flex" alignItems="center" justifyContent="center" flexDirection="column" gap={1}>
+            <Avatar
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: alpha(theme.palette.common.white, 0.2),
+                mb: 1
+              }}
+            >
+              <WarningIcon sx={{ fontSize: 32, color: 'white' }} />
+            </Avatar>
+            <Typography variant="h5" component="div" fontWeight="700">
+              Cámara de Comercio Requerida
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body1" sx={{ mb: 2, fontSize: '1rem', lineHeight: 1.6 }}>
+              Has modificado información crítica de la sala:
+            </Typography>
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 2, 
+                mb: 2,
+                bgcolor: alpha(theme.palette.error.main, 0.08),
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                borderRadius: 1.5
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, color: 'error.main', mb: 1 }}>
+                Cambios detectados:
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                • Nombre de la sala<br/>
+                • Dirección<br/>
+                • Representante Legal
+              </Typography>
+            </Paper>
+            <Typography variant="body1" sx={{ fontSize: '1rem', lineHeight: 1.6 }}>
+              Debes <strong>cargar una Cámara de Comercio actualizada</strong> para guardar estos cambios.
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2.5, pt: 0 }}>
+          <Button
+            onClick={() => setShowWarningDialog(false)}
+            variant="contained"
+            fullWidth
+            sx={{ 
+              borderRadius: 1.5,
+              py: 1.2,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '1rem'
+            }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Principal de Editar Sala */}
     <Dialog
       open={open}
       onClose={onClose}
@@ -413,9 +550,14 @@ const EditSalaModal = ({
             <TextField
               fullWidth
               label="Cédula Representante Legal"
-              value={formData.cedulaRepLegal || ''}
-              onChange={(e) => onFormChange('cedulaRepLegal', e.target.value)}
-              helperText="Número de cédula del representante legal"
+              value={formatCedula(formData.cedulaRepLegal) || ''}
+              onChange={(e) => {
+                const formattedValue = formatCedula(e.target.value);
+                const rawValue = parseCedula(e.target.value);
+                onFormChange('cedulaRepLegal', rawValue);
+              }}
+              placeholder="Ej: 25.456.325"
+              helperText="Número de cédula (formato automático con puntos)"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -887,6 +1029,127 @@ const EditSalaModal = ({
             </Box>
           </Grid>
           
+          {/* Validación Uso de Suelos */}
+          <Grid item xs={12} md={6}>
+            <Box>
+              {/* Input oculto - siempre disponible */}
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="edit-validacion-uso-suelos-file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      addNotification('El archivo no debe superar 10MB', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setValidacionUsoSuelosFile(file);
+                    addNotification('Archivo de Validación Uso de Suelos seleccionado', 'success');
+                  }
+                }}
+              />
+              
+              {/* Documento existente */}
+              {existingValidacionUsoSuelos && !validacionUsoSuelosFile && (
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 2, 
+                    mb: 1,
+                    border: `2px solid ${theme.palette.success.main}`,
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.05)
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600} color="success.main">
+                      Validación Uso de Suelos (Actual)
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                      {existingValidacionUsoSuelos.name || 'Documento guardado'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<EditIcon />}
+                      onClick={() => document.getElementById('edit-validacion-uso-suelos-file').click()}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => onDeleteDocument('validacionUsoSuelos')}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Eliminar
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+              
+              {/* Subir nuevo documento */}
+              {(!existingValidacionUsoSuelos || validacionUsoSuelosFile) && (
+                <>
+                  <label htmlFor="edit-validacion-uso-suelos-file">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      fullWidth
+                      startIcon={validacionUsoSuelosFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.5,
+                        borderColor: validacionUsoSuelosFile ? 'success.main' : 'primary.main',
+                        color: validacionUsoSuelosFile ? 'success.main' : 'primary.main',
+                        borderStyle: 'dashed',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderWidth: 2,
+                          borderStyle: 'dashed',
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        }
+                      }}
+                    >
+                      {validacionUsoSuelosFile ? 'Validación Uso de Suelos ✓' : existingValidacionUsoSuelos ? 'Reemplazar Validación Uso de Suelos' : 'Adjuntar Validación Uso de Suelos'}
+                    </Button>
+                  </label>
+                  {validacionUsoSuelosFile && (
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                        {validacionUsoSuelosFile.name}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setValidacionUsoSuelosFile(null);
+                          document.getElementById('edit-validacion-uso-suelos-file').value = '';
+                        }}
+                        sx={{ p: 0.5 }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
+          </Grid>
+          
           {/* Costos Adicionales */}
           <Grid item xs={12}>
             <Paper 
@@ -977,7 +1240,7 @@ const EditSalaModal = ({
           Cancelar
         </Button>
         <Button
-          onClick={onSave}
+          onClick={handleSave}
           variant="contained"
           disabled={saving || uploadingFiles}
           startIcon={<SaveIcon />}
@@ -999,6 +1262,7 @@ const EditSalaModal = ({
         </Button>
       </DialogActions>
     </Dialog>
+    </>
   );
 };
 

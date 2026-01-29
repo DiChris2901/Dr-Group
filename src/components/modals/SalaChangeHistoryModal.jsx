@@ -40,7 +40,10 @@ import {
   AccountCircle as AccountCircleIcon,
   SwapHoriz as SwapIcon,
   FilterList as FilterIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  PictureAsPdf as PdfIcon,
+  LocationOn as LocationOnIcon,
+  Title as TitleIcon
 } from '@mui/icons-material';
 import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -256,6 +259,14 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
         return <PersonIcon />;
       case 'contacto_secundario':
         return <PersonIcon />;
+      case 'nombre_sala':
+        return <TitleIcon />;
+      case 'direccion':
+        return <LocationOnIcon />;
+      case 'documento_camara_comercio':
+      case 'documento_uso_suelos':
+      case 'documento_validacion_uso_suelos':
+        return <PdfIcon />;
       default:
         return <EditIcon />;
     }
@@ -277,6 +288,16 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
         return 'warning';
       case 'contacto_secundario':
         return 'info';
+      case 'nombre_sala':
+        return 'primary';
+      case 'direccion':
+        return 'info';
+      case 'documento_camara_comercio':
+        return 'success';
+      case 'documento_uso_suelos':
+        return 'success';
+      case 'documento_validacion_uso_suelos':
+        return 'success';
       default:
         return 'default';
     }
@@ -290,7 +311,12 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       propietario: 'Cambio de Propietario',
       representante_legal: 'Cambio de Representante Legal',
       contacto_principal: 'Cambio de Contacto Principal',
-      contacto_secundario: 'Cambio de Contacto Secundario'
+      contacto_secundario: 'Cambio de Contacto Secundario',
+      nombre_sala: 'Cambio de Nombre de Sala',
+      direccion: 'Cambio de Dirección',
+      documento_camara_comercio: 'Cámara de Comercio',
+      documento_uso_suelos: 'Uso de Suelos',
+      documento_validacion_uso_suelos: 'Validación Uso de Suelos'
     };
     return titles[changeType] || 'Cambio';
   };
@@ -439,6 +465,104 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                   {change.changes.email.new}
                 </Typography>
               </Box>
+            </Box>
+          )}
+        </Box>
+      );
+    }
+    
+    // Cambios de nombre y dirección
+    if (['nombre_sala', 'direccion'].includes(changeType)) {
+      return (
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Anterior:
+            </Typography>
+            <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'text.secondary' }}>
+              {oldValue || 'No especificado'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Nuevo:
+            </Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {newValue}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+    
+    // Cambios de documentos
+    if (['documento_camara_comercio', 'documento_uso_suelos', 'documento_validacion_uso_suelos'].includes(changeType)) {
+      const actionLabels = {
+        'carga': '📤 Documento Cargado',
+        'eliminación': '🗑️ Documento Eliminado',
+        'reemplazo': '🔄 Documento Reemplazado'
+      };
+      
+      const actionColors = {
+        'carga': theme.palette.success.main,
+        'eliminación': theme.palette.error.main,
+        'reemplazo': theme.palette.warning.main
+      };
+      
+      return (
+        <Box>
+          <Chip 
+            label={actionLabels[change.action] || change.action}
+            size="small"
+            sx={{ 
+              bgcolor: alpha(actionColors[change.action] || theme.palette.info.main, 0.12),
+              color: actionColors[change.action] || theme.palette.info.main,
+              fontWeight: 600,
+              mb: 1.5
+            }}
+          />
+          {change.action === 'reemplazo' && (
+            <Box>
+              {oldValue && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Archivo anterior:
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+                    {oldValue}
+                  </Typography>
+                </Box>
+              )}
+              {newValue && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Archivo nuevo:
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
+                    {newValue}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+          {change.action === 'carga' && newValue && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Archivo:
+              </Typography>
+              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
+                {newValue}
+              </Typography>
+            </Box>
+          )}
+          {change.action === 'eliminación' && oldValue && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Archivo eliminado:
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+                {oldValue}
+              </Typography>
             </Box>
           )}
         </Box>
