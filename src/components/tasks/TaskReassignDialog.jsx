@@ -156,6 +156,7 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
         {/* Información de la tarea actual */}
         <Paper sx={{ 
           p: 3, 
+          mt: 3,
           mb: 4,
           borderRadius: 2, 
           border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
