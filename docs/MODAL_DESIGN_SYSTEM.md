@@ -232,12 +232,51 @@ import { useTheme } from '@mui/material/styles';
 
 ## 📐 DialogContent - Layout Principal
 
+### **⚠️ REGLA CRÍTICA DE ESPACIADO - LECCIÓN APRENDIDA**
+
+**PROBLEMA COMÚN:** El `padding-top` del `DialogContent` NO es suficiente para crear separación visual entre el header y el contenido.
+
+**SOLUCIÓN OBLIGATORIA:** Los Papers/Cards dentro del DialogContent **DEBEN tener `mt` (margin-top) explícito**.
+
+```javascript
+// ❌ INCORRECTO - El Paper queda pegado al header visualmente
+<DialogContent sx={{ p: 3, pt: 5 }}>
+  <Paper sx={{ p: 3, mb: 4 }}>  // Sin mt
+    ...
+  </Paper>
+</DialogContent>
+
+// ✅ CORRECTO - Separación visual clara
+<DialogContent sx={{ p: 3, pt: 4 }}>
+  <Paper sx={{ 
+    mt: 3,  // ← CRÍTICO: Margen superior para separación visual
+    p: 3, 
+    mb: 4 
+  }}>
+    ...
+  </Paper>
+</DialogContent>
+```
+
+**Razón técnica:** El padding crea espacio interno en el contenedor, pero el margen del Paper es lo que genera la separación visible del header.
+
+---
+
 ### **ESTRUCTURA EXACTA DEL CONTENT**
 ```javascript
 <DialogContent sx={{ 
   p: 3,     // EXACTO - No usar 2.5 o 3.5
-  pt: 5     // EXACTO - Top padding mayor para separación del header
+  pt: 4     // EXACTO - Top padding estándar (no 5, el margen del Paper hace el resto)
 }}>
+  {/* ⚠️ IMPORTANTE: Primer elemento SIEMPRE con mt: 3 */}
+  <Paper sx={{ 
+    mt: 3,  // ← OBLIGATORIO para separación visual del header
+    p: 3,
+    mb: 4
+  }}>
+    ...
+  </Paper>
+  
   <Box sx={{ mt: 3 }}>  {/* EXACTO - mt: 3 para espacio adicional */}
     <Grid container spacing={3}>  {/* SIEMPRE spacing={3} */}
       
