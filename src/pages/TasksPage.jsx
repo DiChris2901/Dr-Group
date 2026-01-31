@@ -52,6 +52,8 @@ import { format, isAfter, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import TaskDialog from '../components/tasks/TaskDialog';
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog';
+import TaskReassignDialog from '../components/tasks/TaskReassignDialog';
+import TaskProgressDialog from '../components/tasks/TaskProgressDialog';
 
 /**
  * TasksPage - Sistema de gestión de tareas delegadas
@@ -74,6 +76,8 @@ const TasksPage = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [openReassignDialog, setOpenReassignDialog] = useState(false);
+  const [openProgressDialog, setOpenProgressDialog] = useState(false);
 
   // Permisos (soporta formato objeto y array)
   const canCreate = userProfile?.permissions?.['tareas'] || 
@@ -177,6 +181,24 @@ const TasksPage = () => {
   const handleCloseCreateDialog = () => {
     setOpenCreateDialog(false);
     setTaskToEdit(null);
+  };
+
+  const handleReassign = () => {
+    setOpenReassignDialog(true);
+    handleMenuClose();
+  };
+
+  const handleCloseReassign = () => {
+    setOpenReassignDialog(false);
+  };
+
+  const handleUpdateProgress = () => {
+    setOpenProgressDialog(true);
+    handleMenuClose();
+  };
+
+  const handleCloseProgress = () => {
+    setOpenProgressDialog(false);
   };
 
   const getPriorityColor = (priority) => {
@@ -772,14 +794,14 @@ const TasksPage = () => {
           </MenuItem>
         )}
         {canAssign && (
-          <MenuItem onClick={handleMenuClose}>
+          <MenuItem onClick={handleReassign}>
             <ListItemIcon>
               <AssignmentIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>Reasignar</ListItemText>
           </MenuItem>
         )}
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={handleUpdateProgress}>
           <ListItemIcon>
             <TrendingUpIcon fontSize="small" />
           </ListItemIcon>
@@ -809,6 +831,20 @@ const TasksPage = () => {
       <TaskDetailDialog
         open={openDetailDialog}
         onClose={handleCloseDetailDialog}
+        task={selectedTask}
+      />
+
+      {/* Dialog de Reasignación */}
+      <TaskReassignDialog
+        open={openReassignDialog}
+        onClose={handleCloseReassign}
+        task={selectedTask}
+      />
+
+      {/* Dialog de Actualización de Progreso */}
+      <TaskProgressDialog
+        open={openProgressDialog}
+        onClose={handleCloseProgress}
         task={selectedTask}
       />
 
