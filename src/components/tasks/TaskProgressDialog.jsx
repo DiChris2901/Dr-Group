@@ -148,11 +148,11 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 3 }}>
+      <DialogContent sx={{ p: 3, pt: 4 }}>
         {/* Información de la tarea */}
         <Paper sx={{ 
           p: 2.5, 
-          mb: 3,
+          mb: 4,
           borderRadius: 2, 
           border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
           background: theme.palette.background.paper,
@@ -184,7 +184,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         {/* Control de progreso */}
         <Paper sx={{ 
           p: 2.5, 
-          mb: 2,
+          mb: 3,
           borderRadius: 2, 
           border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
           background: theme.palette.background.paper,
