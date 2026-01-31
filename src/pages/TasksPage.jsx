@@ -87,6 +87,10 @@ const TasksPage = () => {
                      (Array.isArray(userProfile?.permissions) && userProfile?.permissions.includes('tareas.aprobar'));
   const canViewAll = userProfile?.permissions?.['tareas.ver_todas'] || 
                      (Array.isArray(userProfile?.permissions) && userProfile?.permissions.includes('tareas.ver_todas'));
+  
+  // Editar y Eliminar: Solo usuarios con permiso de crear tareas
+  const canEdit = canCreate;
+  const canDelete = canCreate;
 
   // Filtrar tareas
   const filteredTasks = useMemo(() => {
@@ -759,12 +763,14 @@ const TasksPage = () => {
           </ListItemIcon>
           <ListItemText>Ver Detalles</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Editar</ListItemText>
-        </MenuItem>
+        {canEdit && (
+          <MenuItem onClick={handleEdit}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Editar</ListItemText>
+          </MenuItem>
+        )}
         {canAssign && (
           <MenuItem onClick={handleMenuClose}>
             <ListItemIcon>
@@ -779,13 +785,17 @@ const TasksPage = () => {
           </ListItemIcon>
           <ListItemText>Actualizar Progreso</ListItemText>
         </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText>Eliminar</ListItemText>
-        </MenuItem>
+        {canDelete && (
+          <>
+            <Divider />
+            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <ListItemText>Eliminar</ListItemText>
+            </MenuItem>
+          </>
+        )}
       </Menu>
 
       {/* Dialog de Creación/Edición */}
