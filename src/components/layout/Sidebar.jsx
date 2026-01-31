@@ -338,6 +338,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       ]
     },
     {
+      title: 'Tareas',
+      icon: Assignment,
+      path: '/tasks',
+      color: '#00bcd4',
+      permission: 'tareas',
+      alternativePermissions: ['tareas.asignar', 'tareas.ver_propias'] // Permitir acceso con cualquiera de estos
+    },
+    {
       title: 'RRHH',
       icon: Badge,
       color: '#ff9800',

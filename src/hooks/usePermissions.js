@@ -215,6 +215,12 @@ export const usePermissions = () => {
       return hasAnySubmenuVisible(item.permission, item.submenu);
     }
 
+    // ✅ NUEVO: Soporte para permisos alternativos
+    // Permite que un item sea visible si tiene el permiso principal O cualquiera de los alternativos
+    if (item.alternativePermissions && Array.isArray(item.alternativePermissions)) {
+      return hasPermission(item.permission) || hasAnyPermission(item.alternativePermissions);
+    }
+
     // Si es item simple, verificar permiso directo
     return hasPermission(item.permission);
   };

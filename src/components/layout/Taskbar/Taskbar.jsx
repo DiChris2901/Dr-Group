@@ -274,6 +274,14 @@ const Taskbar = React.memo(() => {
       ]
     },
     {
+      id: 'tareas',
+      icon: AssignmentIcon,
+      label: 'Tareas',
+      path: '/tasks',
+      color: '#00bcd4',
+      permission: 'tareas'
+    },
+    {
       id: 'rrhh',
       icon: BadgeIcon,
       label: 'RRHH',

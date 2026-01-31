@@ -73,6 +73,9 @@ import AsistenciasPage from './pages/AsistenciasPage';
 import RecursosHumanosPage from './pages/RecursosHumanosPage';
 import SolicitudesPage from './pages/SolicitudesPage';
 
+// Módulo de Tareas Delegadas
+import TasksPage from './pages/TasksPage';
+
 // Página de acceso denegado
 import UnauthorizedPage from './pages/UnauthorizedPage';
 
@@ -410,6 +413,20 @@ const DashboardLayout = () => {
           </ProtectedRoute>
         }
       />
+      
+      {/* ===== RUTAS PROTEGIDAS - TAREAS DELEGADAS ===== */}
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute requiredPermissions={['tareas', 'tareas.asignar', 'tareas.ver_propias']}>
+            <MainLayout title="Gestión de Tareas" breadcrumbs={['Tareas']}>
+              <TasksPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* ===== RUTAS PROTEGIDAS - RRHH ===== */}
       <Route 
         path="/recursos-humanos" 
         element={
