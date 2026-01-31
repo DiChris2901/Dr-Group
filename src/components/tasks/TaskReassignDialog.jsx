@@ -19,7 +19,8 @@ import {
 import {
   Close as CloseIcon,
   SwapHoriz as SwapHorizIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Assignment as AssignmentIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { collection, getDocs, query } from 'firebase/firestore';
@@ -159,19 +160,44 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
           mt: 3,
           mb: 4,
           borderRadius: 2, 
-          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+          border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
           background: theme.palette.background.paper,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            borderColor: alpha(theme.palette.info.main, 0.4)
+          }
         }}>
-          <Typography variant="overline" sx={{ 
-            fontWeight: 600, 
-            color: 'info.main',
-            letterSpacing: 0.8,
-            mb: 1,
-            display: 'block'
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mb: 2,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
           }}>
-            TAREA
-          </Typography>
+            <Box sx={{ 
+              width: 28,
+              height: 28,
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: alpha(theme.palette.info.main, 0.1),
+              color: 'info.main'
+            }}>
+              <AssignmentIcon sx={{ fontSize: 16 }} />
+            </Box>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              color: 'info.main',
+              letterSpacing: 0.8,
+              fontSize: '0.75rem'
+            }}>
+              TAREA
+            </Typography>
+          </Box>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
             {task.titulo}
           </Typography>
@@ -200,19 +226,44 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
           p: 3, 
           mb: 3,
           borderRadius: 2, 
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
           background: theme.palette.background.paper,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            borderColor: alpha(theme.palette.primary.main, 0.4)
+          }
         }}>
-          <Typography variant="overline" sx={{ 
-            fontWeight: 600, 
-            color: 'primary.main',
-            letterSpacing: 0.8,
-            mb: 2,
-            display: 'block'
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mb: 2.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
           }}>
-            NUEVO ASIGNADO
-          </Typography>
+            <Box sx={{ 
+              width: 28,
+              height: 28,
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: 'primary.main'
+            }}>
+              <PersonIcon sx={{ fontSize: 16 }} />
+            </Box>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              color: 'primary.main',
+              letterSpacing: 0.8,
+              fontSize: '0.75rem'
+            }}>
+              NUEVO ASIGNADO
+            </Typography>
+          </Box>
 
           <Autocomplete
             options={users}
