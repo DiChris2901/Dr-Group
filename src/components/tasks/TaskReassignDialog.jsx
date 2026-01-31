@@ -160,13 +160,13 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
           mt: 3,
           mb: 4,
           borderRadius: 2, 
-          border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+          border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
           background: theme.palette.background.paper,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           transition: 'all 0.2s ease',
           '&:hover': {
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            borderColor: alpha(theme.palette.info.main, 0.4)
+            borderColor: alpha(theme.palette.secondary.main, 0.4)
           }
         }}>
           <Box sx={{ 
@@ -175,7 +175,7 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
             gap: 1,
             mb: 2,
             pb: 1.5,
-            borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+            borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.1)}`
           }}>
             <Box sx={{ 
               width: 28,
@@ -184,14 +184,14 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: alpha(theme.palette.info.main, 0.1),
-              color: 'info.main'
+              bgcolor: alpha(theme.palette.secondary.main, 0.1),
+              color: 'secondary.main'
             }}>
               <AssignmentIcon sx={{ fontSize: 16 }} />
             </Box>
             <Typography variant="overline" sx={{ 
               fontWeight: 600, 
-              color: 'info.main',
+              color: 'secondary.main',
               letterSpacing: 0.8,
               fontSize: '0.75rem'
             }}>
