@@ -30,12 +30,17 @@ import {
   Edit as EditIcon,
   Assignment as AssignmentIcon,
   Person as PersonIcon,
-  Business as BusinessIcon
+  Business as BusinessIcon,
+  AttachFile as AttachFileIcon,
+  Delete as DeleteIcon,
+  CloudUpload as CloudUploadIcon,
+  InsertDriveFile as FileIcon
 } from '@mui/icons-material';
 import { useDelegatedTasks } from '../../hooks/useDelegatedTasks';
 import { useAuth } from '../../context/AuthContext';
 import { collection, getDocs, query } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db, storage } from '../../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 /**
  * TaskDialog - Modal para crear/editar tareas delegadas
@@ -62,6 +67,11 @@ const TaskDialog = ({ open, onClose, task = null }) => {
   });
 
   const [errors, setErrors] = useState({});
+  
+  // Estado para adjuntos
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [existingAttachment, setExistingAttachment] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Cargar usuarios disponibles
   useEffect(() => {
@@ -128,15 +138,25 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         descripcion: task.descripcion || '',
         prioridad: task.prioridad || 'media',
         fechaVencimiento: task.fechaVencimiento 
-          ? new Date(task.fechaVencimiento.seconds * 1000).toISOString().split('T')[0] 
-          : '',
-        empresa: empresaObj,
-        asignadoA: task.asignadoA || null
-      });
+      
+      // Cargar adjunto existente si existe
+      if (task.adjunto) {
+        setExistingAttachment(task.adjunto);
+      } else {
+        setExistingAttachment(null);
+      }
+      setSelectedFile(null);
     } else if (!task) {
       setFormData({
         titulo: '',
         descripcion: '',
+        prioridad: 'media',
+        fechaVencimiento: '',
+        empresa: null,
+        asignadoA: null
+      });
+      setExistingAttachment(null);
+      setSelectedFile(null descripcion: '',
         prioridad: 'media',
         fechaVencimiento: '',
         empresa: null,
@@ -151,6 +171,76 @@ const TaskDialog = ({ open, onClose, task = null }) => {
     // Limpiar error del campo modificado
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validar tamaño (máximo 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors({ ...errors, file: 'El archivo no puede superar los 10MB' });
+        return;
+      }
+      setSelectedFile(file);
+      setErrors({ ...errors, file: null });
+    }
+  };
+
+  const handleRemoveSelectedFile = () => {
+    setSelectedFile(null);
+  };
+
+  const handleRemoveExistingAttachment = async () => {
+    if (!existingAttachment) return;
+    
+    try {
+      // Eliminar de Firebase Storage
+      const storageRef = ref(storage, existingAttachment.path);
+      await deleteObject(storageRef);
+      
+      // Actualizar en Firestore
+      await updateTask(task.id, { adjunto: null });
+      
+      setExistingAttachment(null);
+      console.log('✅ Adjunto eliminado de Storage y Firestore');
+    } catch (error) {
+      console.error('❌ Error al eliminar adjunto:', error);
+      setErrors({ ...errors, file: 'Error al eliminar el adjunto' });
+    }
+  };
+
+  const uploadFile = async (file) => {
+    if (!file) return null;
+
+    try {
+      setUploadingFile(true);
+      
+      // Crear referencia única para el archivo
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
+      const storageRef = ref(storage, filePath);
+
+      // Subir archivo
+      await uploadBytes(storageRef, file);
+      
+      // Obtener URL de descarga
+      const downloadURL = await getDownloadURL(storageRef);
+
+      return {
+        nombre: file.name,
+        url: downloadURL,
+        path: filePath,
+        tipo: file.type,
+        tamaño: file.size,
+        fechaSubida: new Date()
+      };
+    } catch (error) {
+      console.error('❌ Error al subir archivo:', error);
+      throw error;
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -174,6 +264,27 @@ const TaskDialog = ({ open, onClose, task = null }) => {
 
     setLoading(true);
     try {
+      let adjuntoData = existingAttachment;
+
+      // Si hay un archivo nuevo seleccionado
+      if (selectedFile) {
+        // Si estamos editando y había un adjunto anterior, eliminarlo
+        if (task && existingAttachment) {
+          try {
+            const oldStorageRef = ref(storage, existingAttachment.path);
+            await deleteObject(oldStorageRef);
+            console.log('✅ Adjunto anterior eliminado de Storage');
+          } catch (error) {
+            console.error('⚠️ Error al eliminar adjunto anterior:', error);
+            // Continuar aunque falle la eliminación del adjunto anterior
+          }
+        }
+        
+        // Subir nuevo archivo
+        adjuntoData = await uploadFile(selectedFile);
+        console.log('✅ Nuevo archivo subido a Storage');
+      }
+
       // Preparar datos para enviar
       const dataToSubmit = {
         titulo: formData.titulo,
@@ -187,7 +298,9 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         // Guardar el objeto completo de la empresa (con id, nombre, logoURL)
         empresa: formData.empresa || null,
         // Guardar el objeto completo del usuario asignado (con uid, nombre, email)
-        asignadoA: formData.asignadoA || null
+        asignadoA: formData.asignadoA || null,
+        // Agregar adjunto si existe
+        adjunto: adjuntoData || null
       };
 
       console.log('📝 Guardando tarea en Firestore...', {
@@ -195,7 +308,8 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         asignadoA: dataToSubmit.asignadoA,
         prioridad: dataToSubmit.prioridad,
         empresa: dataToSubmit.empresa || 'Sin empresa',
-        fechaVencimiento: dataToSubmit.fechaVencimiento
+        fechaVencimiento: dataToSubmit.fechaVencimiento,
+        tieneAdjunto: !!dataToSubmit.adjunto
       });
 
       if (task) {
@@ -529,6 +643,156 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                                 bgcolor: 'transparent',
                                 '& img': {
                                   objectFit: 'contain'
+
+                  {/* Adjunto de Archivo */}
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 600, 
+                      color: 'text.secondary',
+                      letterSpacing: 0.8,
+                      fontSize: '0.75rem',
+                      display: 'block',
+                      mb: 2
+                    }}>
+                      <AttachFileIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                      Adjunto (Opcional)
+                    </Typography>
+
+                    {/* Mostrar adjunto existente */}
+                    {existingAttachment && !selectedFile && (
+                      <Paper sx={{ 
+                        p: 2, 
+                        mb: 2,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                        bgcolor: alpha(theme.palette.success.main, 0.04),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Avatar sx={{ 
+                            bgcolor: alpha(theme.palette.success.main, 0.1),
+                            color: 'success.main'
+                          }}>
+                            <FileIcon />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>
+                              {existingAttachment.nombre}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {(existingAttachment.tamaño / 1024).toFixed(2)} KB
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton
+                            size="small"
+                            component="a"
+                            href={existingAttachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ 
+                              color: 'primary.main',
+                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                            }}
+                          >
+                            <CloudUploadIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={handleRemoveExistingAttachment}
+                            sx={{ 
+                              color: 'error.main',
+                              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                            || uploadingFile}
+          sx={{
+            borderRadius: 1,
+            fontWeight: 600,
+            px: 3,
+            bgcolor: theme.palette.primary.main,
+            '&:hover': {
+              bgcolor: theme.palette.primary.dark
+            }
+          }}
+        >
+          {uploadingFile ? 'Subiendo archivo...' : (loading ? 'Guardando...' : (task ? 'Actualizar' : 'Crear Tarea')
+                        mb: 2,
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                        bgcolor: alpha(theme.palette.primary.main, 0.04),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Avatar sx={{ 
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                            color: 'primary.main'
+                          }}>
+                            <FileIcon />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>
+                              {selectedFile.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {(selectedFile.size / 1024).toFixed(2)} KB
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={handleRemoveSelectedFile}
+                          sx={{ 
+                            color: 'error.main',
+                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Paper>
+                    )}
+
+                    {/* Botón para seleccionar archivo */}
+                    {!selectedFile && (
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        startIcon={<CloudUploadIcon />}
+                        fullWidth
+                        sx={{
+                          borderRadius: 1,
+                          py: 1.5,
+                          borderStyle: 'dashed',
+                          borderWidth: 2,
+                          borderColor: alpha(theme.palette.primary.main, 0.3),
+                          color: 'text.secondary',
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            bgcolor: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        {existingAttachment ? 'Reemplazar Adjunto' : 'Seleccionar Archivo'}
+                        <input
+                          type="file"
+                          hidden
+                          onChange={handleFileSelect}
+                          accept="*/*"
+                        />
+                      </Button>
+                    )}
+
+                    {errors.file && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                        {errors.file}
+                      </Typography>
+                    )}
+                  </Grid>
                                 }
                               }}
                             >

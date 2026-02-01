@@ -263,13 +263,30 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
           </Box>
 
           <Box sx={{ px: 2, mb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="caption" color="text.secondary">
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              mb: 2,
+              p: 2,
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.primary.main, 0.04)
+            }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                 Progreso
               </Typography>
-              <Typography variant="h4" fontWeight={700} color="primary.main">
-                {porcentaje}%
-              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'baseline',
+                gap: 0.5
+              }}>
+                <Typography variant="h3" fontWeight={700} color="primary.main">
+                  {porcentaje}
+                </Typography>
+                <Typography variant="h5" fontWeight={600} color="primary.main">
+                  %
+                </Typography>
+              </Box>
             </Box>
             <Slider
               value={porcentaje}
