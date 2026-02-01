@@ -34,13 +34,18 @@ import {
   AttachFile as AttachFileIcon,
   Delete as DeleteIcon,
   CloudUpload as CloudUploadIcon,
-  InsertDriveFile as FileIcon
+  InsertDriveFile as FileIcon,
+  Visibility as VisibilityIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { useDelegatedTasks } from '../../hooks/useDelegatedTasks';
 import { useAuth } from '../../context/AuthContext';
 import { collection, getDocs, query } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { PDFDocument } from 'pdf-lib';
+import JSZip from 'jszip';
+import DocumentPreviewModal from '../common/DocumentPreviewModal';
 
 /**
  * TaskDialog - Modal para crear/editar tareas delegadas
@@ -68,10 +73,12 @@ const TaskDialog = ({ open, onClose, task = null }) => {
 
   const [errors, setErrors] = useState({});
   
-  // Estado para adjuntos
-  const [selectedFile, setSelectedFile] = useState(null);
+  // Estado para adjuntos múltiples
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [existingAttachment, setExistingAttachment] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Cargar usuarios disponibles
   useEffect(() => {
@@ -129,9 +136,23 @@ const TaskDialog = ({ open, onClose, task = null }) => {
   useEffect(() => {
     if (task && companies.length > 0) {
       // Encontrar el objeto empresa si existe
-      const empresaObj = task.empresa 
-        ? companies.find(c => c.nombre === task.empresa) || null
-        : null;
+      let empresaObj = null;
+      if (task.empresa) {
+        // Si task.empresa es un objeto (tiene id o nombre)
+        if (typeof task.empresa === 'object') {
+          // Buscar por ID o por nombre
+          empresaObj = companies.find(c => 
+            (task.empresa.id && c.id === task.empresa.id) || 
+            (task.empresa.nombre && c.nombre === task.empresa.nombre)
+          ) || null;
+        } else if (typeof task.empresa === 'string') {
+          // Si es un string, buscar por nombre o ID
+          empresaObj = companies.find(c => 
+            c.id === task.empresa || 
+            c.nombre === task.empresa
+          ) || null;
+        }
+      }
 
       setFormData({
         titulo: task.titulo || '',
@@ -150,7 +171,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       } else {
         setExistingAttachment(null);
       }
-      setSelectedFile(null);
+      setSelectedFiles([]);
     } else if (!task) {
       setFormData({
         titulo: '',
@@ -161,7 +182,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         asignadoA: null
       });
       setExistingAttachment(null);
-      setSelectedFile(null);
+      setSelectedFiles([]);
     }
     setErrors({});
   }, [task, open, companies]);
@@ -175,20 +196,37 @@ const TaskDialog = ({ open, onClose, task = null }) => {
   };
 
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validar tamaño (máximo 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setErrors({ ...errors, file: 'El archivo no puede superar los 10MB' });
-        return;
-      }
-      setSelectedFile(file);
-      setErrors({ ...errors, file: null });
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    // Validar tamaño total (máximo 30MB para evitar errores HTTP/2)
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    const maxSize = 30 * 1024 * 1024; // 30MB
+    
+    if (totalSize > maxSize) {
+      const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+      setErrors({ ...errors, file: `El tamaño total (${sizeMB}MB) supera el límite de 30MB. Por favor, reduce el tamaño de los archivos.` });
+      return;
     }
+
+    setSelectedFiles(files);
+    setErrors({ ...errors, file: null });
   };
 
-  const handleRemoveSelectedFile = () => {
-    setSelectedFile(null);
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveAllFiles = () => {
+    setSelectedFiles([]);
+  };
+
+  const handleOpenPreview = () => {
+    setPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
   };
 
   const handleRemoveExistingAttachment = async () => {
@@ -210,37 +248,298 @@ const TaskDialog = ({ open, onClose, task = null }) => {
     }
   };
 
-  const uploadFile = async (file) => {
-    if (!file) return null;
+  // Convertir imágenes a PDF usando pdf-lib
+  const convertImageToPDF = async (file) => {
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    
+    // Solo convertir imágenes
+    if (!['jpg', 'jpeg', 'png'].includes(fileExtension)) {
+      return null; // No es imagen o no se puede convertir
+    }
+
+    const pdfDoc = await PDFDocument.create();
+    const imageBytes = await file.arrayBuffer();
+    
+    let image;
+    if (fileExtension === 'png') {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else if (['jpg', 'jpeg'].includes(fileExtension)) {
+      image = await pdfDoc.embedJpg(imageBytes);
+    }
+
+    const page = pdfDoc.addPage([image.width, image.height]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: image.width,
+      height: image.height,
+    });
+
+    return await pdfDoc.save();
+  };
+
+  // Combinar múltiples PDFs en uno solo
+  const combinePDFs = async (pdfBuffers) => {
+    const mergedPdf = await PDFDocument.create();
+
+    for (const pdfBuffer of pdfBuffers) {
+      try {
+        const pdf = await PDFDocument.load(pdfBuffer);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+      } catch (error) {
+        console.error('❌ Error al procesar PDF:', error);
+        throw new Error('Error al combinar documentos');
+      }
+    }
+
+    return await mergedPdf.save();
+  };
+
+  const uploadFile = async (files) => {
+    if (!files || files.length === 0) return null;
 
     try {
       setUploadingFile(true);
+      setProcessingFiles(true);
+
+      console.log(`📄 Procesando ${files.length} archivo(s)...`);
+
+      // Determinar qué archivos son imágenes y cuáles son otros tipos
+      const imageFiles = files.filter(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        return ['jpg', 'jpeg', 'png'].includes(ext);
+      });
+
+      const pdfFiles = files.filter(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        return ext === 'pdf';
+      });
+
+      const otherFiles = files.filter(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        return !['jpg', 'jpeg', 'png', 'pdf'].includes(ext);
+      });
+
+      // CASO 1: Solo imágenes → Convertir a PDF y combinar
+      if (imageFiles.length > 0 && pdfFiles.length === 0 && otherFiles.length === 0) {
+        console.log('🖼️ Solo imágenes detectadas, convirtiendo a PDF...');
+        const pdfBuffers = [];
+        
+        for (const file of imageFiles) {
+          console.log(`🔄 Convirtiendo: ${file.name}`);
+          const pdfBuffer = await convertImageToPDF(file);
+          if (pdfBuffer) pdfBuffers.push(pdfBuffer);
+        }
+
+        setProcessingFiles(false);
+
+        let finalPdfBuffer;
+        let finalFileName;
+
+        if (pdfBuffers.length > 1) {
+          console.log('🔗 Combinando imágenes en un PDF...');
+          finalPdfBuffer = await combinePDFs(pdfBuffers);
+          finalFileName = `imagenes_combinadas_${Date.now()}.pdf`;
+        } else {
+          finalPdfBuffer = pdfBuffers[0];
+          const originalName = imageFiles[0].name.replace(/\.[^/.]+$/, '');
+          finalFileName = `${originalName}_${Date.now()}.pdf`;
+        }
+
+        const pdfBlob = new Blob([finalPdfBuffer], { type: 'application/pdf' });
+        const pdfSizeMB = pdfBlob.size / (1024 * 1024);
+        
+        if (pdfBlob.size > 25 * 1024 * 1024) {
+          throw new Error(`El PDF de imágenes (${pdfSizeMB.toFixed(2)}MB) es demasiado grande. Límite: 25MB.`);
+        }
+        
+        const timestamp = Date.now();
+        const sanitizedFileName = finalFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
+        const storageRef = ref(storage, filePath);
+        
+        console.log(`📤 Subiendo PDF de imágenes (${pdfSizeMB.toFixed(2)}MB)...`);
+
+        await uploadBytes(storageRef, pdfBlob, {
+          contentType: 'application/pdf'
+        });
+        const downloadURL = await getDownloadURL(storageRef);
+
+        console.log('✅ Imágenes procesadas y combinadas en PDF');
+
+        return {
+          nombre: finalFileName,
+          url: downloadURL,
+          path: filePath,
+          tipo: 'application/pdf',
+          tamaño: pdfBlob.size,
+          fechaSubida: new Date(),
+          archivosOriginales: imageFiles.length,
+          tipoContenido: 'imagenes_pdf'
+        };
+      }
+
+      // CASO 2: PDFs + Imágenes → Convertir imágenes y combinar todo
+      if ((imageFiles.length > 0 || pdfFiles.length > 0) && otherFiles.length === 0) {
+        console.log('📄 PDFs e imágenes detectados, combinando...');
+        const pdfBuffers = [];
+
+        // Procesar imágenes
+        for (const file of imageFiles) {
+          const pdfBuffer = await convertImageToPDF(file);
+          if (pdfBuffer) pdfBuffers.push(pdfBuffer);
+        }
+
+        // Procesar PDFs existentes
+        for (const file of pdfFiles) {
+          const arrayBuffer = await file.arrayBuffer();
+          pdfBuffers.push(arrayBuffer);
+        }
+
+        setProcessingFiles(false);
+
+        let finalPdfBuffer;
+        if (pdfBuffers.length > 1) {
+          finalPdfBuffer = await combinePDFs(pdfBuffers);
+        } else {
+          finalPdfBuffer = pdfBuffers[0];
+        }
+
+        // Validar tamaño del PDF combinado
+        const pdfBlob = new Blob([finalPdfBuffer], { type: 'application/pdf' });
+        const pdfSizeMB = pdfBlob.size / (1024 * 1024);
+        
+        if (pdfBlob.size > 25 * 1024 * 1024) { // 25MB límite
+          throw new Error(`El PDF combinado (${pdfSizeMB.toFixed(2)}MB) es demasiado grande. Límite: 25MB. Intenta con menos archivos o archivos más pequeños.`);
+        }
+
+        const finalFileName = `documentos_combinados_${Date.now()}.pdf`;
+        const timestamp = Date.now();
+        const sanitizedFileName = finalFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
+        const storageRef = ref(storage, filePath);
+        
+        console.log(`📤 Subiendo PDF combinado (${pdfSizeMB.toFixed(2)}MB)...`);
+
+        // Subir con reintentos
+        let uploadSuccess = false;
+        let retries = 0;
+        const maxRetries = 2;
+        
+        while (!uploadSuccess && retries <= maxRetries) {
+          try {
+            await uploadBytes(storageRef, pdfBlob, {
+              contentType: 'application/pdf',
+              customMetadata: {
+                'original-files': files.length.toString(),
+                'upload-date': new Date().toISOString()
+              }
+            });
+            uploadSuccess = true;
+          } catch (uploadError) {
+            retries++;
+            console.warn(`⚠️ Intento ${retries}/${maxRetries + 1} falló:`, uploadError.message);
+            
+            if (retries > maxRetries) {
+              throw new Error(`Error al subir archivo después de ${maxRetries + 1} intentos. El archivo puede ser demasiado grande o hay problemas de conexión.`);
+            }
+            
+            // Esperar 1 segundo antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+        
+        const downloadURL = await getDownloadURL(storageRef);
+
+        console.log('✅ Documentos combinados en PDF');
+
+        return {
+          nombre: finalFileName,
+          url: downloadURL,
+          path: filePath,
+          tipo: 'application/pdf',
+          tamaño: pdfBlob.size,
+          fechaSubida: new Date(),
+          archivosOriginales: files.length,
+          tipoContenido: 'documentos_pdf'
+        };
+      }
+
+      // CASO 3: Archivos de Office u otros tipos → Subir archivo único original
+      // (No combinar archivos de Office, mantenerlos originales)
+      if (files.length === 1) {
+        setProcessingFiles(false);
+        const file = files[0];
+        const timestamp = Date.now();
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
+        const storageRef = ref(storage, filePath);
+
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        console.log('✅ Archivo original subido (sin conversión)');
+
+        return {
+          nombre: file.name,
+          url: downloadURL,
+          path: filePath,
+          tipo: file.type,
+          tamaño: file.size,
+          fechaSubida: new Date(),
+          archivosOriginales: 1,
+          tipoContenido: 'archivo_original'
+        };
+      }
+
+      // CASO 4: Múltiples archivos mixtos → Comprimir en ZIP
+      console.log('📦 Archivos mixtos detectados, comprimiendo en ZIP...');
+      setProcessingFiles(false);
+
+      const zip = new JSZip();
       
-      // Crear referencia única para el archivo
+      // Agregar todos los archivos al ZIP
+      for (const file of files) {
+        console.log(`📎 Agregando al ZIP: ${file.name}`);
+        zip.file(file.name, file);
+      }
+
+      // Generar el archivo ZIP
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const finalFileName = `documentos_${Date.now()}.zip`;
       const timestamp = Date.now();
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const sanitizedFileName = finalFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
       const storageRef = ref(storage, filePath);
 
-      // Subir archivo
-      await uploadBytes(storageRef, file);
-      
-      // Obtener URL de descarga
+      await uploadBytes(storageRef, zipBlob);
       const downloadURL = await getDownloadURL(storageRef);
 
+      console.log('✅ Archivos comprimidos y subidos en ZIP');
+
       return {
-        nombre: file.name,
+        nombre: finalFileName,
         url: downloadURL,
         path: filePath,
-        tipo: file.type,
-        tamaño: file.size,
-        fechaSubida: new Date()
+        tipo: 'application/zip',
+        tamaño: zipBlob.size,
+        fechaSubida: new Date(),
+        archivosOriginales: files.length,
+        tipoContenido: 'archivos_zip'
       };
+
     } catch (error) {
-      console.error('❌ Error al subir archivo:', error);
+      console.error('❌ Error al procesar archivos:', error);
       throw error;
     } finally {
       setUploadingFile(false);
+      setProcessingFiles(false);
     }
   };
 
@@ -266,8 +565,8 @@ const TaskDialog = ({ open, onClose, task = null }) => {
     try {
       let adjuntoData = existingAttachment;
 
-      // Si hay un archivo nuevo seleccionado
-      if (selectedFile) {
+      // Si hay archivos nuevos seleccionados
+      if (selectedFiles.length > 0) {
         // Si estamos editando y había un adjunto anterior, eliminarlo
         if (task && existingAttachment) {
           try {
@@ -280,9 +579,9 @@ const TaskDialog = ({ open, onClose, task = null }) => {
           }
         }
         
-        // Subir nuevo archivo
-        adjuntoData = await uploadFile(selectedFile);
-        console.log('✅ Nuevo archivo subido a Storage');
+        // Procesar y subir archivos
+        adjuntoData = await uploadFile(selectedFiles);
+        console.log('✅ Archivos procesados y subidos a Storage');
       }
 
       // Preparar datos para enviar
@@ -346,6 +645,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
   };
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={onClose}
@@ -493,24 +793,27 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                           }}
                         />
                       )}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar 
-                            src={option.photoURL} 
-                            sx={{ width: 32, height: 32 }}
-                          >
-                            {option.nombre.charAt(0).toUpperCase()}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {option.nombre}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {option.email}
-                            </Typography>
+                      renderOption={(props, option) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                          <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar 
+                              src={option.photoURL} 
+                              sx={{ width: 32, height: 32 }}
+                            >
+                              {option.nombre.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {option.nombre}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                {option.email}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
+                        );
+                      }}
                     />
                   </Grid>
 
@@ -614,7 +917,41 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                             ...params.InputProps,
                             startAdornment: (
                               <>
-                                <BusinessIcon sx={{ color: 'text.secondary', ml: 1, mr: -0.5 }} />
+                                {formData.empresa ? (
+                                  formData.empresa.logoURL ? (
+                                    <Avatar 
+                                      src={formData.empresa.logoURL} 
+                                      sx={{ 
+                                        width: 24, 
+                                        height: 24,
+                                        ml: 1,
+                                        mr: 0.5,
+                                        bgcolor: 'transparent',
+                                        '& img': {
+                                          objectFit: 'contain'
+                                        }
+                                      }}
+                                    >
+                                      {formData.empresa.nombre.charAt(0).toUpperCase()}
+                                    </Avatar>
+                                  ) : (
+                                    <Avatar 
+                                      sx={{ 
+                                        width: 24, 
+                                        height: 24,
+                                        ml: 1,
+                                        mr: 0.5,
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        color: 'primary.main',
+                                        fontSize: '0.75rem'
+                                      }}
+                                    >
+                                      {formData.empresa.nombre.charAt(0).toUpperCase()}
+                                    </Avatar>
+                                  )
+                                ) : (
+                                  <BusinessIcon sx={{ color: 'text.secondary', ml: 1, mr: -0.5 }} />
+                                )}
                                 {params.InputProps.startAdornment}
                               </>
                             ),
@@ -632,39 +969,42 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                           }}
                         />
                       )}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          {option.logoURL ? (
-                            <Avatar 
-                              src={option.logoURL} 
-                              sx={{ 
-                                width: 32, 
-                                height: 32,
-                                bgcolor: 'transparent',
-                                '& img': {
-                                  objectFit: 'contain'
-                                }
-                              }}
-                            >
-                              {option.nombre.charAt(0).toUpperCase()}
-                            </Avatar>
-                          ) : (
-                            <Avatar 
-                              sx={{ 
-                                width: 32, 
-                                height: 32,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                color: 'primary.main'
-                              }}
-                            >
-                              <BusinessIcon fontSize="small" />
-                            </Avatar>
-                          )}
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {option.nombre}
-                          </Typography>
-                        </Box>
-                      )}
+                      renderOption={(props, option) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                          <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            {option.logoURL ? (
+                              <Avatar 
+                                src={option.logoURL} 
+                                sx={{ 
+                                  width: 32, 
+                                  height: 32,
+                                  bgcolor: 'transparent',
+                                  '& img': {
+                                    objectFit: 'contain'
+                                  }
+                                }}
+                              >
+                                {option.nombre.charAt(0).toUpperCase()}
+                              </Avatar>
+                            ) : (
+                              <Avatar 
+                                sx={{ 
+                                  width: 32, 
+                                  height: 32,
+                                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                  color: 'primary.main'
+                                }}
+                              >
+                                <BusinessIcon fontSize="small" />
+                              </Avatar>
+                            )}
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {option.nombre}
+                            </Typography>
+                          </Box>
+                        );
+                      }}
                     />
                   </Grid>
 
@@ -681,11 +1021,11 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                       mb: 2
                     }}>
                       <AttachFileIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                      Adjunto (Opcional)
+                      Documentos (Imágenes→PDF, Office originales, Mixtos→ZIP)
                     </Typography>
 
                     {/* Mostrar adjunto existente */}
-                    {existingAttachment && !selectedFile && (
+                    {existingAttachment && selectedFiles.length === 0 && (
                       <Paper sx={{ 
                         p: 2, 
                         mb: 2,
@@ -709,23 +1049,40 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {(existingAttachment.tamaño / 1024).toFixed(2)} KB
+                              {existingAttachment.archivosOriginales > 1 && ` • ${existingAttachment.archivosOriginales} documentos combinados`}
                             </Typography>
                           </Box>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton
-                            size="small"
-                            component="a"
-                            href={existingAttachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ 
-                              color: 'primary.main',
-                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
-                            }}
-                          >
-                            <CloudUploadIcon fontSize="small" />
-                          </IconButton>
+                          {/* Botón Vista Previa solo para PDFs e imágenes */}
+                          {(existingAttachment.tipo === 'application/pdf' || existingAttachment.tipo?.startsWith('image/')) && (
+                            <IconButton
+                              size="small"
+                              onClick={handleOpenPreview}
+                              sx={{ 
+                                color: 'primary.main',
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                              }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                          {/* Botón Descargar para ZIPs y otros archivos */}
+                          {(existingAttachment.tipo === 'application/zip' || 
+                            (!existingAttachment.tipo?.startsWith('image/') && existingAttachment.tipo !== 'application/pdf')) && (
+                            <IconButton
+                              size="small"
+                              component="a"
+                              href={existingAttachment.url}
+                              download
+                              sx={{ 
+                                color: 'secondary.main',
+                                '&:hover': { bgcolor: alpha(theme.palette.secondary.main, 0.1) }
+                              }}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          )}
                           <IconButton
                             size="small"
                             onClick={handleRemoveExistingAttachment}
@@ -740,54 +1097,74 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                       </Paper>
                     )}
 
-                    {/* Mostrar archivo seleccionado */}
-                    {selectedFile && (
-                      <Paper sx={{ 
-                        p: 2, 
-                        mb: 2,
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                        bgcolor: alpha(theme.palette.primary.main, 0.04),
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar sx={{ 
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            color: 'primary.main'
-                          }}>
-                            <FileIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                              {selectedFile.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {(selectedFile.size / 1024).toFixed(2)} KB
-                            </Typography>
-                          </Box>
+                    {/* Mostrar archivos seleccionados */}
+                    {selectedFiles.length > 0 && (
+                      <>
+                        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {selectedFiles.length} archivo(s) seleccionado(s)
+                          </Typography>
+                          <Button 
+                            size="small" 
+                            onClick={handleRemoveAllFiles}
+                            sx={{ color: 'error.main' }}
+                          >
+                            Eliminar todos
+                          </Button>
                         </Box>
-                        <IconButton
-                          size="small"
-                          onClick={handleRemoveSelectedFile}
-                          sx={{ 
-                            color: 'error.main',
-                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Paper>
+                        {selectedFiles.map((file, index) => (
+                          <Paper 
+                            key={index}
+                            sx={{ 
+                              p: 2, 
+                              mb: 1,
+                              borderRadius: 1,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                              bgcolor: alpha(theme.palette.primary.main, 0.04),
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Avatar sx={{ 
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: 'primary.main'
+                              }}>
+                                <FileIcon />
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {file.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {(file.size / 1024).toFixed(2)} KB
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveFile(index)}
+                              sx={{ 
+                                color: 'error.main',
+                                '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Paper>
+                        ))}
+                      </>
                     )}
 
-                    {/* Botón para seleccionar archivo */}
-                    {!selectedFile && (
+                    {/* Botón para seleccionar archivos */}
+                    {selectedFiles.length === 0 && (
                       <Button
                         component="label"
                         variant="outlined"
                         startIcon={<CloudUploadIcon />}
                         fullWidth
+                        disabled={processingFiles}
                         sx={{
                           borderRadius: 1,
                           py: 1.5,
@@ -801,14 +1178,24 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                           }
                         }}
                       >
-                        {existingAttachment ? 'Reemplazar Adjunto' : 'Seleccionar Archivo'}
+                        {existingAttachment ? 'Reemplazar Documentos' : 'Seleccionar Documentos'}
                         <input
                           type="file"
                           hidden
+                          multiple
                           onChange={handleFileSelect}
-                          accept="*/*"
+                          accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.doc,.docx,.zip"
                         />
                       </Button>
+                    )}
+
+                    {processingFiles && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                        <CircularProgress size={20} />
+                        <Typography variant="caption" color="text.secondary">
+                          Procesando documentos (convirtiendo/comprimiendo)...
+                        </Typography>
+                      </Box>
                     )}
 
                     {errors.file && (
@@ -873,6 +1260,14 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         </Button>
       </DialogActions>
     </Dialog>
+
+    {/* Modal de Vista Previa de Documentos */}
+    <DocumentPreviewModal
+      open={previewOpen}
+      onClose={handleClosePreview}
+      document={existingAttachment}
+    />
+    </>
   );
 };
 

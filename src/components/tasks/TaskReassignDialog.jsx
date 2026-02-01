@@ -118,150 +118,132 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
         }
       }}
     >
-      {/* HEADER EXACTO SEGÚN MODAL_DESIGN_SYSTEM.md */}
+      {/* HEADER */}
       <DialogTitle sx={{ 
-        pt: 2,
-        pb: 2,
+        p: 3,
+        pb: 3,
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        background: theme.palette.mode === 'dark' 
-          ? theme.palette.grey[900]
-          : theme.palette.grey[50],
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        color: 'text.primary'
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+          <Avatar 
+            sx={{ 
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              width: 44,
+              height: 44
+            }}
+          >
             <SwapHorizIcon />
           </Avatar>
           <Box>
             <Typography variant="h6" sx={{ 
               fontWeight: 700,
-              mb: 0,
-              color: 'text.primary'
+              mb: 0.25
             }}>
               Reasignar Tarea
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            <Typography variant="caption" sx={{ 
+              color: 'text.secondary',
+              display: 'block'
+            }}>
               Transferir tarea a otro usuario
             </Typography>
           </Box>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
+        <IconButton 
+          onClick={onClose} 
+          sx={{ 
+            color: 'text.secondary',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+              color: 'error.main'
+            }
+          }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 4 }}>
+      <DialogContent sx={{ pb: 3, px: 3 }}>
         {/* Información de la tarea actual */}
-        <Paper sx={{ 
-          p: 3, 
-          mt: 3,
-          mb: 4,
-          borderRadius: 2, 
-          border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
-          background: theme.palette.background.paper,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          transition: 'all 0.2s ease',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            borderColor: alpha(theme.palette.secondary.main, 0.4)
-          }
-        }}>
-          <Box sx={{ 
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            mb: 2,
-            pb: 1.5,
-            borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.1)}`
-          }}>
-            <Box sx={{ 
-              width: 28,
-              height: 28,
-              borderRadius: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: alpha(theme.palette.secondary.main, 0.1),
-              color: 'secondary.main'
-            }}>
-              <AssignmentIcon sx={{ fontSize: 16 }} />
-            </Box>
-            <Typography variant="overline" sx={{ 
-              fontWeight: 600, 
-              color: 'secondary.main',
-              letterSpacing: 0.8,
-              fontSize: '0.75rem'
-            }}>
-              TAREA
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 3, 
+            mt: 3,
+            mb: 3,
+            borderRadius: 2, 
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            bgcolor: alpha(theme.palette.background.paper, 0.5)
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <AssignmentIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                fontWeight: 600,
+                color: 'text.secondary'
+              }}
+            >
+              Tarea Actual
             </Typography>
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
             {task.titulo}
           </Typography>
           
           {task.asignadoA && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
-              <Typography variant="caption" color="text.secondary">
+            <Box sx={{ 
+              mt: 2,
+              pt: 2,
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1.5 
+            }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
                 Asignado actualmente a:
               </Typography>
-              <Chip
-                avatar={
-                  <Avatar src={task.asignadoA.photoURL} sx={{ width: 20, height: 20 }}>
-                    {task.asignadoA.nombre?.charAt(0)}
-                  </Avatar>
-                }
-                label={task.asignadoA.nombre || task.asignadoA.email}
-                size="small"
-                sx={{ fontWeight: 500 }}
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar src={task.asignadoA.photoURL} sx={{ width: 24, height: 24 }}>
+                  {task.asignadoA.nombre?.charAt(0)}
+                </Avatar>
+                <Typography variant="body2" fontWeight={500}>
+                  {task.asignadoA.nombre || task.asignadoA.email}
+                </Typography>
+              </Box>
             </Box>
           )}
         </Paper>
 
         {/* Selección de nuevo usuario */}
-        <Paper sx={{ 
-          p: 3, 
-          mb: 3,
-          borderRadius: 2, 
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-          background: theme.palette.background.paper,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          transition: 'all 0.2s ease',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            borderColor: alpha(theme.palette.primary.main, 0.4)
-          }
-        }}>
-          <Box sx={{ 
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            mb: 2.5,
-            pb: 1.5,
-            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
-          }}>
-            <Box sx={{ 
-              width: 28,
-              height: 28,
-              borderRadius: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: 'primary.main'
-            }}>
-              <PersonIcon sx={{ fontSize: 16 }} />
-            </Box>
-            <Typography variant="overline" sx={{ 
-              fontWeight: 600, 
-              color: 'primary.main',
-              letterSpacing: 0.8,
-              fontSize: '0.75rem'
-            }}>
-              NUEVO ASIGNADO
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 3, 
+            borderRadius: 2, 
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            bgcolor: alpha(theme.palette.primary.main, 0.04)
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
+            <PersonIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                fontWeight: 600,
+                color: 'text.secondary'
+              }}
+            >
+              Nuevo Asignado
             </Typography>
           </Box>
 
@@ -321,34 +303,48 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
             rows={3}
             required
             error={!!error && !razon.trim()}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1
+              }
+            }}
           />
         </Paper>
 
         {error && (
-          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-            {error}
-          </Typography>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+              mt: 2
+            }}
+          >
+            <Typography variant="body2" color="error" fontWeight={500}>
+              {error}
+            </Typography>
+          </Paper>
         )}
       </DialogContent>
 
-      {/* FOOTER EXACTO SEGÚN MODAL_DESIGN_SYSTEM.md */}
-      <DialogActions sx={{ 
-        p: 2.5, 
-        pt: 2,
-        borderTop: `1px solid ${theme.palette.divider}`,
-        background: theme.palette.mode === 'dark' 
-          ? theme.palette.grey[900]
-          : theme.palette.grey[50]
-      }}>
+      <DialogActions sx={{ p: 3, gap: 1.5 }}>
         <Button
           onClick={onClose}
           variant="outlined"
           disabled={loading}
+          fullWidth
           sx={{
             borderRadius: 1,
-            textTransform: 'none',
             fontWeight: 600,
-            px: 3
+            py: 1.25,
+            borderColor: alpha(theme.palette.primary.main, 0.5),
+            color: 'primary.main',
+            '&:hover': {
+              borderColor: theme.palette.primary.main,
+              bgcolor: alpha(theme.palette.primary.main, 0.08)
+            }
           }}
         >
           Cancelar
@@ -357,13 +353,19 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
           onClick={handleSubmit}
           variant="contained"
           disabled={loading || !selectedUser}
-          startIcon={loading ? <CircularProgress size={16} /> : <SwapHorizIcon />}
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SwapHorizIcon />}
+          fullWidth
           sx={{
             borderRadius: 1,
-            textTransform: 'none',
             fontWeight: 600,
-            px: 3,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            py: 1.25,
+            bgcolor: theme.palette.primary.main,
+            '&:hover': {
+              bgcolor: theme.palette.primary.dark,
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            },
+            transition: 'all 0.2s ease'
           }}
         >
           {loading ? 'Reasignando...' : 'Reasignar Tarea'}

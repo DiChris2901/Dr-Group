@@ -220,7 +220,42 @@ const TasksPage = () => {
     if (!task.fechaVencimiento || task.estadoActual === 'completada' || task.estadoActual === 'cancelada') {
       return false;
     }
-    return isBefore(task.fechaVencimiento.toDate(), new Date());
+    // Solo marcar como vencida si la fecha es ANTERIOR al día de hoy (no incluir hoy)
+    const taskDate = new Date(task.fechaVencimiento.toDate());
+    const today = new Date();
+    taskDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return taskDate < today;
+  };
+
+  const getDaysRemaining = (task) => {
+    if (!task.fechaVencimiento || task.estadoActual === 'completada' || task.estadoActual === 'cancelada') {
+      return null;
+    }
+    const taskDate = new Date(task.fechaVencimiento.toDate());
+    const today = new Date();
+    taskDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = taskDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getDaysRemainingLabel = (days) => {
+    if (days === null) return null;
+    if (days < 0) return `${Math.abs(days)} día${Math.abs(days) !== 1 ? 's' : ''} vencida`;
+    if (days === 0) return 'Vence hoy';
+    if (days === 1) return 'Vence mañana';
+    return `${days} día${days !== 1 ? 's' : ''} restantes`;
+  };
+
+  const getDaysRemainingColor = (days) => {
+    if (days === null) return theme.palette.grey[400];
+    if (days < 0) return theme.palette.error.main;
+    if (days === 0) return theme.palette.warning.main;
+    if (days <= 3) return theme.palette.warning.main;
+    if (days <= 7) return theme.palette.info.main;
+    return theme.palette.success.main;
   };
 
   const getEstadoLabel = (estado) => {
@@ -602,56 +637,105 @@ const TasksPage = () => {
                       border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'visible',
                       '&:hover': {
                         transform: 'translateY(-4px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                        borderColor: alpha(theme.palette.primary.main, 0.3)
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        borderColor: alpha(theme.palette.primary.main, 0.4)
                       }
                     }}
+                    onClick={() => handleTaskClick(task)}
                   >
-                    <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                      {/* Header: Estado + Prioridad + Menú */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                    <CardContent sx={{ flexGrow: 1, p: 2.5 }}>
+                      {/* Header: Estado + Prioridad + Días Restantes + Menú */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start', 
+                        mb: 2,
+                        pb: 1.5,
+                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                      }}>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1, pr: 1 }}>
                           <Chip
                             label={getEstadoLabel(task.estadoActual)}
                             size="small"
                             sx={{
-                              height: 22,
+                              height: 24,
                               fontSize: '0.7rem',
                               fontWeight: 600,
+                              letterSpacing: 0.3,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.1),
+                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.12),
                               color: getEstadoColor(task.estadoActual),
-                              border: `1px solid ${alpha(getEstadoColor(task.estadoActual), 0.3)}`
+                              border: `1px solid ${alpha(getEstadoColor(task.estadoActual), 0.3)}`,
+                              borderRadius: 1
                             }}
                           />
                           <Chip
                             label={task.prioridad || 'media'}
                             size="small"
                             sx={{
-                              height: 22,
+                              height: 24,
                               fontSize: '0.7rem',
                               fontWeight: 600,
+                              letterSpacing: 0.3,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.1),
+                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
                               color: getPriorityColor(task.prioridad),
-                              border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`
+                              border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`,
+                              borderRadius: 1
                             }}
                           />
+                          {/* Chip de días restantes */}
+                          {getDaysRemaining(task) !== null && (
+                            <Chip
+                              label={getDaysRemainingLabel(getDaysRemaining(task))}
+                              size="small"
+                              icon={<CalendarIcon sx={{ fontSize: 14, color: getDaysRemainingColor(getDaysRemaining(task)) + ' !important' }} />}
+                              sx={{
+                                height: 24,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                letterSpacing: 0.3,
+                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.12),
+                                color: getDaysRemainingColor(getDaysRemaining(task)),
+                                border: `1px solid ${alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.3)}`,
+                                borderRadius: 1,
+                                '& .MuiChip-icon': {
+                                  marginLeft: '6px'
+                                }
+                              }}
+                            />
+                          )}
                         </Box>
-                        <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMenuOpen(e, task);
+                          }}
+                          sx={{
+                            bgcolor: alpha(theme.palette.divider, 0.05),
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.primary.main, 0.1)
+                            }
+                          }}
+                        >
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </Box>
 
                       {/* Título */}
                       <Typography
-                        variant="subtitle2"
+                        variant="h6"
                         sx={{
+                          fontSize: '1rem',
                           fontWeight: 600,
-                          mb: 1,
-                          lineHeight: 1.3,
+                          mb: 1.5,
+                          lineHeight: 1.4,
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
@@ -707,21 +791,35 @@ const TasksPage = () => {
                         </Box>
                       )}
 
-                      <Divider sx={{ my: 1.5 }} />
+                      <Divider sx={{ my: 2 }} />
 
                       {/* Información adicional */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                         {/* Fecha de vencimiento */}
                         {task.fechaVencimiento && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CalendarIcon sx={{ fontSize: 16, color: isOverdue(task) ? 'error.main' : 'text.secondary' }} />
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1,
+                            p: 1,
+                            borderRadius: 1,
+                            bgcolor: isOverdue(task) 
+                              ? alpha(theme.palette.error.main, 0.08) 
+                              : alpha(theme.palette.divider, 0.04)
+                          }}>
+                            <CalendarIcon sx={{ 
+                              fontSize: 18, 
+                              color: isOverdue(task) ? 'error.main' : 'text.secondary' 
+                            }} />
                             <Typography
                               variant="caption"
                               sx={{
+                                fontSize: '0.8rem',
                                 color: isOverdue(task) ? 'error.main' : 'text.secondary',
-                                fontWeight: isOverdue(task) ? 600 : 400
+                                fontWeight: isOverdue(task) ? 600 : 500
                               }}
                             >
+                              {isOverdue(task) && 'Vencida: '}
                               {format(task.fechaVencimiento.toDate(), 'dd MMM yyyy', { locale: es })}
                             </Typography>
                           </Box>
@@ -729,14 +827,21 @@ const TasksPage = () => {
 
                         {/* Asignado a */}
                         {task.asignadoA && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1,
+                            p: 1,
+                            borderRadius: 1,
+                            bgcolor: alpha(theme.palette.divider, 0.04)
+                          }}>
                             <Avatar
                               src={task.asignadoA.photoURL}
-                              sx={{ width: 20, height: 20, fontSize: '0.7rem' }}
+                              sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
                             >
                               {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
                             </Avatar>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 500 }}>
                               {task.asignadoA.displayName || task.asignadoA.email}
                             </Typography>
                           </Box>

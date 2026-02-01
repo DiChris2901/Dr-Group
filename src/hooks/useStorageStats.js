@@ -17,9 +17,23 @@ export const useStorageStats = () => {
   });
 
   useEffect(() => {
-    // 🔒 No ejecutar si no hay usuario autenticado o si aún está cargando auth
-    if (!currentUser || authLoading) {
-      setStorageData(prev => ({ ...prev, loading: authLoading }));
+    // 🔒 VALIDACIÓN CRÍTICA: No ejecutar NADA si no hay usuario autenticado
+    if (!currentUser) {
+      // console.log('🔒 useStorageStats: Sin usuario, no se ejecuta');
+      setStorageData(prev => ({ 
+        ...prev, 
+        loading: false,
+        used: 0,
+        documents: 0,
+        images: 0,
+        files: 0
+      }));
+      return;
+    }
+
+    // 🔒 Esperar a que termine de cargar la autenticación
+    if (authLoading) {
+      // console.log('🔒 useStorageStats: Auth cargando, esperando...');
       return;
     }
 
@@ -27,14 +41,14 @@ export const useStorageStats = () => {
 
     // ⏰ Delay más largo para asegurar que todos los permisos estén listos
     const timer = setTimeout(async () => {
+      // ✅ Verificación FINAL antes de ejecutar
+      if (!currentUser) {
+        console.warn('🔒 useStorageStats: Usuario desapareció durante timeout, abortando');
+        return;
+      }
+
       const fetchStorageStats = async () => {
         try {
-          // ✅ Verificación adicional de seguridad
-          if (!currentUser) {
-            console.warn('🔒 useStorageStats: Usuario no autenticado en fetch, abortando');
-            return;
-          }
-
           setStorageData(prev => ({ ...prev, loading: true, error: null }));
 
           // 🔍 Intentar una verificación mínima primero
@@ -185,10 +199,25 @@ export const useStorageStats = () => {
             }
           }
 
-          // Procesar subcarpetas (recursivamente si es necesario)
-          for (const subfolderRef of result.prefixes) {
+          // Procesar subcarpetas con límites de seguridad
+          const maxSubfolders = 20; // Limitar número de subcarpetas
+          const subfoldersToProcess = result.prefixes.slice(0, maxSubfolders);
+          
+          if (result.prefixes.length > maxSubfolders) {
+            console.warn(`⚠️ Carpeta ${folderName} tiene ${result.prefixes.length} subcarpetas, procesando solo ${maxSubfolders}`);
+          }
+
+          for (const subfolderRef of subfoldersToProcess) {
             try {
+              // Validar longitud del path (Firebase Storage tiene límites)
+              if (subfolderRef.fullPath.length > 200) {
+                console.warn(`⚠️ Path demasiado largo, omitiendo: ${subfolderRef.fullPath.substring(0, 50)}...`);
+                continue;
+              }
+
               const subfolderResult = await listAll(subfolderRef);
+              
+              // Solo archivos directos, NO más subcarpetas (profundidad = 1)
               for (const itemRef of subfolderResult.items) {
                 try {
                   const metadata = await getMetadata(itemRef);
@@ -200,11 +229,13 @@ export const useStorageStats = () => {
                     fileCount++;
                   }
                 } catch (metadataError) {
-                  console.warn(`Error getting metadata for file ${itemRef.name} in subfolder ${subfolderRef.name}:`, metadataError);
+                  console.warn(`⚠️ Error metadata ${itemRef.name}:`, metadataError.message);
                 }
               }
             } catch (subfolderError) {
-              console.warn(`Error processing subfolder ${subfolderRef.name}:`, subfolderError);
+              // Error HTTP/2 o path largo - omitir y continuar
+              console.warn(`⚠️ Error subcarpeta ${subfolderRef.name}:`, subfolderError.code || subfolderError.message);
+              continue;
             }
           }
           
