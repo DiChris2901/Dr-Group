@@ -643,6 +643,30 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                                 bgcolor: 'transparent',
                                 '& img': {
                                   objectFit: 'contain'
+                                }
+                              }}
+                            >
+                              {option.nombre.charAt(0).toUpperCase()}
+                            </Avatar>
+                          ) : (
+                            <Avatar 
+                              sx={{ 
+                                width: 32, 
+                                height: 32,
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: 'primary.main'
+                              }}
+                            >
+                              <BusinessIcon fontSize="small" />
+                            </Avatar>
+                          )}
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {option.nombre}
+                          </Typography>
+                        </Box>
+                      )}
+                    />
+                  </Grid>
 
                   {/* Adjunto de Archivo */}
                   <Grid item xs={12}>
