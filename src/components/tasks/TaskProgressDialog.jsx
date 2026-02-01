@@ -42,7 +42,8 @@ import {
   Image as ImageIcon,
   FolderZip as ZipIcon,
   Visibility as VisibilityIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  Flag as FlagIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
@@ -517,54 +518,49 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       PaperProps={{
         sx: {
           borderRadius: 2,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
-          maxHeight: '90vh'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          maxHeight: '90vh',
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
         }
       }}
     >
       <DialogTitle sx={{ 
-        p: 3, 
         pb: 2,
-        display: 'flex', 
-        alignItems: 'center', 
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`
+        background: theme.palette.mode === 'dark'
+          ? theme.palette.grey[900]
+          : theme.palette.grey[50],
+        borderBottom: `1px solid ${theme.palette.divider}`
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar 
-            sx={{ 
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              width: 44,
-              height: 44
-            }}
-          >
-            <TrendingUpIcon />
+          <Avatar sx={{ 
+            bgcolor: 'primary.main', 
+            width: 48,
+            height: 48
+          }}>
+            <TrendingUpIcon sx={{ fontSize: 28 }} />
           </Avatar>
           <Box>
             <Typography variant="h6" sx={{ 
               fontWeight: 700,
-              mb: 0.25
+              mb: 0.5,
+              color: 'text.primary',
+              fontSize: '1.25rem'
             }}>
               Registro de Progreso
             </Typography>
             <Typography variant="caption" sx={{ 
               color: 'text.secondary',
+              fontSize: '0.875rem',
               display: 'block'
             }}>
-              Documenta avances con evidencias
+              {task?.titulo || 'Documenta avances con evidencias'}
             </Typography>
           </Box>
         </Box>
-        <IconButton 
-          onClick={onClose} 
-          sx={{ 
-            color: 'text.secondary',
-            '&:hover': {
-              bgcolor: alpha(theme.palette.error.main, 0.08),
-              color: 'error.main'
-            }
-          }}
-        >
+        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -574,32 +570,51 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         <Paper 
           elevation={0}
           sx={{ 
-            p: 2.5, 
+            p: 3,
             borderRadius: 2, 
-            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-            bgcolor: alpha(theme.palette.background.paper, 0.5)
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            bgcolor: theme.palette.background.paper,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                {task.titulo}
-              </Typography>
-              {task.descripcion && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
-                  {task.descripcion}
+          <Typography variant="overline" sx={{
+            fontWeight: 600,
+            color: 'primary.main',
+            letterSpacing: 0.8,
+            fontSize: '0.75rem',
+            display: 'block',
+            mb: 2
+          }}>
+            Información de la Tarea
+          </Typography>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3 }}>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+              <AssignmentIcon sx={{ color: 'primary.main', fontSize: 20, mt: 0.3 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                  TAREA ASIGNADA
                 </Typography>
-              )}
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 1, lineHeight: 1.4 }}>
+                  {task.titulo}
+                </Typography>
+                {task.descripcion && (
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, fontSize: '0.875rem' }}>
+                    {task.descripcion}
+                  </Typography>
+                )}
+              </Box>
             </Box>
             <Chip
+              icon={<FlagIcon sx={{ fontSize: 14 }} />}
               label={task.prioridad?.toUpperCase()}
               size="small"
               sx={{
-                bgcolor: alpha(getPriorityColor(task.prioridad), 0.1),
+                bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
                 color: getPriorityColor(task.prioridad),
                 fontWeight: 600,
                 fontSize: '0.7rem',
-                height: 24,
+                height: 26,
                 border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`
               }}
             />
@@ -608,7 +623,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, mt: 2 }}>
+      <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}`, px: 3, mt: 2, bgcolor: alpha(theme.palette.background.default, 0.5) }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           <Tab 
             icon={<AddIcon />} 
@@ -624,7 +639,12 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         </Tabs>
       </Box>
 
-      <DialogContent sx={{ p: 3, minHeight: 400 }}>
+      <DialogContent sx={{ 
+        p: 3,
+        pt: 5,
+        minHeight: 400
+      }}>
+        <Box sx={{ mt: 3 }}>
         {/* TAB 1: Nuevo Registro / Editar */}
         {tabValue === 0 && (
           <Box>
@@ -670,9 +690,20 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 mb: 3,
                 borderRadius: 2, 
                 border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                bgcolor: alpha(theme.palette.primary.main, 0.04)
+                bgcolor: theme.palette.background.paper,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
             >
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem',
+                display: 'block',
+                mb: 2
+              }}>
+                {editingLog ? 'Editar Información del Registro' : 'Crear Nuevo Registro'}
+              </Typography>
               {/* Selector de Estado PRIMERO */}
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel id="estado-label">Estado de la Tarea *</InputLabel>
@@ -812,9 +843,14 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: 1.5,
-                          borderRadius: 1,
-                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                          bgcolor: alpha(theme.palette.background.paper, 0.5)
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                          bgcolor: theme.palette.background.paper,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            borderColor: alpha(theme.palette.primary.main, 0.5),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                          }
                         }}
                       >
                         <Box sx={{ 
@@ -867,6 +903,16 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         {/* TAB 2: Histórico */}
         {tabValue === 1 && (
           <Box>
+            <Typography variant="overline" sx={{
+              fontWeight: 600,
+              color: 'primary.main',
+              letterSpacing: 0.8,
+              fontSize: '0.75rem',
+              display: 'block',
+              mb: 3
+            }}>
+              Histórico de Registros ({logs.length})
+            </Typography>
             {logsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
@@ -878,8 +924,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   p: 4,
                   textAlign: 'center',
                   borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                  bgcolor: alpha(theme.palette.background.paper, 0.5)
+                  border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                  bgcolor: theme.palette.background.paper
                 }}
               >
                 <HistoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
@@ -897,14 +943,15 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                     <Paper
                       elevation={0}
                       sx={{
+                        p: 3,
                         mb: 2,
                         borderRadius: 2,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                        bgcolor: alpha(theme.palette.background.paper, 0.5),
-                        overflow: 'hidden'
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        bgcolor: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                       }}
                     >
-                      <ListItem sx={{ p: 2.5, alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <ListItem sx={{ p: 0, alignItems: 'flex-start', flexDirection: 'column' }}>
                         <Box sx={{ display: 'flex', width: '100%', alignItems: 'flex-start' }}>
                           <ListItemAvatar>
                             <Avatar sx={{ 
@@ -928,10 +975,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                   label={ESTADOS.find(e => e.value === log.estado)?.label || log.estado}
                                   size="small"
                                   sx={{
-                                    height: 20,
+                                    height: 22,
                                     fontSize: '0.7rem',
                                     fontWeight: 600,
-                                    bgcolor: alpha(ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[500], 0.15),
+                                    bgcolor: alpha(ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[500], 0.12),
                                     color: ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[700],
                                     border: `1px solid ${alpha(ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[500], 0.3)}`
                                   }}
@@ -953,16 +1000,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                       display: 'flex',
                                       alignItems: 'center',
                                       gap: 1.5,
-                                      borderRadius: 1,
-                                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                                      bgcolor: alpha(theme.palette.background.paper, 0.5),
-                                      cursor: 'default',
-                                      transition: 'all 0.2s ease',
-                                      '&:hover': {
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                        borderColor: alpha(theme.palette.primary.main, 0.3)
-                                      }
+                                      borderRadius: 2,
+                                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                      bgcolor: theme.palette.background.paper,
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
                                     }}
                                   >
                                     <Box sx={{ 
@@ -1055,9 +1096,15 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
             )}
           </Box>
         )}
+        </Box>
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, gap: 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+      <DialogActions sx={{ 
+        p: 3, 
+        gap: 1.5, 
+        borderTop: `1px solid ${theme.palette.divider}`,
+        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.5) : theme.palette.grey[50]
+      }}>
         {tabValue === 0 ? (
           <>
             {editingLog && (
@@ -1068,13 +1115,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 sx={{
                   borderRadius: 1,
                   fontWeight: 600,
-                  py: 1.25,
-                  borderColor: alpha(theme.palette.text.secondary, 0.3),
-                  color: 'text.secondary',
-                  '&:hover': {
-                    borderColor: alpha(theme.palette.text.secondary, 0.5),
-                    bgcolor: alpha(theme.palette.text.secondary, 0.05)
-                  }
+                  textTransform: 'none',
+                  px: 3
                 }}
               >
                 Cancelar Edición
@@ -1084,38 +1126,26 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
               onClick={onClose}
               variant="outlined"
               disabled={loading}
-              fullWidth={!editingLog}
               sx={{
                 borderRadius: 1,
-                fontWeight: 600,
-                py: 1.25,
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                color: 'primary.main',
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  bgcolor: alpha(theme.palette.primary.main, 0.08)
-                }
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3
               }}
             >
-              {editingLog ? 'Cancelar' : 'Cerrar'}
+              Cerrar
             </Button>
             <Button
               onClick={editingLog ? handleUpdateLog : handleSubmit}
               variant="contained"
               disabled={loading || !canModify}
               startIcon={loading ? <CircularProgress size={16} /> : <TrendingUpIcon />}
-              fullWidth
               sx={{
                 borderRadius: 1,
                 fontWeight: 600,
-                py: 1.25,
-                bgcolor: theme.palette.primary.main,
-                '&:hover': {
-                  bgcolor: theme.palette.primary.dark,
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                },
-                transition: 'all 0.2s ease'
+                textTransform: 'none',
+                px: 4,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
               }}
             >
               {loading ? 'Guardando...' : editingLog ? 'Actualizar Registro' : 'Crear Registro'}
@@ -1128,10 +1158,9 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
             fullWidth
             sx={{
               borderRadius: 1,
-              fontWeight: 600,
-              py: 1.25,
-              borderColor: alpha(theme.palette.primary.main, 0.5),
-              color: 'primary.main',
+              fontWeight: 500,
+              textTransform: 'none',
+              px: 3,
               '&:hover': {
                 borderColor: theme.palette.primary.main,
                 bgcolor: alpha(theme.palette.primary.main, 0.08)
