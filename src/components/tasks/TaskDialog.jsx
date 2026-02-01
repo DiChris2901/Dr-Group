@@ -138,6 +138,11 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         descripcion: task.descripcion || '',
         prioridad: task.prioridad || 'media',
         fechaVencimiento: task.fechaVencimiento 
+          ? new Date(task.fechaVencimiento.seconds * 1000).toISOString().split('T')[0] 
+          : '',
+        empresa: empresaObj,
+        asignadoA: task.asignadoA || null
+      });
       
       // Cargar adjunto existente si existe
       if (task.adjunto) {
@@ -156,12 +161,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         asignadoA: null
       });
       setExistingAttachment(null);
-      setSelectedFile(null descripcion: '',
-        prioridad: 'media',
-        fechaVencimiento: '',
-        empresa: null,
-        asignadoA: null
-      });
+      setSelectedFile(null);
     }
     setErrors({});
   }, [task, open, companies]);
