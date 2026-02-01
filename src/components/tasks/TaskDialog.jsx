@@ -732,18 +732,18 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                             sx={{ 
                               color: 'error.main',
                               '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
-                            || uploadingFile}
-          sx={{
-            borderRadius: 1,
-            fontWeight: 600,
-            px: 3,
-            bgcolor: theme.palette.primary.main,
-            '&:hover': {
-              bgcolor: theme.palette.primary.dark
-            }
-          }}
-        >
-          {uploadingFile ? 'Subiendo archivo...' : (loading ? 'Guardando...' : (task ? 'Actualizar' : 'Crear Tarea')
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Paper>
+                    )}
+
+                    {/* Mostrar archivo seleccionado */}
+                    {selectedFile && (
+                      <Paper sx={{ 
+                        p: 2, 
                         mb: 2,
                         borderRadius: 1,
                         border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
@@ -816,30 +816,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                         {errors.file}
                       </Typography>
                     )}
-                  </Grid>
-                                }
-                              }}
-                            >
-                              {option.nombre.charAt(0).toUpperCase()}
-                            </Avatar>
-                          ) : (
-                            <Avatar 
-                              sx={{ 
-                                width: 32, 
-                                height: 32,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                color: 'primary.main'
-                              }}
-                            >
-                              <BusinessIcon fontSize="small" />
-                            </Avatar>
-                          )}
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {option.nombre}
-                          </Typography>
-                        </Box>
-                      )}
-                    />
                   </Grid>
                 </Grid>
 
