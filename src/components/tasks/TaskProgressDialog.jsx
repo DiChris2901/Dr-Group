@@ -90,6 +90,47 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     { value: 'cancelada', label: 'Cancelada', color: theme.palette.error.main, porcentaje: null } // Mantiene el anterior
   ];
 
+  // Función para determinar qué estados están permitidos según el estado actual
+  const getEstadosPermitidos = (estadoActual) => {
+    const reglas = {
+      'pendiente': ['pendiente', 'en_progreso', 'pausada', 'cancelada'],
+      'en_progreso': ['en_progreso', 'en_revision', 'completada', 'pausada', 'cancelada'],
+      'pausada': ['pausada', 'en_progreso', 'cancelada'],
+      'en_revision': ['en_revision', 'completada', 'en_progreso', 'cancelada'],
+      'completada': ['completada'], // Estado terminal
+      'cancelada': ['cancelada'] // Estado terminal
+    };
+    
+    return reglas[estadoActual] || ESTADOS.map(e => e.value);
+  };
+
+  // Verificar si un estado está permitido
+  const isEstadoPermitido = (estadoValue) => {
+    const estadoActualTarea = task?.estado || 'pendiente';
+    const estadosPermitidos = getEstadosPermitidos(estadoActualTarea);
+    return estadosPermitidos.includes(estadoValue);
+  };
+
+  // Obtener mensaje de por qué un estado está bloqueado
+  const getMensajeBloqueo = (estadoValue) => {
+    const estadoActualTarea = task?.estado || 'pendiente';
+    
+    if (estadoActualTarea === 'completada') {
+      return 'La tarea ya está completada (estado terminal)';
+    }
+    if (estadoActualTarea === 'cancelada') {
+      return 'La tarea está cancelada (estado terminal)';
+    }
+    
+    const mensajes = {
+      'pendiente': 'No puedes retroceder a Pendiente una vez iniciada',
+      'pausada': 'Desde revisión no puedes pausar, solo completar o corregir',
+      'en_revision': 'Para revisar, la tarea debe estar en progreso primero'
+    };
+    
+    return mensajes[estadoValue] || 'Este estado no está disponible en el flujo actual';
+  };
+
   // Calcular porcentaje automáticamente basado en el estado
   const getPorcentajeFromEstado = (estadoSeleccionado) => {
     const estadoObj = ESTADOS.find(e => e.value === estadoSeleccionado);
@@ -889,28 +930,81 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                     }
                   }}
                 >
-                  {ESTADOS.map((est) => (
-                    <MenuItem key={est.value} value={est.value}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', justifyContent: 'space-between' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box 
-                            sx={{ 
-                              width: 12, 
-                              height: 12, 
-                              borderRadius: '50%', 
-                              bgcolor: est.color 
-                            }} 
-                          />
-                          <Typography variant="body2">{est.label}</Typography>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          {est.porcentaje !== null ? `${est.porcentaje}%` : 'Mantiene anterior'}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
+                  {ESTADOS.map((est) => {
+                    const permitido = isEstadoPermitido(est.value);
+                    const esActual = est.value === estado;
+                    
+                    return (
+                      <MenuItem 
+                        key={est.value} 
+                        value={est.value}
+                        disabled={!permitido}
+                        sx={{
+                          opacity: permitido ? 1 : 0.4,
+                          cursor: permitido ? 'pointer' : 'not-allowed',
+                          '&.Mui-disabled': {
+                            opacity: 0.4
+                          }
+                        }}
+                      >
+                        <Tooltip 
+                          title={!permitido ? getMensajeBloqueo(est.value) : ''} 
+                          arrow 
+                          placement="left"
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box 
+                                sx={{ 
+                                  width: 12, 
+                                  height: 12, 
+                                  borderRadius: '50%', 
+                                  bgcolor: est.color,
+                                  opacity: permitido ? 1 : 0.5
+                                }} 
+                              />
+                              <Typography variant="body2" sx={{ color: permitido ? 'inherit' : 'text.disabled' }}>
+                                {est.label}
+                                {!permitido && ' 🔒'}
+                              </Typography>
+                            </Box>
+                            <Typography 
+                              variant="caption" 
+                              color={permitido ? 'text.secondary' : 'text.disabled'} 
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {est.porcentaje !== null ? `${est.porcentaje}%` : 'Mantiene anterior'}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
+
+              {/* Mensaje informativo sobre flujo de estados */}
+              {task?.estado && task.estado !== 'pendiente' && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 1.5,
+                    mb: 3,
+                    borderRadius: 1.5,
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                    bgcolor: alpha(theme.palette.info.main, 0.05)
+                  }}
+                >
+                  <Typography variant="caption" color="info.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TrendingUpIcon sx={{ fontSize: 14 }} />
+                    {task.estado === 'completada' && 'Tarea completada - No se pueden hacer cambios de estado'}
+                    {task.estado === 'cancelada' && 'Tarea cancelada - No se pueden hacer cambios de estado'}
+                    {task.estado === 'en_progreso' && 'Puedes avanzar a Revisión/Completada, o pausar/cancelar si es necesario'}
+                    {task.estado === 'pausada' && 'Reactiva la tarea para continuar en progreso'}
+                    {task.estado === 'en_revision' && 'Completa la revisión o regresa a En Progreso si hay correcciones'}
+                  </Typography>
+                </Paper>
+              )}
 
               {/* Porcentaje calculado automáticamente (solo display) */}
               <Box sx={{ 
