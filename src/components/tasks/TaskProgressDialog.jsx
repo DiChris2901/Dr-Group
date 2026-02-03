@@ -80,11 +80,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [selectedDocument, setSelectedDocument] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Estados de filtros para el histórico
-  const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
-
   // Estados disponibles con porcentajes automáticos
   const ESTADOS = [
     { value: 'pendiente', label: 'Pendiente', color: theme.palette.grey[500], porcentaje: 0 },
@@ -498,44 +493,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     setSelectedDocument(null);
   };
 
-  // Función de filtrado de logs
-  const getFilteredLogs = () => {
-    if (!logs || logs.length === 0) return [];
-
-    return logs.filter(log => {
-      // Filtro por estado
-      if (filtroEstado && log.estadoActual !== filtroEstado) {
-        return false;
-      }
-
-      // Filtro por rango de fechas
-      if (filtroFechaDesde || filtroFechaHasta) {
-        const logDate = log.fecha?.toDate();
-        if (logDate) {
-          if (filtroFechaDesde && logDate < new Date(filtroFechaDesde + 'T00:00:00')) {
-            return false;
-          }
-          if (filtroFechaHasta && logDate > new Date(filtroFechaHasta + 'T23:59:59')) {
-            return false;
-          }
-        }
-      }
-
-      return true;
-    });
-  };
-
-  // Calcular logs filtrados
-  const logsFiltrados = getFilteredLogs();
-  const hasActiveFilters = Boolean(filtroEstado || filtroFechaDesde || filtroFechaHasta);
-
-  // Función para limpiar filtros
-  const handleLimpiarFiltros = () => {
-    setFiltroEstado('');
-    setFiltroFechaDesde('');
-    setFiltroFechaHasta('');
-  };
-
   // Función de exportación a Excel
   const handleExportarExcel = async () => {
     try {
@@ -625,9 +582,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       });
       headerRow.height = 25;
 
-      // Datos de los logs (usando logsFiltrados para respetar filtros activos)
-      const logsParaExportar = logsFiltrados.length > 0 ? logsFiltrados : logs;
-      logsParaExportar.forEach((log, index) => {
+      // Datos de los logs
+      logs.forEach((log, index) => {
         const rowNum = 9 + index;
         const row = worksheet.getRow(rowNum);
 
@@ -1150,97 +1106,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
               </Button>
             </Box>
 
-            {/* Controles de Filtro */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                mb: 3,
-                borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                bgcolor: theme.palette.background.paper,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-              }}
-            >
-              <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                🔍 Filtros de Búsqueda
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* Fila 1: Estado y Fechas */}
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  <FormControl size="small" sx={{ minWidth: 150, flex: 1 }}>
-                    <InputLabel>Estado</InputLabel>
-                    <Select
-                      value={filtroEstado}
-                      onChange={(e) => setFiltroEstado(e.target.value)}
-                      label="Estado"
-                    >
-                      <MenuItem value="">Todos</MenuItem>
-                      {ESTADOS.map((estado) => (
-                        <MenuItem key={estado.value} value={estado.value}>
-                          {estado.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  <TextField
-                    size="small"
-                    type="date"
-                    label="Desde"
-                    value={filtroFechaDesde}
-                    onChange={(e) => setFiltroFechaDesde(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ minWidth: 150, flex: 1 }}
-                  />
-
-                  <TextField
-                    size="small"
-                    type="date"
-                    label="Hasta"
-                    value={filtroFechaHasta}
-                    onChange={(e) => setFiltroFechaHasta(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ minWidth: 150, flex: 1 }}
-                  />
-                </Box>
-
-                {/* Botón de limpiar filtros */}
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={handleLimpiarFiltros}
-                    disabled={!hasActiveFilters}
-                    sx={{
-                      minWidth: 100,
-                      borderRadius: 1,
-                      textTransform: 'none',
-                      fontWeight: 500
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                </Box>
-
-                {/* Resultados del filtro */}
-                {hasActiveFilters && (
-                  <Box sx={{ 
-                    mt: 1, 
-                    p: 1.5, 
-                    borderRadius: 1,
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                  }}>
-                    <Typography variant="caption" color="primary.main" fontWeight={600}>
-                      📊 Mostrando {logsFiltrados.length} de {logs.length} registros
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Paper>
-
             {logsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
@@ -1264,25 +1129,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   Crea el primer registro en la pestaña "Nuevo Registro"
                 </Typography>
               </Paper>
-            ) : logsFiltrados.length === 0 ? (
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 4,
-                  textAlign: 'center',
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-                  bgcolor: alpha(theme.palette.warning.main, 0.08)
-                }}
-              >
-                <HistoryIcon sx={{ fontSize: 48, color: 'warning.main', mb: 2 }} />
-                <Typography variant="h6" color="warning.main" gutterBottom>
-                  Sin resultados para los filtros aplicados
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Prueba ajustando los criterios de búsqueda
-                </Typography>
-              </Paper>
             ) : (
               /* ===== TIMELINE VISUAL ===== */
               <Box sx={{ position: 'relative', pl: 4 }}>
@@ -1299,10 +1145,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   }}
                 />
 
-                {logsFiltrados.map((log, index) => {
+                {logs.map((log, index) => {
                   const estadoInfo = ESTADOS.find(e => e.value === log.estado);
                   const isFirst = index === 0;
-                  const isLast = index === logsFiltrados.length - 1;
+                  const isLast = index === logs.length - 1;
 
                   return (
                     <Box key={log.id} sx={{ position: 'relative', mb: isLast ? 0 : 4 }}>
