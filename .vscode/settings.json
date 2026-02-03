@@ -83,7 +83,7 @@
   "workbench.startupEditor": "none",
   "workbench.enableExperiments": false,
   "workbench.settings.enableNaturalLanguageSearch": false,
-  "workbench.colorTheme": "Copilot Theme - Higher Contrast",
+  "workbench.colorTheme": "Visual Studio Light",
   "workbench.iconTheme": "vs-seti",
   "workbench.tree.renderIndentGuides": "onHover",
   "workbench.tree.indent": 15,

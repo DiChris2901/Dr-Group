@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Box,
@@ -28,7 +28,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,16 +47,21 @@ import {
   Refresh as RefreshIcon,
   Inbox as InboxIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  ViewKanban as ViewKanbanIcon,
+  GridView as GridViewIcon
 } from '@mui/icons-material';
 import { useDelegatedTasks } from '../hooks/useDelegatedTasks';
 import { useAuth } from '../context/AuthContext';
-import { format, isAfter, isBefore } from 'date-fns';
+import { format, isAfter, isBefore, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import TaskDialog from '../components/tasks/TaskDialog';
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog';
 import TaskReassignDialog from '../components/tasks/TaskReassignDialog';
 import TaskProgressDialog from '../components/tasks/TaskProgressDialog';
+import TasksFilters from '../components/tasks/TasksFilters';
 
 /**
  * TasksPage - Sistema de gestión de tareas delegadas
@@ -63,12 +71,31 @@ import TaskProgressDialog from '../components/tasks/TaskProgressDialog';
 const TasksPage = () => {
   const theme = useTheme();
   const { currentUser, userProfile } = useAuth();
-  const { tasks, stats, loading, changeStatus, updateTask, deleteTask } = useDelegatedTasks();
+  const { 
+    tasks, 
+    stats, 
+    loading, 
+    changeStatus, 
+    updateTask, 
+    deleteTask,
+    currentPage,
+    hasMore,
+    nextPage,
+    previousPage,
+    refreshTasks
+  } = useDelegatedTasks();
+
+  // Determinar filtro de asignación inicial según permisos
+  const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
+                                (Array.isArray(userProfile?.permissions) && 
+                                 userProfile?.permissions.includes('tareas.ver_todas'));
+  
+  const initialAssignmentFilter = hasPermissionVerTodas ? 'all' : 'mine';
 
   // Estados locales
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
-  const [filterAssignment, setFilterAssignment] = useState('all');
+  const [filterAssignment, setFilterAssignment] = useState(initialAssignmentFilter);
   const [filterCompany, setFilterCompany] = useState('all');
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
@@ -78,6 +105,11 @@ const TasksPage = () => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [openReassignDialog, setOpenReassignDialog] = useState(false);
   const [openProgressDialog, setOpenProgressDialog] = useState(false);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'kanban'
+  const [companies, setCompanies] = useState([]);
+  
+  // Estados para sistema de filtros aplicados
+  const [filtersApplied, setFiltersApplied] = useState(false); // Usuario debe hacer clic en Aplicar
 
   // Permisos (soporta formato objeto y array)
   const canCreate = userProfile?.permissions?.['tareas'] || 
@@ -96,12 +128,51 @@ const TasksPage = () => {
   const canEdit = canCreate;
   const canDelete = canCreate;
 
-  // Filtrar tareas
+  // Ajustar filtro de asignación si el usuario no tiene permisos
+  useEffect(() => {
+    if (!hasPermissionVerTodas && (filterAssignment === 'all' || filterAssignment === 'unassigned')) {
+      // Si el usuario no puede ver todas las tareas pero tiene filtro "all" o "unassigned"
+      // cambiar automáticamente a "mine"
+      setFilterAssignment('mine');
+      setFiltersApplied(false); // Requiere aplicar de nuevo
+    }
+  }, [hasPermissionVerTodas, filterAssignment]);
+
+  // Cargar empresas desde Firestore
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const companiesQuery = query(collection(db, 'companies'));
+        const companiesSnapshot = await getDocs(companiesQuery);
+        const companiesData = [];
+        companiesSnapshot.forEach((doc) => {
+          const companyData = doc.data();
+          companiesData.push({
+            id: doc.id,
+            nombre: companyData.name || companyData.nombre
+          });
+        });
+        setCompanies(companiesData);
+      } catch (error) {
+        console.error('Error al cargar empresas:', error);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+
+  // Filtrar tareas - solo mostrar datos si se han aplicado filtros
   const filteredTasks = useMemo(() => {
+    // Si no se han aplicado filtros, retornar array vacío
+    if (!filtersApplied) {
+      return [];
+    }
+
     return tasks.filter(task => {
       // Búsqueda por texto
       if (searchTerm && !task.titulo?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-          !task.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          !task.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !task.asignadoA?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
 
@@ -128,7 +199,7 @@ const TasksPage = () => {
 
       return true;
     });
-  }, [tasks, searchTerm, filterPriority, filterAssignment, filterCompany, currentUser]);
+  }, [tasks, filterPriority, filterAssignment, filterCompany, searchTerm, currentUser, filtersApplied]);
 
   // Handlers
   const handleMenuOpen = (event, task) => {
@@ -201,6 +272,11 @@ const TasksPage = () => {
     setOpenProgressDialog(false);
   };
 
+  const handleTaskClick = (task) => {
+    setSelectedTask(task);
+    setOpenDetailDialog(true);
+  };
+
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'urgente':
@@ -232,13 +308,9 @@ const TasksPage = () => {
     if (!task.fechaVencimiento || task.estadoActual === 'completada' || task.estadoActual === 'cancelada') {
       return null;
     }
-    const taskDate = new Date(task.fechaVencimiento.toDate());
+    const taskDate = task.fechaVencimiento.toDate();
     const today = new Date();
-    taskDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    const diffTime = taskDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return differenceInDays(taskDate, today);
   };
 
   const getDaysRemainingLabel = (days) => {
@@ -378,8 +450,9 @@ const TasksPage = () => {
       </motion.div>
 
       {/* Estadísticas sobrias con bordes dinámicos */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Grid container spacing={2.5} sx={{ mb: 4 }}>
+        {/* Total Tareas */}
+        <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ 
             borderRadius: 2,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -387,6 +460,7 @@ const TasksPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.2)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             transition: 'all 0.3s ease',
+            height: '100%',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: theme.palette.mode === 'dark'
@@ -395,26 +469,29 @@ const TasksPage = () => {
               borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
               <Typography variant="overline" sx={{ 
                 fontWeight: 600,
                 color: theme.palette.primary.main,
-                letterSpacing: 1.2
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
               }}>
                 TOTAL TAREAS
               </Typography>
               <Typography variant="h3" sx={{ 
                 fontWeight: 700,
                 color: theme.palette.text.primary,
-                mt: 1
+                mt: 1,
+                fontSize: '2rem'
               }}>
                 {stats.total}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
+
+        {/* Mis Tareas */}
+        <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ 
             borderRadius: 2,
             border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
@@ -422,6 +499,7 @@ const TasksPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.2)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             transition: 'all 0.3s ease',
+            height: '100%',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: theme.palette.mode === 'dark'
@@ -430,26 +508,29 @@ const TasksPage = () => {
               borderColor: alpha(theme.palette.info.main, 0.8)
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
               <Typography variant="overline" sx={{ 
                 fontWeight: 600,
                 color: theme.palette.info.main,
-                letterSpacing: 1.2
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
               }}>
                 MIS TAREAS
               </Typography>
               <Typography variant="h3" sx={{ 
                 fontWeight: 700,
                 color: theme.palette.text.primary,
-                mt: 1
+                mt: 1,
+                fontSize: '2rem'
               }}>
                 {stats.misAsignadas}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
+
+        {/* En Progreso */}
+        <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ 
             borderRadius: 2,
             border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
@@ -457,6 +538,7 @@ const TasksPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.2)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             transition: 'all 0.3s ease',
+            height: '100%',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: theme.palette.mode === 'dark'
@@ -465,26 +547,29 @@ const TasksPage = () => {
               borderColor: alpha(theme.palette.warning.main, 0.8)
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
               <Typography variant="overline" sx={{ 
                 fontWeight: 600,
                 color: theme.palette.warning.main,
-                letterSpacing: 1.2
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
               }}>
                 EN PROGRESO
               </Typography>
               <Typography variant="h3" sx={{ 
                 fontWeight: 700,
                 color: theme.palette.text.primary,
-                mt: 1
+                mt: 1,
+                fontSize: '2rem'
               }}>
                 {stats.enProgreso}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
+
+        {/* Completadas */}
+        <Grid item xs={12} sm={6} md={2}>
           <Card sx={{ 
             borderRadius: 2,
             border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
@@ -492,6 +577,7 @@ const TasksPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.2)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             transition: 'all 0.3s ease',
+            height: '100%',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: theme.palette.mode === 'dark'
@@ -500,103 +586,136 @@ const TasksPage = () => {
               borderColor: alpha(theme.palette.success.main, 0.8)
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
               <Typography variant="overline" sx={{ 
                 fontWeight: 600,
                 color: theme.palette.success.main,
-                letterSpacing: 1.2
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
               }}>
                 COMPLETADAS
               </Typography>
               <Typography variant="h3" sx={{ 
                 fontWeight: 700,
                 color: theme.palette.text.primary,
-                mt: 1
+                mt: 1,
+                fontSize: '2rem'
               }}>
                 {stats.completadas}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Sin Asignar */}
+        <Grid item xs={12} sm={6} md={2}>
+          <Card sx={{ 
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.grey[500], 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            height: '100%',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.grey[500], 0.8)
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.grey[600],
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
+              }}>
+                SIN ASIGNAR
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1,
+                fontSize: '2rem'
+              }}>
+                {stats.pendientes}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Vencidas */}
+        <Grid item xs={12} sm={6} md={2}>
+          <Card sx={{ 
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            height: '100%',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.error.main, 0.8)
+            }
+          }}>
+            <CardContent sx={{ textAlign: 'center', p: 2.5 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.error.main,
+                letterSpacing: 1.2,
+                fontSize: '0.65rem'
+              }}>
+                VENCIDAS
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1,
+                fontSize: '2rem'
+              }}>
+                {stats.vencidas}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
-      {/* Barra de búsqueda y filtros */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Buscar tareas..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    sx: { borderRadius: 1 }
-                  }}
-                />
-              </Grid>
+      {/* Sistema de Filtros */}
+      <TasksFilters
+        searchTerm={searchTerm}
+        filterPriority={filterPriority}
+        filterAssignment={filterAssignment}
+        filterCompany={filterCompany}
+        viewMode={viewMode}
+        companies={companies}
+        hasFiltersChanged={!filtersApplied}
+        filtersApplied={filtersApplied}
+        userProfile={userProfile}
+        onSearchChange={setSearchTerm}
+        onPriorityChange={setFilterPriority}
+        onAssignmentChange={setFilterAssignment}
+        onCompanyChange={setFilterCompany}
+        onViewModeChange={setViewMode}
+        onApplyFilters={() => {
+          setFiltersApplied(true);
+        }}
+        onClearFilters={() => {
+          setSearchTerm('');
+          setFilterPriority('all');
+          setFilterAssignment(initialAssignmentFilter);
+          setFilterCompany('all');
+          setFiltersApplied(false);
+        }}
+        onRefresh={refreshTasks}
+      />
 
-              <Grid item xs={12} md={6}>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <ToggleButtonGroup
-                    value={filterPriority}
-                    exclusive
-                    onChange={(e, value) => value && setFilterPriority(value)}
-                    size="small"
-                    sx={{ '& .MuiToggleButton-root': { borderRadius: 1 } }}
-                  >
-                    <ToggleButton value="all">Todas</ToggleButton>
-                    <ToggleButton value="urgente">Urgentes</ToggleButton>
-                    <ToggleButton value="alta">Alta</ToggleButton>
-                    <ToggleButton value="media">Media</ToggleButton>
-                  </ToggleButtonGroup>
-
-                  <ToggleButtonGroup
-                    value={filterAssignment}
-                    exclusive
-                    onChange={(e, value) => value && setFilterAssignment(value)}
-                    size="small"
-                    sx={{ '& .MuiToggleButton-root': { borderRadius: 1 } }}
-                  >
-                    <ToggleButton value="all">Todas</ToggleButton>
-                    <ToggleButton value="mine">Mis Tareas</ToggleButton>
-                    <ToggleButton value="created">Creadas por Mí</ToggleButton>
-                    <ToggleButton value="unassigned">Sin Asignar</ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} md={2}>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                  <Tooltip title="Refrescar">
-                    <IconButton size="small">
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Filtros avanzados">
-                    <IconButton size="small">
-                      <FilterIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Vista Grid de Tareas */}
+      {/* Vista Grid o Kanban de Tareas */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -619,7 +738,150 @@ const TasksPage = () => {
               </Typography>
             </CardContent>
           </Card>
+        ) : viewMode === 'kanban' ? (
+          /* VISTA KANBAN */
+          <Box sx={{ display: 'flex', gap: 2.5 }}>
+            {['pendiente', 'asignada', 'en_progreso', 'en_revision', 'completada'].map((estado) => {
+              const tareasEnEstado = filteredTasks.filter(t => t.estadoActual === estado);
+              return (
+                <Paper
+                  key={estado}
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    borderRadius: 2,
+                    border: `2px solid ${alpha(getEstadoColor(estado), 0.3)}`,
+                    bgcolor: theme.palette.mode === 'dark' 
+                      ? alpha(theme.palette.background.paper, 0.6)
+                      : theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  {/* Header de columna */}
+                  <Box sx={{
+                    p: 2,
+                    borderBottom: `3px solid ${getEstadoColor(estado)}`,
+                    bgcolor: alpha(getEstadoColor(estado), 0.15)
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                        {getEstadoLabel(estado).toUpperCase()}
+                      </Typography>
+                      <Chip
+                        label={tareasEnEstado.length}
+                        size="small"
+                        sx={{
+                          height: 24,
+                          fontWeight: 700,
+                          bgcolor: getEstadoColor(estado),
+                          color: '#fff'
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  {/* Tareas de la columna */}
+                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 600, overflowY: 'auto' }}>
+                    {tareasEnEstado.map((task) => (
+                      <Card
+                        key={task.id}
+                        sx={{
+                          borderRadius: 2,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                            borderColor: alpha(theme.palette.primary.main, 0.4)
+                          }
+                        }}
+                        onClick={() => handleTaskClick(task)}
+                      >
+                        <CardContent sx={{ p: 2 }}>
+                          {/* Prioridad y menú */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                            <Chip
+                              label={task.prioridad || 'media'}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                                bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
+                                color: getPriorityColor(task.prioridad)
+                              }}
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMenuOpen(e, task);
+                              }}
+                              sx={{ p: 0.5 }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+
+                          {/* Título */}
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, lineHeight: 1.3 }}>
+                            {task.titulo}
+                          </Typography>
+
+                          {/* Vencimiento */}
+                          {task.fechaVencimiento && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                              <CalendarIcon sx={{ fontSize: 14, color: isOverdue(task) ? 'error.main' : 'text.secondary' }} />
+                              <Typography variant="caption" sx={{ color: isOverdue(task) ? 'error.main' : 'text.secondary' }}>
+                                {format(task.fechaVencimiento.toDate(), 'dd MMM', { locale: es })}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {/* Asignado */}
+                          {task.asignadoA && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Avatar src={task.asignadoA.photoURL} sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
+                                {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
+                              </Avatar>
+                              <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                                {task.asignadoA.displayName || task.asignadoA.email}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {/* Progreso */}
+                          {task.porcentajeCompletado > 0 && (
+                            <Box sx={{ mt: 1.5 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={task.porcentajeCompletado}
+                                sx={{
+                                  height: 4,
+                                  borderRadius: 1,
+                                  bgcolor: alpha(theme.palette.primary.main, 0.1)
+                                }}
+                              />
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {tareasEnEstado.length === 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                        No hay tareas
+                      </Typography>
+                    )}
+                  </Box>
+                </Paper>
+              );
+            })}
+          </Box>
         ) : (
+          /* VISTA GRID */
           <Grid container spacing={3}>
             {filteredTasks.map((task, index) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={task.id}>
@@ -952,6 +1214,50 @@ const TasksPage = () => {
         onClose={handleCloseProgress}
         task={selectedTask}
       />
+
+      {/* Controles de Paginación */}
+      {filteredTasks.length > 0 && (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: 2, 
+          mt: 4,
+          pb: 2
+        }}>
+          <Button
+            variant="outlined"
+            disabled={currentPage === 1}
+            onClick={previousPage}
+            startIcon={<RefreshIcon sx={{ transform: 'rotate(180deg)' }} />}
+            sx={{ 
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Anterior
+          </Button>
+          
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+            Página {currentPage} • {filteredTasks.length} tareas
+          </Typography>
+          
+          <Button
+            variant="outlined"
+            disabled={!hasMore}
+            onClick={nextPage}
+            endIcon={<RefreshIcon />}
+            sx={{ 
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Siguiente
+          </Button>
+        </Box>
+      )}
 
       {/* Dialog de Confirmación de Eliminación */}
       <Dialog

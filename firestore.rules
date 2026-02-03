@@ -174,6 +174,60 @@ service cloud.firestore {
       allow write: if request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.appRole == 'SUPERADMIN';
     }
+
+    // ========================================
+    // 📋 SISTEMA DE TAREAS DELEGADAS
+    // ========================================
+    
+    // Tareas delegadas: Validación según participantes y permisos
+    match /delegated_tasks/{taskId} {
+      // Lectura: Solo usuarios con permiso ver_todas o que sean participantes
+      allow read: if request.auth != null && (
+        // Tiene permiso para ver todas las tareas
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions['tareas.ver_todas'] == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
+        // O es participante de la tarea
+        request.auth.uid in resource.data.participantes
+      );
+      
+      // Creación: Solo usuarios con permiso tareas o tareas.crear
+      allow create: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions['tareas.crear'] == true
+      );
+      
+      // Actualización: Solo creador, asignado o usuarios con permiso tareas
+      allow update: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
+        resource.data.creadoPor.uid == request.auth.uid ||
+        resource.data.asignadoA.uid == request.auth.uid
+      );
+      
+      // Eliminación: Solo creador o usuarios con permiso tareas
+      allow delete: if request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
+        resource.data.creadoPor.uid == request.auth.uid
+      );
+      
+      // Subcollection: Logs de progreso de tareas
+      match /progressLogs/{logId} {
+        // Lectura: Solo participantes de la tarea
+        allow read: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.participantes;
+        
+        // Creación: Solo el usuario asignado a la tarea
+        allow create: if request.auth != null && 
+          get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.asignadoA.uid == request.auth.uid;
+        
+        // Actualización: Solo el creador del log
+        allow update: if request.auth != null && 
+          resource.data.usuario.uid == request.auth.uid;
+        
+        // Eliminación: Solo el creador del log
+        allow delete: if request.auth != null && 
+          resource.data.usuario.uid == request.auth.uid;
+      }
+    }
     
     // Regla por defecto para cualquier otra colección: Solo usuarios autenticados
     match /{document=**} {
