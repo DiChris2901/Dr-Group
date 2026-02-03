@@ -1284,162 +1284,248 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 </Typography>
               </Paper>
             ) : (
-              <List sx={{ p: 0 }}>
-                {logsFiltrados.map((log, index) => (
-                  <Box key={log.id}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 3,
-                        mb: 2,
-                        borderRadius: 2,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                        bgcolor: theme.palette.background.paper,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                      }}
-                    >
-                      <ListItem sx={{ p: 0, alignItems: 'flex-start', flexDirection: 'column' }}>
-                        <Box sx={{ display: 'flex', width: '100%', alignItems: 'flex-start' }}>
-                          <ListItemAvatar>
-                            <Avatar sx={{ 
-                              bgcolor: alpha(theme.palette.primary.main, 0.1),
-                              color: 'primary.main',
-                              fontWeight: 700
-                            }}>
-                              {log.porcentaje}%
-                            </Avatar>
-                          </ListItemAvatar>
+              /* ===== TIMELINE VISUAL ===== */
+              <Box sx={{ position: 'relative', pl: 4 }}>
+                {/* Línea vertical conectora */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: 20,
+                    top: 30,
+                    bottom: 30,
+                    width: 3,
+                    bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    borderRadius: 2
+                  }}
+                />
+
+                {logsFiltrados.map((log, index) => {
+                  const estadoInfo = ESTADOS.find(e => e.value === log.estado);
+                  const isFirst = index === 0;
+                  const isLast = index === logsFiltrados.length - 1;
+
+                  return (
+                    <Box key={log.id} sx={{ position: 'relative', mb: isLast ? 0 : 4 }}>
+                      {/* Marcador circular en la línea de tiempo */}
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          left: -30,
+                          top: 12,
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          bgcolor: estadoInfo?.color || theme.palette.primary.main,
+                          border: `4px solid ${theme.palette.background.paper}`,
+                          boxShadow: `0 0 0 3px ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.2)}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          zIndex: 2
+                        }}
+                      >
+                        {log.porcentaje}%
+                      </Box>
+
+                      {/* Card del registro */}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 2,
+                          border: `2px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            transform: 'translateX(4px)',
+                            boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+                          }
+                        }}
+                      >
+                        {/* Header del registro */}
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
                           <Box sx={{ flex: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                              <Typography variant="body2" fontWeight={600}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
+                              <Typography variant="body1" fontWeight={700} color="text.primary">
                                 {log.creadorNombre || 'Usuario'}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                • {log.fecha && format(log.fecha.toDate(), "d 'de' MMMM 'a las' HH:mm", { locale: es })}
-                              </Typography>
-                              {log.estado && (
+                              {estadoInfo && (
                                 <Chip
-                                  label={ESTADOS.find(e => e.value === log.estado)?.label || log.estado}
+                                  label={estadoInfo.label}
                                   size="small"
                                   sx={{
-                                    height: 22,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 600,
-                                    bgcolor: alpha(ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[500], 0.12),
-                                    color: ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[700],
-                                    border: `1px solid ${alpha(ESTADOS.find(e => e.value === log.estado)?.color || theme.palette.grey[500], 0.3)}`
+                                    height: 24,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    bgcolor: alpha(estadoInfo.color, 0.15),
+                                    color: estadoInfo.color,
+                                    border: `1.5px solid ${estadoInfo.color}`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 0.5
                                   }}
                                 />
                               )}
                             </Box>
-                            <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.6, mb: 1.5 }}>
-                              {log.comentario}
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <HistoryIcon sx={{ fontSize: 14 }} />
+                              {log.fecha && format(log.fecha.toDate(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
                             </Typography>
-                            {log.archivos && log.archivos.length > 0 && (
-                              <Box sx={{ mt: 1.5 }}>
-                                {log.archivos.map((archivo, idx) => (
-                                  <Paper
-                                    key={idx}
-                                    elevation={0}
-                                    sx={{
-                                      p: 1.5,
-                                      mb: idx < log.archivos.length - 1 ? 1 : 0,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 1.5,
-                                      borderRadius: 2,
-                                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                                      bgcolor: theme.palette.background.paper,
-                                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                                    }}
-                                  >
-                                    <Box sx={{ 
-                                      color: 'primary.main',
-                                      display: 'flex',
-                                      alignItems: 'center'
-                                    }}>
-                                      {getFileIcon(archivo.tipo)}
-                                    </Box>
-                                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                                      <Typography variant="body2" noWrap fontWeight={500}>
-                                        {archivo.nombre}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {formatFileSize(archivo.tamaño)}
-                                      </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                      {/* Botón Ver (solo para PDFs) */}
-                                      {archivo.tipo === 'application/pdf' && (
-                                        <Tooltip title="Ver documento" arrow placement="top">
-                                          <IconButton
-                                            size="small"
-                                            onClick={() => handleOpenPreview(archivo)}
-                                            sx={{ 
-                                              color: 'primary.main',
-                                              transition: 'all 0.2s ease',
-                                              '&:hover': {
-                                                bgcolor: alpha(theme.palette.primary.main, 0.15),
-                                                transform: 'scale(1.1)'
-                                              }
-                                            }}
-                                          >
-                                            <VisibilityIcon fontSize="small" />
-                                          </IconButton>
-                                        </Tooltip>
-                                      )}
-                                      {/* Botón Descargar */}
-                                      <Tooltip title="Descargar archivo" arrow placement="top">
-                                        <IconButton
-                                          size="small"
-                                          component="a"
-                                          href={archivo.url}
-                                          download
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          sx={{ 
-                                            color: 'text.secondary',
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                              bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                              color: 'primary.main',
-                                              transform: 'scale(1.1)'
-                                            }
-                                          }}
-                                        >
-                                          <DownloadIcon fontSize="small" />
-                                        </IconButton>
-                                      </Tooltip>
-                                    </Box>
-                                  </Paper>
-                                ))}
-                              </Box>
-                            )}
                           </Box>
+
+                          {/* Botones de acción */}
                           {canModify && (
-                            <Box sx={{ ml: 2, display: 'flex', gap: 0.5 }}>
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
                               <IconButton
                                 size="small"
                                 onClick={() => handleEditLog(log)}
+                                sx={{
+                                  color: 'text.secondary',
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    color: 'primary.main'
+                                  }
+                                }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
                               <IconButton
                                 size="small"
                                 onClick={() => handleDeleteLog(log)}
-                                sx={{ color: 'error.main' }}
+                                sx={{
+                                  color: 'text.secondary',
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                                    color: 'error.main'
+                                  }
+                                }}
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Box>
                           )}
                         </Box>
-                      </ListItem>
-                    </Paper>
-                    {index < logsFiltrados.length - 1 && <Divider sx={{ my: 1 }} />}
-                  </Box>
-                ))}
-              </List>
+
+                        {/* Comentario */}
+                        <Typography 
+                          variant="body2" 
+                          color="text.primary" 
+                          sx={{ 
+                            lineHeight: 1.7, 
+                            mb: log.archivos?.length > 0 ? 2 : 0,
+                            pl: 2,
+                            borderLeft: `3px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
+                            fontStyle: 'italic'
+                          }}
+                        >
+                          "{log.comentario}"
+                        </Typography>
+
+                        {/* Archivos adjuntos */}
+                        {log.archivos && log.archivos.length > 0 && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.8,
+                                fontWeight: 700,
+                                color: 'text.secondary',
+                                display: 'block',
+                                mb: 1
+                              }}
+                            >
+                              📎 Evidencias ({log.archivos.length})
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {log.archivos.map((archivo, idx) => (
+                                <Paper
+                                  key={idx}
+                                  elevation={0}
+                                  sx={{
+                                    p: 1.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    borderRadius: 1.5,
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                    bgcolor: alpha(theme.palette.background.default, 0.5),
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                      bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                      borderColor: theme.palette.primary.main
+                                    }
+                                  }}
+                                >
+                                  <Box sx={{ 
+                                    color: 'primary.main',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}>
+                                    {getFileIcon(archivo.tipo)}
+                                  </Box>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="body2" noWrap fontWeight={600}>
+                                      {archivo.nombre}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {formatFileSize(archivo.tamaño)}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                    {archivo.tipo === 'application/pdf' && (
+                                      <Tooltip title="Ver documento" arrow placement="top">
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => handleOpenPreview(archivo)}
+                                          sx={{ 
+                                            color: 'primary.main',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': {
+                                              bgcolor: alpha(theme.palette.primary.main, 0.15),
+                                              transform: 'scale(1.1)'
+                                            }
+                                          }}
+                                        >
+                                          <VisibilityIcon fontSize="small" />
+                                        </IconButton>
+                                      </Tooltip>
+                                    )}
+                                    <Tooltip title="Descargar archivo" arrow placement="top">
+                                      <IconButton
+                                        size="small"
+                                        component="a"
+                                        href={archivo.url}
+                                        download
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        sx={{ 
+                                          color: 'text.secondary',
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': {
+                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                            color: 'primary.main',
+                                            transform: 'scale(1.1)'
+                                          }
+                                        }}
+                                      >
+                                        <DownloadIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </Paper>
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                      </Paper>
+                    </Box>
+                  );
+                })}
+              </Box>
             )}
           </Box>
         )}
