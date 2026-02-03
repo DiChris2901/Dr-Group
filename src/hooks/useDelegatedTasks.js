@@ -43,85 +43,102 @@ export const useDelegatedTasks = () => {
   const [hasMore, setHasMore] = useState(true);
   const TASKS_PER_PAGE = 10;
 
-  // Función para cargar tareas paginadas (bajo demanda)
-  const loadTasks = useCallback(async (pageNumber = 1) => {
+  // Función para cargar tareas con listener en tiempo real
+  const loadTasks = useCallback((pageNumber = 1) => {
     if (!currentUser?.uid) {
       setTasks([]);
       setLoading(false);
-      return;
+      return () => {};
     }
 
     setLoading(true);
     setError(null);
 
-    try {
-      // Query: Tareas donde el usuario es creador O asignado O tiene permiso ver_todas
-      const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
-                                    userProfile?.permissions?.['tareas'] ||
-                                    (Array.isArray(userProfile?.permissions) && 
-                                     (userProfile?.permissions.includes('tareas.ver_todas') ||
-                                      userProfile?.permissions.includes('tareas')));
+    // Query: Tareas donde el usuario es creador O asignado O tiene permiso ver_todas
+    const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
+                                  userProfile?.permissions?.['tareas'] ||
+                                  (Array.isArray(userProfile?.permissions) && 
+                                   (userProfile?.permissions.includes('tareas.ver_todas') ||
+                                    userProfile?.permissions.includes('tareas')));
 
-      let tasksQuery;
+    let tasksQuery;
+    if (hasPermissionVerTodas) {
+      // Ver todas las tareas
+      tasksQuery = query(
+        collection(db, 'delegated_tasks'),
+        orderBy('fechaCreacion', 'desc'),
+        limit(TASKS_PER_PAGE)
+      );
+    } else {
+      // Solo tareas propias (creadas o asignadas)
+      tasksQuery = query(
+        collection(db, 'delegated_tasks'),
+        where('participantes', 'array-contains', currentUser.uid),
+        orderBy('fechaCreacion', 'desc'),
+        limit(TASKS_PER_PAGE)
+      );
+    }
+
+    // Si es página siguiente, iniciar después del último documento
+    if (pageNumber > 1 && lastVisible) {
       if (hasPermissionVerTodas) {
-        // Ver todas las tareas
         tasksQuery = query(
           collection(db, 'delegated_tasks'),
           orderBy('fechaCreacion', 'desc'),
+          startAfter(lastVisible),
           limit(TASKS_PER_PAGE)
         );
       } else {
-        // Solo tareas propias (creadas o asignadas)
         tasksQuery = query(
           collection(db, 'delegated_tasks'),
           where('participantes', 'array-contains', currentUser.uid),
-          orderBy('fechaCreacion', 'desc'),
-          limit(TASKS_PER_PAGE)
-        );
-      }
-
-      // Si es página siguiente, iniciar después del último documento
-      if (pageNumber > 1 && lastVisible) {
-        tasksQuery = query(
-          collection(db, 'delegated_tasks'),
-          hasPermissionVerTodas 
-            ? orderBy('fechaCreacion', 'desc')
-            : where('participantes', 'array-contains', currentUser.uid),
           orderBy('fechaCreacion', 'desc'),
           startAfter(lastVisible),
           limit(TASKS_PER_PAGE)
         );
       }
-
-      const snapshot = await getDocs(tasksQuery);
-      
-      const tasksData = [];
-      snapshot.forEach((doc) => {
-        tasksData.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-
-      // Guardar último documento para paginación
-      if (!snapshot.empty) {
-        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      }
-
-      setTasks(tasksData);
-      setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
-      setCurrentPage(pageNumber);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching delegated tasks:', err);
-      setError(err.message);
-      setLoading(false);
     }
+
+    // Listener en tiempo real con onSnapshot
+    const unsubscribe = onSnapshot(
+      tasksQuery,
+      (snapshot) => {
+        const tasksData = [];
+        snapshot.forEach((doc) => {
+          tasksData.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        // Guardar último documento para paginación
+        if (!snapshot.empty) {
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        }
+
+        setTasks(tasksData);
+        setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
+        setCurrentPage(pageNumber);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching delegated tasks:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return unsubscribe;
   }, [currentUser?.uid, userProfile, lastVisible]);
 
-  // Cargar tareas al montar o cambiar usuario
+  // Cargar tareas al montar o cambiar usuario con listener en tiempo real
   useEffect(() => {
-    loadTasks(1);
+    const unsubscribe = loadTasks(1);
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [currentUser?.uid, userProfile?.permissions]);
 
   // Funciones de paginación

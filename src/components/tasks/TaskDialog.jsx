@@ -761,7 +761,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                   {/* Asignar a Usuario */}
                   <Grid item xs={12}>
                     <Autocomplete
-                      options={users}
+                      options={users.filter(user => user.uid !== currentUser?.uid)}
                       loading={loadingUsers}
                       getOptionLabel={(option) => option.nombre}
                       value={formData.asignadoA}
