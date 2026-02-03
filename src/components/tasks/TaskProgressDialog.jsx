@@ -745,23 +745,23 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar sx={{ 
             bgcolor: 'primary.main', 
-            width: 48,
-            height: 48
+            width: 44,
+            height: 44
           }}>
-            <TrendingUpIcon sx={{ fontSize: 28 }} />
+            <TrendingUpIcon sx={{ fontSize: 24 }} />
           </Avatar>
           <Box>
             <Typography variant="h6" sx={{ 
-              fontWeight: 700,
+              fontWeight: 600,
               mb: 0.5,
               color: 'text.primary',
-              fontSize: '1.25rem'
+              fontSize: '1.125rem'
             }}>
               Registro de Progreso
             </Typography>
             <Typography variant="caption" sx={{ 
               color: 'text.secondary',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               display: 'block'
             }}>
               {task?.titulo || 'Documenta avances con evidencias'}
@@ -798,7 +798,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3 }}>
             <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-              <AssignmentIcon sx={{ color: 'primary.main', fontSize: 20, mt: 0.3 }} />
+              <AssignmentIcon sx={{ color: 'primary.main', fontSize: 20, mt: 0.2 }} />
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
                   TAREA ASIGNADA
@@ -821,8 +821,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
                 color: getPriorityColor(task.prioridad),
                 fontWeight: 600,
-                fontSize: '0.7rem',
-                height: 26,
+                fontSize: '0.6875rem',
+                height: 24,
                 border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`
               }}
             />
@@ -990,7 +990,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   sx={{
                     p: 1.5,
                     mb: 3,
-                    borderRadius: 1.5,
+                    borderRadius: 1,
                     border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
                     bgcolor: alpha(theme.palette.info.main, 0.05)
                   }}
@@ -1028,10 +1028,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   alignItems: 'baseline',
                   gap: 0.5
                 }}>
-                  <Typography variant="h3" fontWeight={700} color="success.main">
+                  <Typography variant="h3" fontWeight={600} color="success.main">
                     {porcentajeCalculado}
                   </Typography>
-                  <Typography variant="h5" fontWeight={600} color="success.main">
+                  <Typography variant="h5" fontWeight={500} color="success.main">
                     %
                   </Typography>
                 </Box>
@@ -1104,7 +1104,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: 1.5,
-                          borderRadius: 2,
+                          borderRadius: 1,
                           border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                           bgcolor: theme.palette.background.paper,
                           transition: 'all 0.2s ease',
@@ -1192,7 +1192,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   bgcolor: 'success.main',
                   '&:hover': {
                     bgcolor: 'success.dark',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
                   }
                 }}
               >
@@ -1276,13 +1276,13 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                         sx={{
                           p: 3,
                           borderRadius: 2,
-                          border: `2px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
+                          border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
                           bgcolor: theme.palette.background.paper,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                           transition: 'all 0.2s ease',
                           '&:hover': {
                             transform: 'translateX(4px)',
-                            boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
                           }
                         }}
                       >
@@ -1290,7 +1290,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
                           <Box sx={{ flex: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
-                              <Typography variant="body1" fontWeight={700} color="text.primary">
+                              <Typography variant="body1" fontWeight={600} color="text.primary">
                                 {log.creadorNombre || 'Usuario'}
                               </Typography>
                               {estadoInfo && (
@@ -1300,10 +1300,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                   sx={{
                                     height: 24,
                                     fontSize: '0.75rem',
-                                    fontWeight: 700,
+                                    fontWeight: 600,
                                     bgcolor: alpha(estadoInfo.color, 0.15),
                                     color: estadoInfo.color,
-                                    border: `1.5px solid ${estadoInfo.color}`,
+                                    border: `1px solid ${estadoInfo.color}`,
                                     textTransform: 'uppercase',
                                     letterSpacing: 0.5
                                   }}
@@ -1372,7 +1372,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                               sx={{ 
                                 textTransform: 'uppercase',
                                 letterSpacing: 0.8,
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 color: 'text.secondary',
                                 display: 'block',
                                 mb: 1
@@ -1390,7 +1390,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 1.5,
-                                    borderRadius: 1.5,
+                                    borderRadius: 1,
                                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                                     bgcolor: alpha(theme.palette.background.default, 0.5),
                                     transition: 'all 0.2s ease',
@@ -1518,7 +1518,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 fontWeight: 600,
                 textTransform: 'none',
                 px: 4,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
             >
               {loading ? 'Guardando...' : editingLog ? 'Actualizar Registro' : 'Crear Registro'}
