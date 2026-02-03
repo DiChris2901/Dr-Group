@@ -336,8 +336,20 @@ const TasksPage = () => {
   };
 
   const getEstadoColor = (estado) => {
-    // Diseño sobrio: Estado siempre gris neutro
-    return theme.palette.grey[600];
+    switch (estado) {
+      case 'pendiente':
+        return theme.palette.info.main;      // Azul
+      case 'asignada':
+        return theme.palette.warning.main;   // Naranja
+      case 'en_progreso':
+        return theme.palette.secondary.main; // Púrpura
+      case 'en_revision':
+        return theme.palette.primary.main;   // Azul primario
+      case 'completada':
+        return theme.palette.success.main;   // Verde
+      default:
+        return theme.palette.grey[600];
+    }
   };
 
   if (loading) {
@@ -735,32 +747,42 @@ const TasksPage = () => {
                   sx={{
                     flex: 1,
                     minWidth: 0,
-                    borderRadius: 2,
-                    border: `2px solid ${alpha(getEstadoColor(estado), 0.3)}`,
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                     bgcolor: theme.palette.mode === 'dark' 
-                      ? alpha(theme.palette.background.paper, 0.6)
+                      ? theme.palette.background.paper
                       : theme.palette.background.paper,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    overflow: 'hidden'
                   }}
                 >
                   {/* Header de columna */}
                   <Box sx={{
                     p: 2,
-                    borderBottom: `3px solid ${getEstadoColor(estado)}`,
-                    bgcolor: alpha(getEstadoColor(estado), 0.15)
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    bgcolor: alpha(getEstadoColor(estado), 0.04)
                   }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                        {getEstadoLabel(estado).toUpperCase()}
+                      <Typography variant="overline" sx={{ 
+                        fontWeight: 700, 
+                        fontSize: '0.7rem',
+                        letterSpacing: 1.2,
+                        color: getEstadoColor(estado),
+                        lineHeight: 1
+                      }}>
+                        {getEstadoLabel(estado)}
                       </Typography>
                       <Chip
                         label={tareasEnEstado.length}
                         size="small"
                         sx={{
-                          height: 24,
-                          fontWeight: 700,
-                          bgcolor: getEstadoColor(estado),
-                          color: '#fff'
+                          height: 22,
+                          fontWeight: 600,
+                          fontSize: '0.625rem',
+                          bgcolor: alpha(getEstadoColor(estado), 0.08),
+                          color: getEstadoColor(estado),
+                          borderRadius: 1,
+                          border: 'none'
                         }}
                       />
                     </Box>
@@ -772,31 +794,44 @@ const TasksPage = () => {
                       <Card
                         key={task.id}
                         sx={{
-                          borderRadius: 2,
+                          borderRadius: 1,
                           border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
+                          background: theme.palette.background.paper,
                           '&:hover': {
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-                            borderColor: alpha(theme.palette.primary.main, 0.4)
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                            borderColor: alpha(theme.palette.primary.main, 0.3)
                           }
                         }}
                         onClick={() => handleTaskClick(task)}
                       >
-                        <CardContent sx={{ p: 2 }}>
-                          {/* Prioridad y menú */}
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                        <CardContent sx={{ p: 0 }}>
+                          {/* Header con prioridad y menú */}
+                          <Box sx={{ 
+                            px: 2, 
+                            pt: 1.5,
+                            pb: 1,
+                            display: 'flex', 
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                          }}>
                             <Chip
                               label={task.prioridad || 'media'}
                               size="small"
                               sx={{
-                                height: 20,
-                                fontSize: '0.65rem',
+                                height: 22,
+                                fontSize: '0.625rem',
                                 fontWeight: 600,
-                                bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
-                                color: getPriorityColor(task.prioridad)
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.8,
+                                bgcolor: alpha(getPriorityColor(task.prioridad), 0.08),
+                                color: getPriorityColor(task.prioridad),
+                                border: 'none',
+                                borderRadius: 1
                               }}
                             />
                             <IconButton
@@ -805,53 +840,156 @@ const TasksPage = () => {
                                 e.stopPropagation();
                                 handleMenuOpen(e, task);
                               }}
-                              sx={{ p: 0.5 }}
+                              sx={{ 
+                                p: 0.5,
+                                color: 'text.secondary',
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                  color: 'primary.main'
+                                }
+                              }}
                             >
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
                           </Box>
 
-                          {/* Título */}
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, lineHeight: 1.3 }}>
-                            {task.titulo}
-                          </Typography>
+                          {/* Cuerpo de la tarjeta */}
+                          <Box sx={{ px: 2, pt: 1.5, pb: 2 }}>
+                            {/* Título */}
+                            <Typography 
+                              variant="subtitle2" 
+                              sx={{ 
+                                fontWeight: 600, 
+                                lineHeight: 1.4,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                color: 'text.primary',
+                                mb: 1.5
+                              }}
+                            >
+                              {task.titulo}
+                            </Typography>
 
-                          {/* Vencimiento */}
-                          {task.fechaVencimiento && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                              <CalendarIcon sx={{ fontSize: 14, color: isOverdue(task) ? 'error.main' : 'text.secondary' }} />
-                              <Typography variant="caption" sx={{ color: isOverdue(task) ? 'error.main' : 'text.secondary' }}>
-                                {format(task.fechaVencimiento.toDate(), 'dd MMM', { locale: es })}
-                              </Typography>
-                            </Box>
-                          )}
-
-                          {/* Asignado */}
-                          {task.asignadoA && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar src={task.asignadoA.photoURL} sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
-                                {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
-                              </Avatar>
-                              <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                                {task.asignadoA.displayName || task.asignadoA.email}
-                              </Typography>
-                            </Box>
-                          )}
-
-                          {/* Progreso */}
-                          {task.porcentajeCompletado > 0 && (
-                            <Box sx={{ mt: 1.5 }}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={task.porcentajeCompletado}
-                                sx={{
-                                  height: 4,
+                            {/* Fecha de vencimiento */}
+                            {task.fechaVencimiento && (
+                              <Box 
+                                sx={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: 0.75,
+                                  mb: 1.5,
+                                  px: 1,
+                                  py: 0.5,
                                   borderRadius: 1,
-                                  bgcolor: alpha(theme.palette.primary.main, 0.1)
+                                  bgcolor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.04),
+                                  border: `1px solid ${alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.12)}`
                                 }}
-                              />
-                            </Box>
-                          )}
+                              >
+                                <CalendarIcon 
+                                  sx={{ 
+                                    fontSize: 14, 
+                                    color: isOverdue(task) ? 'error.main' : 'warning.main'
+                                  }} 
+                                />
+                                <Typography 
+                                  variant="caption" 
+                                  sx={{ 
+                                    color: isOverdue(task) ? 'error.main' : 'warning.main',
+                                    fontWeight: 500,
+                                    fontSize: '0.7rem'
+                                  }}
+                                >
+                                  {format(task.fechaVencimiento.toDate(), 'dd MMM', { locale: es })}
+                                </Typography>
+                              </Box>
+                            )}
+
+                            {/* Usuario asignado */}
+                            {task.asignadoA && (
+                              <Box 
+                                sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 1,
+                                  p: 1,
+                                  borderRadius: 1,
+                                  bgcolor: alpha(theme.palette.info.main, 0.04),
+                                  border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
+                                  mb: task.porcentajeCompletado > 0 ? 1.5 : 0,
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.info.main, 0.06),
+                                    borderColor: alpha(theme.palette.info.main, 0.18)
+                                  }
+                                }}
+                              >
+                                <Avatar 
+                                  src={task.asignadoA.photoURL} 
+                                  sx={{ 
+                                    width: 24, 
+                                    height: 24, 
+                                    fontSize: '0.7rem'
+                                  }}
+                                >
+                                  {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
+                                </Avatar>
+                                <Typography 
+                                  variant="caption" 
+                                  sx={{ 
+                                    fontSize: '0.75rem',
+                                    fontWeight: 500,
+                                    color: 'text.secondary'
+                                  }}
+                                >
+                                  {task.asignadoA.displayName || task.asignadoA.email}
+                                </Typography>
+                              </Box>
+                            )}
+
+                            {/* Barra de progreso */}
+                            {task.porcentajeCompletado > 0 && (
+                              <Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                  <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                      fontSize: '0.65rem',
+                                      fontWeight: 600,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: 0.5,
+                                      color: 'text.secondary'
+                                    }}
+                                  >
+                                    Progreso
+                                  </Typography>
+                                  <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      color: 'primary.main'
+                                    }}
+                                  >
+                                    {task.porcentajeCompletado}%
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={task.porcentajeCompletado}
+                                  sx={{
+                                    height: 6,
+                                    borderRadius: 1,
+                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    '& .MuiLinearProgress-bar': {
+                                      borderRadius: 1,
+                                      bgcolor: theme.palette.primary.main
+                                    }
+                                  }}
+                                />
+                              </Box>
+                            )}
+                          </Box>
                         </CardContent>
                       </Card>
                     ))}
@@ -878,47 +1016,52 @@ const TasksPage = () => {
                 >
                   <Card
                     sx={{
-                      height: '100%',
+                      minHeight: 320,
+                      maxHeight: 320,
                       display: 'flex',
                       flexDirection: 'column',
-                      borderRadius: 2,
+                      borderRadius: 1,
                       border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
                       position: 'relative',
-                      overflow: 'visible',
+                      overflow: 'hidden',
                       '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                        borderColor: alpha(theme.palette.primary.main, 0.4)
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        borderColor: alpha(theme.palette.primary.main, 0.3)
                       }
                     }}
                     onClick={() => handleTaskClick(task)}
                   >
-                    <CardContent sx={{ flexGrow: 1, p: 2.5 }}>
+                    <CardContent sx={{ 
+                      flexGrow: 1, 
+                      p: 2, 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
                       {/* Header: Estado + Prioridad + Días Restantes + Menú */}
                       <Box sx={{ 
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         alignItems: 'flex-start', 
-                        mb: 2,
-                        pb: 1.5,
-                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                        mb: 2
                       }}>
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1, pr: 1 }}>
                           <Chip
                             label={getEstadoLabel(task.estadoActual)}
                             size="small"
                             sx={{
-                              height: 24,
-                              fontSize: '0.6875rem',
+                              height: 22,
+                              fontSize: '0.625rem',
                               fontWeight: 600,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.8,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.1),
+                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.08),
                               color: getEstadoColor(task.estadoActual),
-                              border: `1px solid ${alpha(getEstadoColor(task.estadoActual), 0.3)}`,
+                              border: 'none',
                               borderRadius: 1
                             }}
                           />
@@ -926,14 +1069,14 @@ const TasksPage = () => {
                             label={task.prioridad || 'media'}
                             size="small"
                             sx={{
-                              height: 24,
-                              fontSize: '0.6875rem',
+                              height: 22,
+                              fontSize: '0.625rem',
                               fontWeight: 600,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.8,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.1),
+                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.08),
                               color: getPriorityColor(task.prioridad),
-                              border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`,
+                              border: 'none',
                               borderRadius: 1
                             }}
                           />
@@ -942,15 +1085,15 @@ const TasksPage = () => {
                             <Chip
                               label={getDaysRemainingLabel(getDaysRemaining(task))}
                               size="small"
-                              icon={<CalendarIcon sx={{ fontSize: 14, color: getDaysRemainingColor(getDaysRemaining(task)) + ' !important' }} />}
+                              icon={<CalendarIcon sx={{ fontSize: 12, color: getDaysRemainingColor(getDaysRemaining(task)) + ' !important' }} />}
                               sx={{
-                                height: 24,
-                                fontSize: '0.6875rem',
+                                height: 22,
+                                fontSize: '0.625rem',
                                 fontWeight: 600,
-                                letterSpacing: 0.3,
-                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.1),
+                                letterSpacing: 0.8,
+                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.08),
                                 color: getDaysRemainingColor(getDaysRemaining(task)),
-                                border: `1px solid ${alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.3)}`,
+                                border: 'none',
                                 borderRadius: 1,
                                 '& .MuiChip-icon': {
                                   marginLeft: '6px'
@@ -961,12 +1104,14 @@ const TasksPage = () => {
                         </Box>
                         <IconButton 
                           size="small" 
+                          className="menu-icon"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMenuOpen(e, task);
                           }}
                           sx={{
                             bgcolor: alpha(theme.palette.divider, 0.05),
+                            transition: 'all 0.2s ease',
                             '&:hover': {
                               bgcolor: alpha(theme.palette.primary.main, 0.1)
                             }
@@ -976,95 +1121,110 @@ const TasksPage = () => {
                         </IconButton>
                       </Box>
 
-                      {/* Título */}
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontSize: '1rem',
-                          fontWeight: 600,
-                          mb: 1.5,
-                          lineHeight: 1.4,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          color: isOverdue(task) ? theme.palette.error.main : 'text.primary'
-                        }}
-                      >
-                        {task.titulo}
-                      </Typography>
-
-                      {/* Descripción */}
-                      {task.descripcion && (
+                      {/* Contenido principal */}
+                      <Box sx={{ flexGrow: 1 }}>
+                        {/* Título */}
                         <Typography
-                          variant="body2"
-                          color="text.secondary"
+                          variant="h6"
                           sx={{
-                            fontSize: '0.8125rem',
-                            mb: 2,
+                            fontSize: '1.05rem',
+                            fontWeight: 600,
+                            mb: 1,
+                            lineHeight: 1.35,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            lineHeight: 1.5
+                            color: isOverdue(task) ? theme.palette.error.main : 'text.primary'
                           }}
                         >
-                          {task.descripcion}
+                          {task.titulo}
                         </Typography>
-                      )}
 
-                      {/* Barra de progreso */}
-                      {task.porcentajeCompletado > 0 && (
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              Progreso
-                            </Typography>
-                            <Typography variant="caption" fontWeight={600} color="primary">
-                              {task.porcentajeCompletado}%
-                            </Typography>
-                          </Box>
-                          <LinearProgress
-                            variant="determinate"
-                            value={task.porcentajeCompletado}
+                        {/* Descripción */}
+                        {task.descripcion && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
                             sx={{
-                              height: 6,
-                              borderRadius: 1,
-                              bgcolor: alpha(theme.palette.primary.main, 0.1),
-                              '& .MuiLinearProgress-bar': {
-                                borderRadius: 1
-                              }
+                              fontSize: '0.8125rem',
+                              mb: 2,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              lineHeight: 1.5,
+                              opacity: 0.85
                             }}
-                          />
-                        </Box>
-                      )}
+                          >
+                            {task.descripcion}
+                          </Typography>
+                        )}
 
-                      <Divider sx={{ my: 2 }} />
+                        {/* Barra de progreso */}
+                        {task.porcentajeCompletado > 0 && (
+                          <Box sx={{ mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                              <Typography 
+                                variant="overline" 
+                                sx={{ 
+                                  fontSize: '0.625rem',
+                                  letterSpacing: 0.8,
+                                  fontWeight: 600,
+                                  color: 'text.secondary'
+                                }}
+                              >
+                                Progreso
+                              </Typography>
+                              <Typography variant="caption" fontWeight={600} color="primary">
+                                {task.porcentajeCompletado}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={task.porcentajeCompletado}
+                              sx={{
+                                height: 6,
+                                borderRadius: 1,
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                '& .MuiLinearProgress-bar': {
+                                  borderRadius: 1,
+                                  bgcolor: theme.palette.primary.main
+                                }
+                              }}
+                            />
+                          </Box>
+                        )}
+                      </Box>
 
-                      {/* Información adicional */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {/* Footer: Información adicional */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 'auto' }}>
                         {/* Fecha de vencimiento */}
                         {task.fechaVencimiento && (
                           <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1,
-                            p: 1,
+                            px: 1,
+                            py: 0.75,
                             borderRadius: 1,
-                            bgcolor: isOverdue(task) 
-                              ? alpha(theme.palette.error.main, 0.08) 
-                              : alpha(theme.palette.divider, 0.04)
+                            bgcolor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.04),
+                            border: `1px solid ${alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.12)}`,
+                            '&:hover': {
+                              bgcolor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.06),
+                              borderColor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.18)
+                            }
                           }}>
                             <CalendarIcon sx={{ 
-                              fontSize: 18, 
-                              color: isOverdue(task) ? 'error.main' : 'text.secondary' 
+                              fontSize: 16, 
+                              color: isOverdue(task) ? 'error.main' : 'warning.main'
                             }} />
                             <Typography
                               variant="caption"
                               sx={{
-                                fontSize: '0.8125rem',
-                                color: isOverdue(task) ? 'error.main' : 'text.secondary',
-                                fontWeight: isOverdue(task) ? 600 : 500
+                                fontSize: '0.75rem',
+                                color: isOverdue(task) ? 'error.main' : 'warning.main',
+                                fontWeight: 500
                               }}
                             >
                               {isOverdue(task) && 'Vencida: '}
@@ -1079,17 +1239,33 @@ const TasksPage = () => {
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1,
-                            p: 1,
+                            px: 1,
+                            py: 0.75,
                             borderRadius: 1,
-                            bgcolor: alpha(theme.palette.divider, 0.04)
+                            bgcolor: alpha(theme.palette.info.main, 0.04),
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.info.main, 0.06),
+                              borderColor: alpha(theme.palette.info.main, 0.18)
+                            }
                           }}>
                             <Avatar
                               src={task.asignadoA.photoURL}
-                              sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+                              sx={{ width: 22, height: 22, fontSize: '0.7rem' }}
                             >
                               {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
                             </Avatar>
-                            <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 500 }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontSize: '0.75rem', 
+                                color: 'text.secondary', 
+                                fontWeight: 500,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
                               {task.asignadoA.displayName || task.asignadoA.email}
                             </Typography>
                           </Box>
@@ -1097,19 +1273,25 @@ const TasksPage = () => {
 
                         {/* Adjuntos y comentarios */}
                         {(task.archivosAdjuntos?.length > 0 || task.comentarios?.length > 0) && (
-                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            gap: 1.5, 
+                            alignItems: 'center',
+                            px: 1,
+                            py: 0.5
+                          }}>
                             {task.archivosAdjuntos?.length > 0 && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AttachFileIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary">
+                                <AttachFileIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
                                   {task.archivosAdjuntos.length}
                                 </Typography>
                               </Box>
                             )}
                             {task.comentarios?.length > 0 && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CommentIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary">
+                                <CommentIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
                                   {task.comentarios.length}
                                 </Typography>
                               </Box>
@@ -1158,7 +1340,12 @@ const TasksPage = () => {
           <ListItemIcon>
             <TrendingUpIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Actualizar Progreso</ListItemText>
+          <ListItemText>
+            {selectedTask?.creadoPor?.uid === currentUser?.uid && selectedTask?.asignadoA?.uid !== currentUser?.uid
+              ? 'Ver Progreso'
+              : 'Actualizar Progreso'
+            }
+          </ListItemText>
         </MenuItem>
         {canDelete && (
           <>

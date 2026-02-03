@@ -1874,11 +1874,9 @@ const UserManagementPage = () => {
                         icon: <AssignmentIcon />, 
                         color: '#00bcd4',
                         subPermissions: [
-                          { key: 'tareas.crear', label: 'Crear Tareas' },
-                          { key: 'tareas.asignar', label: 'Asignar a Otros' },
-                          { key: 'tareas.ver_todas', label: 'Ver Todas las Tareas' },
-                          { key: 'tareas.aprobar', label: 'Aprobar Tareas' },
-                          { key: 'tareas.admin', label: 'Administración Completa' }
+                          { key: 'tareas.crear', label: 'Administrador de Tareas' },
+                          { key: 'tareas.asignar', label: 'Gestionar tareas propias' },
+                          { key: 'tareas.ver_todas', label: 'Ver todas las Tareas' }
                         ]
                       },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },

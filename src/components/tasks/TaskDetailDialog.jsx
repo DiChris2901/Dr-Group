@@ -233,7 +233,7 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
             <Typography 
               variant="h5" 
               sx={{ 
-                fontWeight: 700,
+                fontWeight: 600,
                 mb: task.descripcion ? 2 : 0,
                 color: 'text.primary'
               }}
@@ -262,12 +262,12 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                 minWidth: 200,
                 p: 2.5,
                 borderRadius: 2,
-                border: `1px solid ${alpha(getEstadoColor(task.estadoActual), 0.2)}`,
-                bgcolor: alpha(getEstadoColor(task.estadoActual), 0.04)
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                bgcolor: alpha(theme.palette.divider, 0.03)
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <CheckCircleIcon sx={{ fontSize: 18, color: getEstadoColor(task.estadoActual) }} />
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.grey[600] }} />
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -284,8 +284,8 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                 label={getEstadoLabel(task.estadoActual)}
                 size="small"
                 sx={{ 
-                  bgcolor: alpha(getEstadoColor(task.estadoActual), 0.15),
-                  color: getEstadoColor(task.estadoActual),
+                  bgcolor: alpha(theme.palette.grey[600], 0.08),
+                  color: theme.palette.grey[600],
                   fontWeight: 600,
                   borderRadius: 1,
                   height: 26
@@ -300,12 +300,12 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                 minWidth: 200,
                 p: 2.5,
                 borderRadius: 2,
-                border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.2)}`,
-                bgcolor: alpha(getPriorityColor(task.prioridad), 0.04)
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                bgcolor: alpha(theme.palette.divider, 0.03)
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <FlagIcon sx={{ fontSize: 18, color: getPriorityColor(task.prioridad) }} />
+                <FlagIcon sx={{ fontSize: 18, color: theme.palette.grey[600] }} />
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -318,19 +318,21 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                   Prioridad
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    bgcolor: getPriorityColor(task.prioridad)
-                  }}
-                />
-                <Typography variant="body2" fontWeight={600}>
-                  {getPriorityLabel(task.prioridad)}
-                </Typography>
-              </Box>
+              <Chip 
+                label={getPriorityLabel(task.prioridad)}
+                size="small"
+                sx={{ 
+                  bgcolor: task.prioridad === 'urgente' 
+                    ? alpha(theme.palette.error.main, 0.08)
+                    : alpha(theme.palette.grey[600], 0.08),
+                  color: task.prioridad === 'urgente' 
+                    ? theme.palette.error.main
+                    : theme.palette.grey[600],
+                  fontWeight: 600,
+                  borderRadius: 1,
+                  height: 26
+                }}
+              />
             </Paper>
           </Box>
 

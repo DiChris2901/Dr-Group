@@ -26,7 +26,8 @@ import {
   MenuItem,
   alpha,
   Chip,
-  Tooltip
+  Tooltip,
+  Alert
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -44,7 +45,8 @@ import {
   Visibility as VisibilityIcon,
   Download as DownloadIcon,
   Flag as FlagIcon,
-  FileDownload as FileDownloadIcon
+  FileDownload as FileDownloadIcon,
+  FolderOpen as FolderOpenIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
@@ -57,6 +59,7 @@ import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DocumentPreviewModal from '../common/DocumentPreviewModal';
+import ZipFileViewer from './ZipFileViewer';
 import ExcelJS from 'exceljs';
 
 /**
@@ -78,6 +81,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [editingLog, setEditingLog] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [zipViewerOpen, setZipViewerOpen] = useState(false);
+  const [selectedZipUrl, setSelectedZipUrl] = useState('');
+  const [selectedZipName, setSelectedZipName] = useState('');
   const fileInputRef = useRef(null);
 
   // Estados disponibles con porcentajes automáticos
@@ -147,19 +154,27 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   // Porcentaje calculado automáticamente
   const porcentajeCalculado = getPorcentajeFromEstado(estado);
 
-  useEffect(() => {
+  // Validar roles
+  const isCreator = task?.creadoPor?.uid === currentUser?.uid;
+  const isAssigned = task?.asignadoA?.uid === currentUser?.uid;
+  
+  // Permisos: solo el asignado puede crear/editar/eliminar
+  const canModify = isAssigned;
+
+      useEffect(() => {
     if (task && open) {
       setEstado(task.estado || 'pendiente');
       setComentario('');
       setSelectedFiles([]);
       setError('');
       setEditingLog(null);
+      // Siempre abrir en el primer tab visible (Histórico)
+      // Para creador: tab 0 es Histórico
+      // Para asignado: tab 0 es Nuevo Registro, tab 1 es Histórico
+      // Abrimos en índice 0 para que se vea el contenido inmediatamente
       setTabValue(0);
     }
-  }, [task, open]);
-
-  // Validar permisos: solo el asignado puede crear/editar/eliminar
-  const canModify = task?.asignadoA?.uid === currentUser?.uid;
+  }, [task, open, currentUser]);
 
   // Convertir imágenes a PDF
   const convertImageToPDF = async (file) => {
@@ -538,106 +553,104 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const handleExportarExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Bitácora de Progreso');
+      const worksheet = workbook.addWorksheet('Bitácora de Progreso', {
+        views: [{ state: 'frozen', ySplit: 7 }]  // Freeze en fila 7
+      });
 
-      // Colores del tema (DR Group branding)
+      // COLORES CORPORATIVOS - FORMATO PYTHON PROFESIONAL
       const BRAND_COLORS = {
-        primary: 'FF667EEA',
-        secondary: 'FF764BA2',
-        accent: 'FFF093FB',
-        success: 'FF4CAF50',
-        text: 'FF2C3E50'
+        titleBg: '0B3040',        // Azul oscuro corporativo
+        subtitleBg: '1A5F7A',     // Azul medio
+        metricsBg: '334155',      // Gris azulado
+        dateBg: '475569',         // Gris oscuro
+        headerBg: '0B3040',       // Headers de columnas
+        white: 'FFFFFF',          // Texto sobre fondos oscuros
+        textDark: '223344',       // Texto de contenido
+        borderLight: 'E2E8F0',    // Bordes sutiles
+        borderMedium: 'C0CCDA',   // Bordes medios
+        borderDark: '94A3B8'      // Bordes acentuados
       };
 
-      // FILA 1: Logo/Empresa (Merge A1:E1)
-      worksheet.mergeCells('A1:E1');
-      const logoCell = worksheet.getCell('A1');
-      logoCell.value = '🏢 DR GROUP - Sistema de Bitácora Profesional';
-      logoCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      logoCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: BRAND_COLORS.primary }
-      };
-      logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getRow(1).height = 35;
+      const totalColumns = 5;
 
-      // FILA 2: Título del Reporte
-      worksheet.mergeCells('A2:E2');
-      const titleCell = worksheet.getCell('A2');
-      titleCell.value = `Bitácora de Progreso - ${task.titulo}`;
-      titleCell.font = { size: 14, bold: true, color: { argb: BRAND_COLORS.text } };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getRow(2).height = 25;
+      // FILA 1: Título Principal
+      worksheet.mergeCells(1, 1, 1, totalColumns);
+      const titleCell = worksheet.getCell(1, 1);
+      titleCell.value = 'DR GROUP';
+      titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      worksheet.getRow(1).height = 30;
 
-      // FILA 3: Información de la Tarea
-      worksheet.mergeCells('A3:B3');
-      worksheet.getCell('A3').value = 'Tarea:';
-      worksheet.getCell('A3').font = { bold: true };
-      worksheet.mergeCells('C3:E3');
-      worksheet.getCell('C3').value = task.titulo;
+      // FILA 2: Subtítulo Descriptivo
+      worksheet.mergeCells(2, 1, 2, totalColumns);
+      const subtitleCell = worksheet.getCell(2, 1);
+      subtitleCell.value = `Bitácora de Progreso - ${task.titulo}`;
+      subtitleCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subtitleBg}` } };
+      subtitleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      worksheet.getRow(2).height = 22;
 
-      // FILA 4: Descripción
-      worksheet.mergeCells('A4:B4');
-      worksheet.getCell('A4').value = 'Descripción:';
-      worksheet.getCell('A4').font = { bold: true };
-      worksheet.mergeCells('C4:E4');
-      worksheet.getCell('C4').value = task.descripcion || 'N/A';
+      // FILA 3: Métricas Consolidadas
+      worksheet.mergeCells(3, 1, 3, totalColumns);
+      const metricsCell = worksheet.getCell(3, 1);
+      const registrosCount = logs.length;
+      const estadoActual = ESTADOS.find(e => e.value === task.estadoActual)?.label || 'Sin estado';
+      const avance = task.porcentajeCompletado || 0;
+      metricsCell.value = `Registros: ${registrosCount} | Estado: ${estadoActual} | Avance: ${avance}% | Prioridad: ${task.prioridad?.toUpperCase() || 'N/A'}`;
+      metricsCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      metricsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.metricsBg}` } };
+      metricsCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      worksheet.getRow(3).height = 22;
 
-      // FILA 5: Prioridad y Porcentaje
-      worksheet.getCell('A5').value = 'Prioridad:';
-      worksheet.getCell('A5').font = { bold: true };
-      worksheet.getCell('B5').value = task.prioridad?.toUpperCase() || 'N/A';
-      worksheet.getCell('D5').value = 'Avance:';
-      worksheet.getCell('D5').font = { bold: true };
-      worksheet.getCell('E5').value = `${task.porcentajeCompletado || 0}%`;
+      // FILA 4: Fecha de Generación
+      worksheet.mergeCells(4, 1, 4, totalColumns);
+      const dateCell = worksheet.getCell(4, 1);
+      dateCell.value = `Generado: ${format(new Date(), "dd/MM/yyyy HH:mm:ss")}`;
+      dateCell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: `FF${BRAND_COLORS.white}` } };
+      dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.dateBg}` } };
+      dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      worksheet.getRow(4).height = 18;
 
-      // FILA 6: Fecha de Exportación
-      worksheet.mergeCells('A6:E6');
-      worksheet.getCell('A6').value = `Exportado el: ${format(new Date(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}`;
-      worksheet.getCell('A6').font = { italic: true, color: { argb: 'FF666666' } };
-      worksheet.getCell('A6').alignment = { horizontal: 'right' };
+      // FILA 5: Espaciador pequeño
+      worksheet.getRow(5).height = 5;
 
-      // FILA 7: Espacio en blanco
-      worksheet.getRow(7).height = 10;
+      // FILA 6: Espaciador mediano
+      worksheet.getRow(6).height = 8;
 
-      // FILA 8: Encabezados de la tabla
+      // FILA 7: Headers de Columnas
       const headers = ['Fecha', 'Estado', 'Progreso', 'Comentario', 'Archivos'];
-      const headerRow = worksheet.getRow(8);
+      const headerRow = worksheet.getRow(7);
       headers.forEach((header, index) => {
         const cell = headerRow.getCell(index + 1);
         cell.value = header;
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: BRAND_COLORS.secondary }
-        };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
-          top: { style: 'thin', color: { argb: 'FF000000' } },
-          left: { style: 'thin', color: { argb: 'FF000000' } },
-          bottom: { style: 'thin', color: { argb: 'FF000000' } },
-          right: { style: 'thin', color: { argb: 'FF000000' } }
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
         };
       });
-      headerRow.height = 25;
+      headerRow.height = 28;
 
-      // Datos de los logs
+      // FILAS 8+: Datos de los logs
       logs.forEach((log, index) => {
-        const rowNum = 9 + index;
+        const rowNum = 8 + index;
         const row = worksheet.getRow(rowNum);
 
         // Fecha
         row.getCell(1).value = log.fecha ? format(log.fecha.toDate(), "dd/MM/yyyy HH:mm", { locale: es }) : 'N/A';
         
         // Estado
-        const estadoLabel = ESTADOS.find(e => e.value === log.estadoActual)?.label || log.estadoActual;
+        const estadoLabel = ESTADOS.find(e => e.value === log.estado)?.label || log.estado;
         row.getCell(2).value = estadoLabel;
         
         // Progreso
         row.getCell(3).value = `${log.porcentaje || 0}%`;
-        row.getCell(3).alignment = { horizontal: 'center' };
+        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
         
         // Comentario
         row.getCell(4).value = log.comentario || 'Sin comentarios';
@@ -645,30 +658,22 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         // Archivos
         const archivosCount = log.archivos?.length || 0;
         row.getCell(5).value = archivosCount > 0 ? `${archivosCount} archivo(s)` : 'Sin archivos';
-        row.getCell(5).alignment = { horizontal: 'center' };
+        row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
 
-        // Estilo de filas alternadas
-        if (index % 2 === 0) {
-          [1, 2, 3, 4, 5].forEach(colNum => {
-            row.getCell(colNum).fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFF9FAFB' }
-            };
-          });
-        }
-
-        // Bordes
+        // Estilo de las celdas
         [1, 2, 3, 4, 5].forEach(colNum => {
-          row.getCell(colNum).border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          const cell = row.getCell(colNum);
+          cell.font = { name: 'Segoe UI', size: 9, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 4 ? 'left' : 'center', wrapText: false };
+          cell.border = {
+            top: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            left: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            bottom: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderMedium}` } },
+            right: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } }
           };
         });
 
-        row.height = 20;
+        row.height = 18;
       });
 
       // Ajustar anchos de columna
@@ -677,9 +682,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       worksheet.getColumn(3).width = 12; // Progreso
       worksheet.getColumn(4).width = 55; // Comentario
       worksheet.getColumn(5).width = 18; // Archivos
-
-      // Freeze panes (filas 1-8 fijas)
-      worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 8 }];
 
       // Generar el archivo
       const buffer = await workbook.xlsx.writeBuffer();
@@ -757,7 +759,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
               color: 'text.primary',
               fontSize: '1.125rem'
             }}>
-              Registro de Progreso
+              {isCreator ? 'Supervisión de Progreso' : 'Registro de Progreso'}
             </Typography>
             <Typography variant="caption" sx={{ 
               color: 'text.secondary',
@@ -830,15 +832,19 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         </Paper>
       </Box>
 
-      {/* Tabs */}
+      {/* Tabs - Condicional según rol */}
       <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}`, px: 3, mt: 2, bgcolor: alpha(theme.palette.background.default, 0.5) }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-          <Tab 
-            icon={<AddIcon />} 
-            iconPosition="start" 
-            label={editingLog ? "Editar Registro" : "Nuevo Registro"} 
-            disabled={!canModify}
-          />
+          {/* Pestaña Nuevo Registro - Solo visible para el asignado */}
+          {!isCreator && (
+            <Tab 
+              icon={<AddIcon />} 
+              iconPosition="start" 
+              label={editingLog ? "Editar Registro" : "Nuevo Registro"} 
+              disabled={!canModify}
+            />
+          )}
+          {/* Pestaña Histórico - Siempre visible */}
           <Tab 
             icon={<HistoryIcon />} 
             iconPosition="start" 
@@ -853,8 +859,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         minHeight: 400
       }}>
         <Box sx={{ mt: 3 }}>
-        {/* TAB 1: Nuevo Registro / Editar */}
-        {tabValue === 0 && (
+        {/* TAB: Nuevo Registro / Editar - Solo visible para asignado */}
+        {!isCreator && tabValue === 0 && (
           <Box>
             {!canModify && (
               <Paper
@@ -912,128 +918,140 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
               }}>
                 {editingLog ? 'Editar Información del Registro' : 'Crear Nuevo Registro'}
               </Typography>
-              {/* Selector de Estado PRIMERO */}
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="estado-label">Estado de la Tarea *</InputLabel>
-                <Select
-                  labelId="estado-label"
-                  value={estado}
-                  label="Estado de la Tarea *"
-                  onChange={(e) => setEstado(e.target.value)}
-                  disabled={!canModify}
-                  sx={{
-                    borderRadius: 1,
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
-                    }
-                  }}
-                >
-                  {ESTADOS.map((est) => {
-                    const permitido = isEstadoPermitido(est.value);
-                    const esActual = est.value === estado;
-                    
-                    return (
-                      <MenuItem 
-                        key={est.value} 
-                        value={est.value}
-                        disabled={!permitido}
+
+              {/* Sección de Estado y Progreso */}
+              <Box sx={{ mb: 2.5 }}>
+                {/* Selector de Estado Compacto */}
+                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
+                  <InputLabel id="estado-label">Estado de la Tarea *</InputLabel>
+                  <Select
+                    labelId="estado-label"
+                    value={estado}
+                    label="Estado de la Tarea *"
+                    onChange={(e) => setEstado(e.target.value)}
+                    disabled={!canModify}
+                    sx={{
+                      borderRadius: 1,
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    {ESTADOS.map((est) => {
+                      const permitido = isEstadoPermitido(est.value);
+                      
+                      return (
+                        <MenuItem 
+                          key={est.value} 
+                          value={est.value}
+                          disabled={!permitido}
+                          sx={{ 
+                            py: 0.75,
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                              {est.label}
+                              {!permitido && ' 🔒'}
+                            </Typography>
+                            {est.porcentaje !== null && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                ({est.porcentaje}%)
+                              </Typography>
+                            )}
+                          </Box>
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+
+                {/* Mensaje informativo compacto */}
+                {task?.estado && task.estado !== 'pendiente' && (
+                  <Alert
+                    severity="info"
+                    icon={<TrendingUpIcon sx={{ fontSize: 14 }} />}
+                    sx={{
+                      mb: 1.5,
+                      py: 0.5,
+                      borderRadius: 1,
+                      fontSize: '0.75rem',
+                      '& .MuiAlert-message': {
+                        py: 0,
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiAlert-icon': {
+                        py: 0.5
+                      }
+                    }}
+                  >
+                    {task.estado === 'completada' && 'Tarea completada'}
+                    {task.estado === 'cancelada' && 'Tarea cancelada'}
+                    {task.estado === 'en_progreso' && 'Puedes avanzar, pausar o cancelar'}
+                    {task.estado === 'pausada' && 'Reactiva para continuar'}
+                    {task.estado === 'en_revision' && 'Completa o regresa a En Progreso'}
+                  </Alert>
+                )}
+
+                {/* Indicador de progreso minimalista */}
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  px: 1.25,
+                  py: 1,
+                  borderRadius: 1,
+                  bgcolor: alpha(theme.palette.divider, 0.03),
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.8,
+                      fontWeight: 600,
+                      fontSize: '0.625rem',
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Progreso
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                      <CircularProgress
+                        variant="determinate"
+                        value={porcentajeCalculado}
+                        size={28}
+                        thickness={4}
                         sx={{
-                          opacity: permitido ? 1 : 0.4,
-                          cursor: permitido ? 'pointer' : 'not-allowed',
-                          '&.Mui-disabled': {
-                            opacity: 0.4
-                          }
+                          color: theme.palette.primary.main
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          top: 0,
+                          left: 0,
+                          bottom: 0,
+                          right: 0,
+                          position: 'absolute',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
-                        <Tooltip 
-                          title={!permitido ? getMensajeBloqueo(est.value) : ''} 
-                          arrow 
-                          placement="left"
+                        <Typography 
+                          variant="caption" 
+                          component="div" 
+                          sx={{ 
+                            fontSize: '0.5625rem',
+                            fontWeight: 600,
+                            color: 'text.primary'
+                          }}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', justifyContent: 'space-between' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Box 
-                                sx={{ 
-                                  width: 12, 
-                                  height: 12, 
-                                  borderRadius: '50%', 
-                                  bgcolor: est.color,
-                                  opacity: permitido ? 1 : 0.5
-                                }} 
-                              />
-                              <Typography variant="body2" sx={{ color: permitido ? 'inherit' : 'text.disabled' }}>
-                                {est.label}
-                                {!permitido && ' 🔒'}
-                              </Typography>
-                            </Box>
-                            <Typography 
-                              variant="caption" 
-                              color={permitido ? 'text.secondary' : 'text.disabled'} 
-                              sx={{ fontWeight: 600 }}
-                            >
-                              {est.porcentaje !== null ? `${est.porcentaje}%` : 'Mantiene anterior'}
-                            </Typography>
-                          </Box>
-                        </Tooltip>
-                      </MenuItem>
-                    );
-                  })}
-                </Select>
-              </FormControl>
-
-              {/* Mensaje informativo sobre flujo de estados */}
-              {task?.estado && task.estado !== 'pendiente' && (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 1.5,
-                    mb: 3,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
-                    bgcolor: alpha(theme.palette.info.main, 0.05)
-                  }}
-                >
-                  <Typography variant="caption" color="info.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <TrendingUpIcon sx={{ fontSize: 14 }} />
-                    {task.estado === 'completada' && 'Tarea completada - No se pueden hacer cambios de estado'}
-                    {task.estado === 'cancelada' && 'Tarea cancelada - No se pueden hacer cambios de estado'}
-                    {task.estado === 'en_progreso' && 'Puedes avanzar a Revisión/Completada, o pausar/cancelar si es necesario'}
-                    {task.estado === 'pausada' && 'Reactiva la tarea para continuar en progreso'}
-                    {task.estado === 'en_revision' && 'Completa la revisión o regresa a En Progreso si hay correcciones'}
-                  </Typography>
-                </Paper>
-              )}
-
-              {/* Porcentaje calculado automáticamente (solo display) */}
-              <Box sx={{ 
-                p: 2.5,
-                borderRadius: 2,
-                bgcolor: alpha(theme.palette.success.main, 0.08),
-                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 3
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <TrendingUpIcon sx={{ fontSize: 18, color: 'success.main' }} />
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Progreso Calculado
-                  </Typography>
-                </Box>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'baseline',
-                  gap: 0.5
-                }}>
-                  <Typography variant="h3" fontWeight={600} color="success.main">
-                    {porcentajeCalculado}
-                  </Typography>
-                  <Typography variant="h5" fontWeight={500} color="success.main">
-                    %
-                  </Typography>
+                          {porcentajeCalculado}%
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
               </Box>
 
@@ -1161,8 +1179,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
           </Box>
         )}
 
-        {/* TAB 2: Histórico */}
-        {tabValue === 1 && (
+        {/* TAB: Histórico - Visible para todos */}
+        {/* Para creador: tab 0 muestra Histórico (único tab) */}
+        {/* Para asignado: tab 1 muestra Histórico */}
+        {((isCreator && tabValue === 0) || (!isCreator && tabValue === 1)) && (
           <Box>
             <Box sx={{ 
               display: 'flex', 
@@ -1220,12 +1240,19 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   Sin registros aún
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Crea el primer registro en la pestaña "Nuevo Registro"
+                  {isCreator 
+                    ? 'El usuario asignado aún no ha registrado avances'
+                    : 'Crea el primer registro en la pestaña "Nuevo Registro"'
+                  }
                 </Typography>
               </Paper>
             ) : (
-              /* Lista de registros */
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              /* Grid de tarjetas compactas en 2 columnas */
+              <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' },
+                gap: 2
+              }}>
                 {logs.map((log, index) => {
                   const estadoInfo = ESTADOS.find(e => e.value === log.estado);
 
@@ -1233,208 +1260,100 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                     <Paper
                       key={log.id}
                       elevation={0}
+                      onClick={() => setSelectedLog(log)}
                       sx={{
-                        p: 3,
+                        p: 2.5,
                         borderRadius: 2,
-                        border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.2)}`,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor: theme.palette.background.paper,
                         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-                          borderColor: alpha(estadoInfo?.color || theme.palette.primary.main, 0.4)
+                          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                          borderColor: alpha(theme.palette.primary.main, 0.4),
+                          transform: 'translateY(-2px)'
                         }
                       }}
                     >
-                      {/* Header del registro */}
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
-                            <Typography variant="body1" fontWeight={600} color="text.primary">
-                              {log.creadorNombre || 'Usuario'}
-                            </Typography>
-                            {estadoInfo && (
-                              <Chip
-                                label={estadoInfo.label}
-                                size="small"
-                                sx={{
-                                  height: 24,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  bgcolor: alpha(estadoInfo.color, 0.1),
-                                  color: estadoInfo.color,
-                                  border: `1px solid ${alpha(estadoInfo.color, 0.4)}`,
-                                  textTransform: 'uppercase',
-                                  letterSpacing: 0.5
-                                }}
-                              />
-                            )}
+                      {/* Header compacto */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {estadoInfo && (
                             <Chip
-                              label={`${log.porcentaje}%`}
+                              label={estadoInfo.label}
                               size="small"
                               sx={{
-                                height: 24,
-                                fontSize: '0.75rem',
+                                height: 22,
+                                fontSize: '0.7rem',
                                 fontWeight: 600,
-                                bgcolor: alpha(estadoInfo?.color || theme.palette.primary.main, 0.1),
-                                color: estadoInfo?.color || theme.palette.primary.main,
-                                border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`
+                                bgcolor: alpha(estadoInfo.color, 0.08),
+                                color: estadoInfo.color,
+                                border: `1px solid ${alpha(estadoInfo.color, 0.2)}`
                               }}
                             />
-                          </Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <HistoryIcon sx={{ fontSize: 14 }} />
-                              {log.fecha && format(log.fecha.toDate(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
-                            </Typography>
-                          </Box>
-
-                          {/* Botones de acción */}
-                          {(canModify || log.creadorUid === currentUser?.uid) && (
-                            <Box sx={{ display: 'flex', gap: 0.5 }}>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleEditLog(log)}
-                                sx={{
-                                  color: 'text.secondary',
-                                  '&:hover': {
-                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                    color: 'primary.main'
-                                  }
-                                }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteLog(log)}
-                                sx={{
-                                  color: 'text.secondary',
-                                  '&:hover': {
-                                    bgcolor: alpha(theme.palette.error.main, 0.1),
-                                    color: 'error.main'
-                                  }
-                                }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
                           )}
+                          <Chip
+                            label={`${log.porcentaje}%`}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              bgcolor: alpha(theme.palette.primary.main, 0.08),
+                              color: 'primary.main',
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                            }}
+                          />
                         </Box>
-
-                        {/* Comentario */}
-                        <Typography 
-                          variant="body2" 
-                          color="text.primary" 
-                          sx={{ 
-                            lineHeight: 1.7, 
-                            mb: log.archivos?.length > 0 ? 2 : 0,
-                            pl: 2,
-                            borderLeft: `3px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.25)}`,
-                            fontStyle: 'italic'
-                          }}
-                        >
-                          "{log.comentario}"
-                        </Typography>
-                        {/* Archivos adjuntos */}
+                        
+                        {/* Indicador de archivos */}
                         {log.archivos && log.archivos.length > 0 && (
-                          <Box sx={{ mt: 2 }}>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                textTransform: 'uppercase',
-                                letterSpacing: 0.8,
-                                fontWeight: 600,
-                                color: 'text.secondary',
-                                display: 'block',
-                                mb: 1
-                              }}
-                            >
-                              📎 Evidencias ({log.archivos.length})
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              {log.archivos.map((archivo, idx) => (
-                                <Paper
-                                  key={idx}
-                                  elevation={0}
-                                  sx={{
-                                    p: 1.5,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1.5,
-                                    borderRadius: 1,
-                                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                                    bgcolor: 'transparent',
-                                    transition: 'all 0.2s ease',
-                                    '&:hover': {
-                                      bgcolor: alpha(theme.palette.primary.main, 0.03),
-                                      borderColor: alpha(theme.palette.primary.main, 0.4)
-                                    }
-                                  }}
-                                >
-                                  <Box sx={{ 
-                                    color: 'primary.main',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                  }}>
-                                    {getFileIcon(archivo.tipo)}
-                                  </Box>
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography variant="body2" noWrap fontWeight={600}>
-                                      {archivo.nombre}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {formatFileSize(archivo.tamaño)}
-                                    </Typography>
-                                  </Box>
-                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                    {archivo.tipo === 'application/pdf' && (
-                                      <Tooltip title="Ver documento" arrow placement="top">
-                                        <IconButton
-                                          size="small"
-                                          onClick={() => handleOpenPreview(archivo)}
-                                          sx={{ 
-                                            color: 'primary.main',
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                              bgcolor: alpha(theme.palette.primary.main, 0.15),
-                                              transform: 'scale(1.1)'
-                                            }
-                                          }}
-                                        >
-                                          <VisibilityIcon fontSize="small" />
-                                        </IconButton>
-                                      </Tooltip>
-                                    )}
-                                    <Tooltip title="Descargar archivo" arrow placement="top">
-                                      <IconButton
-                                        size="small"
-                                        component="a"
-                                        href={archivo.url}
-                                        download
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        sx={{ 
-                                          color: 'text.secondary',
-                                          transition: 'all 0.2s ease',
-                                          '&:hover': {
-                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                            color: 'primary.main',
-                                            transform: 'scale(1.1)'
-                                          }
-                                        }}
-                                      >
-                                        <DownloadIcon fontSize="small" />
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Box>
-                                </Paper>
-                              ))}
-                            </Box>
-                          </Box>
+                          <Chip
+                            icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                            label={log.archivos.length}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              bgcolor: alpha(theme.palette.divider, 0.08)
+                            }}
+                          />
                         )}
-                      </Paper>
-                    );
-                  })}
+                      </Box>
+
+                      {/* Fecha y usuario */}
+                      <Typography variant="caption" color="text.secondary" sx={{ 
+                        fontSize: '0.75rem',
+                        display: 'block',
+                        mb: 1
+                      }}>
+                        {log.fecha && format(log.fecha.toDate(), "d MMM yyyy • HH:mm", { locale: es })}
+                      </Typography>
+
+                      <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
+                        {log.creadorNombre || 'Usuario'}
+                      </Typography>
+
+                      {/* Preview del comentario (2 líneas máximo) */}
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        sx={{ 
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          fontSize: '0.875rem',
+                          lineHeight: 1.5,
+                          fontStyle: 'italic'
+                        }}
+                      >
+                        "{log.comentario}"
+                      </Typography>
+                    </Paper>
+                  );
+                })}
                 </Box>
               )}
             </Box>
@@ -1522,6 +1441,311 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       onClose={handleClosePreview}
       document={selectedDocument}
     />
+
+    {/* Modal de Detalles del Registro */}
+    <Dialog
+      open={Boolean(selectedLog)}
+      onClose={() => setSelectedLog(null)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        p: 3, 
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Avatar sx={{ bgcolor: 'primary.main' }}>
+            <HistoryIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight={600}>
+              Detalle del Registro
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {selectedLog?.fecha && format(selectedLog.fecha.toDate(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton onClick={() => setSelectedLog(null)} sx={{ color: 'text.secondary' }}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3, pt: 4 }}>
+        {selectedLog && (
+          <Box>
+            {/* Usuario y Estado */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap', mt: 2 }}>
+              <Typography variant="body1" fontWeight={600} color="text.primary">
+                {selectedLog.creadorNombre || 'Usuario'}
+              </Typography>
+              {(() => {
+                const estadoInfo = ESTADOS.find(e => e.value === selectedLog.estado);
+                return estadoInfo && (
+                  <Chip
+                    label={estadoInfo.label}
+                    size="medium"
+                    sx={{
+                      height: 28,
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      bgcolor: alpha(estadoInfo.color, 0.1),
+                      color: estadoInfo.color,
+                      border: `1px solid ${alpha(estadoInfo.color, 0.4)}`
+                    }}
+                  />
+                );
+              })()}
+              <Chip
+                label={`Progreso: ${selectedLog.porcentaje}%`}
+                size="medium"
+                sx={{
+                  height: 28,
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                }}
+              />
+            </Box>
+
+            {/* Comentario completo */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                mb: 3,
+                borderRadius: 2,
+                bgcolor: alpha(theme.palette.divider, 0.03),
+                border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+                borderLeft: `4px solid ${alpha(theme.palette.primary.main, 0.5)}`
+              }}
+            >
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'text.secondary',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem',
+                display: 'block',
+                mb: 1
+              }}>
+                Comentario del Registro
+              </Typography>
+              <Typography 
+                variant="body1" 
+                color="text.primary" 
+                sx={{ 
+                  lineHeight: 1.7,
+                  whiteSpace: 'pre-wrap'
+                }}
+              >
+                {selectedLog.comentario}
+              </Typography>
+            </Paper>
+
+            {/* Archivos adjuntos */}
+            {selectedLog.archivos && selectedLog.archivos.length > 0 && (
+              <Box>
+                <Typography 
+                  variant="overline" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem',
+                    display: 'block',
+                    mb: 2
+                  }}
+                >
+                  📎 Evidencias Adjuntas ({selectedLog.archivos.length})
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {selectedLog.archivos.map((archivo, idx) => (
+                    <Paper
+                      key={idx}
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                        bgcolor: theme.palette.background.paper,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: alpha(theme.palette.primary.main, 0.03),
+                          borderColor: alpha(theme.palette.primary.main, 0.4),
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                        }
+                      }}
+                    >
+                      <Box sx={{ 
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        {getFileIcon(archivo.tipo)}
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={600} noWrap>
+                          {archivo.nombre}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatFileSize(archivo.tamaño)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {archivo.tipo === 'application/pdf' && (
+                          <Tooltip title="Ver documento" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenPreview(archivo)}
+                              sx={{ 
+                                color: 'primary.main',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.15),
+                                  transform: 'scale(1.1)'
+                                }
+                              }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {archivo.tipo === 'application/zip' && (
+                          <Tooltip title="Ver archivos en ZIP" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setSelectedZipUrl(archivo.url);
+                                setSelectedZipName(archivo.nombre);
+                                setZipViewerOpen(true);
+                              }}
+                              sx={{ 
+                                color: '#ff9800',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  bgcolor: alpha('#ff9800', 0.15),
+                                  transform: 'scale(1.1)'
+                                }
+                              }}
+                            >
+                              <FolderOpenIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Descargar archivo" arrow placement="top">
+                          <IconButton
+                            size="small"
+                            component="a"
+                            href={archivo.url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ 
+                              color: 'text.secondary',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: 'primary.main',
+                                transform: 'scale(1.1)'
+                              }
+                            }}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ p: 3, borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+        {/* Botones de acción solo si el usuario puede modificar */}
+        {(canModify || selectedLog?.creadorUid === currentUser?.uid) && (
+          <>
+            <Button
+              startIcon={<EditIcon />}
+              onClick={() => {
+                handleEditLog(selectedLog);
+                setSelectedLog(null);
+              }}
+              sx={{
+                borderRadius: 1,
+                textTransform: 'none',
+                fontWeight: 600,
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.08)
+                }
+              }}
+            >
+              Editar
+            </Button>
+            <Button
+              startIcon={<DeleteIcon />}
+              onClick={() => {
+                handleDeleteLog(selectedLog);
+                setSelectedLog(null);
+              }}
+              sx={{
+                borderRadius: 1,
+                textTransform: 'none',
+                fontWeight: 600,
+                color: 'error.main',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.error.main, 0.08)
+                }
+              }}
+            >
+              Eliminar
+            </Button>
+          </>
+        )}
+        <Box sx={{ flex: 1 }} />
+        <Button
+          variant="contained"
+          onClick={() => setSelectedLog(null)}
+          sx={{
+            borderRadius: 1,
+            textTransform: 'none',
+            fontWeight: 600,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+        >
+          Cerrar
+        </Button>
+      </DialogActions>
+
+      {/* Modal de visor de archivos ZIP */}
+      <ZipFileViewer
+        open={zipViewerOpen}
+        onClose={() => {
+          setZipViewerOpen(false);
+          setSelectedZipUrl('');
+          setSelectedZipName('');
+        }}
+        zipUrl={selectedZipUrl}
+        zipFileName={selectedZipName}
+      />
+    </Dialog>
     </>
   );
 };
