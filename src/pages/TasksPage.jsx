@@ -278,18 +278,11 @@ const TasksPage = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'urgente':
-        return theme.palette.error.main;
-      case 'alta':
-        return theme.palette.warning.main;
-      case 'media':
-        return theme.palette.info.main;
-      case 'baja':
-        return theme.palette.grey[400];
-      default:
-        return theme.palette.grey[300];
+    // Diseño sobrio: Solo urgente tiene color, resto gris neutro
+    if (priority === 'urgente') {
+      return theme.palette.error.main;
     }
+    return theme.palette.grey[600];
   };
 
   const isOverdue = (task) => {
@@ -343,15 +336,8 @@ const TasksPage = () => {
   };
 
   const getEstadoColor = (estado) => {
-    const colors = {
-      pendiente: theme.palette.grey[500],
-      asignada: theme.palette.info.main,
-      en_progreso: theme.palette.warning.main,
-      en_revision: theme.palette.secondary.main,
-      completada: theme.palette.success.main,
-      traslado_pendiente: theme.palette.error.main
-    };
-    return colors[estado] || theme.palette.grey[300];
+    // Diseño sobrio: Estado siempre gris neutro
+    return theme.palette.grey[600];
   };
 
   if (loading) {
@@ -926,11 +912,11 @@ const TasksPage = () => {
                             size="small"
                             sx={{
                               height: 24,
-                              fontSize: '0.7rem',
+                              fontSize: '0.6875rem',
                               fontWeight: 600,
                               letterSpacing: 0.3,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.12),
+                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.1),
                               color: getEstadoColor(task.estadoActual),
                               border: `1px solid ${alpha(getEstadoColor(task.estadoActual), 0.3)}`,
                               borderRadius: 1
@@ -941,11 +927,11 @@ const TasksPage = () => {
                             size="small"
                             sx={{
                               height: 24,
-                              fontSize: '0.7rem',
+                              fontSize: '0.6875rem',
                               fontWeight: 600,
                               letterSpacing: 0.3,
                               textTransform: 'uppercase',
-                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.12),
+                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.1),
                               color: getPriorityColor(task.prioridad),
                               border: `1px solid ${alpha(getPriorityColor(task.prioridad), 0.3)}`,
                               borderRadius: 1
@@ -959,10 +945,10 @@ const TasksPage = () => {
                               icon={<CalendarIcon sx={{ fontSize: 14, color: getDaysRemainingColor(getDaysRemaining(task)) + ' !important' }} />}
                               sx={{
                                 height: 24,
-                                fontSize: '0.7rem',
+                                fontSize: '0.6875rem',
                                 fontWeight: 600,
                                 letterSpacing: 0.3,
-                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.12),
+                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.1),
                                 color: getDaysRemainingColor(getDaysRemaining(task)),
                                 border: `1px solid ${alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.3)}`,
                                 borderRadius: 1,
@@ -1014,13 +1000,13 @@ const TasksPage = () => {
                           variant="body2"
                           color="text.secondary"
                           sx={{
-                            fontSize: '0.8rem',
+                            fontSize: '0.8125rem',
                             mb: 2,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            lineHeight: 1.4
+                            lineHeight: 1.5
                           }}
                         >
                           {task.descripcion}
@@ -1076,7 +1062,7 @@ const TasksPage = () => {
                             <Typography
                               variant="caption"
                               sx={{
-                                fontSize: '0.8rem',
+                                fontSize: '0.8125rem',
                                 color: isOverdue(task) ? 'error.main' : 'text.secondary',
                                 fontWeight: isOverdue(task) ? 600 : 500
                               }}

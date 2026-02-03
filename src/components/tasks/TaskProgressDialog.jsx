@@ -67,7 +67,7 @@ import ExcelJS from 'exceljs';
 const TaskProgressDialog = ({ open, onClose, task }) => {
   const theme = useTheme();
   const { currentUser } = useAuth();
-  const { logs, loading: logsLoading, createLog, updateLog, deleteLog, uploadFiles } = useProgressLogs(task?.id);
+  const { logs, loading: logsLoading, createLog, updateLog, deleteLog, uploadFiles } = useProgressLogs(task?.id, 'delegated_tasks');
   
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -83,11 +83,11 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   // Estados disponibles con porcentajes automáticos
   const ESTADOS = [
     { value: 'pendiente', label: 'Pendiente', color: theme.palette.grey[500], porcentaje: 0 },
-    { value: 'en_progreso', label: 'En Progreso', color: theme.palette.info.main, porcentaje: 50 },
-    { value: 'pausada', label: 'Pausada', color: theme.palette.warning.main, porcentaje: null }, // Mantiene el anterior
+    { value: 'en_progreso', label: 'En Progreso', color: theme.palette.primary.main, porcentaje: 50 },
+    { value: 'pausada', label: 'Pausada', color: theme.palette.warning.main, porcentaje: null },
     { value: 'en_revision', label: 'En Revisión', color: theme.palette.secondary.main, porcentaje: 90 },
     { value: 'completada', label: 'Completada', color: theme.palette.success.main, porcentaje: 100 },
-    { value: 'cancelada', label: 'Cancelada', color: theme.palette.error.main, porcentaje: null } // Mantiene el anterior
+    { value: 'cancelada', label: 'Cancelada', color: theme.palette.error.main, porcentaje: null }
   ];
 
   // Función para determinar qué estados están permitidos según el estado actual
@@ -1224,92 +1224,64 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 </Typography>
               </Paper>
             ) : (
-              /* ===== TIMELINE VISUAL ===== */
-              <Box sx={{ position: 'relative', pl: 4 }}>
-                {/* Línea vertical conectora */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    left: 20,
-                    top: 30,
-                    bottom: 30,
-                    width: 3,
-                    bgcolor: alpha(theme.palette.primary.main, 0.2),
-                    borderRadius: 2
-                  }}
-                />
-
+              /* Lista de registros */
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {logs.map((log, index) => {
                   const estadoInfo = ESTADOS.find(e => e.value === log.estado);
-                  const isFirst = index === 0;
-                  const isLast = index === logs.length - 1;
 
                   return (
-                    <Box key={log.id} sx={{ position: 'relative', mb: isLast ? 0 : 4 }}>
-                      {/* Marcador circular en la línea de tiempo */}
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          left: -30,
-                          top: 12,
-                          width: 44,
-                          height: 44,
-                          borderRadius: '50%',
-                          bgcolor: estadoInfo?.color || theme.palette.primary.main,
-                          border: `4px solid ${theme.palette.background.paper}`,
-                          boxShadow: `0 0 0 3px ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.2)}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          zIndex: 2
-                        }}
-                      >
-                        {log.porcentaje}%
-                      </Box>
-
-                      {/* Card del registro */}
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 3,
-                          borderRadius: 2,
-                          border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
-                          bgcolor: theme.palette.background.paper,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            transform: 'translateX(4px)',
-                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-                          }
-                        }}
-                      >
-                        {/* Header del registro */}
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                          <Box sx={{ flex: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
-                              <Typography variant="body1" fontWeight={600} color="text.primary">
-                                {log.creadorNombre || 'Usuario'}
-                              </Typography>
-                              {estadoInfo && (
-                                <Chip
-                                  label={estadoInfo.label}
-                                  size="small"
-                                  sx={{
-                                    height: 24,
-                                    fontSize: '0.75rem',
-                                    fontWeight: 600,
-                                    bgcolor: alpha(estadoInfo.color, 0.15),
-                                    color: estadoInfo.color,
-                                    border: `1px solid ${estadoInfo.color}`,
-                                    textTransform: 'uppercase',
-                                    letterSpacing: 0.5
-                                  }}
-                                />
-                              )}
-                            </Box>
+                    <Paper
+                      key={log.id}
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.2)}`,
+                        bgcolor: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                          borderColor: alpha(estadoInfo?.color || theme.palette.primary.main, 0.4)
+                        }
+                      }}
+                    >
+                      {/* Header del registro */}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5, flexWrap: 'wrap' }}>
+                            <Typography variant="body1" fontWeight={600} color="text.primary">
+                              {log.creadorNombre || 'Usuario'}
+                            </Typography>
+                            {estadoInfo && (
+                              <Chip
+                                label={estadoInfo.label}
+                                size="small"
+                                sx={{
+                                  height: 24,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  bgcolor: alpha(estadoInfo.color, 0.1),
+                                  color: estadoInfo.color,
+                                  border: `1px solid ${alpha(estadoInfo.color, 0.4)}`,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: 0.5
+                                }}
+                              />
+                            )}
+                            <Chip
+                              label={`${log.porcentaje}%`}
+                              size="small"
+                              sx={{
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                bgcolor: alpha(estadoInfo?.color || theme.palette.primary.main, 0.1),
+                                color: estadoInfo?.color || theme.palette.primary.main,
+                                border: `1px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`
+                              }}
+                            />
+                          </Box>
                             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <HistoryIcon sx={{ fontSize: 14 }} />
                               {log.fecha && format(log.fecha.toDate(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
@@ -1317,7 +1289,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                           </Box>
 
                           {/* Botones de acción */}
-                          {canModify && (
+                          {(canModify || log.creadorUid === currentUser?.uid) && (
                             <Box sx={{ display: 'flex', gap: 0.5 }}>
                               <IconButton
                                 size="small"
@@ -1357,13 +1329,12 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                             lineHeight: 1.7, 
                             mb: log.archivos?.length > 0 ? 2 : 0,
                             pl: 2,
-                            borderLeft: `3px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.3)}`,
+                            borderLeft: `3px solid ${alpha(estadoInfo?.color || theme.palette.primary.main, 0.25)}`,
                             fontStyle: 'italic'
                           }}
                         >
                           "{log.comentario}"
                         </Typography>
-
                         {/* Archivos adjuntos */}
                         {log.archivos && log.archivos.length > 0 && (
                           <Box sx={{ mt: 2 }}>
@@ -1391,12 +1362,12 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                     alignItems: 'center',
                                     gap: 1.5,
                                     borderRadius: 1,
-                                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                                    bgcolor: alpha(theme.palette.background.default, 0.5),
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                                    bgcolor: 'transparent',
                                     transition: 'all 0.2s ease',
                                     '&:hover': {
-                                      bgcolor: alpha(theme.palette.primary.main, 0.05),
-                                      borderColor: theme.palette.primary.main
+                                      bgcolor: alpha(theme.palette.primary.main, 0.03),
+                                      borderColor: alpha(theme.palette.primary.main, 0.4)
                                     }
                                   }}
                                 >
@@ -1462,13 +1433,12 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                           </Box>
                         )}
                       </Paper>
-                    </Box>
-                  );
-                })}
-              </Box>
-            )}
-          </Box>
-        )}
+                    );
+                  })}
+                </Box>
+              )}
+            </Box>
+          )}
         </Box>
       </DialogContent>
 

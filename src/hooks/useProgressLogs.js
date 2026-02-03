@@ -19,8 +19,13 @@ import { db, storage } from '../config/firebase';
  * - Crear registros con archivos adjuntos
  * - Editar registros existentes
  * - Eliminar registros y sus archivos de Storage
+ * - Los logs SIEMPRE están en tasks/{taskId}/progressLogs (para mantener compatibilidad)
+ * - Pero actualiza la tarea en la colección correcta (delegated_tasks o tasks)
+ * 
+ * @param {string} taskId - ID de la tarea
+ * @param {string} taskCollection - Nombre de la colección donde está la tarea ('tasks' o 'delegated_tasks')
  */
-export const useProgressLogs = (taskId) => {
+export const useProgressLogs = (taskId, taskCollection = 'delegated_tasks') => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,6 +37,7 @@ export const useProgressLogs = (taskId) => {
       return;
     }
 
+    // Los logs SIEMPRE están en tasks/{taskId}/progressLogs (ubicación fija)
     const logsRef = collection(db, 'tasks', taskId, 'progressLogs');
     const q = query(logsRef, orderBy('fecha', 'desc'));
 
@@ -56,9 +62,12 @@ export const useProgressLogs = (taskId) => {
 
   /**
    * Crear nuevo registro de progreso
+   * Los logs SIEMPRE se guardan en tasks/{taskId}/progressLogs
+   * Pero actualiza la tarea en la colección correcta (delegated_tasks o tasks)
    */
   const createLog = async (logData) => {
     try {
+      // Los logs SIEMPRE en tasks/{taskId}/progressLogs
       const logsRef = collection(db, 'tasks', taskId, 'progressLogs');
       const newLog = {
         ...logData,
@@ -67,6 +76,16 @@ export const useProgressLogs = (taskId) => {
       };
       
       const docRef = await addDoc(logsRef, newLog);
+      
+      // Actualizar tarea principal en la colección correcta (collectionName)
+      const taskRef = doc(db, collectionName, taskId);
+      await updateDoc(taskRef, {
+        estado: logData.estado,
+        estadoActual: logData.estado, // Compatibilidad con ambos campos
+        porcentajeCompletado: logData.porcentaje,
+        updatedAt: serverTimestamp()
+      });
+      
       return { success: true, id: docRef.id };
     } catch (error) {
       console.error('Error al crear log de progreso:', error);
@@ -76,14 +95,37 @@ export const useProgressLogs = (taskId) => {
 
   /**
    * Actualizar registro existente
+   * Los logs SIEMPRE en tasks/{taskId}/progressLogs
+   * Actualiza la tarea en la colección correcta si se modificó estado/porcentaje
    */
   const updateLog = async (logId, updates) => {
     try {
+      // Los logs SIEMPRE en tasks/{taskId}/progressLogs
       const logRef = doc(db, 'tasks', taskId, 'progressLogs', logId);
       await updateDoc(logRef, {
         ...updates,
         updatedAt: serverTimestamp()
       });
+      
+      // Si se actualizó el estado o porcentaje, actualizar tarea principal
+      if (updates.estado || updates.porcentaje !== undefined) {
+        const taskRef = doc(db, collectionName, taskId);
+        const taskUpdates = {
+          updatedAt: serverTimestamp()
+        };
+        
+        if (updates.estado) {
+          taskUpdates.estado = updates.estado;
+          taskUpdates.estadoActual = updates.estado;
+        }
+        
+        if (updates.porcentaje !== undefined) {
+          taskUpdates.porcentajeCompletado = updates.porcentaje;
+        }
+        
+        await updateDoc(taskRef, taskUpdates);
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar log de progreso:', error);
@@ -93,6 +135,7 @@ export const useProgressLogs = (taskId) => {
 
   /**
    * Eliminar registro y sus archivos de Storage
+   * Los logs SIEMPRE en tasks/{taskId}/progressLogs
    */
   const deleteLog = async (logId, archivos = []) => {
     try {
@@ -109,7 +152,7 @@ export const useProgressLogs = (taskId) => {
         await Promise.all(deletePromises);
       }
 
-      // Eliminar documento de Firestore
+      // Los logs SIEMPRE en tasks/{taskId}/progressLogs
       const logRef = doc(db, 'tasks', taskId, 'progressLogs', logId);
       await deleteDoc(logRef);
       
