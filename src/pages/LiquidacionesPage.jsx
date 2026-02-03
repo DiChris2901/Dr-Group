@@ -1526,12 +1526,7 @@ export default function LiquidacionesPage() {
         );
 
         setLiquidacionCoincide(true);
-        addLog('✅ Tarifas aplicadas. Confirmando validación...', 'success');
-
-        // Mantener comportamiento de V1: cerrar automáticamente después de aplicar tarifas.
-        setTimeout(() => {
-          confirmarValidacion();
-        }, 900);
+        addLog('✅ Tarifas aplicadas. Revisa los nuevos totales y confirma cuando estés listo.', 'success');
       } catch (error) {
         console.error('Error aplicando tarifas (validación):', error);
         addLog(`❌ Error aplicando tarifas: ${error.message}`, 'error');
@@ -2458,7 +2453,7 @@ export default function LiquidacionesPage() {
                       </Box>
                     )}
 
-                    {liquidacionCoincide && !procesandoTarifasValidacion && showTarifasOptions && (
+                    {liquidacionCoincide && !procesandoTarifasValidacion && showTarifasOptions && archivoTarifas && (
                       <Box
                         sx={{
                           display: 'flex',
@@ -2471,9 +2466,18 @@ export default function LiquidacionesPage() {
                           border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
                         }}
                       >
-                        <Typography sx={{ textAlign: 'center', width: '100%' }}>
-                          ✅ Tarifas aplicadas. Cerrando validación…
-                        </Typography>
+                        <CheckCircle sx={{ color: 'success.main' }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                            Tarifas aplicadas correctamente
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                            Archivo: {archivoTarifas?.name || 'Tarifas.xlsx'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'success.main', display: 'block', mt: 1 }}>
+                            ℹ️ Revisa los nuevos totales arriba y presiona "Confirmar" cuando estés listo.
+                          </Typography>
+                        </Box>
                       </Box>
                     )}
 
@@ -2506,9 +2510,33 @@ export default function LiquidacionesPage() {
           <Typography variant="caption" color="text.secondary">
             Validación de liquidación
           </Typography>
-          <Button onClick={cancelarValidacion} variant="outlined" sx={{ borderRadius: 1, textTransform: 'none', px: 3 }}>
-            ❌ Cancelar
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button 
+              onClick={cancelarValidacion} 
+              variant="outlined" 
+              color="error"
+              sx={{ borderRadius: 1, textTransform: 'none', px: 3 }}
+            >
+              ❌ Cancelar
+            </Button>
+            {(liquidacionCoincide || (showTarifasOptions && archivoTarifas)) && (
+              <Button 
+                onClick={confirmarValidacion} 
+                variant="contained" 
+                color="success"
+                disabled={procesandoTarifasValidacion || processing}
+                startIcon={<CheckCircle />}
+                sx={{ 
+                  borderRadius: 1, 
+                  textTransform: 'none', 
+                  px: 3,
+                  fontWeight: 600
+                }}
+              >
+                Confirmar Liquidación
+              </Button>
+            )}
+          </Box>
         </DialogActions>
       </Dialog>
 
