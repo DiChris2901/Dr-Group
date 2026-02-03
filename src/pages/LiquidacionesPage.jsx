@@ -544,7 +544,7 @@ export default function LiquidacionesPage() {
 
   const progressPct = activeStep === 1 ? 0 : activeStep === 2 ? 50 : 100;
 
-  const { exportarConsolidado, exportarMaquinasEnCero } = useLiquidacionExport({
+  const { exportarConsolidado, exportarMaquinasEnCero, exportarTarifaFija } = useLiquidacionExport({
     consolidatedData,
     reporteBySala,
     originalData,
@@ -4630,6 +4630,45 @@ export default function LiquidacionesPage() {
               </Box>
             ) : (
               <>
+                {/* Header con botón de exportar */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  mb: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.secondary.main, 0.04),
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.12)}`
+                }}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                      Máquinas con Tarifa Fija
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {tarifaFijaData.length} máquinas con tarifas oficiales aplicadas
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="small"
+                    startIcon={<ReceiptLong />}
+                    onClick={() => exportarTarifaFija(tarifaFijaData, tarifasOficiales)}
+                    sx={{
+                      borderRadius: 1,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: alpha(theme.palette.secondary.main, 0.08),
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                      }
+                    }}
+                  >
+                    Exportar Excel
+                  </Button>
+                </Box>
                 {/* Resumen de tarifa fija */}
                 <Box sx={{ 
                   mb: 3, 
@@ -4685,55 +4724,91 @@ export default function LiquidacionesPage() {
                 </Box>
 
                 {/* Tabla de máquinas con tarifa fija */}
-                <Box sx={{ height: 550, borderRadius: 2, overflow: 'hidden', border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`, bgcolor: theme.palette.background.paper }}>
-                  <VirtualTable
-                    data={tarifaFijaData}
-                    columns={[
-                      { key: 'establecimiento', label: 'Establecimiento', width: 220 },
-                      { key: 'serial', label: 'Serial', width: 120 },
-                      { key: 'nuc', label: 'NUC', width: 100 },
-                      { 
-                        key: 'derechosFijos', 
-                        label: 'Derechos Fijos', 
-                        width: 150, 
-                        align: 'right',
-                        format: (_, row) => {
-                          const nucStr = String(row?.nuc || '').trim();
-                          const derechos = nucStr && tarifasOficiales[nucStr] 
-                            ? Number(tarifasOficiales[nucStr].derechosAdicionales) || 0 
-                            : 0;
-                          return formatCurrencyCOP(derechos);
+                <TableContainer 
+                  component={Paper} 
+                  sx={{ 
+                    maxHeight: 600,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: alpha(theme.palette.secondary.main, 0.3),
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    }
+                  }}
+                >
+                  <Table 
+                    stickyHeader
+                    sx={{
+                      '& .MuiTableCell-root': {
+                        borderColor: theme.palette.divider,
+                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                      },
+                      '& .MuiTableHead-root': {
+                        '& .MuiTableRow-root': {
+                          backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                          '& .MuiTableCell-root': {
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            paddingY: 2,
+                            borderColor: alpha(theme.palette.divider, 0.12),
+                            bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.95) : alpha(theme.palette.grey[50], 0.95),
+                            backdropFilter: 'blur(8px)'
+                          }
                         }
                       },
-                      { 
-                        key: 'gastosFijos', 
-                        label: 'Gastos Fijos', 
-                        width: 150, 
-                        align: 'right',
-                        format: (_, row) => {
-                          const nucStr = String(row?.nuc || '').trim();
-                          const gastos = nucStr && tarifasOficiales[nucStr] 
-                            ? Number(tarifasOficiales[nucStr].gastosAdicionales) || 0 
-                            : 0;
-                          return formatCurrencyCOP(gastos);
-                        }
-                      },
-                      { 
-                        key: 'totalFijo', 
-                        label: 'Total Impuestos Fijos', 
-                        width: 180, 
-                        align: 'right',
-                        format: (_, row) => {
-                          const nucStr = String(row?.nuc || '').trim();
-                          if (!nucStr || !tarifasOficiales[nucStr]) return formatCurrencyCOP(0);
-                          const derechos = Number(tarifasOficiales[nucStr].derechosAdicionales) || 0;
-                          const gastos = Number(tarifasOficiales[nucStr].gastosAdicionales) || 0;
-                          return formatCurrencyCOP(derechos + gastos);
+                      '& .MuiTableBody-root': {
+                        '& .MuiTableRow-root': {
+                          '&:hover': { 
+                            backgroundColor: alpha(theme.palette.secondary.main, 0.05),
+                            borderLeft: `3px solid ${theme.palette.secondary.main}`,
+                            transition: 'all 0.2s ease'
+                          },
+                          '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                          '& .MuiTableCell-root': {
+                            paddingY: 1.8,
+                            fontSize: '0.85rem',
+                            borderColor: alpha(theme.palette.divider, 0.12)
+                          }
                         }
                       }
-                    ]}
-                  />
-                </Box>
+                    }}
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Establecimiento</TableCell>
+                        <TableCell>Serial</TableCell>
+                        <TableCell>NUC</TableCell>
+                        <TableCell align="right">Derechos Fijos</TableCell>
+                        <TableCell align="right">Gastos Fijos</TableCell>
+                        <TableCell align="right">Total Impuestos Fijos</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {tarifaFijaData.map((row, index) => {
+                        const nucStr = String(row?.nuc || '').trim();
+                        const infoTarifa = tarifasOficiales[nucStr] || { derechosAdicionales: 0, gastosAdicionales: 0 };
+                        const derechos = Number(infoTarifa.derechosAdicionales) || 0;
+                        const gastos = Number(infoTarifa.gastosAdicionales) || 0;
+                        const totalFijo = derechos + gastos;
+
+                        return (
+                          <TableRow key={`tarifa-${index}-${row.nuc}`}>
+                            <TableCell>{row.establecimiento || 'Sin establecimiento'}</TableCell>
+                            <TableCell>{row.serial || '—'}</TableCell>
+                            <TableCell>{row.nuc || '—'}</TableCell>
+                            <TableCell align="right">{formatCurrencyCOP(derechos)}</TableCell>
+                            <TableCell align="right">{formatCurrencyCOP(gastos)}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                              {formatCurrencyCOP(totalFijo)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </>
             )}
           </TabPanel>

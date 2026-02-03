@@ -498,10 +498,224 @@ export default function useLiquidacionExport({
     }
   }, [consolidatedData, empresa, addLog, addNotification, logActivity, currentUser, userProfile]);
 
+  /**
+   * Exportar máquinas con Tarifa Fija en formato Python profesional
+   */
+  const exportarTarifaFija = useCallback(async (tarifaFijaData, tarifasOficiales) => {
+    if (!currentUser?.uid) {
+      addNotification('Sesión no válida. Inicia sesión nuevamente.', 'error');
+      return;
+    }
+
+    if (!tarifaFijaData || tarifaFijaData.length === 0) {
+      addNotification('No hay máquinas con tarifa fija para exportar', 'warning');
+      return;
+    }
+
+    if (!tarifasOficiales || Object.keys(tarifasOficiales).length === 0) {
+      addNotification('No hay información de tarifas oficiales', 'warning');
+      return;
+    }
+
+    try {
+      addLog('💰 Exportando máquinas con tarifa fija (Formato Python)...', 'info');
+
+      // Importar ExcelJS dinámicamente
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Tarifa Fija');
+
+      // BRAND_COLORS - Formato Python Profesional
+      const BRAND_COLORS = {
+        titleBg: 'FF0B3040',
+        subtitleBg: 'FF1A5F7A',
+        metricsBg: 'FF334155',
+        dateBg: 'FF475569',
+        headerBg: 'FF0B3040',
+        white: 'FFFFFFFF',
+        textDark: 'FF223344',
+        borderLight: 'FFE2E8F0',
+        borderMedium: 'FFC0CCDA',
+        borderDark: 'FF94A3B8'
+      };
+
+      // FILA 1: Título Principal
+      ws.mergeCells('A1:G1');
+      ws.getCell('A1').value = 'DR GROUP';
+      ws.getCell('A1').font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: BRAND_COLORS.white } };
+      ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.titleBg } };
+      ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(1).height = 30;
+
+      // FILA 2: Subtítulo
+      ws.mergeCells('A2:G2');
+      ws.getCell('A2').value = 'Reporte de Máquinas con Tarifa Fija';
+      ws.getCell('A2').font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: BRAND_COLORS.white } };
+      ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.subtitleBg } };
+      ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(2).height = 22;
+
+      // FILA 3: Métricas
+      const totalDerechos = Object.values(tarifasOficiales).reduce((sum, t) => sum + (Number(t.derechosAdicionales) || 0), 0);
+      const totalGastos = Object.values(tarifasOficiales).reduce((sum, t) => sum + (Number(t.gastosAdicionales) || 0), 0);
+      const totalImpuestos = totalDerechos + totalGastos;
+
+      ws.mergeCells('A3:G3');
+      ws.getCell('A3').value = `Máquinas: ${tarifaFijaData.length} | Derechos Fijos: ${totalDerechos.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })} | Gastos Fijos: ${totalGastos.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })} | Total: ${totalImpuestos.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })}`;
+      ws.getCell('A3').font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
+      ws.getCell('A3').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.metricsBg } };
+      ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(3).height = 20;
+
+      // FILA 4: Fecha de generación
+      ws.mergeCells('A4:G4');
+      const now = new Date();
+      ws.getCell('A4').value = `Generado: ${now.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} - ${now.toLocaleTimeString('es-CO')} | Empresa: ${empresa || 'GENERAL'}`;
+      ws.getCell('A4').font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: BRAND_COLORS.white } };
+      ws.getCell('A4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.dateBg } };
+      ws.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(4).height = 18;
+
+      // FILA 5: Vacía (separador)
+      ws.getRow(5).height = 5;
+
+      // FILA 6: Vacía (separador)
+      ws.getRow(6).height = 5;
+
+      // FILA 7: Headers de columnas
+      const headers = ['Establecimiento', 'Serial', 'NUC', 'Derechos Fijos', 'Gastos Fijos', 'Total Fijo', 'Producción'];
+      const headerCells = ['A7', 'B7', 'C7', 'D7', 'E7', 'F7', 'G7'];
+      
+      ws.getRow(7).height = 22;
+      
+      // Aplicar estilos solo a las celdas con datos
+      headers.forEach((header, index) => {
+        const cell = ws.getCell(headerCells[index]);
+        cell.value = header;
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.headerBg } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: BRAND_COLORS.borderDark } },
+          bottom: { style: 'medium', color: { argb: BRAND_COLORS.borderDark } },
+          left: { style: 'thin', color: { argb: BRAND_COLORS.borderMedium } },
+          right: { style: 'thin', color: { argb: BRAND_COLORS.borderMedium } }
+        };
+      });
+
+      // FILAS DE DATOS (desde fila 8)
+      let currentRow = 8;
+      tarifaFijaData.forEach((maquina, index) => {
+        const nucStr = String(maquina?.nuc || '').trim();
+        const infoTarifa = tarifasOficiales[nucStr] || { derechosAdicionales: 0, gastosAdicionales: 0 };
+        const derechos = Number(infoTarifa.derechosAdicionales) || 0;
+        const gastos = Number(infoTarifa.gastosAdicionales) || 0;
+        const totalFijo = derechos + gastos;
+
+        const row = ws.getRow(currentRow);
+        row.values = [
+          maquina.establecimiento || 'Sin establecimiento',
+          maquina.serial || '',
+          maquina.nuc || '',
+          derechos,
+          gastos,
+          totalFijo,
+          maquina.produccion || 0
+        ];
+
+        // Estilo de fila
+        row.font = { name: 'Segoe UI', size: 9, color: { argb: BRAND_COLORS.textDark } };
+        row.alignment = { horizontal: 'left', vertical: 'middle' };
+        row.height = 20;
+
+        // Alternar colores de fondo
+        if (index % 2 === 0) {
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAFAFA' } };
+        }
+
+        // Formato moneda para columnas numéricas
+        ['D', 'E', 'F', 'G'].forEach(col => {
+          ws.getCell(`${col}${currentRow}`).numFmt = '$#,##0';
+          ws.getCell(`${col}${currentRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+        });
+
+        // Bordes sutiles
+        ['A', 'B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
+          ws.getCell(`${col}${currentRow}`).border = {
+            bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+            left: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+            right: { style: 'thin', color: { argb: BRAND_COLORS.borderLight } }
+          };
+        });
+
+        currentRow++;
+      });
+
+      // Anchos de columna
+      ws.columns = [
+        { width: 30 }, // Establecimiento
+        { width: 15 }, // Serial
+        { width: 12 }, // NUC
+        { width: 18 }, // Derechos Fijos
+        { width: 18 }, // Gastos Fijos
+        { width: 18 }, // Total Fijo
+        { width: 18 }  // Producción
+      ];
+
+      // Freeze panes (congelar hasta fila 7)
+      ws.views = [{ state: 'frozen', ySplit: 7 }];
+
+      // Generar archivo
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const timestamp = new Date().toLocaleString('es-CO').replace(/[/:]/g, '-').replace(', ', '_');
+      const filename = `Tarifa_Fija_${empresa || 'General'}_${timestamp}.xlsx`;
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      addLog(`✅ Exportadas ${tarifaFijaData.length} máquinas con tarifa fija (Formato Python)`, 'success');
+      addNotification(`Exportadas ${tarifaFijaData.length} máquinas con tarifa fija`, 'success');
+
+      // Log de actividad
+      try {
+        await logActivity(
+          'tarifa_fija_exportada',
+          'liquidacion',
+          empresa || 'GENERAL',
+          {
+            exportFormat: 'python_professional',
+            empresa: empresa || 'GENERAL',
+            totalMaquinas: tarifaFijaData.length,
+            totalDerechos,
+            totalGastos,
+            totalImpuestos,
+            fileName: filename
+          },
+          currentUser.uid,
+          getUserDisplayName(),
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging export:', logError);
+      }
+
+    } catch (error) {
+      console.error('Error exportando tarifa fija:', error);
+      addLog(`❌ Error exportando: ${error.message}`, 'error');
+      addNotification('Error al exportar tarifa fija', 'error');
+    }
+  }, [empresa, addLog, addNotification, logActivity, currentUser, userProfile]);
+
   return {
     exportarConsolidado,
     exportarReporteSala,
     exportarReporteDiario,
-    exportarMaquinasEnCero
+    exportarMaquinasEnCero,
+    exportarTarifaFija
   };
 }
