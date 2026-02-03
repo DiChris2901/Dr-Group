@@ -43,7 +43,8 @@ import {
   FolderZip as ZipIcon,
   Visibility as VisibilityIcon,
   Download as DownloadIcon,
-  Flag as FlagIcon
+  Flag as FlagIcon,
+  FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
@@ -56,6 +57,7 @@ import JSZip from 'jszip';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import DocumentPreviewModal from '../common/DocumentPreviewModal';
+import ExcelJS from 'exceljs';
 
 /**
  * TaskProgressDialog - Sistema de bitácora/log de avances con evidencias
@@ -551,6 +553,201 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     setFiltroHorasMax('');
   };
 
+  // Función de exportación a Excel
+  const handleExportarExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Bitácora de Progreso');
+
+      // Colores del tema (DR Group branding)
+      const BRAND_COLORS = {
+        primary: 'FF667EEA',
+        secondary: 'FF764BA2',
+        accent: 'FFF093FB',
+        success: 'FF4CAF50',
+        text: 'FF2C3E50'
+      };
+
+      // FILA 1: Logo/Empresa (Merge A1:F1)
+      worksheet.mergeCells('A1:F1');
+      const logoCell = worksheet.getCell('A1');
+      logoCell.value = '🏢 DR GROUP - Sistema de Bitácora Profesional';
+      logoCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      logoCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: BRAND_COLORS.primary }
+      };
+      logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(1).height = 35;
+
+      // FILA 2: Título del Reporte
+      worksheet.mergeCells('A2:F2');
+      const titleCell = worksheet.getCell('A2');
+      titleCell.value = `Bitácora de Progreso - ${task.titulo}`;
+      titleCell.font = { size: 14, bold: true, color: { argb: BRAND_COLORS.text } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(2).height = 25;
+
+      // FILA 3: Información de la Tarea
+      worksheet.mergeCells('A3:B3');
+      worksheet.getCell('A3').value = 'Tarea:';
+      worksheet.getCell('A3').font = { bold: true };
+      worksheet.mergeCells('C3:F3');
+      worksheet.getCell('C3').value = task.titulo;
+
+      // FILA 4: Descripción
+      worksheet.mergeCells('A4:B4');
+      worksheet.getCell('A4').value = 'Descripción:';
+      worksheet.getCell('A4').font = { bold: true };
+      worksheet.mergeCells('C4:F4');
+      worksheet.getCell('C4').value = task.descripcion || 'N/A';
+
+      // FILA 5: Prioridad y Porcentaje
+      worksheet.getCell('A5').value = 'Prioridad:';
+      worksheet.getCell('A5').font = { bold: true };
+      worksheet.getCell('B5').value = task.prioridad?.toUpperCase() || 'N/A';
+      worksheet.getCell('D5').value = 'Avance:';
+      worksheet.getCell('D5').font = { bold: true };
+      worksheet.getCell('E5').value = `${task.porcentajeCompletado || 0}%`;
+
+      // FILA 6: Fecha de Exportación
+      worksheet.mergeCells('A6:F6');
+      worksheet.getCell('A6').value = `Exportado el: ${format(new Date(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}`;
+      worksheet.getCell('A6').font = { italic: true, color: { argb: 'FF666666' } };
+      worksheet.getCell('A6').alignment = { horizontal: 'right' };
+
+      // FILA 7: Espacio en blanco
+      worksheet.getRow(7).height = 10;
+
+      // FILA 8: Encabezados de la tabla
+      const headers = ['Fecha', 'Estado', 'Progreso', 'Horas', 'Comentario', 'Archivos'];
+      const headerRow = worksheet.getRow(8);
+      headers.forEach((header, index) => {
+        const cell = headerRow.getCell(index + 1);
+        cell.value = header;
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: BRAND_COLORS.secondary }
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      });
+      headerRow.height = 25;
+
+      // Datos de los logs (usando logsFiltrados para respetar filtros activos)
+      const logsParaExportar = logsFiltrados.length > 0 ? logsFiltrados : logs;
+      logsParaExportar.forEach((log, index) => {
+        const rowNum = 9 + index;
+        const row = worksheet.getRow(rowNum);
+
+        // Fecha
+        row.getCell(1).value = log.fecha ? format(log.fecha.toDate(), "dd/MM/yyyy HH:mm", { locale: es }) : 'N/A';
+        
+        // Estado
+        const estadoLabel = ESTADOS.find(e => e.value === log.estadoActual)?.label || log.estadoActual;
+        row.getCell(2).value = estadoLabel;
+        
+        // Progreso
+        row.getCell(3).value = `${log.porcentaje || 0}%`;
+        row.getCell(3).alignment = { horizontal: 'center' };
+        
+        // Horas Trabajadas
+        row.getCell(4).value = log.horasTrabajadas ? `${log.horasTrabajadas} hrs` : 'N/A';
+        row.getCell(4).alignment = { horizontal: 'center' };
+        
+        // Comentario
+        row.getCell(5).value = log.comentario || 'Sin comentarios';
+        
+        // Archivos
+        const archivosCount = log.archivos?.length || 0;
+        row.getCell(6).value = archivosCount > 0 ? `${archivosCount} archivo(s)` : 'Sin archivos';
+        row.getCell(6).alignment = { horizontal: 'center' };
+
+        // Estilo de filas alternadas
+        if (index % 2 === 0) {
+          [1, 2, 3, 4, 5, 6].forEach(colNum => {
+            row.getCell(colNum).fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF9FAFB' }
+            };
+          });
+        }
+
+        // Bordes
+        [1, 2, 3, 4, 5, 6].forEach(colNum => {
+          row.getCell(colNum).border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+        });
+
+        row.height = 20;
+      });
+
+      // Fila de Total de Horas (última fila)
+      const totalHoras = logsParaExportar.reduce((sum, log) => sum + (log.horasTrabajadas || 0), 0);
+      const lastRowNum = 9 + logsParaExportar.length;
+      worksheet.mergeCells(`A${lastRowNum}:C${lastRowNum}`);
+      const totalCell = worksheet.getCell(`A${lastRowNum}`);
+      totalCell.value = 'TOTAL DE HORAS TRABAJADAS:';
+      totalCell.font = { bold: true, size: 11, color: { argb: BRAND_COLORS.text } };
+      totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      totalCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: BRAND_COLORS.success }
+      };
+
+      const totalValueCell = worksheet.getCell(`D${lastRowNum}`);
+      totalValueCell.value = `${totalHoras.toFixed(1)} hrs`;
+      totalValueCell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      totalValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      totalValueCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: BRAND_COLORS.success }
+      };
+
+      // Ajustar anchos de columna
+      worksheet.getColumn(1).width = 18; // Fecha
+      worksheet.getColumn(2).width = 15; // Estado
+      worksheet.getColumn(3).width = 12; // Progreso
+      worksheet.getColumn(4).width = 12; // Horas
+      worksheet.getColumn(5).width = 50; // Comentario
+      worksheet.getColumn(6).width = 18; // Archivos
+
+      // Freeze panes (filas 1-8 fijas)
+      worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 8 }];
+
+      // Generar el archivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fileName = `Bitacora_${task.titulo.replace(/[^a-zA-Z0-9]/g, '_')}_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exportando a Excel:', err);
+      alert('Error al exportar a Excel. Por favor intenta nuevamente.');
+    }
+  };
+
   if (!task) return null;
 
   const getPriorityColor = (priority) => {
@@ -982,16 +1179,41 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         {/* TAB 2: Histórico */}
         {tabValue === 1 && (
           <Box>
-            <Typography variant="overline" sx={{
-              fontWeight: 600,
-              color: 'primary.main',
-              letterSpacing: 0.8,
-              fontSize: '0.75rem',
-              display: 'block',
-              mb: 3
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 3 
             }}>
-              Histórico de Registros ({logs.length})
-            </Typography>
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem'
+              }}>
+                Histórico de Registros ({logs.length})
+              </Typography>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleExportarExcel}
+                disabled={logs.length === 0}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  bgcolor: 'success.main',
+                  '&:hover': {
+                    bgcolor: 'success.dark',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+                  }
+                }}
+              >
+                Exportar Excel
+              </Button>
+            </Box>
 
             {/* Controles de Filtro */}
             <Paper
