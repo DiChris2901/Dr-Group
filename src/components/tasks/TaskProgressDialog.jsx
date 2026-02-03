@@ -71,6 +71,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [loading, setLoading] = useState(false);
   const [estado, setEstado] = useState('');
   const [comentario, setComentario] = useState('');
+  const [horasTrabajadas, setHorasTrabajadas] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [error, setError] = useState('');
   const [editingLog, setEditingLog] = useState(null);
@@ -108,6 +109,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     if (task && open) {
       setEstado(task.estado || 'pendiente');
       setComentario('');
+      setHorasTrabajadas('');
       setSelectedFiles([]);
       setError('');
       setEditingLog(null);
@@ -355,6 +357,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         porcentaje: porcentajeCalculado,
         estado,
         comentario: comentario.trim(),
+        horasTrabajadas: horasTrabajadas ? parseFloat(horasTrabajadas) : null,
         creadoPor: currentUser.uid,
         creadorNombre: currentUser.displayName || currentUser.email,
         archivos: archivosSubidos
@@ -389,6 +392,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       // Resetear formulario
       setEstado('pendiente');
       setComentario('');
+      setHorasTrabajadas('');
       setSelectedFiles([]);
       setTabValue(1); // Cambiar a pestaña de histórico
     } catch (error) {
@@ -403,6 +407,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     setEditingLog(log);
     setEstado(log.estado || 'pendiente');
     setComentario(log.comentario);
+    setHorasTrabajadas(log.horasTrabajadas || '');
     setTabValue(0);
   };
 
@@ -796,6 +801,25 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 }}
               />
 
+              {/* Horas Trabajadas */}
+              <TextField
+                fullWidth
+                type="number"
+                label="Horas Trabajadas (Opcional)"
+                placeholder="Ej: 2.5"
+                value={horasTrabajadas}
+                onChange={(e) => setHorasTrabajadas(e.target.value)}
+                inputProps={{ min: 0, step: 0.5 }}
+                disabled={!canModify}
+                sx={{ 
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+                helperText="Tiempo dedicado a esta actividad en horas"
+              />
+
               {/* Upload archivos */}
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -984,6 +1008,21 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                   }}
                                 />
                               )}
+                              {log.horasTrabajadas && (
+                                <Chip
+                                  icon={<TrendingUpIcon sx={{ fontSize: 14 }} />}
+                                  label={`${log.horasTrabajadas}h`}
+                                  size="small"
+                                  sx={{
+                                    height: 22,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    bgcolor: alpha(theme.palette.info.main, 0.12),
+                                    color: theme.palette.info.main,
+                                    border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                                  }}
+                                />
+                              )}
                             </Box>
                             <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.6, mb: 1.5 }}>
                               {log.comentario}
@@ -1093,6 +1132,55 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   </Box>
                 ))}
               </List>
+            )}
+
+            {/* Resumen de Horas Totales */}
+            {logs.length > 0 && logs.some(log => log.horasTrabajadas) && (
+              <Paper
+                elevation={0}
+                sx={{
+                  mt: 3,
+                  p: 2.5,
+                  borderRadius: 2,
+                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                  bgcolor: alpha(theme.palette.success.main, 0.08),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Avatar sx={{ 
+                    bgcolor: 'success.main',
+                    width: 40,
+                    height: 40
+                  }}>
+                    <TrendingUpIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 600, 
+                      color: 'success.main',
+                      letterSpacing: 0.8,
+                      fontSize: '0.7rem',
+                      lineHeight: 1
+                    }}>
+                      TOTAL ACUMULADO
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      Horas invertidas en esta tarea
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography variant="h4" fontWeight={700} color="success.main">
+                    {logs.reduce((sum, log) => sum + (log.horasTrabajadas || 0), 0).toFixed(1)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    horas
+                  </Typography>
+                </Box>
+              </Paper>
             )}
           </Box>
         )}
