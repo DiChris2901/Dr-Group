@@ -73,7 +73,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [loading, setLoading] = useState(false);
   const [estado, setEstado] = useState('');
   const [comentario, setComentario] = useState('');
-  const [horasTrabajadas, setHorasTrabajadas] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [error, setError] = useState('');
   const [editingLog, setEditingLog] = useState(null);
@@ -85,8 +84,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
-  const [filtroHorasMin, setFiltroHorasMin] = useState('');
-  const [filtroHorasMax, setFiltroHorasMax] = useState('');
 
   // Estados disponibles con porcentajes automáticos
   const ESTADOS = [
@@ -118,7 +115,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     if (task && open) {
       setEstado(task.estado || 'pendiente');
       setComentario('');
-      setHorasTrabajadas('');
       setSelectedFiles([]);
       setError('');
       setEditingLog(null);
@@ -366,7 +362,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         porcentaje: porcentajeCalculado,
         estado,
         comentario: comentario.trim(),
-        horasTrabajadas: horasTrabajadas ? parseFloat(horasTrabajadas) : null,
         creadoPor: currentUser.uid,
         creadorNombre: currentUser.displayName || currentUser.email,
         archivos: archivosSubidos
@@ -401,7 +396,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       // Resetear formulario
       setEstado('pendiente');
       setComentario('');
-      setHorasTrabajadas('');
       setSelectedFiles([]);
       setTabValue(1); // Cambiar a pestaña de histórico
     } catch (error) {
@@ -416,7 +410,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     setEditingLog(log);
     setEstado(log.estado || 'pendiente');
     setComentario(log.comentario);
-    setHorasTrabajadas(log.horasTrabajadas || '');
     setTabValue(0);
   };
 
@@ -528,29 +521,19 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         }
       }
 
-      // Filtro por horas trabajadas
-      if (filtroHorasMin && log.horasTrabajadas < parseFloat(filtroHorasMin)) {
-        return false;
-      }
-      if (filtroHorasMax && log.horasTrabajadas > parseFloat(filtroHorasMax)) {
-        return false;
-      }
-
       return true;
     });
   };
 
   // Calcular logs filtrados
   const logsFiltrados = getFilteredLogs();
-  const hasActiveFilters = Boolean(filtroEstado || filtroFechaDesde || filtroFechaHasta || filtroHorasMin || filtroHorasMax);
+  const hasActiveFilters = Boolean(filtroEstado || filtroFechaDesde || filtroFechaHasta);
 
   // Función para limpiar filtros
   const handleLimpiarFiltros = () => {
     setFiltroEstado('');
     setFiltroFechaDesde('');
     setFiltroFechaHasta('');
-    setFiltroHorasMin('');
-    setFiltroHorasMax('');
   };
 
   // Función de exportación a Excel
@@ -568,8 +551,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         text: 'FF2C3E50'
       };
 
-      // FILA 1: Logo/Empresa (Merge A1:F1)
-      worksheet.mergeCells('A1:F1');
+      // FILA 1: Logo/Empresa (Merge A1:E1)
+      worksheet.mergeCells('A1:E1');
       const logoCell = worksheet.getCell('A1');
       logoCell.value = '🏢 DR GROUP - Sistema de Bitácora Profesional';
       logoCell.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -582,7 +565,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       worksheet.getRow(1).height = 35;
 
       // FILA 2: Título del Reporte
-      worksheet.mergeCells('A2:F2');
+      worksheet.mergeCells('A2:E2');
       const titleCell = worksheet.getCell('A2');
       titleCell.value = `Bitácora de Progreso - ${task.titulo}`;
       titleCell.font = { size: 14, bold: true, color: { argb: BRAND_COLORS.text } };
@@ -593,14 +576,14 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       worksheet.mergeCells('A3:B3');
       worksheet.getCell('A3').value = 'Tarea:';
       worksheet.getCell('A3').font = { bold: true };
-      worksheet.mergeCells('C3:F3');
+      worksheet.mergeCells('C3:E3');
       worksheet.getCell('C3').value = task.titulo;
 
       // FILA 4: Descripción
       worksheet.mergeCells('A4:B4');
       worksheet.getCell('A4').value = 'Descripción:';
       worksheet.getCell('A4').font = { bold: true };
-      worksheet.mergeCells('C4:F4');
+      worksheet.mergeCells('C4:E4');
       worksheet.getCell('C4').value = task.descripcion || 'N/A';
 
       // FILA 5: Prioridad y Porcentaje
@@ -612,7 +595,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       worksheet.getCell('E5').value = `${task.porcentajeCompletado || 0}%`;
 
       // FILA 6: Fecha de Exportación
-      worksheet.mergeCells('A6:F6');
+      worksheet.mergeCells('A6:E6');
       worksheet.getCell('A6').value = `Exportado el: ${format(new Date(), "d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}`;
       worksheet.getCell('A6').font = { italic: true, color: { argb: 'FF666666' } };
       worksheet.getCell('A6').alignment = { horizontal: 'right' };
@@ -621,7 +604,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       worksheet.getRow(7).height = 10;
 
       // FILA 8: Encabezados de la tabla
-      const headers = ['Fecha', 'Estado', 'Progreso', 'Horas', 'Comentario', 'Archivos'];
+      const headers = ['Fecha', 'Estado', 'Progreso', 'Comentario', 'Archivos'];
       const headerRow = worksheet.getRow(8);
       headers.forEach((header, index) => {
         const cell = headerRow.getCell(index + 1);
@@ -659,21 +642,17 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         row.getCell(3).value = `${log.porcentaje || 0}%`;
         row.getCell(3).alignment = { horizontal: 'center' };
         
-        // Horas Trabajadas
-        row.getCell(4).value = log.horasTrabajadas ? `${log.horasTrabajadas} hrs` : 'N/A';
-        row.getCell(4).alignment = { horizontal: 'center' };
-        
         // Comentario
-        row.getCell(5).value = log.comentario || 'Sin comentarios';
+        row.getCell(4).value = log.comentario || 'Sin comentarios';
         
         // Archivos
         const archivosCount = log.archivos?.length || 0;
-        row.getCell(6).value = archivosCount > 0 ? `${archivosCount} archivo(s)` : 'Sin archivos';
-        row.getCell(6).alignment = { horizontal: 'center' };
+        row.getCell(5).value = archivosCount > 0 ? `${archivosCount} archivo(s)` : 'Sin archivos';
+        row.getCell(5).alignment = { horizontal: 'center' };
 
         // Estilo de filas alternadas
         if (index % 2 === 0) {
-          [1, 2, 3, 4, 5, 6].forEach(colNum => {
+          [1, 2, 3, 4, 5].forEach(colNum => {
             row.getCell(colNum).fill = {
               type: 'pattern',
               pattern: 'solid',
@@ -683,7 +662,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         }
 
         // Bordes
-        [1, 2, 3, 4, 5, 6].forEach(colNum => {
+        [1, 2, 3, 4, 5].forEach(colNum => {
           row.getCell(colNum).border = {
             top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
             left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
@@ -695,37 +674,12 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         row.height = 20;
       });
 
-      // Fila de Total de Horas (última fila)
-      const totalHoras = logsParaExportar.reduce((sum, log) => sum + (log.horasTrabajadas || 0), 0);
-      const lastRowNum = 9 + logsParaExportar.length;
-      worksheet.mergeCells(`A${lastRowNum}:C${lastRowNum}`);
-      const totalCell = worksheet.getCell(`A${lastRowNum}`);
-      totalCell.value = 'TOTAL DE HORAS TRABAJADAS:';
-      totalCell.font = { bold: true, size: 11, color: { argb: BRAND_COLORS.text } };
-      totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
-      totalCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: BRAND_COLORS.success }
-      };
-
-      const totalValueCell = worksheet.getCell(`D${lastRowNum}`);
-      totalValueCell.value = `${totalHoras.toFixed(1)} hrs`;
-      totalValueCell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      totalValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      totalValueCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: BRAND_COLORS.success }
-      };
-
       // Ajustar anchos de columna
       worksheet.getColumn(1).width = 18; // Fecha
       worksheet.getColumn(2).width = 15; // Estado
       worksheet.getColumn(3).width = 12; // Progreso
-      worksheet.getColumn(4).width = 12; // Horas
-      worksheet.getColumn(5).width = 50; // Comentario
-      worksheet.getColumn(6).width = 18; // Archivos
+      worksheet.getColumn(4).width = 55; // Comentario
+      worksheet.getColumn(5).width = 18; // Archivos
 
       // Freeze panes (filas 1-8 fijas)
       worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 8 }];
@@ -1053,25 +1007,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 }}
               />
 
-              {/* Horas Trabajadas */}
-              <TextField
-                fullWidth
-                type="number"
-                label="Horas Trabajadas (Opcional)"
-                placeholder="Ej: 2.5"
-                value={horasTrabajadas}
-                onChange={(e) => setHorasTrabajadas(e.target.value)}
-                inputProps={{ min: 0, step: 0.5 }}
-                disabled={!canModify}
-                sx={{ 
-                  mb: 3,
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
-                  }
-                }}
-                helperText="Tiempo dedicado a esta actividad en horas"
-              />
-
               {/* Upload archivos */}
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1271,28 +1206,8 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   />
                 </Box>
 
-                {/* Fila 2: Horas Trabajadas */}
+                {/* Botón de limpiar filtros */}
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <TextField
-                    size="small"
-                    type="number"
-                    label="Horas Mínimas"
-                    value={filtroHorasMin}
-                    onChange={(e) => setFiltroHorasMin(e.target.value)}
-                    inputProps={{ min: 0, step: 0.5 }}
-                    sx={{ minWidth: 130, flex: 1 }}
-                  />
-
-                  <TextField
-                    size="small"
-                    type="number"
-                    label="Horas Máximas"
-                    value={filtroHorasMax}
-                    onChange={(e) => setFiltroHorasMax(e.target.value)}
-                    inputProps={{ min: 0, step: 0.5 }}
-                    sx={{ minWidth: 130, flex: 1 }}
-                  />
-
                   <Button
                     variant="outlined"
                     size="small"
@@ -1416,21 +1331,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                                   }}
                                 />
                               )}
-                              {log.horasTrabajadas && (
-                                <Chip
-                                  icon={<TrendingUpIcon sx={{ fontSize: 14 }} />}
-                                  label={`${log.horasTrabajadas}h`}
-                                  size="small"
-                                  sx={{
-                                    height: 22,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 600,
-                                    bgcolor: alpha(theme.palette.info.main, 0.12),
-                                    color: theme.palette.info.main,
-                                    border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
-                                  }}
-                                />
-                              )}
                             </Box>
                             <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.6, mb: 1.5 }}>
                               {log.comentario}
@@ -1540,55 +1440,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   </Box>
                 ))}
               </List>
-            )}
-
-            {/* Resumen de Horas Totales */}
-            {logsFiltrados.length > 0 && logsFiltrados.some(log => log.horasTrabajadas) && (
-              <Paper
-                elevation={0}
-                sx={{
-                  mt: 3,
-                  p: 2.5,
-                  borderRadius: 2,
-                  border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                  bgcolor: alpha(theme.palette.success.main, 0.08),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Avatar sx={{ 
-                    bgcolor: 'success.main',
-                    width: 40,
-                    height: 40
-                  }}>
-                    <TrendingUpIcon />
-                  </Avatar>
-                  <Box>
-                    <Typography variant="overline" sx={{ 
-                      fontWeight: 600, 
-                      color: 'success.main',
-                      letterSpacing: 0.8,
-                      fontSize: '0.7rem',
-                      lineHeight: 1
-                    }}>
-                      TOTAL {hasActiveFilters ? 'FILTRADO' : 'ACUMULADO'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                      {hasActiveFilters ? 'Horas en registros filtrados' : 'Horas invertidas en esta tarea'}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h4" fontWeight={700} color="success.main">
-                    {logsFiltrados.reduce((sum, log) => sum + (log.horasTrabajadas || 0), 0).toFixed(1)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                    horas
-                  </Typography>
-                </Box>
-              </Paper>
             )}
           </Box>
         )}
