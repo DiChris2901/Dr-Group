@@ -1964,8 +1964,9 @@ const UserManagementPage = () => {
                                   !subPermKeys.includes(p)
                                 );
                               } else {
-                                // Activar: Agregar permiso padre
-                                newPermissions = [...formData.permissions.filter(p => !p.startsWith(`${permission.key}.`)), permission.key];
+                                // Activar: Agregar permiso padre Y TODOS los sub-permisos
+                                const subPermKeys = permission.subPermissions.map(sp => sp.key);
+                                newPermissions = [...formData.permissions.filter(p => !p.startsWith(`${permission.key}.`)), permission.key, ...subPermKeys];
                               }
                               updateFormData({ permissions: newPermissions });
                             } : undefined}
