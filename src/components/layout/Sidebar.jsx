@@ -1346,7 +1346,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 fontSize: '0.65rem',
                 mb: 1.5
               }}>
-                v3.8.1 • Feb 2026
+                v3.9.0 • Feb 2026
               </Typography>
               
               {/* Estado del sistema mejorado */}

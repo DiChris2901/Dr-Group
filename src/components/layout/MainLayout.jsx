@@ -19,7 +19,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../context/SettingsContext';
 import { useNotificationSystem } from '../../hooks/useNotificationSystem';
-import FloatingChatButton from '../chat/FloatingChatButton';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import { AdvancedSettingsDrawer } from '../settings';
 import Sidebar from './Sidebar';
@@ -331,9 +330,6 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
         open={settingsOpen} 
         onClose={() => setSettingsOpen(false)} 
       />
-
-      {/* Botón flotante de chat - Visible en todas las páginas */}
-      <FloatingChatButton />
 
       {/* Taskbar Horizontal - Navegación estilo Windows */}
       {showTaskbarComponent && <Taskbar />}

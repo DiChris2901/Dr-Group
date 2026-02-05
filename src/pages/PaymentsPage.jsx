@@ -100,7 +100,6 @@ import { PDFDocument } from 'pdf-lib';
 
 // Hook para cargar pagos desde Firebase
 import { usePayments, useCommitments } from '../hooks/useFirestore';
-import ShareToChat from '../components/common/ShareToChat';
 // Firebase para manejo de archivos y Firestore
 import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs, where, deleteField } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -160,10 +159,6 @@ const PaymentsPage = () => {
   // Estados para menú contextual de acciones
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [currentPayment, setCurrentPayment] = useState(null);
-  
-  // Estados para compartir al chat
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [paymentToShare, setPaymentToShare] = useState(null);
   
   // Estados para modal de gestión de comprobantes
   const [receiptManagementOpen, setReceiptManagementOpen] = useState(false);
@@ -1011,16 +1006,7 @@ useEffect(() => {
     }
   };
   
-  // 📤 Handlers para compartir al chat
-  const handleSharePayment = (payment) => {
-    setPaymentToShare(payment);
-    setShareDialogOpen(true);
-  };
 
-  const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
-    setPaymentToShare(null);
-  };
 
   const handleOpenReceiptManagement = (payment) => {
     setCurrentPayment(payment);
@@ -4815,20 +4801,6 @@ useEffect(() => {
           />
         </ListItemButton>
 
-        {/* Compartir al chat */}
-        <ListItemButton onClick={() => {
-          handleSharePayment(currentPayment);
-          handleActionMenuClose();
-        }}>
-          <ListItemIcon>
-            <Share sx={{ color: 'success.main' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Compartir en chat"
-            primaryTypographyProps={{ fontSize: '0.9rem' }}
-          />
-        </ListItemButton>
-
         {/* Divider antes de gestión de comprobantes */}
         {currentPayment?.attachments?.length > 0 && <Divider sx={{ my: 0.5 }} />}
 
@@ -5213,14 +5185,6 @@ useEffect(() => {
         </DialogActions>
       </Dialog>
 
-      {/* 📤 Dialog para compartir al chat */}
-      <ShareToChat
-        open={shareDialogOpen}
-        onClose={handleCloseShareDialog}
-        entity={paymentToShare}
-        entityType="payment"
-        entityName="pago"
-      />
     </Box>
   );
 };

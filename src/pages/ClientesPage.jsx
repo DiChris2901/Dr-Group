@@ -42,7 +42,6 @@ import {
   WhatsApp as WhatsAppIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
-  Share as ShareIcon,
   Edit as EditIcon,
   Save as SaveIcon,
   Close as CloseIcon
@@ -60,7 +59,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { exportarClientesSpectacular } from '../utils/clientesExcelExportSpectacular';
-import ShareToChat from '../components/common/ShareToChat';
 
 const ClientesPage = () => {
   const theme = useTheme();
@@ -74,10 +72,6 @@ const ClientesPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [expandedRows, setExpandedRows] = useState(new Set());
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [clienteToShare, setClienteToShare] = useState(null);
-  const [shareAdminDialogOpen, setShareAdminDialogOpen] = useState(false);
-  const [adminToShare, setAdminToShare] = useState(null);
   
   // Estados para edición de clientes
   const [editClienteDialogOpen, setEditClienteDialogOpen] = useState(false);
@@ -231,31 +225,7 @@ const ClientesPage = () => {
     }
   };
 
-  // Handlers para Share to Chat
-  const handleShareCliente = (cliente) => {
-    setClienteToShare(cliente);
-    setShareDialogOpen(true);
-  };
 
-  const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
-    setClienteToShare(null);
-  };
-
-  const handleShareAdmin = (admin) => {
-    // Agregar ID único basado en el nombre (para metadata de Firestore)
-    const adminWithId = {
-      ...admin,
-      id: admin.nombre.toLowerCase().replace(/\s+/g, '_')
-    };
-    setAdminToShare(adminWithId);
-    setShareAdminDialogOpen(true);
-  };
-
-  const handleCloseShareAdminDialog = () => {
-    setShareAdminDialogOpen(false);
-    setAdminToShare(null);
-  };
 
   // ============================================
   // EDICIÓN DE CLIENTES
@@ -857,21 +827,6 @@ const ClientesPage = () => {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Compartir en chat" arrow>
-                          <IconButton 
-                            onClick={() => handleShareCliente(cliente)}
-                            sx={{
-                              bgcolor: alpha(theme.palette.info.main, 0.1),
-                              color: theme.palette.info.main,
-                              '&:hover': {
-                                bgcolor: alpha(theme.palette.info.main, 0.2)
-                              }
-                            }}
-                            size="small"
-                          >
-                            <ShareIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
                         <IconButton 
                           onClick={() => {
                             setSelectedCliente(cliente);
@@ -1069,21 +1024,6 @@ const ClientesPage = () => {
                                     <EditIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Compartir administrador en chat" arrow>
-                                  <IconButton 
-                                    onClick={() => handleShareAdmin(admin)}
-                                    sx={{
-                                      bgcolor: alpha(theme.palette.info.main, 0.1),
-                                      color: theme.palette.info.main,
-                                      '&:hover': {
-                                        bgcolor: alpha(theme.palette.info.main, 0.2)
-                                      }
-                                    }}
-                                    size="small"
-                                  >
-                                    <ShareIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
                                 {admin.telefono && (
                                   <IconButton 
                                     onClick={() => {
@@ -1254,23 +1194,7 @@ const ClientesPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog para compartir cliente al chat */}
-      <ShareToChat
-        open={shareDialogOpen}
-        onClose={handleCloseShareDialog}
-        entity={clienteToShare}
-        entityType="client"
-        entityName="cliente"
-      />
 
-      {/* Dialog para compartir administrador al chat */}
-      <ShareToChat
-        open={shareAdminDialogOpen}
-        onClose={handleCloseShareAdminDialog}
-        entity={adminToShare}
-        entityType="administrator"
-        entityName="administrador"
-      />
 
       {/* ============================================ */}
       {/* MODAL DE EDICIÓN DE CLIENTE */}

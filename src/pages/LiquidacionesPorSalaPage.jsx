@@ -50,12 +50,10 @@ import {
   PictureAsPdf as PdfIcon,
   Close as CloseIcon,
   Info as InfoIcon,
-  Delete as DeleteIcon,
-  Share as ShareIcon
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
-import ShareToChat from '../components/common/ShareToChat';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getDocs, limit } from 'firebase/firestore';
@@ -84,8 +82,6 @@ const LiquidacionesPorSalaPage = () => {
   const [dialogDetalles, setDialogDetalles] = useState({ open: false, liquidacion: null });
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
   const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [liquidacionToShare, setLiquidacionToShare] = useState(null);
   
   // Estados de paginación
   const [page, setPage] = useState(0);
@@ -777,16 +773,7 @@ const LiquidacionesPorSalaPage = () => {
     }
   };
 
-  // 📤 HANDLERS DE SHARE TO CHAT
-  const handleShareLiquidacion = (liquidacion) => {
-    setLiquidacionToShare(liquidacion);
-    setShareDialogOpen(true);
-  };
 
-  const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
-    setLiquidacionToShare(null);
-  };
 
   const guardarEdicionLiquidacion = async () => {
     try {
@@ -1725,19 +1712,6 @@ const LiquidacionesPorSalaPage = () => {
                                 </IconButton>
                               </Tooltip>
                             )}
-                            
-                            <Tooltip title="Compartir en chat">
-                              <IconButton 
-                                size="small"
-                                onClick={() => handleShareLiquidacion(liquidacion)}
-                                sx={{
-                                  color: 'info.main',
-                                  '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
-                                }}
-                              >
-                                <ShareIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
                             
                             <Tooltip title="Editar liquidación">
                               <IconButton 
@@ -3031,13 +3005,6 @@ const LiquidacionesPorSalaPage = () => {
         </Dialog>
 
       {/* 📤 MODAL DE SHARE TO CHAT */}
-      <ShareToChat
-        open={shareDialogOpen}
-        onClose={handleCloseShareDialog}
-        entity={liquidacionToShare}
-        entityType="liquidacion"
-        entityName="liquidación"
-      />
     </Box>
   );
 };

@@ -83,7 +83,6 @@ import {
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
-import ShareToChat from '../common/ShareToChat';
 import { getDateRangeFromFilter } from '../payments/DateRangeFilter';
 import { isValid } from 'date-fns';
 
@@ -426,8 +425,6 @@ const CommitmentsList = ({
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [commitmentToShare, setCommitmentToShare] = useState(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [viewerSize, setViewerSize] = useState('normal');
   const [autoOpenPdfViewer, setAutoOpenPdfViewer] = useState(false);
@@ -1080,17 +1077,6 @@ const CommitmentsList = ({
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedCommitment(null);
-  };
-
-  // Manejar apertura del dialog de compartir
-  const handleShareCommitment = (commitment) => {
-    setCommitmentToShare(commitment);
-    setShareDialogOpen(true);
-  };
-
-  const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
-    setCommitmentToShare(null);
   };
 
   // Funciones para el menú contextual de acciones
@@ -2652,15 +2638,6 @@ const CommitmentsList = ({
                             <Delete />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Compartir en chat" arrow>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleShareCommitment(commitment)}
-                            sx={{ color: 'info.main' }}
-                          >
-                            <Share />
-                          </IconButton>
-                        </Tooltip>
                       </>
                     ) : (
                       <>
@@ -2694,13 +2671,6 @@ const CommitmentsList = ({
                           sx={{ color: 'error.main' }}
                         >
                           <Delete />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => handleShareCommitment(commitment)}
-                          sx={{ color: 'info.main' }}
-                        >
-                          <Share />
                         </IconButton>
                       </>
                     )}
@@ -4283,15 +4253,6 @@ const CommitmentsList = ({
       </>
       )}
 
-      {/* Dialog para compartir compromiso al chat */}
-      <ShareToChat
-        open={shareDialogOpen}
-        onClose={handleCloseShareDialog}
-        entity={commitmentToShare}
-        entityType="commitment"
-        entityName="Compromiso"
-      />
-
       {/* Menú contextual de acciones */}
       <Menu
         anchorEl={actionMenuAnchor}
@@ -4350,20 +4311,6 @@ const CommitmentsList = ({
           </ListItemIcon>
           <ListItemText 
             primary="Editar"
-            primaryTypographyProps={{ fontSize: '0.9rem' }}
-          />
-        </ListItemButton>
-
-        {/* Compartir en chat */}
-        <ListItemButton onClick={() => {
-          handleShareCommitment(currentCommitment);
-          handleActionMenuClose();
-        }}>
-          <ListItemIcon>
-            <Share sx={{ color: 'info.main' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Compartir en chat"
             primaryTypographyProps={{ fontSize: '0.9rem' }}
           />
         </ListItemButton>

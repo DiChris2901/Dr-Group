@@ -48,7 +48,6 @@ import {
     Receipt,
     Restore,
     Search,
-    Share as ShareIcon,
     Timeline,
     Visibility
 } from '@mui/icons-material';
@@ -57,9 +56,8 @@ import { endOfMonth, endOfYear, startOfMonth, startOfYear, subMonths } from 'dat
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { motion } from 'framer-motion';
-import ShareToChat from '../components/common/ShareToChat';
-import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
 import { db, storage } from '../config/firebase';
+import HistoricoPeriodoFilter from '../components/liquidaciones/HistoricoPeriodoFilter';
 import { isSystemUser } from '../config/systemUsers';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -100,8 +98,6 @@ const LiquidacionesHistorialPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [liquidacionToDelete, setLiquidacionToDelete] = useState(null); // Estado específico para eliminación
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [liquidacionToShare, setLiquidacionToShare] = useState(null);
 
   // Función para cargar usuarios desde Firebase
   const cargarUsuarios = async () => {
@@ -617,17 +613,7 @@ const LiquidacionesHistorialPage = () => {
     setAnchorEl(null); // Solo cerrar el menú, pero mantener la selección
   };
 
-  // Handlers para Share to Chat
-  const handleShareLiquidacion = () => {
-    setLiquidacionToShare(selectedLiquidacion);
-    setShareDialogOpen(true);
-    handleMenuClose();
-  };
 
-  const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
-    setLiquidacionToShare(null);
-  };
 
   // Cerrar modal de detalle
   const cerrarModalDetalle = () => {
@@ -1624,9 +1610,6 @@ const LiquidacionesHistorialPage = () => {
         <MenuItem onClick={descargarLiquidacion}>
           <CloudDownload sx={{ mr: 1 }} /> Descargar
         </MenuItem>
-        <MenuItem onClick={handleShareLiquidacion}>
-          <ShareIcon sx={{ mr: 1 }} /> Compartir en chat
-        </MenuItem>
         <MenuItem onClick={eliminarLiquidacion} sx={{ color: 'error.main' }}>
           <Delete sx={{ mr: 1 }} /> Eliminar
         </MenuItem>
@@ -2227,13 +2210,6 @@ const LiquidacionesHistorialPage = () => {
       </Dialog>
 
       {/* Dialog para compartir al chat */}
-      <ShareToChat
-        open={shareDialogOpen}
-        onClose={handleCloseShareDialog}
-        entity={liquidacionToShare}
-        entityType="liquidacion"
-        entityName="liquidación"
-      />
     </Container>
   );
 };
