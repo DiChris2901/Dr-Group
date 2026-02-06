@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db, database } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { ref, set, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { clearAllListeners } from '../utils/listenerManager';
 import { useUserPresence } from '../hooks/useUserPresence';
@@ -410,85 +410,72 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Cargar perfil del usuario desde Firestore
-  const loadUserProfile = async (user) => {
-    try {
-      // Primero intentar buscar por UID
-      let userDocRef = doc(db, 'users', user.uid);
-      let userDoc = await getDoc(userDocRef);
-      
-      if (userDoc.exists()) {
-        setUserProfile({
-          uid: user.uid,
-          email: user.email,
-          ...userDoc.data()
-        });
-        return;
-      }
-      
-      // Si no se encuentra por UID, buscar por email
-      const userByEmail = await getUserByEmail(user.email);
-      
-      if (userByEmail) {
-        console.log('✅ Perfil encontrado por email:', userByEmail);
-        setUserProfile({
-          uid: user.uid,
-          email: user.email,
-          ...userByEmail
-        });
-        return;
-      }
-      
-      // Usuario no tiene perfil en Firestore, crearlo automáticamente
-      console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
-      
-      const baseUserData = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
-        role: 'viewer', // Rol por defecto
-        status: 'active',
-        companies: [],
-        permissions: {
-          dashboard: true,
-          commitments: false,
-          users: false,
-          reports: false,
-          settings: false
-        },
-        theme: {
-          darkMode: false,
-          primaryColor: '#1976d2',
-          secondaryColor: '#dc004e'
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastLogin: new Date()
-      };
-      
-      await setDoc(userDocRef, baseUserData);
-      console.log('✅ Documento de usuario creado automáticamente');
-      
-      setUserProfile({
-        uid: user.uid,
-        email: user.email,
-        ...baseUserData
-      });
-      
-    } catch (error) {
-      console.error('❌ Error cargando perfil del usuario:', error);
-      setError('Error cargando datos del usuario');
-    }
-  };
-
   // Escuchar cambios en el estado de autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       
       if (user) {
-        await loadUserProfile(user);
+        // 🔥 LISTENER EN TIEMPO REAL para el perfil del usuario
+        // Esto actualiza automáticamente cuando cambien permisos en Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        
+        const unsubscribeProfile = onSnapshot(userDocRef, async (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            console.log('🔄 Perfil actualizado en tiempo real:', docSnapshot.data());
+            setUserProfile({
+              uid: user.uid,
+              email: user.email,
+              ...docSnapshot.data()
+            });
+          } else {
+            // Usuario sin perfil en Firestore, crearlo automáticamente
+            console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
+            
+            const baseUserData = {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName || '',
+              photoURL: user.photoURL || '',
+              role: 'viewer',
+              status: 'active',
+              companies: [],
+              permissions: {
+                dashboard: true,
+                commitments: false,
+                users: false,
+                reports: false,
+                settings: false
+              },
+              theme: {
+                darkMode: false,
+                primaryColor: '#1976d2',
+                secondaryColor: '#dc004e'
+              },
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              lastLogin: new Date()
+            };
+            
+            await setDoc(userDocRef, baseUserData);
+            console.log('✅ Documento de usuario creado automáticamente');
+            
+            setUserProfile({
+              uid: user.uid,
+              email: user.email,
+              ...baseUserData
+            });
+          }
+        }, (error) => {
+          console.error('❌ Error en listener de perfil:', error);
+          setError('Error cargando datos del usuario');
+        });
+        
+        // Retornar función de limpieza para el listener del perfil
+        return () => {
+          console.log('🧹 Limpiando listener de perfil de usuario');
+          unsubscribeProfile();
+        };
       } else {
         // 🧹 Limpiar listeners cuando el usuario se desautentica
         console.log('🧹 Usuario desautenticado, limpiando listeners...');
