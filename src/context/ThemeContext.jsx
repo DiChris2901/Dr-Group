@@ -252,7 +252,7 @@ const getTheme = (settings = {}) => {
 };
 
 export const CustomThemeProvider = ({ children }) => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, loading: settingsLoading } = useSettings();
   const [currentTheme, setCurrentTheme] = useState(null);
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     window.matchMedia('(prefers-color-scheme: dark)').matches

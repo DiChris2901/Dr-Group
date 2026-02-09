@@ -74,12 +74,35 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   const { settings } = useSettings();
   const { currentUser, userProfile: firestoreProfile } = useAuth();
   
+  // 🎨 CRÍTICO: Intentar cargar foto desde caché localStorage si firestoreProfile no está listo
+  const getCachedPhoto = () => {
+    if (firestoreProfile?.photoURL) {
+      return firestoreProfile.photoURL;
+    }
+    
+    // Intentar desde caché localStorage
+    try {
+      const cached = localStorage.getItem('drgroup-userProfile');
+      if (cached) {
+        const parsedProfile = JSON.parse(cached);
+        if (parsedProfile?.photoURL) {
+          return parsedProfile.photoURL;
+        }
+      }
+    } catch (error) {
+      console.warn('Error leyendo photoURL desde cache:', error);
+    }
+    
+    // Fallback a Auth o default
+    return currentUser?.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&h=256&q=80';
+  };
+  
   // User profile data from Firebase Auth y Firestore
   const userProfile = {
     name: firestoreProfile?.name || currentUser?.displayName || 'Diego Rueda',
     email: firestoreProfile?.email || currentUser?.email || 'diego@drgroup.com',
     role: firestoreProfile?.role || 'ADMIN',
-    photoURL: firestoreProfile?.photoURL || currentUser?.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&h=256&q=80' // Prioridad: Firestore -> Auth -> Prueba
+    photoURL: getCachedPhoto() // ✅ Prioridad: Firestore → localStorage → Auth → Default
   };
   
   const [openSubmenu, setOpenSubmenu] = useState({});
@@ -1346,10 +1369,10 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 fontSize: '0.65rem',
                 mb: 1.5
               }}>
-                v3.9.0 • Feb 2026
+                v3.9.1 • Feb 2026
               </Typography>
               
-              {/* Estado del sistema mejorado */}
+              {/* Estado del sistema mejorado */
               <Box sx={{ 
                 display: 'inline-flex',
                 alignItems: 'center',

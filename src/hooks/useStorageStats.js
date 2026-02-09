@@ -17,7 +17,7 @@ export const useStorageStats = () => {
   });
 
   useEffect(() => {
-    // 🔒 VALIDACIÓN CRÍTICA: No ejecutar NADA si no hay usuario autenticado
+    //  VALIDACIÓN CRÍTICA: No ejecutar NADA si no hay usuario autenticado
     if (!currentUser) {
       // console.log('🔒 useStorageStats: Sin usuario, no se ejecuta');
       setStorageData(prev => ({ 
@@ -240,12 +240,13 @@ export const useStorageStats = () => {
           }
           
         } catch (folderError) {
-          console.warn(`⚠️ Error accediendo a carpeta ${folderName}:`, folderError.code || folderError.message);
-          // Si es error de permisos (403), informar pero continuar
+          // 🔒 Error 403: Token de auth no renovado aún (común en Ctrl+R con caché)
           if (folderError.code === 'storage/unauthorized') {
-            console.log(`ℹ️ Sin permisos para listar ${folderName}, omitiendo...`);
+            console.log(`⏳ [StorageStats] Token no renovado aún para carpeta "${folderName}", omitiendo...`);
+          } else {
+            console.warn(`⚠️ Error accediendo a carpeta ${folderName}:`, folderError.code || folderError.message);
           }
-          // Continúa con la siguiente carpeta sin fallar
+          // Continuar con siguiente carpeta
         }
       }
 

@@ -490,7 +490,24 @@ const backgroundPresets = {
 
 const SettingsProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [settings, setSettings] = useState(defaultSettings);
+  
+  // 🎨 CRÍTICO: Inicializar con localStorage si existe (evita flash de colores por defecto)
+  const getInitialSettings = () => {
+    try {
+      const savedSettings = localStorage.getItem('drgroup-settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        console.log('⚡ [SETTINGS] Estado inicial desde localStorage (caché rápido)');
+        return { ...defaultSettings, ...parsed };
+      }
+    } catch (error) {
+      console.error('❌ [SETTINGS] Error parseando localStorage inicial:', error);
+    }
+    console.log('⚡ [SETTINGS] localStorage vacío, usando defaults (cookies borradas o primera vez)');
+    return defaultSettings;
+  };
+  
+  const [settings, setSettings] = useState(getInitialSettings);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -579,28 +596,22 @@ const SettingsProvider = ({ children }) => {
           console.log('💾 [SETTINGS] Configuraciones guardadas en localStorage');
           console.log('✅ [SETTINGS] Colores aplicados:', mergedSettings.theme);
         } else {
-          console.log('⚠️ [SETTINGS] No hay configuraciones en userSettings, creando con colores del perfil');
+          console.log('⚠️ [SETTINGS] No hay configuraciones en userSettings');
+          console.log('ℹ️ [SETTINGS] Usando colores del perfil + defaults en memoria (NO se guarda en Firestore)');
           
-          // 🎨 Crear userSettings usando colores de users/{uid}/theme (NO defaults genéricos)
-          const settingsToCreate = {
+          // 🎨 Usar colores de users/{uid}/theme + defaults EN MEMORIA (NO crear documento)
+          const settingsWithNotifications = {
             ...defaultSettings,
             theme: { 
               ...defaultSettings.theme, 
               ...userTheme  // Usar colores existentes del perfil
             },
-            createdAt: new Date(),
-            lastUpdated: new Date()
-          };
-          
-          await setDoc(userSettingsRef, settingsToCreate);
-          
-          const settingsWithNotifications = {
-            ...settingsToCreate,
             notificationSettings: notificationSettings
           };
+          
           setSettings(settingsWithNotifications);
           localStorage.setItem('drgroup-settings', JSON.stringify(settingsWithNotifications));
-          console.log('✅ [SETTINGS] Configuraciones creadas con colores del perfil:', settingsToCreate.theme);
+          console.log('✅ [SETTINGS] Configuraciones con colores del perfil:', settingsWithNotifications.theme);
         }
       } catch (error) {
         console.error('❌ [SETTINGS] Error cargando desde Firestore:', error);
@@ -749,11 +760,12 @@ const SettingsProvider = ({ children }) => {
           console.log('✅ [SETTINGS] Colores sincronizados en users/{uid}');
         }
         
-        // 🔄 LUEGO actualizar userSettings/{uid} (esto disparará el listener)
-        await updateDoc(userSettingsRef, {
+        // 🔄 LUEGO crear/actualizar userSettings/{uid} (esto disparará el listener)
+        // Usar setDoc con merge:true para crear si no existe
+        await setDoc(userSettingsRef, {
           ...firestoreData,
           lastUpdated: new Date()
-        });
+        }, { merge: true });
         console.log('✅ [SETTINGS] Configuraciones guardadas en userSettings/{uid}');
       }
     } catch (error) {
@@ -878,8 +890,9 @@ const SettingsProvider = ({ children }) => {
         });
         console.log('✅ [THEME] Colores sincronizados en users/{uid}:', predefinedTheme.name);
         
-        // 🔄 LUEGO actualizar userSettings/{uid} (esto disparará el listener)
-        await updateDoc(userSettingsRef, {
+        // 🔄 LUEGO crear/actualizar userSettings/{uid} (esto disparará el listener)
+        // Usar setDoc con merge:true para crear si no existe
+        await setDoc(userSettingsRef, {
           ...newSettings,
           lastUpdated: new Date(),
           appliedTheme: {
@@ -887,7 +900,7 @@ const SettingsProvider = ({ children }) => {
             name: predefinedTheme.name,
             appliedAt: new Date()
           }
-        });
+        }, { merge: true });
         console.log('✅ [THEME] Configuraciones completas guardadas en userSettings/{uid}');
       }
 

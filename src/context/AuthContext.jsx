@@ -1,7 +1,7 @@
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, serverTimestamp as rtdbServerTimestamp, set } from 'firebase/database';
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { auth, database, db } from '../config/firebase';
 import { useUserPresence } from '../hooks/useUserPresence';
 import { clearAllListeners } from '../utils/listenerManager';
@@ -74,11 +74,62 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // 🎨 CRÍTICO: Inicializar userProfile con caché para evitar flash de foto por defecto
+  const getInitialUserProfile = () => {
+    try {
+      const cached = localStorage.getItem('drgroup-userProfile');
+      if (cached) {
+        const profile = JSON.parse(cached);
+        console.log('⚡ [INIT] Perfil cargado desde caché en inicialización (sin flash)');
+        return profile;
+      }
+    } catch (error) {
+      console.error('❌ [INIT] Error leyendo perfil inicial:', error);
+    }
+    return null;
+  };
+  
   const [currentUser, setCurrentUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
+  const [userProfile, setUserProfile] = useState(getInitialUserProfile); // ⚡ Inicializar con caché
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // 🎯 Ref para detectar cambios reales de estado de autenticación
+  const prevUserRef = useRef(undefined); // undefined = no inicializado
 
+  // Activar sistema de presencia para el usuario actual
+  useUserPresence(currentUser?.uid);
+
+  // 💾 Funciones helper para caché de userProfile en localStorage
+  const saveUserProfileToCache = (profile) => {
+    try {
+      localStorage.setItem('drgroup-userProfile', JSON.stringify(profile));
+      console.log('💾 [CACHE] Perfil guardado en localStorage');
+    } catch (error) {
+      console.error('❌ [CACHE] Error guardando perfil:', error);
+    }
+  };
+
+  const loadUserProfileFromCache = (userId) => {
+    try {
+      const cached = localStorage.getItem('drgroup-userProfile');
+      if (cached) {
+        const profile = JSON.parse(cached);
+        // Verificar que el caché es del usuario correcto
+        if (profile.uid === userId) {
+          console.log('⚡ [CACHE] Perfil cargado desde localStorage (instantáneo)');
+          return profile;
+        } else {
+          console.log('⚠️ [CACHE] Perfil en caché es de otro usuario, ignorando');
+          localStorage.removeItem('drgroup-userProfile');
+        }
+      }
+    } catch (error) {
+      console.error('❌ [CACHE] Error leyendo perfil:', error);
+    }
+    return null;
+  };
+  
   // Activar sistema de presencia para el usuario actual
   useUserPresence(currentUser?.uid);
 
@@ -239,6 +290,9 @@ export const AuthProvider = ({ children }) => {
 
       await signOut(auth);
       setUserProfile(null);
+      
+      // ✅ El listener onAuthStateChanged limpiará localStorage automáticamente
+      console.log('✅ Logout completado, listener limpiará caché automáticamente');
     } catch (error) {
       setError(error.message);
       throw error;
@@ -413,6 +467,27 @@ export const AuthProvider = ({ children }) => {
   // Escuchar cambios en el estado de autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const prevUser = prevUserRef.current;
+      
+      // 🎯 LÓGICA CORRECTA: Solo limpiar localStorage en cambio real de estado
+      if (prevUser !== undefined) { // Ignorar primera inicialización
+        if (prevUser !== null && user === null) {
+          // 🧹 Verdadero LOGOUT: Usuario estaba autenticado y ahora no
+          console.log('🧹 Logout detectado (usuario → null), limpiando localStorage');
+          localStorage.removeItem('drgroup-settings');
+          localStorage.removeItem('drgroup-userProfile');
+          console.log('✅ Cache limpiada (settings + profile), próximo login descargará desde Firestore');
+        } else if (prevUser === null && user !== null) {
+          // 🎉 LOGIN: Usuario se autenticó
+          console.log('🎉 Login detectado (null → usuario), localStorage se actualizará desde Firestore');
+        }
+      } else {
+        // Primera inicialización, no hacer nada
+        console.log('⚡ Inicialización de Auth (primera vez)');
+      }
+      
+      // Actualizar refs y estado
+      prevUserRef.current = user;
       setCurrentUser(user);
       setLoading(false);
     });
@@ -429,65 +504,54 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    console.log('🔄 [PROFILE] Iniciando carga de perfil para:', currentUser.uid);
     const userDocRef = doc(db, 'users', currentUser.uid);
     
-    // ✅ SOLUCIÓN: Cargar documento PRIMERO con getDoc antes del listener
-    // Esto evita race conditions donde onSnapshot dice "no existe" antes de cargar
+    // ⚡ PASO 1: Cargar desde localStorage PRIMERO (instantáneo, sin lag)
+    const cachedProfile = loadUserProfileFromCache(currentUser.uid);
+    if (cachedProfile) {
+      console.log('⚡ [PROFILE] Usando caché, setUserProfile inmediatamente');
+      setUserProfile(cachedProfile);
+      console.log('🖼️ [CACHE] Foto y permisos cargados instantáneamente');
+    } else {
+      console.log('⚠️ [PROFILE] No hay caché, esperando Firestore...');
+    }
+    
+    // 🔄 PASO 2: Actualizar desde Firestore en background
     const initializeUserProfile = async () => {
       try {
         const docSnapshot = await getDoc(userDocRef);
         
         if (!docSnapshot.exists()) {
-          // REALMENTE no existe, crear uno nuevo
-          console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
+          // 🚨 CRÍTICO: NO crear documento automáticamente (puede sobrescribir datos reales)
+          console.error('❌ [AUTH] Perfil de usuario NO existe en Firestore:', currentUser.uid);
+          console.error('❌ [AUTH] Email:', currentUser.email);
+          console.error('⚠️ [AUTH] Este usuario debe ser creado manualmente por un administrador');
           
-          const baseUserData = {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName || '',
-            photoURL: currentUser.photoURL || '',
-            role: 'viewer',
-            status: 'active',
-            companies: [],
-            permissions: {
-              dashboard: true,
-              commitments: false,
-              users: false,
-              reports: false,
-              settings: false
-            },
-            theme: {
-              darkMode: false,
-              primaryColor: '#1976d2',
-              secondaryColor: '#dc004e'
-            },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            lastLogin: new Date()
-          };
-          
-          await setDoc(userDocRef, baseUserData);
-          console.log('✅ Documento de usuario creado automáticamente');
-          
-          setUserProfile({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            ...baseUserData
-          });
-        } else {
-          // Documento existe, cargar datos
-          const userData = docSnapshot.data();
-          console.log('✅ [AUTH] Perfil de usuario cargado desde Firestore (carga inicial)');
-          console.log('👤 [AUTH] Permisos:', Object.keys(userData.permissions || {}).filter(k => userData.permissions[k]));
-          console.log('🎨 [AUTH] Colores:', userData.theme);
-          console.log('🖼️ [AUTH] Foto de perfil:', userData.photoURL ? 'Sí' : 'No');
-          
-          setUserProfile({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            ...userData
-          });
+          // Usar datos del caché si existen, sino mostrar error
+          if (!cachedProfile) {
+            setError('Tu cuenta no está registrada en el sistema. Contacta al administrador.');
+            setUserProfile(null);
+          }
+          // Si hay caché, lo mantiene (ya se setUserProfile arriba)
+          return;
         }
+        
+        // Documento existe, cargar datos
+        const userData = docSnapshot.data();
+        const fullProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          ...userData
+        };
+        
+        console.log('✅ [AUTH] Perfil actualizado desde Firestore (background)');
+        console.log('👤 [AUTH] Permisos:', Object.keys(userData.permissions || {}).filter(k => userData.permissions[k]));
+        console.log('🎨 [AUTH] Colores:', userData.theme);
+        console.log('🖼️ [AUTH] Foto de perfil:', userData.photoURL ? 'Sí' : 'No');
+        
+        setUserProfile(fullProfile);
+        saveUserProfileToCache(fullProfile); // Guardar en caché para próximo Ctrl+R
       } catch (error) {
         console.error('❌ Error cargando perfil inicial:', error);
       }
@@ -500,13 +564,14 @@ export const AuthProvider = ({ children }) => {
     const unsubscribeProfile = onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
         const userData = docSnapshot.data();
-        // Solo loggear si hay cambios significativos (no eventos duplicados)
-        
-        setUserProfile({
+        const fullProfile = {
           uid: currentUser.uid,
           email: currentUser.email,
           ...userData
-        });
+        };
+        
+        setUserProfile(fullProfile);
+        saveUserProfileToCache(fullProfile); // Actualizar caché con cambios en tiempo real
       }
       // ✅ NO crear documento aquí, solo responder a cambios
     }, (error) => {
