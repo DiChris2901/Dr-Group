@@ -511,11 +511,13 @@ const SettingsProvider = ({ children }) => {
       if (savedSettings) {
         try {
           setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+          console.log('✅ [SETTINGS] Configuraciones cargadas desde localStorage (sin usuario)');
         } catch (error) {
-          console.error('Error loading local settings:', error);
+          console.error('❌ [SETTINGS] Error parseando localStorage:', error);
           setSettings(defaultSettings);
         }
       } else {
+        console.log('🔄 [SETTINGS] Usando configuraciones por defecto (sin usuario)');
         setSettings(defaultSettings);
       }
       setLoading(false);
@@ -527,24 +529,36 @@ const SettingsProvider = ({ children }) => {
         setLoading(true);
         setError(null);
         
+        console.log('🔄 [SETTINGS] Cargando configuraciones desde Firestore para usuario:', user.uid);
+        
         const userSettingsRef = doc(db, 'userSettings', user.uid);
+        const userRef = doc(db, 'users', user.uid);
+        
+        // 🎨 PASO 1: Cargar colores desde users/{uid}/theme (fuente de verdad para colores)
+        const userDocSnap = await getDoc(userRef);
+        const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+        const userTheme = userData.theme || {};
+        const notificationSettings = userData.notificationSettings || {};
+        
+        console.log('🎨 [SETTINGS] Colores del perfil (users/{uid}):', userTheme);
+        
+        // 🎨 PASO 2: Cargar configuraciones desde userSettings/{uid}
         const docSnap = await getDoc(userSettingsRef);
         
-        // 📱 Cargar también notificationSettings desde users/{userId}
-        const userRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userRef);
-        const notificationSettings = userDocSnap.exists() 
-          ? userDocSnap.data()?.notificationSettings || {}
-          : {};
-        
         if (docSnap.exists()) {
+          console.log('✅ [SETTINGS] Configuraciones encontradas en userSettings');
           const firebaseSettings = docSnap.data();
-          // Merge configuraciones de Firebase con las por defecto
+          
+          // Merge configuraciones, PRIORIZANDO colores de users/{uid}/theme
           const mergedSettings = {
             ...defaultSettings,
             ...firebaseSettings,
-            // Asegurar que nested objects se mezclen correctamente
-            theme: { ...defaultSettings.theme, ...firebaseSettings.theme },
+            // 🎨 CRÍTICO: Usar colores de users/{uid}/theme, NO de userSettings ni defaults
+            theme: { 
+              ...defaultSettings.theme, 
+              ...firebaseSettings.theme,
+              ...userTheme  // Los colores de users/{uid} tienen máxima prioridad
+            },
             sidebar: { ...defaultSettings.sidebar, ...firebaseSettings.sidebar },
             dashboard: { 
               ...defaultSettings.dashboard, 
@@ -556,42 +570,58 @@ const SettingsProvider = ({ children }) => {
               appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
             },
             notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications },
-            // 🆕 Agregar notificationSettings (Telegram/Email)
             notificationSettings: notificationSettings
           };
           setSettings(mergedSettings);
           
-          // También guardar en localStorage como backup
+          // Guardar en localStorage como backup
           localStorage.setItem('drgroup-settings', JSON.stringify(mergedSettings));
+          console.log('💾 [SETTINGS] Configuraciones guardadas en localStorage');
+          console.log('✅ [SETTINGS] Colores aplicados:', mergedSettings.theme);
         } else {
-          // Si no existe documento, crear uno con configuración por defecto
-          await setDoc(userSettingsRef, {
+          console.log('⚠️ [SETTINGS] No hay configuraciones en userSettings, creando con colores del perfil');
+          
+          // 🎨 Crear userSettings usando colores de users/{uid}/theme (NO defaults genéricos)
+          const settingsToCreate = {
             ...defaultSettings,
+            theme: { 
+              ...defaultSettings.theme, 
+              ...userTheme  // Usar colores existentes del perfil
+            },
             createdAt: new Date(),
             lastUpdated: new Date()
-          });
+          };
           
-          // 🆕 Incluir notificationSettings incluso si no hay userSettings
+          await setDoc(userSettingsRef, settingsToCreate);
+          
           const settingsWithNotifications = {
-            ...defaultSettings,
+            ...settingsToCreate,
             notificationSettings: notificationSettings
           };
           setSettings(settingsWithNotifications);
           localStorage.setItem('drgroup-settings', JSON.stringify(settingsWithNotifications));
+          console.log('✅ [SETTINGS] Configuraciones creadas con colores del perfil:', settingsToCreate.theme);
         }
       } catch (error) {
-        console.error('Error loading user settings from Firebase:', error);
+        console.error('❌ [SETTINGS] Error cargando desde Firestore:', error);
+        console.error('❌ [SETTINGS] Código de error:', error.code);
+        console.error('❌ [SETTINGS] Mensaje:', error.message);
         setError('Error al cargar configuraciones');
         
-        // Fallback a localStorage
+        // ⚠️ IMPORTANTE: NO usar localStorage como fallback si está vacío
+        // En su lugar, usar defaultSettings y notificar al usuario
         const savedSettings = localStorage.getItem('drgroup-settings');
         if (savedSettings) {
+          console.log('💾 [SETTINGS] Usando configuraciones de localStorage como fallback temporal');
           try {
             setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
           } catch (e) {
+            console.error('❌ [SETTINGS] Error parseando localStorage, usando defaults');
             setSettings(defaultSettings);
           }
         } else {
+          console.log('⚠️ [SETTINGS] localStorage vacío, usando configuraciones por defecto');
+          console.log('🔄 [SETTINGS] Reintenta cargar tu perfil para recuperar configuraciones');
           setSettings(defaultSettings);
         }
       } finally {
@@ -610,16 +640,21 @@ const SettingsProvider = ({ children }) => {
       if (doc.exists()) {
         const firebaseSettings = doc.data();
         
-        // 📱 Obtener también notificationSettings actualizadas
+        // 🎨 Obtener colores actualizados de users/{uid}/theme (fuente de verdad)
         const userDoc = await getDoc(userRef);
-        const notificationSettings = userDoc.exists() 
-          ? userDoc.data()?.notificationSettings || {}
-          : {};
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const userTheme = userData.theme || {};
+        const notificationSettings = userData.notificationSettings || {};
         
         const mergedSettings = {
           ...defaultSettings,
           ...firebaseSettings,
-          theme: { ...defaultSettings.theme, ...firebaseSettings.theme },
+          // 🎨 CRÍTICO: Priorizar colores de users/{uid}/theme
+          theme: { 
+            ...defaultSettings.theme, 
+            ...firebaseSettings.theme,
+            ...userTheme  // Máxima prioridad a colores del perfil
+          },
           sidebar: { ...defaultSettings.sidebar, ...firebaseSettings.sidebar },
           dashboard: { 
             ...defaultSettings.dashboard, 
@@ -631,7 +666,6 @@ const SettingsProvider = ({ children }) => {
             appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
           },
           notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications },
-          // 🆕 Agregar notificationSettings
           notificationSettings: notificationSettings
         };
         setSettings(mergedSettings);
@@ -656,7 +690,7 @@ const SettingsProvider = ({ children }) => {
       unsubscribeSettings();
       unsubscribeNotifications();
     };
-  }, [user]);
+  }, [user?.uid]); // ✅ FIX: Usar uid primitivo en lugar del objeto user completo
 
   // Función para actualizar configuración en Firebase
   const updateSettings = async (categoryOrNewSettings, updates) => {
@@ -693,6 +727,7 @@ const SettingsProvider = ({ children }) => {
       // Si hay usuario autenticado, guardar en Firebase
       if (user) {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
+        const userDocRef = doc(db, 'users', user.uid);
         
         // Serializar correctamente para Firestore (evitar objetos anidados problemáticos)
         const firestoreData = JSON.parse(JSON.stringify(newSettings));
@@ -700,10 +735,26 @@ const SettingsProvider = ({ children }) => {
         // Remover propiedades que no se pueden serializar
         delete firestoreData.predefinedThemes; // No guardar temas predefinidos
         
+        // 🎨 CRÍTICO: Si se actualizó el tema, sincronizar con users/{uid}/theme PRIMERO
+        if (newSettings.theme) {
+          console.log('🎨 [SETTINGS] Sincronizando colores con users/{uid}/theme:', newSettings.theme);
+          await updateDoc(userDocRef, {
+            theme: {
+              darkMode: newSettings.theme.darkMode ?? false,
+              primaryColor: newSettings.theme.primaryColor || '#1976d2',
+              secondaryColor: newSettings.theme.secondaryColor || '#dc004e'
+            },
+            updatedAt: new Date()
+          });
+          console.log('✅ [SETTINGS] Colores sincronizados en users/{uid}');
+        }
+        
+        // 🔄 LUEGO actualizar userSettings/{uid} (esto disparará el listener)
         await updateDoc(userSettingsRef, {
           ...firestoreData,
           lastUpdated: new Date()
         });
+        console.log('✅ [SETTINGS] Configuraciones guardadas en userSettings/{uid}');
       }
     } catch (error) {
       console.error('Error updating settings:', error);
@@ -813,6 +864,21 @@ const SettingsProvider = ({ children }) => {
       // Guardar en Firebase si hay usuario autenticado
       if (user) {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
+        const userDocRef = doc(db, 'users', user.uid);
+        
+        // 🎨 CRÍTICO: Actualizar users/{uid}/theme PRIMERO (antes del listener)
+        console.log('🎨 [THEME] Sincronizando tema predefinido con users/{uid}/theme');
+        await updateDoc(userDocRef, {
+          theme: {
+            darkMode: predefinedTheme.mode === 'dark',
+            primaryColor: predefinedTheme.primaryColor,
+            secondaryColor: predefinedTheme.secondaryColor
+          },
+          updatedAt: new Date()
+        });
+        console.log('✅ [THEME] Colores sincronizados en users/{uid}:', predefinedTheme.name);
+        
+        // 🔄 LUEGO actualizar userSettings/{uid} (esto disparará el listener)
         await updateDoc(userSettingsRef, {
           ...newSettings,
           lastUpdated: new Date(),
@@ -822,6 +888,7 @@ const SettingsProvider = ({ children }) => {
             appliedAt: new Date()
           }
         });
+        console.log('✅ [THEME] Configuraciones completas guardadas en userSettings/{uid}');
       }
 
       return true;

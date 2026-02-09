@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth, db, database } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
-import { ref, set, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
-import { clearAllListeners } from '../utils/listenerManager';
+import { ref, serverTimestamp as rtdbServerTimestamp, set } from 'firebase/database';
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { auth, database, db } from '../config/firebase';
 import { useUserPresence } from '../hooks/useUserPresence';
+import { clearAllListeners } from '../utils/listenerManager';
 
 // Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
 const logAuthActivity = async (action, userId, details = {}) => {
@@ -412,86 +412,117 @@ export const AuthProvider = ({ children }) => {
 
   // Escuchar cambios en el estado de autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      
-      if (user) {
-        // 🔥 LISTENER EN TIEMPO REAL para el perfil del usuario
-        // Esto actualiza automáticamente cuando cambien permisos en Firestore
-        const userDocRef = doc(db, 'users', user.uid);
-        
-        const unsubscribeProfile = onSnapshot(userDocRef, async (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            console.log('🔄 Perfil actualizado en tiempo real:', docSnapshot.data());
-            setUserProfile({
-              uid: user.uid,
-              email: user.email,
-              ...docSnapshot.data()
-            });
-          } else {
-            // Usuario sin perfil en Firestore, crearlo automáticamente
-            console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
-            
-            const baseUserData = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName || '',
-              photoURL: user.photoURL || '',
-              role: 'viewer',
-              status: 'active',
-              companies: [],
-              permissions: {
-                dashboard: true,
-                commitments: false,
-                users: false,
-                reports: false,
-                settings: false
-              },
-              theme: {
-                darkMode: false,
-                primaryColor: '#1976d2',
-                secondaryColor: '#dc004e'
-              },
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              lastLogin: new Date()
-            };
-            
-            await setDoc(userDocRef, baseUserData);
-            console.log('✅ Documento de usuario creado automáticamente');
-            
-            setUserProfile({
-              uid: user.uid,
-              email: user.email,
-              ...baseUserData
-            });
-          }
-        }, (error) => {
-          console.error('❌ Error en listener de perfil:', error);
-          setError('Error cargando datos del usuario');
-        });
-        
-        // Retornar función de limpieza para el listener del perfil
-        return () => {
-          console.log('🧹 Limpiando listener de perfil de usuario');
-          unsubscribeProfile();
-        };
-      } else {
-        // 🧹 Limpiar listeners cuando el usuario se desautentica
-        console.log('🧹 Usuario desautenticado, limpiando listeners...');
-        clearAllListeners();
-        setUserProfile(null);
-      }
-      
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
+
+  // 🔥 LISTENER EN TIEMPO REAL para el perfil del usuario (SEPARADO)
+  // Se ejecuta solo cuando el uid del usuario cambia
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setUserProfile(null);
+      clearAllListeners();
+      return;
+    }
+
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    
+    // ✅ SOLUCIÓN: Cargar documento PRIMERO con getDoc antes del listener
+    // Esto evita race conditions donde onSnapshot dice "no existe" antes de cargar
+    const initializeUserProfile = async () => {
+      try {
+        const docSnapshot = await getDoc(userDocRef);
+        
+        if (!docSnapshot.exists()) {
+          // REALMENTE no existe, crear uno nuevo
+          console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
+          
+          const baseUserData = {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName || '',
+            photoURL: currentUser.photoURL || '',
+            role: 'viewer',
+            status: 'active',
+            companies: [],
+            permissions: {
+              dashboard: true,
+              commitments: false,
+              users: false,
+              reports: false,
+              settings: false
+            },
+            theme: {
+              darkMode: false,
+              primaryColor: '#1976d2',
+              secondaryColor: '#dc004e'
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            lastLogin: new Date()
+          };
+          
+          await setDoc(userDocRef, baseUserData);
+          console.log('✅ Documento de usuario creado automáticamente');
+          
+          setUserProfile({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            ...baseUserData
+          });
+        } else {
+          // Documento existe, cargar datos
+          const userData = docSnapshot.data();
+          console.log('✅ [AUTH] Perfil de usuario cargado desde Firestore (carga inicial)');
+          console.log('👤 [AUTH] Permisos:', Object.keys(userData.permissions || {}).filter(k => userData.permissions[k]));
+          console.log('🎨 [AUTH] Colores:', userData.theme);
+          console.log('🖼️ [AUTH] Foto de perfil:', userData.photoURL ? 'Sí' : 'No');
+          
+          setUserProfile({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            ...userData
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error cargando perfil inicial:', error);
+      }
+    };
+    
+    // Cargar perfil inicial
+    initializeUserProfile();
+    
+    // Ahora sí, activar listener en tiempo real para cambios futuros
+    const unsubscribeProfile = onSnapshot(userDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const userData = docSnapshot.data();
+        // Solo loggear si hay cambios significativos (no eventos duplicados)
+        
+        setUserProfile({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          ...userData
+        });
+      }
+      // ✅ NO crear documento aquí, solo responder a cambios
+    }, (error) => {
+      console.error('❌ Error en listener de perfil:', error);
+      setError('Error cargando datos del usuario');
+    });
+    
+    // Limpiar listener cuando el usuario cambie o se desmonte
+    return () => {
+      unsubscribeProfile();
+    };
+  }, [currentUser?.uid]); // ✅ Solo se ejecuta cuando cambia el UID, no el objeto completo
 
   // 🆕 Actualizar actividad de la sesión cada 5 minutos
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.uid) return;
 
     // Actualizar inmediatamente
     updateSessionActivity();
@@ -502,7 +533,7 @@ export const AuthProvider = ({ children }) => {
     }, 5 * 60 * 1000); // 5 minutos
 
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser?.uid]); // ✅ Usar uid primitivo en lugar del objeto completo
 
   const value = {
     currentUser,

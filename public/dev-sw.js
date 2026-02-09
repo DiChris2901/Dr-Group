@@ -1,6 +1,5 @@
-// Deprecated service worker.
-// Kept only as a self-unregistering script to purge previously installed SWs
-// that can cause blank screens due to stale JS/CSS caching.
+// Self-unregistering dev service worker.
+// Purpose: remove old vite-plugin-pwa dev SWs that can cause blank screens on reload.
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -41,9 +40,5 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', () => {
-  // no-op
-});
-
-self.addEventListener('message', () => {
   // no-op
 });

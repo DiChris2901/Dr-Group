@@ -77,8 +77,8 @@ export const useProgressLogs = (taskId, taskCollection = 'delegated_tasks') => {
       
       const docRef = await addDoc(logsRef, newLog);
       
-      // Actualizar tarea principal en la colección correcta (collectionName)
-      const taskRef = doc(db, collectionName, taskId);
+      // Actualizar tarea principal en la colección correcta (taskCollection)
+      const taskRef = doc(db, taskCollection, taskId);
       await updateDoc(taskRef, {
         estado: logData.estado,
         estadoActual: logData.estado, // Compatibilidad con ambos campos
@@ -109,7 +109,7 @@ export const useProgressLogs = (taskId, taskCollection = 'delegated_tasks') => {
       
       // Si se actualizó el estado o porcentaje, actualizar tarea principal
       if (updates.estado || updates.porcentaje !== undefined) {
-        const taskRef = doc(db, collectionName, taskId);
+        const taskRef = doc(db, taskCollection, taskId);
         const taskUpdates = {
           updatedAt: serverTimestamp()
         };

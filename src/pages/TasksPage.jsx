@@ -49,7 +49,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   ViewKanban as ViewKanbanIcon,
-  GridView as GridViewIcon
+  GridView as GridViewIcon,
+  HelpOutline as HelpOutlineIcon
 } from '@mui/icons-material';
 import { useDelegatedTasks } from '../hooks/useDelegatedTasks';
 import { useAuth } from '../context/AuthContext';
@@ -62,6 +63,7 @@ import TaskDetailDialog from '../components/tasks/TaskDetailDialog';
 import TaskReassignDialog from '../components/tasks/TaskReassignDialog';
 import TaskProgressDialog from '../components/tasks/TaskProgressDialog';
 import TasksFilters from '../components/tasks/TasksFilters';
+import TasksGuideModal from '../components/tasks/TasksGuideModal';
 
 /**
  * TasksPage - Sistema de gestión de tareas delegadas
@@ -105,6 +107,7 @@ const TasksPage = () => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [openReassignDialog, setOpenReassignDialog] = useState(false);
   const [openProgressDialog, setOpenProgressDialog] = useState(false);
+  const [openGuideModal, setOpenGuideModal] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'kanban'
   const [companies, setCompanies] = useState([]);
   
@@ -420,29 +423,52 @@ const TasksPage = () => {
               </Typography>
             </Box>
             
-            {canCreate && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setOpenCreateDialog(true)}
-                sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.15)',
-                  color: 'white',
-                  borderRadius: 1,
-                  fontWeight: 600,
-                  px: 3,
-                  py: 1.5,
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.25)',
-                    transform: 'translateY(-1px)'
-                  }
-                }}
-              >
-                Nueva Tarea
-              </Button>
-            )}
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+              {/* Botón de Ayuda */}
+              <Tooltip title="¿Cómo usar esta página?" arrow>
+                <IconButton
+                  onClick={() => setOpenGuideModal(true)}
+                  sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.12)',
+                    color: 'white',
+                    borderRadius: 1,
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.22)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  <HelpOutlineIcon />
+                </IconButton>
+              </Tooltip>
+
+              {/* Botón Nueva Tarea */}
+              {canCreate && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setOpenCreateDialog(true)}
+                  sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    color: 'white',
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    px: 3,
+                    py: 1.5,
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.25)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  Nueva Tarea
+                </Button>
+              )}
+            </Box>
           </Box>
         </Paper>
       </motion.div>
@@ -1477,6 +1503,13 @@ const TasksPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal de Guía de Uso */}
+      <TasksGuideModal
+        open={openGuideModal}
+        onClose={() => setOpenGuideModal(false)}
+        userPermissions={userProfile?.permissions}
+      />
     </Box>
   );
 };
