@@ -354,43 +354,16 @@ export const AuthProvider = ({ children }) => {
       const userDocRef = doc(db, 'users', currentUser.uid);
       console.log('📄 AuthContext - Referencia de documento:', userDocRef.path);
       
-      // Verificar si el documento existe, si no, crearlo
+      // 🚨 CRÍTICO: NO crear documento automáticamente, solo actualizar si existe
       console.log('🔍 AuthContext - Verificando si documento existe...');
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        console.log('📝 AuthContext - Documento de usuario no existe, creándolo...');
-        // Crear documento base del usuario
-        const baseUserData = {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName || '',
-          photoURL: currentUser.photoURL || '',
-          role: 'viewer', // Rol por defecto
-          status: 'active',
-          companies: [],
-          permissions: {
-            dashboard: true,
-            commitments: false,
-            users: false,
-            reports: false,
-            settings: false
-          },
-          theme: {
-            darkMode: false,
-            primaryColor: '#1976d2',
-            secondaryColor: '#dc004e'
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastLogin: new Date()
-        };
-        
-        await setDoc(userDocRef, baseUserData);
-        console.log('✅ AuthContext - Documento de usuario creado exitosamente');
-      } else {
-        console.log('✅ AuthContext - Documento existe, datos actuales:', userDoc.data());
+        console.error('❌ AuthContext - Documento de usuario NO existe. No se puede actualizar.');
+        throw new Error('El perfil de usuario no existe. Debe ser creado por un administrador.');
       }
+      
+      console.log('✅ AuthContext - Documento existe, procediendo con actualización');
       
       // Preparar datos de actualización
       const updateData = {
@@ -546,9 +519,26 @@ export const AuthProvider = ({ children }) => {
         };
         
         console.log('✅ [AUTH] Perfil actualizado desde Firestore (background)');
+        console.log('� [AUTH] DATOS COMPLETOS DEL USUARIO:');
+        console.log('  - Nombre:', userData.name || userData.displayName);
+        console.log('  - Email:', userData.email);
+        console.log('  - Rol Dashboard:', userData.role);
+        console.log('  - Rol App Móvil:', userData.appRole);
+        console.log('  - Departamento:', userData.department);
+        console.log('  - Posición:', userData.position);
+        console.log('  - Compañías:', userData.companies?.length || 0);
+        console.log('  - Teléfono:', userData.phone);
+        console.log('  - Estado:', userData.status);
+        console.log('  - Activo:', userData.isActive);
+        console.log('  - Online:', userData.online);
         console.log('👤 [AUTH] Permisos:', Object.keys(userData.permissions || {}).filter(k => userData.permissions[k]));
         console.log('🎨 [AUTH] Colores:', userData.theme);
         console.log('🖼️ [AUTH] Foto de perfil:', userData.photoURL ? 'Sí' : 'No');
+        console.log('🔔 [AUTH] Notificaciones:', {
+          email: userData.notificationSettings?.emailEnabled,
+          telegram: userData.notificationSettings?.telegramEnabled,
+          channel: userData.notificationSettings?.notificationChannel
+        });
         
         setUserProfile(fullProfile);
         saveUserProfileToCache(fullProfile); // Guardar en caché para próximo Ctrl+R
@@ -569,6 +559,11 @@ export const AuthProvider = ({ children }) => {
           email: currentUser.email,
           ...userData
         };
+        
+        console.log('🔄 [AUTH] Perfil actualizado en tiempo real (listener)');
+        console.log('📋 [AUTH] Rol Dashboard:', userData.role, '| Rol App:', userData.appRole);
+        console.log('👤 [AUTH] Compañías:', userData.companies?.length || 0);
+        console.log('🔔 [AUTH] Estado:', userData.status, '| Activo:', userData.isActive);
         
         setUserProfile(fullProfile);
         saveUserProfileToCache(fullProfile); // Actualizar caché con cambios en tiempo real

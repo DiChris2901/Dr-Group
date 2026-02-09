@@ -1372,7 +1372,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 v3.9.1 • Feb 2026
               </Typography>
               
-              {/* Estado del sistema mejorado */
+              {/* Estado del sistema mejorado */}
               <Box sx={{ 
                 display: 'inline-flex',
                 alignItems: 'center',
