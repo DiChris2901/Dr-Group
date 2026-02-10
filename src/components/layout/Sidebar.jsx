@@ -374,10 +374,10 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#ff9800',
       permission: 'talento_humano',
       submenu: [
-        { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh' },
+        { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
         { title: 'Empleados', icon: Person, path: '/empleados', permission: 'empleados' },
         { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'asistencias' },
-        { title: 'Solicitudes', icon: Description, path: '/solicitudes', permission: 'solicitudes' }
+        // Solicitudes integrada en Talento Humano - ya no necesita entrada independiente en sidebar
       ]
     }
   ];
@@ -1038,7 +1038,15 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                       py: 0.5
                     }}>
                       {item.submenu
-                        .filter(subItem => hasSubmenuPermission(item.permission, subItem.permission))
+                        .filter(subItem => {
+                          // Verificar permiso principal del subItem
+                          if (hasSubmenuPermission(item.permission, subItem.permission)) return true;
+                          // Verificar permisos alternativos (ej: Talento Humano visible con solicitudes o solicitudes.gestionar)
+                          if (subItem.alternativePermissions) {
+                            return subItem.alternativePermissions.some(altPerm => hasPermission(altPerm));
+                          }
+                          return false;
+                        })
                         .map((subItem) => (
                         <ListItem key={subItem.title} disablePadding>
                           <ListItemButton

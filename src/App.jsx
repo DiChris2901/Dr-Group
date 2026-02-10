@@ -70,7 +70,7 @@ import AsistenciasPage from './pages/AsistenciasPage';
 
 // Módulo de Recursos Humanos
 import RecursosHumanosPage from './pages/RecursosHumanosPage';
-import SolicitudesPage from './pages/SolicitudesPage';
+// SolicitudesPage eliminada - integrada en RecursosHumanosPage (Talento Humano)
 
 // Módulo de Tareas Delegadas
 import TasksPage from './pages/TasksPage';
@@ -432,16 +432,7 @@ const DashboardLayout = () => {
           </ProtectedRoute>
         }
       />
-      <Route 
-        path="/solicitudes" 
-        element={
-          <ProtectedRoute requiredPermission="solicitudes">
-            <MainLayout title="Solicitudes" breadcrumbs={['RRHH', 'Solicitudes']}>
-              <SolicitudesPage />
-            </MainLayout>
-          </ProtectedRoute>
-        }
-      />
+      {/* Ruta /solicitudes eliminada - ahora integrada en /recursos-humanos (Talento Humano) */}
       <Route 
         path="/alerts" 
         element={

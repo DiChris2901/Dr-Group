@@ -37,7 +37,9 @@ import {
   Tabs,
   Tab,
   Badge,
-  LinearProgress
+  LinearProgress,
+  RadioGroup,
+  Radio
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -244,7 +246,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'solicitudes.gestionar', 'usuarios', 'auditoria', 'storage'];
         
         // Convertir permissions de objeto a array si es necesario
         let userPermissions = user.permissions || [];
@@ -1862,10 +1864,19 @@ const UserManagementPage = () => {
                         icon: <BadgeIcon />, 
                         color: '#ff9800',
                         subPermissions: [
-                          { key: 'rrhh', label: 'Talento Humano' },
+                          { 
+                            key: 'rrhh', 
+                            label: 'Talento Humano',
+                            subPermissions: [
+                              { key: 'rrhh.dashboard', label: 'Dashboard' },
+                              { key: 'solicitudes', label: 'Realizar Solicitudes', mutuallyExclusiveWith: 'solicitudes.gestionar' },
+                              { key: 'solicitudes.gestionar', label: 'Gestionar Solicitudes', mutuallyExclusiveWith: 'solicitudes', noAutoActivate: true },
+                              { key: 'rrhh.liquidaciones', label: 'Liquidaciones' },
+                              { key: 'rrhh.reportes', label: 'Reportes' }
+                            ]
+                          },
                           { key: 'empleados', label: 'Empleados' },
-                          { key: 'asistencias', label: 'Asistencias' },
-                          { key: 'solicitudes', label: 'Solicitudes' }
+                          { key: 'asistencias', label: 'Asistencias' }
                         ]
                       },
                       { 
@@ -1956,12 +1967,19 @@ const UserManagementPage = () => {
                               
                               let newPermissions;
                               if (hasParent || allChildrenActive) {
-                                // Desactivar: Remover permiso padre y todos los sub-permisos
+                                // Desactivar: Remover permiso padre, todos los sub-permisos Y sub-sub-permisos
                                 const subPermKeys = permission.subPermissions.map(sp => sp.key);
+                                // Recolectar también sub-sub-permisos (tercer nivel)
+                                const subSubPermKeys = [];
+                                permission.subPermissions.forEach(sp => {
+                                  if (sp.subPermissions) {
+                                    sp.subPermissions.forEach(ssp => subSubPermKeys.push(ssp.key));
+                                  }
+                                });
+                                const allKeysToRemove = [permission.key, ...subPermKeys, ...subSubPermKeys];
                                 newPermissions = formData.permissions.filter(p => 
-                                  p !== permission.key && 
-                                  !p.startsWith(`${permission.key}.`) &&
-                                  !subPermKeys.includes(p)
+                                  !allKeysToRemove.includes(p) &&
+                                  !p.startsWith(`${permission.key}.`)
                                 );
                               } else {
                                 // Activar: Agregar permiso padre Y TODOS los sub-permisos
@@ -2149,81 +2167,162 @@ const UserManagementPage = () => {
                                       Seleccionar páginas específicas:
                                     </Typography>
                                     {permission.subPermissions.map((subPerm) => (
-                                  <Box 
-                                    key={subPerm.key}
-                                    sx={{ 
-                                      display: 'flex', 
-                                      alignItems: 'center', 
-                                      justifyContent: 'space-between',
-                                      py: 0.5,
-                                      cursor: 'pointer'
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      let newPermissions;
-                                      if (formData.permissions.includes(subPerm.key)) {
-                                        // Desactivar sub-permiso
-                                        newPermissions = formData.permissions.filter(p => p !== subPerm.key);
-                                        
-                                        // Si se desactiva 'rrhh', también desactivar todos los módulos rrhh.*
-                                        if (subPerm.key === 'rrhh') {
-                                          newPermissions = newPermissions.filter(p => !p.startsWith('rrhh.'));
-                                        }
-                                      } else {
-                                        // Activar sub-permiso
-                                        newPermissions = [...formData.permissions, subPerm.key];
-                                        
-                                        // Si se activa 'rrhh', también activar todos los módulos rrhh.*
-                                        if (subPerm.key === 'rrhh') {
-                                          const rrhhModules = ['rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'];
-                                          rrhhModules.forEach(module => {
-                                            if (!newPermissions.includes(module)) {
-                                              newPermissions.push(module);
+                                      <Box key={subPerm.key}>
+                                        <Box 
+                                          sx={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'space-between',
+                                            py: 0.5,
+                                            cursor: 'pointer'
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            let newPermissions;
+                                            if (formData.permissions.includes(subPerm.key)) {
+                                              // Desactivar sub-permiso
+                                              newPermissions = formData.permissions.filter(p => p !== subPerm.key);
+                                              
+                                              // Si tiene sub-sub-permisos, también desactivarlos todos
+                                              if (subPerm.subPermissions) {
+                                                subPerm.subPermissions.forEach(subSubPerm => {
+                                                  newPermissions = newPermissions.filter(p => p !== subSubPerm.key);
+                                                });
+                                              }
+                                              
+                                              // Si se desactiva 'rrhh', también desactivar todos los módulos rrhh.*
+                                              if (subPerm.key === 'rrhh') {
+                                                newPermissions = newPermissions.filter(p => !p.startsWith('rrhh.'));
+                                              }
+                                            } else {
+                                              // Activar sub-permiso
+                                              newPermissions = [...formData.permissions, subPerm.key];
+                                              
+                                              // Si tiene sub-sub-permisos, también activarlos todos (respetando noAutoActivate y exclusividad mutua)
+                                              if (subPerm.subPermissions) {
+                                                subPerm.subPermissions.forEach(subSubPerm => {
+                                                  // Respetar noAutoActivate: no activar automáticamente (ej: solicitudes.gestionar)
+                                                  if (subSubPerm.noAutoActivate) return;
+                                                  if (!newPermissions.includes(subSubPerm.key)) {
+                                                    newPermissions.push(subSubPerm.key);
+                                                    // Respetar exclusividad mutua al auto-activar
+                                                    if (subSubPerm.mutuallyExclusiveWith) {
+                                                      newPermissions = newPermissions.filter(p => p !== subSubPerm.mutuallyExclusiveWith);
+                                                    }
+                                                  }
+                                                });
+                                              }
+                                              
+                                              // Si se activa 'rrhh', también activar todos los módulos rrhh.*
+                                              if (subPerm.key === 'rrhh') {
+                                                const rrhhModules = ['rrhh.dashboard', 'solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes'];
+                                                rrhhModules.forEach(module => {
+                                                  if (!newPermissions.includes(module)) {
+                                                    newPermissions.push(module);
+                                                  }
+                                                });
+                                                // Asegurar exclusividad: si se agregó solicitudes, quitar solicitudes.gestionar
+                                                newPermissions = newPermissions.filter(p => p !== 'solicitudes.gestionar');
+                                              }
+                                              
+                                              // ⚠️ NO auto-promover al padre cuando todos los hijos están activos
+                                              // Esto causaba conflictos con permisos mutuamente excluyentes
+                                              // (ej: solicitudes ↔ solicitudes.gestionar)
+                                              // El padre solo se activa manualmente desde el switch principal
                                             }
-                                          });
-                                        }
-                                        
-                                        // Verificar si todos los sub-permisos están activos
-                                        const allSubPermsActive = permission.subPermissions.every(sp => 
-                                          sp.key === subPerm.key || newPermissions.includes(sp.key)
-                                        );
-                                        
-                                        // Si todos están activos, cambiar a permiso padre
-                                        if (allSubPermsActive) {
-                                          newPermissions = newPermissions.filter(p => !p.startsWith(`${permission.key}.`));
-                                          newPermissions.push(permission.key);
-                                        }
-                                      }
-                                      updateFormData({ permissions: newPermissions });
-                                    }}
-                                  >
-                                    <Typography variant="caption" sx={{ 
-                                      color: formData.permissions.includes(subPerm.key) ? 'text.primary' : 'text.secondary',
-                                      fontWeight: formData.permissions.includes(subPerm.key) ? 600 : 400
-                                    }}>
-                                      {subPerm.label}
-                                    </Typography>
-                                    <Tooltip
-                                      title={`Acceso solo a: ${subPerm.label}`}
-                                      arrow
-                                      placement="left"
-                                    >
-                                      <Switch
-                                        checked={formData.permissions.includes(subPerm.key)}
-                                        size="small"
-                                        onClick={(e) => e.stopPropagation()}
-                                        sx={{
-                                          '& .MuiSwitch-switchBase.Mui-checked': {
-                                            color: permission.color,
-                                          },
-                                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                            backgroundColor: permission.color,
-                                          },
-                                        }}
-                                      />
-                                    </Tooltip>
-                                  </Box>
-                                ))}
+                                            updateFormData({ permissions: newPermissions });
+                                          }}
+                                        >
+                                          <Typography variant="caption" sx={{ 
+                                            color: formData.permissions.includes(subPerm.key) ? 'text.primary' : 'text.secondary',
+                                            fontWeight: formData.permissions.includes(subPerm.key) ? 600 : 400
+                                          }}>
+                                            {subPerm.label}
+                                          </Typography>
+                                          <Tooltip
+                                            title={`Acceso solo a: ${subPerm.label}`}
+                                            arrow
+                                            placement="left"
+                                          >
+                                            <Switch
+                                              checked={formData.permissions.includes(subPerm.key)}
+                                              size="small"
+                                              onClick={(e) => e.stopPropagation()}
+                                              sx={{
+                                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                                  color: permission.color,
+                                                },
+                                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                  backgroundColor: permission.color,
+                                                },
+                                              }}
+                                            />
+                                          </Tooltip>
+                                        </Box>
+
+                                        {/* Renderizar sub-sub-permisos si existen (tercer nivel) */}
+                                        {subPerm.subPermissions && formData.permissions.includes(subPerm.key) && (
+                                          <Box sx={{ ml: 3, mt: 1, mb: 1.5, pl: 2, borderLeft: `2px solid ${alpha(permission.color, 0.2)}` }}>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+                                              Módulos de {subPerm.label}:
+                                            </Typography>
+                                            {subPerm.subPermissions.map((subSubPerm) => (
+                                              <Box 
+                                                key={subSubPerm.key}
+                                                sx={{ 
+                                                  display: 'flex', 
+                                                  alignItems: 'center', 
+                                                  justifyContent: 'space-between',
+                                                  py: 0.4,
+                                                  cursor: 'pointer',
+                                                  '&:hover': {
+                                                    backgroundColor: alpha(permission.color, 0.04)
+                                                  }
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  let newPermissions;
+                                                  if (formData.permissions.includes(subSubPerm.key)) {
+                                                    // Desactivar sub-sub-permiso
+                                                    newPermissions = formData.permissions.filter(p => p !== subSubPerm.key);
+                                                  } else {
+                                                    // Activar sub-sub-permiso
+                                                    newPermissions = [...formData.permissions, subSubPerm.key];
+                                                    // Exclusividad mutua: desactivar el permiso mutuamente excluyente
+                                                    if (subSubPerm.mutuallyExclusiveWith) {
+                                                      newPermissions = newPermissions.filter(p => p !== subSubPerm.mutuallyExclusiveWith);
+                                                    }
+                                                  }
+                                                  updateFormData({ permissions: newPermissions });
+                                                }}
+                                              >
+                                                <Typography variant="caption" sx={{ 
+                                                  color: formData.permissions.includes(subSubPerm.key) ? 'text.primary' : 'text.secondary',
+                                                  fontWeight: formData.permissions.includes(subSubPerm.key) ? 500 : 400,
+                                                  fontSize: '0.7rem'
+                                                }}>
+                                                  {subSubPerm.label}
+                                                </Typography>
+                                                <Switch
+                                                  checked={formData.permissions.includes(subSubPerm.key)}
+                                                  size="small"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  sx={{
+                                                    transform: 'scale(0.85)',
+                                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                                      color: permission.color,
+                                                    },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                      backgroundColor: permission.color,
+                                                    },
+                                                  }}
+                                                />
+                                              </Box>
+                                            ))}
+                                          </Box>
+                                        )}
+                                      </Box>
+                                    ))}
                                     </>
                                   );
                                 }

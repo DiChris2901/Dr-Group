@@ -77,8 +77,9 @@ const SolicitudesRRHH = ({
   const theme = useTheme();
   const { hasPermission } = usePermissions();
   
-  // Verificar si el usuario es admin de RRHH (puede crear solicitudes para otros)
-  const isRRHHAdmin = hasPermission('rrhh') || hasPermission('rrhh.solicitudes.admin');
+  // Verificar si el usuario puede gestionar solicitudes de todos (aprobar/rechazar)
+  // ⚠️ SOLO solicitudes.gestionar explícito o ALL — rrhh NO otorga gestión automáticamente
+  const canManageSolicitudes = userProfile?.permissions?.['solicitudes.gestionar'] === true || userProfile?.permissions?.ALL === true;
   
   // Estados
   const [openSolicitudModal, setOpenSolicitudModal] = useState(false);
@@ -532,8 +533,8 @@ const SolicitudesRRHH = ({
     // Si NO es admin de RRHH, auto-seleccionar el usuario actual
     const initialForm = {
       tipo: 'vacaciones',
-      empleadoId: isRRHHAdmin ? '' : (userProfile?.uid || ''),
-      empleadoNombre: isRRHHAdmin ? '' : (userProfile?.name || userProfile?.displayName || userProfile?.email || ''),
+      empleadoId: canManageSolicitudes ? '' : (userProfile?.uid || ''),
+      empleadoNombre: canManageSolicitudes ? '' : (userProfile?.name || userProfile?.displayName || userProfile?.email || ''),
       fechaInicio: '',
       fechaFin: '',
       dias: 0,
@@ -646,7 +647,7 @@ const SolicitudesRRHH = ({
       {/* HEADER */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h6" fontWeight={600}>
-          Gestión de Solicitudes
+          {canManageSolicitudes ? 'Gestión de Solicitudes' : 'Mis Solicitudes'}
         </Typography>
         <Button
           variant="contained"
@@ -708,16 +709,18 @@ const SolicitudesRRHH = ({
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Buscar empleado"
-              value={searchSolicitud}
-              onChange={(e) => setSearchSolicitud(e.target.value)}
-              placeholder="Nombre..."
-            />
-          </Grid>
+          {canManageSolicitudes && (
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Buscar empleado"
+                value={searchSolicitud}
+                onChange={(e) => setSearchSolicitud(e.target.value)}
+                placeholder="Nombre..."
+              />
+            </Grid>
+          )}
         </Grid>
       </Paper>
 
@@ -839,7 +842,7 @@ const SolicitudesRRHH = ({
                         {solicitud.tipo === 'certificacion' ? (
                           // CERTIFICACIONES: Flujo diferente (Pendiente → Enviado → Recibido)
                           <>
-                            {isRRHHAdmin ? (
+                            {canManageSolicitudes ? (
                               // Admin RRHH para certificaciones
                               <>
                                 {solicitud.estado === 'pendiente' && (
@@ -911,8 +914,8 @@ const SolicitudesRRHH = ({
                         ) : (
                           // VACACIONES/PERMISOS: Flujo de aprobación/rechazo
                           <>
-                            {isRRHHAdmin ? (
-                              // Admin de RRHH: Puede aprobar/rechazar solicitudes de otros
+                            {canManageSolicitudes ? (
+                              // Gestionar: Puede aprobar/rechazar solicitudes de otros
                               <>
                                 {solicitud.estado === 'pendiente' && (
                                   <>
@@ -1120,7 +1123,7 @@ const SolicitudesRRHH = ({
 
             {/* Empleado */}
             <Grid item xs={12}>
-              {isRRHHAdmin ? (
+              {canManageSolicitudes ? (
                 <FormControl fullWidth>
                   <InputLabel>Empleado</InputLabel>
                   <Select

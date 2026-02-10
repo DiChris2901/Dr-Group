@@ -182,9 +182,16 @@ export const usePermissions = () => {
       return true;
     }
     
-    // Si tiene al menos un permiso de submenú específico
+    // Si tiene al menos un permiso de submenú específico o alternativo
     return submenuItems.some(
-      subItem => subItem.permission && hasPermission(subItem.permission)
+      subItem => {
+        if (subItem.permission && hasPermission(subItem.permission)) return true;
+        // Verificar permisos alternativos del subItem
+        if (subItem.alternativePermissions && Array.isArray(subItem.alternativePermissions)) {
+          return subItem.alternativePermissions.some(altPerm => hasPermission(altPerm));
+        }
+        return false;
+      }
     );
   };
 

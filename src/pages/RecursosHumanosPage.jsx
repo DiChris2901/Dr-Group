@@ -50,12 +50,23 @@ const RecursosHumanosPage = () => {
   // Validar permisos granulares
   const hasFullRRHH = hasPermission('rrhh'); // Acceso completo
   const canViewDashboard = hasFullRRHH || hasPermission('rrhh.dashboard');
-  const canViewSolicitudes = hasPermission('solicitudes');
+  const canViewSolicitudes = hasFullRRHH || hasPermission('solicitudes') || hasPermission('solicitudes.gestionar');
+  // ⚠️ Verificación EXPLÍCITA del permiso de gestión
+  // SOLO solicitudes.gestionar explícito o ALL — rrhh NO otorga gestión automáticamente
+  const canManageSolicitudes = userProfile?.permissions?.['solicitudes.gestionar'] === true || userProfile?.permissions?.ALL === true;
   const canViewLiquidaciones = hasFullRRHH || hasPermission('rrhh.liquidaciones');
   const canViewReportes = hasFullRRHH || hasPermission('rrhh.reportes');
   const canViewRRHH = hasFullRRHH || canViewDashboard || canViewSolicitudes || canViewLiquidaciones || canViewReportes;
   const canViewEmpleados = hasFullRRHH || hasPermission('rrhh.empleados');
   const canViewAsistencias = hasFullRRHH || hasPermission('rrhh.asistencias');
+
+  // Calcular cuántos módulos tiene disponibles (para UX del breadcrumb)
+  const availableModulesCount = [
+    canViewDashboard,
+    canViewSolicitudes,
+    canViewLiquidaciones,
+    canViewReportes
+  ].filter(Boolean).length;
 
   // ✅ LISTENER: Obtener empleados en tiempo real desde Firestore
   useEffect(() => {
@@ -127,10 +138,13 @@ const RecursosHumanosPage = () => {
   }, [canViewAsistencias]);
 
   // ✅ LISTENER: Obtener solicitudes en tiempo real
+  // Si puede gestionar → TODAS las solicitudes | Si solo crear → solo las suyas
   useEffect(() => {
-    if (!canViewRRHH) return;
+    if (!canViewSolicitudes || !userProfile?.uid) return;
 
-    const q = query(collection(db, 'solicitudes'), orderBy('fechaSolicitud', 'desc'));
+    const q = canManageSolicitudes
+      ? query(collection(db, 'solicitudes'), orderBy('fechaSolicitud', 'desc'))
+      : query(collection(db, 'solicitudes'), where('empleadoId', '==', userProfile.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const solicitudesData = [];
       snapshot.forEach((doc) => {
@@ -148,7 +162,7 @@ const RecursosHumanosPage = () => {
     });
 
     return () => unsubscribe();
-  }, [canViewRRHH]);
+  }, [canViewSolicitudes, canManageSolicitudes, userProfile?.uid]);
 
   // ✅ LISTENER: Obtener liquidaciones en tiempo real
   useEffect(() => {
@@ -215,8 +229,9 @@ const RecursosHumanosPage = () => {
     };
   }, [asistencias, solicitudes, liquidaciones]);
 
-  // ✅ REDIRECCIÓN AUTOMÁTICA: Si solo tiene 1 permiso, redirige directamente
+  // ✅ REDIRECCIÓN AUTOMÁTICA: Si solo tiene 1 permiso, redirige directamente (UX optimizada)
   useEffect(() => {
+    // Solo ejecutar al montarse o cuando cambien los permisos, NO cuando cambie activeModule
     const availableModules = [
       canViewDashboard && 'dashboard',
       canViewSolicitudes && 'solicitudes',
@@ -224,12 +239,15 @@ const RecursosHumanosPage = () => {
       canViewReportes && 'reportes'
     ].filter(Boolean);
     
-    // Si solo tiene acceso a 1 módulo, redirigir automáticamente
-    if (availableModules.length === 1 && !activeModule) {
-      console.log(`🎯 RRHH: Acceso único a ${availableModules[0]}, redirigiendo automáticamente...`);
+    // Si solo tiene acceso a 1 módulo, redirigir automáticamente (sin HUB redundante)
+    if (availableModules.length === 1) {
+      console.log(`🎯 RRHH: Usuario con acceso único a "${availableModules[0]}", redirigiendo directamente (sin HUB)...`);
       setActiveModule(availableModules[0]);
+    } else if (availableModules.length > 1) {
+      console.log(`📊 RRHH: Usuario con acceso a ${availableModules.length} módulos: ${availableModules.join(', ')} → Mostrar HUB`);
     }
-  }, [canViewDashboard, canViewSolicitudes, canViewLiquidaciones, canViewReportes, activeModule]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canViewDashboard, canViewSolicitudes, canViewLiquidaciones, canViewReportes]); // ✅ SIN activeModule para evitar loops
 
   // ✅ VALIDACIÓN DE PERMISOS
   if (!canViewRRHH) {
@@ -333,9 +351,9 @@ const RecursosHumanosPage = () => {
         </Paper>
       </motion.div>
 
-      {/* BREADCRUMBS (Solo visible cuando hay módulo activo) */}
+      {/* BREADCRUMBS (Solo visible cuando hay módulo activo Y tiene 2+ módulos disponibles) */}
       <AnimatePresence>
-        {activeModule && (
+        {activeModule && availableModulesCount > 1 && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
