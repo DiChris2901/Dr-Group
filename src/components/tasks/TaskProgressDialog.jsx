@@ -46,11 +46,15 @@ import {
   Download as DownloadIcon,
   Flag as FlagIcon,
   FileDownload as FileDownloadIcon,
-  FolderOpen as FolderOpenIcon
+  FolderOpen as FolderOpenIcon,
+  CheckCircle as CheckCircleIcon,
+  Check as CheckIcon,
+  AccessTime as ClockIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { useProgressLogs } from '../../hooks/useProgressLogs';
+import { useDelegatedTasks } from '../../hooks/useDelegatedTasks';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -71,6 +75,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const theme = useTheme();
   const { currentUser } = useAuth();
   const { logs, loading: logsLoading, createLog, updateLog, deleteLog, uploadFiles } = useProgressLogs(task?.id, 'delegated_tasks');
+  const { approveTask } = useDelegatedTasks();
   
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -87,6 +92,11 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [selectedZipName, setSelectedZipName] = useState('');
   const fileInputRef = useRef(null);
 
+  // Estados para diálogo de aprobación
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [approvalAction, setApprovalAction] = useState(null); // 'approve' | 'reject'
+  const [approvalComment, setApprovalComment] = useState('');
+
   // Estados disponibles con porcentajes automáticos
   const ESTADOS = [
     { value: 'pendiente', label: 'Pendiente', color: theme.palette.grey[500], porcentaje: 0 },
@@ -99,16 +109,26 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
 
   // Función para determinar qué estados están permitidos según el estado actual
   const getEstadosPermitidos = (estadoActual) => {
-    const reglas = {
-      'pendiente': ['pendiente', 'en_progreso', 'pausada', 'cancelada'],
-      'en_progreso': ['en_progreso', 'en_revision', 'completada', 'pausada', 'cancelada'],
-      'pausada': ['pausada', 'en_progreso', 'cancelada'],
-      'en_revision': ['en_revision', 'completada', 'en_progreso', 'cancelada'],
-      'completada': ['completada'], // Estado terminal
-      'cancelada': ['cancelada'] // Estado terminal
-    };
-    
-    return reglas[estadoActual] || ESTADOS.map(e => e.value);
+    // Si es el creador y la tarea está en revisión, solo puede aprobar/rechazar (no cambiar estado directo)
+    if (isCreator && estadoActual === 'en_revision') {
+      return ['en_revision']; // No puede cambiar estado manualmente, debe usar botones Aprobar/Rechazar
+    }
+
+    // Si es el asignado
+    if (isAssigned) {
+      const reglas = {
+        'pendiente': ['pendiente', 'en_progreso', 'pausada', 'cancelada'],
+        'en_progreso': ['en_progreso', 'en_revision', 'pausada', 'cancelada'], // NO puede marcar completada directamente
+        'pausada': ['pausada', 'en_progreso', 'cancelada'],
+        'en_revision': ['en_revision'], // BLOQUEADO: esperando aprobación del creador
+        'completada': ['completada'], // Estado terminal
+        'cancelada': ['cancelada'] // Estado terminal
+      };
+      return reglas[estadoActual] || ESTADOS.map(e => e.value);
+    }
+
+    // Por defecto (no debería llegar aquí)
+    return [estadoActual];
   };
 
   // Verificar si un estado está permitido
@@ -129,10 +149,18 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       return 'La tarea está cancelada (estado terminal)';
     }
     
+    // Si está en revisión y es el asignado
+    if (estadoActualTarea === 'en_revision' && isAssigned) {
+      return 'La tarea está en revisión. Solo el creador puede aprobar o rechazar.';
+    }
+    
     const mensajes = {
       'pendiente': 'No puedes retroceder a Pendiente una vez iniciada',
-      'pausada': 'Desde revisión no puedes pausar, solo completar o corregir',
-      'en_revision': 'Para revisar, la tarea debe estar en progreso primero'
+      'pausada': 'La tarea debe estar en progreso para pausarla',
+      'en_progreso': 'Actualmente bloqueado, esperando aprobación del creador',
+      'en_revision': 'Para revisar, la tarea debe estar en progreso primero',
+      'completada': 'Solo el creador puede aprobar y marcar como completada',
+      'cancelada': 'La tarea está bloqueada para cambios'
     };
     
     return mensajes[estadoValue] || 'Este estado no está disponible en el flujo actual';
@@ -158,8 +186,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const isCreator = task?.creadoPor?.uid === currentUser?.uid;
   const isAssigned = task?.asignadoA?.uid === currentUser?.uid;
   
-  // Permisos: solo el asignado puede crear/editar/eliminar
-  const canModify = isAssigned;
+  // Permisos
+  const canModify = isAssigned; // Solo el asignado puede crear/editar registros
+  const canApprove = isCreator && task?.estado === 'en_revision'; // Solo el creador puede aprobar cuando está en revisión
+  const canChangeState = isAssigned && task?.estado !== 'en_revision'; // El asignado NO puede cambiar estado cuando está en revisión
 
       useEffect(() => {
     if (task && open) {
@@ -168,10 +198,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       setSelectedFiles([]);
       setError('');
       setEditingLog(null);
-      // Siempre abrir en el primer tab visible (Histórico)
-      // Para creador: tab 0 es Histórico
-      // Para asignado: tab 0 es Nuevo Registro, tab 1 es Histórico
-      // Abrimos en índice 0 para que se vea el contenido inmediatamente
+      // Abrir en el tab apropiado según rol:
+      // - Asignado: tab 0 es "Nuevo Registro", tab 1 es "Histórico"
+      // - Creador/Otros: tab 0 es "Histórico" (único tab visible)
+      // Siempre abrir en tab 0 para ver contenido inmediatamente
       setTabValue(0);
     }
   }, [task, open, currentUser]);
@@ -830,13 +860,108 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
             />
           </Box>
         </Paper>
+
+        {/* Panel de Aprobación - Solo visible para el creador cuando está en revisión */}
+        {canApprove && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              mt: 2,
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+              bgcolor: alpha(theme.palette.primary.main, 0.05)
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: alpha(theme.palette.primary.main, 0.12),
+                  border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                }}
+              >
+                <CheckCircleIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+              </Box>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main', fontSize: '0.875rem' }}>
+                  Tarea pendiente de aprobación
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                  {task.asignadoA?.displayName || task.asignadoA?.nombre || task.asignadoA?.email} ha marcado esta tarea como completada
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button
+                variant="outlined"
+                color="error"
+                size="medium"
+                startIcon={<CloseIcon />}
+                onClick={() => {
+                  setApprovalAction('reject');
+                  setApprovalComment('');
+                  setApprovalDialogOpen(true);
+                }}
+                disabled={loading}
+                sx={{
+                  flex: 1,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  py: 1.25,
+                  borderWidth: 1.5,
+                  '&:hover': {
+                    borderWidth: 1.5,
+                    bgcolor: alpha(theme.palette.error.main, 0.08)
+                  }
+                }}
+              >
+                Rechazar y devolver
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                size="medium"
+                startIcon={<CheckIcon />}
+                onClick={() => {
+                  setApprovalAction('approve');
+                  setApprovalComment('');
+                  setApprovalDialogOpen(true);
+                }}
+                disabled={loading}
+                sx={{
+                  flex: 1,
+                  borderRadius: 1.5,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  py: 1.25,
+                  boxShadow: 'none',
+                  '&:hover': {
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.3)}`
+                  }
+                }}
+              >
+                Aprobar y completar
+              </Button>
+            </Box>
+          </Paper>
+        )}
       </Box>
 
       {/* Tabs - Condicional según rol */}
       <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}`, px: 3, mt: 2, bgcolor: alpha(theme.palette.background.default, 0.5) }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           {/* Pestaña Nuevo Registro - Solo visible para el asignado */}
-          {!isCreator && (
+          {isAssigned && (
             <Tab 
               icon={<AddIcon />} 
               iconPosition="start" 
@@ -860,7 +985,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       }}>
         <Box sx={{ mt: 3 }}>
         {/* TAB: Nuevo Registro / Editar - Solo visible para asignado */}
-        {!isCreator && tabValue === 0 && (
+        {isAssigned && tabValue === 0 && (
           <Box>
             {!canModify && (
               <Paper
@@ -876,6 +1001,45 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 <Typography variant="body2" color="warning.main" fontWeight={500}>
                   Solo el usuario asignado puede crear o editar registros de progreso.
                 </Typography>
+              </Paper>
+            )}
+
+            {/* Alerta cuando está en revisión (bloqueado esperando aprobación) */}
+            {isAssigned && task?.estado === 'en_revision' && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  mb: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
+                  bgcolor: alpha(theme.palette.secondary.main, 0.08)
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(theme.palette.secondary.main, 0.15),
+                      flexShrink: 0
+                    }}
+                  >
+                    <ClockIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'secondary.main', mb: 0.5 }}>
+                      Tarea en revisión - Esperando aprobación
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      No puedes cambiar el estado hasta que <strong>{task.creadoPor?.displayName || task.creadoPor?.nombre || 'el creador'}</strong> apruebe o rechace tu trabajo.
+                    </Typography>
+                  </Box>
+                </Box>
               </Paper>
             )}
 
@@ -929,7 +1093,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                     value={estado}
                     label="Estado de la Tarea *"
                     onChange={(e) => setEstado(e.target.value)}
-                    disabled={!canModify}
+                    disabled={!canModify || !canChangeState}
                     sx={{
                       borderRadius: 1,
                       fontSize: '0.875rem'
@@ -1180,9 +1344,9 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         )}
 
         {/* TAB: Histórico - Visible para todos */}
-        {/* Para creador: tab 0 muestra Histórico (único tab) */}
         {/* Para asignado: tab 1 muestra Histórico */}
-        {((isCreator && tabValue === 0) || (!isCreator && tabValue === 1)) && (
+        {/* Para creador/otros: tab 0 muestra Histórico (único tab visible) */}
+        {((isAssigned && tabValue === 1) || (!isAssigned && tabValue === 0)) && (
           <Box>
             <Box sx={{ 
               display: 'flex', 
@@ -1240,9 +1404,9 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                   Sin registros aún
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {isCreator 
-                    ? 'El usuario asignado aún no ha registrado avances'
-                    : 'Crea el primer registro en la pestaña "Nuevo Registro"'
+                  {isAssigned 
+                    ? 'Crea el primer registro en la pestaña "Nuevo Registro"'
+                    : 'El usuario asignado aún no ha registrado avances'
                   }
                 </Typography>
               </Paper>
@@ -1733,19 +1897,196 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
           Cerrar
         </Button>
       </DialogActions>
-
-      {/* Modal de visor de archivos ZIP */}
-      <ZipFileViewer
-        open={zipViewerOpen}
-        onClose={() => {
-          setZipViewerOpen(false);
-          setSelectedZipUrl('');
-          setSelectedZipName('');
-        }}
-        zipUrl={selectedZipUrl}
-        zipFileName={selectedZipName}
-      />
     </Dialog>
+
+    {/* Dialog de Aprobación/Rechazo - Diseño Sobrio (FUERA del Dialog principal) */}
+    <Dialog
+      open={approvalDialogOpen}
+      onClose={() => {
+        setApprovalDialogOpen(false);
+        setApprovalComment('');
+      }}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          bgcolor: theme.palette.background.paper
+        }
+      }}
+    >
+      <DialogTitle
+        sx={{
+          pb: 2,
+          pt: 3,
+          px: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          background: theme.palette.mode === 'dark'
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: alpha(
+              approvalAction === 'approve' ? theme.palette.success.main : theme.palette.error.main,
+              0.12
+            ),
+            border: `2px solid ${alpha(
+              approvalAction === 'approve' ? theme.palette.success.main : theme.palette.error.main,
+              0.3
+            )}`
+          }}
+        >
+          {approvalAction === 'approve' ? (
+            <CheckIcon sx={{ fontSize: 20, color: 'success.main' }} />
+          ) : (
+            <CloseIcon sx={{ fontSize: 20, color: 'error.main' }} />
+          )}
+        </Box>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+            {approvalAction === 'approve' ? 'Aprobar tarea' : 'Rechazar tarea'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+            {approvalAction === 'approve' 
+              ? 'La tarea se marcará como completada (100%)'
+              : 'La tarea volverá a En Progreso (50%)'
+            }
+          </Typography>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 3, pt: 4 }}>
+        <TextField
+          autoFocus
+          multiline
+          rows={3}
+          fullWidth
+          variant="outlined"
+          label={approvalAction === 'approve' ? 'Comentario (opcional)' : 'Razón del rechazo (opcional)'}
+          placeholder={
+            approvalAction === 'approve'
+              ? 'Excelente trabajo, cumple con los requisitos...'
+              : 'Necesita correcciones en el formato...'
+          }
+          value={approvalComment || ''}
+          onChange={(e) => setApprovalComment(e.target.value)}
+          InputLabelProps={{
+            shrink: true,
+            sx: {
+              bgcolor: 'background.paper',
+              px: 1,
+              zIndex: 1
+            }
+          }}
+          sx={{
+            mt: 3,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1,
+              fontSize: '0.875rem',
+              '&:hover fieldset': {
+                borderColor: approvalAction === 'approve' ? 'success.main' : 'error.main'
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: approvalAction === 'approve' ? 'success.main' : 'error.main',
+                borderWidth: 1.5
+              }
+            },
+            '& .MuiInputLabel-root': {
+              fontSize: '0.875rem'
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: approvalAction === 'approve' ? 'success.main' : 'error.main'
+            }
+          }}
+        />
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1.5 }}>
+        <Button
+          onClick={() => {
+            setApprovalDialogOpen(false);
+            setApprovalComment('');
+          }}
+          disabled={loading}
+          sx={{
+            borderRadius: 1,
+            textTransform: 'none',
+            fontWeight: 600,
+            color: 'text.secondary',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.text.primary, 0.04)
+            }
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              setLoading(true);
+              await approveTask(
+                task.id,
+                approvalAction === 'approve',
+                approvalComment || (approvalAction === 'approve' ? 'Aprobado sin comentarios' : 'Rechazado sin comentarios')
+              );
+              setApprovalDialogOpen(false);
+              setApprovalComment('');
+              onClose();
+            } catch (error) {
+              setError(error.message);
+            } finally {
+              setLoading(false);
+            }
+          }}
+          disabled={loading}
+          sx={{
+            borderRadius: 1,
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 3,
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            '&:hover': {
+              background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+            }
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={20} sx={{ color: 'inherit' }} />
+          ) : (
+            approvalAction === 'approve' ? 'Aprobar' : 'Rechazar'
+          )}
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* Modal de visor de archivos ZIP */}
+    <ZipFileViewer
+      open={zipViewerOpen}
+      onClose={() => {
+        setZipViewerOpen(false);
+        setSelectedZipUrl('');
+        setSelectedZipName('');
+      }}
+      zipUrl={selectedZipUrl}
+      zipFileName={selectedZipName}
+    />
     </>
   );
 };

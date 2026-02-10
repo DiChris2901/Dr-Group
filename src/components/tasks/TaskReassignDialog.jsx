@@ -273,21 +273,24 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
                 sx={{ mb: 2 }}
               />
             )}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Avatar src={option.photoURL} sx={{ width: 32, height: 32 }}>
-                  {option.nombre?.charAt(0)}
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {option.nombre}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.email}
-                  </Typography>
+            renderOption={(props, option) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Avatar src={option.photoURL} sx={{ width: 32, height: 32 }}>
+                    {option.nombre?.charAt(0)}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {option.nombre}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.email}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            )}
+              );
+            }}
           />
 
           <TextField

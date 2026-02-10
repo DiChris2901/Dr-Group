@@ -484,6 +484,72 @@ export const useDelegatedTasks = () => {
   }, [currentUser]);
 
   /**
+   * Aprobar o rechazar tarea en revisión (solo creador)
+   */
+  const approveTask = useCallback(async (taskId, approved, comentario = '') => {
+    if (!taskId || typeof approved !== 'boolean') {
+      throw new Error('ID de tarea y decisión requeridos');
+    }
+
+    try {
+      const taskRef = doc(db, 'delegated_tasks', taskId);
+      const taskSnap = await getDoc(taskRef);
+      
+      if (!taskSnap.exists()) {
+        throw new Error('Tarea no encontrada');
+      }
+
+      const taskData = taskSnap.data();
+
+      // Verificar que el usuario actual es el creador
+      if (taskData.creadoPor?.uid !== currentUser?.uid) {
+        throw new Error('Solo el creador de la tarea puede aprobar');
+      }
+
+      // Verificar que la tarea está en revisión
+      if (taskData.estado !== 'en_revision' && taskData.estadoActual !== 'en_revision') {
+        throw new Error('La tarea debe estar en revisión para poder aprobar');
+      }
+
+      const nuevoEstado = approved ? 'completada' : 'en_progreso';
+      const historialActualizado = [
+        ...(taskData.historialEstados || []),
+        {
+          estado: nuevoEstado,
+          fecha: Timestamp.now(),
+          usuario: currentUser.uid,
+          comentario: `${approved ? 'Aprobado' : 'Rechazado'}: ${comentario}`,
+          aprobacion: {
+            aprobado: approved,
+            aprobadoPor: currentUser.uid,
+            fecha: Timestamp.now()
+          }
+        }
+      ];
+
+      const updateData = {
+        estado: nuevoEstado,
+        estadoActual: nuevoEstado,
+        historialEstados: historialActualizado,
+        ultimaActividad: serverTimestamp()
+      };
+
+      if (approved) {
+        updateData.fechaCompletada = serverTimestamp();
+        updateData.porcentajeCompletado = 100;
+      } else {
+        updateData.porcentajeCompletado = 50; // Volver a en progreso
+      }
+
+      await updateDoc(taskRef, updateData);
+    } catch (error) {
+      console.error('Error approving task:', error);
+      setError(error.message);
+      throw error;
+    }
+  }, [currentUser]);
+
+  /**
    * Actualizar progreso de la tarea
    */
   const updateProgress = useCallback(async (taskId, porcentaje, checklistItems = []) => {
@@ -594,6 +660,9 @@ export const useDelegatedTasks = () => {
     assignTask,
     requestTransfer,
     respondTransfer,
+    
+    // Aprobación
+    approveTask,
     
     // Progreso
     updateProgress,
