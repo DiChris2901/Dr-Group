@@ -37,13 +37,24 @@ const SolicitudesPage = () => {
       const solicitudesData = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
+        
+        // Helper para convertir Timestamps a Date
+        const convertDate = (dateValue) => {
+          if (!dateValue) return null;
+          return dateValue?.toDate ? dateValue.toDate() : new Date(dateValue);
+        };
+        
         solicitudesData.push({ 
           id: doc.id, 
           ...data,
-          // Convertir fechas solo si existen (certificaciones no tienen fechaInicio/fechaFin)
-          fechaSolicitud: data.fechaSolicitud?.toDate ? data.fechaSolicitud.toDate() : (data.fechaSolicitud ? new Date(data.fechaSolicitud) : new Date()),
-          fechaInicio: data.fechaInicio ? (data.fechaInicio?.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio)) : null,
-          fechaFin: data.fechaFin ? (data.fechaFin?.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin)) : null
+          fechaSolicitud: convertDate(data.fechaSolicitud) || new Date(),
+          fechaInicio: convertDate(data.fechaInicio),
+          fechaFin: convertDate(data.fechaFin),
+          fechaAprobacion: convertDate(data.fechaAprobacion),
+          fechaRechazo: convertDate(data.fechaRechazo),
+          fechaNacimiento: convertDate(data.fechaNacimiento),
+          fechaDeduccion: convertDate(data.fechaDeduccion),
+          fechaRequerida: convertDate(data.fechaRequerida)
         });
       });
       setSolicitudes(solicitudesData);

@@ -31,6 +31,7 @@ import {
   Switch,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
   alpha,
   useTheme
 } from '@mui/material';
@@ -47,7 +48,23 @@ import {
   WatchLater as PermisoIcon,
   Celebration as CompensatorioIcon,
   Description as DocumentoIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  CloudUpload as UploadIcon,
+  Download as DownloadIcon,
+  AttachFile as AttachFileIcon,
+  ChildCare as MaternidadIcon,
+  AccountBalance as AdelantoIcon,
+  Home as RemotoIcon,
+  Visibility as VisibilityIcon,
+  CalendarToday as CalendarIcon,
+  Schedule as ScheduleIcon,
+  AttachMoney as MoneyIcon,
+  FolderOpen as FolderOpenIcon,
+  InsertDriveFile as InsertDriveFileIcon,
+  GetApp as GetAppIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -64,9 +81,12 @@ import {
   getDocs,
   Timestamp 
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db, storage } from '../../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject, getMetadata } from 'firebase/storage';
 import { differenceInDays } from 'date-fns';
 import { usePermissions } from '../../hooks/usePermissions';
+import { combineFilesToPDF } from '../../utils/pdfCombiner';
+import { PDFDocument } from 'pdf-lib';
 
 const SolicitudesRRHH = ({ 
   solicitudes, 
@@ -88,27 +108,43 @@ const SolicitudesRRHH = ({
   const [confirmAction, setConfirmAction] = useState(null); // 'aprobar' | 'rechazar'
   const [selectedSolicitudId, setSelectedSolicitudId] = useState(null);
   const [comentarioAccion, setComentarioAccion] = useState('');
-  const [openCertificadoModal, setOpenCertificadoModal] = useState(false); // Modal para generar certificado
-  const [openPreviewCertificado, setOpenPreviewCertificado] = useState(false); // Modal preview del certificado generado
-  const [certificadoData, setCertificadoData] = useState({
-    empleadoNombre: '',
-    empleadoDocumento: '',
-    empleadoCargo: '',
-    empleadoSalario: '',
-    fechaIngreso: '',
-    dirigidoA: '',
-    incluyeSalario: false,
-    empresaNombre: '',
-    empresaNIT: '',
-    empresaLogo: '',
-    empresaDireccion: '',
-    empresaCiudad: ''
+  const [uploadingCertificado, setUploadingCertificado] = useState(false);
+  const [uploadingIncapacidad, setUploadingIncapacidad] = useState(false);
+  const [uploadingDocLicencia, setUploadingDocLicencia] = useState({
+    epicrisis: false,
+    nacidoVivo: false,
+    historiaClinica: false,
+    registroCivil: false
   });
   const [filterSolicitudTipo, setFilterSolicitudTipo] = useState('todos');
   const [filterSolicitudEstado, setFilterSolicitudEstado] = useState('todos');
   const [searchSolicitud, setSearchSolicitud] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Estados para Modal de Detalles y Visor PDF
+  const [openDetallesModal, setOpenDetallesModal] = useState(false);
+  const [selectedSolicitud, setSelectedSolicitud] = useState(null);
+  const [openPDFViewer, setOpenPDFViewer] = useState(false);
+  const [currentPDF, setCurrentPDF] = useState({ url: '', nombre: '' });
+  const [documentInfoOpen, setDocumentInfoOpen] = useState(false);
+  const [documentInfo, setDocumentInfo] = useState(null);
+  
+  // Estados para Modal de Contraseña de PDF
+  const [openPasswordModal, setOpenPasswordModal] = useState(false);
+  const [pendingPasswordFile, setPendingPasswordFile] = useState(null);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [passwordAttempts, setPasswordAttempts] = useState(0);
+  const [passwordError, setPasswordError] = useState('');
+  
+  // Estado para archivos pendientes (en memoria, antes de subir a Storage)
+  const [pendingFiles, setPendingFiles] = useState({
+    incapacidad: null,
+    epicrisis: null,
+    nacidoVivo: null,
+    historiaClinica: null,
+    registroCivil: null
+  });
   
   // Form Solicitud
   const [formSolicitud, setFormSolicitud] = useState({
@@ -119,21 +155,569 @@ const SolicitudesRRHH = ({
     fechaFin: '',
     dias: 0,
     motivo: '',
+    // Campos específicos para incapacidad
+    incapacidadURL: '',
+    incapacidadNombre: '',
     // Campos específicos para certificaciones
     dirigidoA: '',
     incluirSalario: false,
-    fechaRequerida: ''
+    fechaRequerida: '',
+    // Campos específicos para licencias de maternidad/paternidad
+    tipoLicencia: 'maternidad',
+    fechaNacimiento: '',
+    epicrisisURL: '',
+    epicrisisNombre: '',
+    nacidoVivoURL: '',
+    nacidoVivoNombre: '',
+    historiaClinicaURL: '',
+    historiaClinicaNombre: '',
+    registroCivilURL: '',
+    registroCivilNombre: '',
+    // Campos específicos para adelanto de nómina
+    montoSolicitado: '',
+    fechaDeduccion: '',
+    // Campos específicos para trabajo remoto
+    confirmaRecursos: false
   });
+
+  // Helper: Obtener fecha actual en formato YYYY-MM-DD (zona horaria local, sin UTC)
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper: Convertir YYYY-MM-DD a Date en zona horaria local (evita problema UTC)
+  const createLocalDate = (dateString) => {
+    if (!dateString) return null;
+    // Agregar hora del mediodía para evitar cambios de día por zona horaria
+    return new Date(dateString + 'T12:00:00');
+  };
+
+  // Helper: Convertir Timestamp de Firestore a Date de forma segura
+  const toDate = (value) => {
+    if (!value) return null;
+    // Si es un Timestamp de Firestore, convertir a Date
+    if (value?.toDate && typeof value.toDate === 'function') {
+      return value.toDate();
+    }
+    // Si ya es un Date, devolverlo
+    if (value instanceof Date) {
+      return value;
+    }
+    // Si es un string, convertirlo
+    if (typeof value === 'string') {
+      return createLocalDate(value);
+    }
+    return null;
+  };
 
   // Calcular días automáticamente
   React.useEffect(() => {
     if (formSolicitud.fechaInicio && formSolicitud.fechaFin) {
-      const inicio = new Date(formSolicitud.fechaInicio);
-      const fin = new Date(formSolicitud.fechaFin);
+      const inicio = createLocalDate(formSolicitud.fechaInicio);
+      const fin = createLocalDate(formSolicitud.fechaFin);
       const dias = differenceInDays(fin, inicio) + 1;
       setFormSolicitud(prev => ({ ...prev, dias: dias > 0 ? dias : 0 }));
     }
   }, [formSolicitud.fechaInicio, formSolicitud.fechaFin]);
+
+  // Función auxiliar: Eliminar archivo de Firebase Storage
+  const eliminarArchivoStorage = async (fileURL) => {
+    if (!fileURL) return;
+    
+    try {
+      // Extraer la ruta del archivo desde la URL de Firebase Storage
+      // Formato: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token={token}
+      const decodedURL = decodeURIComponent(fileURL);
+      const pathMatch = decodedURL.match(/\/o\/(.+?)\?/);
+      
+      if (pathMatch && pathMatch[1]) {
+        const filePath = pathMatch[1];
+        const fileRef = ref(storage, filePath);
+        await deleteObject(fileRef);
+        console.log('✅ Archivo eliminado de Storage:', filePath);
+      }
+    } catch (error) {
+      // Si el archivo no existe (404), está bien - el objetivo ya se cumplió
+      if (error.code === 'storage/object-not-found') {
+        console.log('ℹ️ Archivo ya no existe en Storage (previamente eliminado)');
+      } else {
+        // Solo loggear otros errores reales
+        console.error('⚠️ Error al eliminar archivo de Storage:', error);
+      }
+      // No lanzar error para no bloquear la eliminación del documento
+    }
+  };
+
+  // Función auxiliar: Verificar si un PDF tiene contraseña
+  const pdfTieneContrasena = async (file) => {
+    try {
+      const fileBuffer = await file.arrayBuffer();
+      // Intentar cargar el PDF normalmente (sin contraseña)
+      await PDFDocument.load(fileBuffer);
+      // Si carga exitosamente, NO tiene contraseña
+      return false;
+    } catch (error) {
+      // Si el error menciona encriptación, tiene contraseña
+      if (error.message && (
+        error.message.toLowerCase().includes('encrypted') || 
+        error.message.toLowerCase().includes('password') ||
+        error.message.includes('decrypt')
+      )) {
+        return true; // Tiene contraseña
+      }
+      // Cualquier otro error (PDF corrupto, etc), re-lanzarlo
+      console.error('Error inesperado al verificar PDF:', error);
+      throw new Error(`Error al leer el PDF: ${error.message}`);
+    }
+  };
+
+  // Función auxiliar: Desencriptar PDF con contraseña
+  const desencriptarPDF = async (file, password) => {
+    try {
+      console.log(`🔐 Intentando desencriptar: ${file.name}`);
+      console.log(`🔑 Contraseña proporcionada: ${password ? '[PROPORCIONADA]' : '[VACÍA]'} (longitud: ${password.length})`);
+      
+      const fileBuffer = await file.arrayBuffer();
+      console.log(`📦 Buffer cargado: ${(fileBuffer.byteLength / 1024).toFixed(2)} KB`);
+      
+      let pdfDoc;
+      let estrategiaExitosa = null;
+      
+      // Estrategia 1: Intentar con contraseña directamente
+      try {
+        console.log(`🔓 Estrategia 1: Cargando PDF con contraseña...`);
+        pdfDoc = await PDFDocument.load(fileBuffer, { 
+          password: password,
+          updateMetadata: false
+        });
+        estrategiaExitosa = 1;
+        console.log(`✅ Estrategia 1 EXITOSA! PDF cargado con contraseña.`);
+      } catch (error1) {
+        console.warn(`⚠️ Estrategia 1 FALLÓ:`, error1.message);
+        
+        // Estrategia 2: Intentar con ignoreEncryption (para PDFs con protección débil)
+        try {
+          console.log(`🔓 Estrategia 2: Intentando con ignoreEncryption...`);
+          pdfDoc = await PDFDocument.load(fileBuffer, { 
+            ignoreEncryption: true,
+            updateMetadata: false
+          });
+          estrategiaExitosa = 2;
+          console.log(`✅ Estrategia 2 EXITOSA! PDF cargado ignorando encriptación (protección débil).`);
+        } catch (error2) {
+          console.error(`❌ Estrategia 2 FALLÓ:`, error2.message);
+          console.error(`\n💡 DIAGNÓSTICO: Ambas estrategias fallaron.`);
+          console.error(`   - Estrategia 1 (password): ${error1.message}`);
+          console.error(`   - Estrategia 2 (ignoreEncryption): ${error2.message}`);
+          console.error(`\n📋 POSIBLES CAUSAS:`);
+          console.error(`   1. Contraseña incorrecta`);
+          console.error(`   2. PDF usa encriptación no soportada por pdf-lib (AES-256, etc.)`);
+          console.error(`   3. PDF corrupto o dañado`);
+          console.error(`\n💡 SOLUCIONES:`);
+          console.error(`   - Verificar que la contraseña sea exactamente correcta`);
+          console.error(`   - Desencriptar con Adobe Acrobat, PDFtk u otra herramienta`);
+          console.error(`   - Subir el PDF encriptado (opción de emergencia)\n`);
+          
+          // Si el error original mencionaba "encrypted", es problema de contraseña/encriptación
+          if (error1.message && error1.message.toLowerCase().includes('encrypted')) {
+            throw new Error('Contraseña incorrecta');
+          }
+          throw error1;
+        }
+      }
+      
+      console.log(`💾 Guardando PDF sin encriptación...`);
+      
+      let pdfBytes;
+      if (estrategiaExitosa === 2) {
+        // ESTRATEGIA 2: ignoreEncryption NO remueve la encriptación
+        // Necesitamos RECONSTRUIR el PDF copiando páginas a un documento nuevo
+        console.log(`🔧 Estrategia 2 detectada: Reconstruyendo PDF sin encriptación...`);
+        const newPdfDoc = await PDFDocument.create();
+        
+        // Copiar TODAS las páginas del PDF encriptado al nuevo documento
+        const pageCount = pdfDoc.getPageCount();
+        console.log(`📄 Copiando ${pageCount} página(s)...`);
+        const copiedPages = await newPdfDoc.copyPages(pdfDoc, Array.from({ length: pageCount }, (_, i) => i));
+        copiedPages.forEach(page => newPdfDoc.addPage(page));
+        
+        // Guardar el nuevo documento (sin encriptación)
+        pdfBytes = await newPdfDoc.save();
+        console.log(`✅ PDF reconstruido sin encriptación`);
+      } else {
+        // ESTRATEGIA 1: password funcionó, guardar normalmente
+        console.log(`💾 Estrategia 1: Guardando PDF desencriptado...`);
+        pdfBytes = await pdfDoc.save({
+          useObjectStreams: false,
+          addDefaultPage: false
+        });
+      }
+      
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      
+      // Crear un nuevo File con el mismo nombre pero sin contraseña
+      const desencriptado = new File([blob], file.name, { 
+        type: 'application/pdf', 
+        lastModified: Date.now() 
+      });
+      
+      // Marcar el archivo como ya procesado para evitar bucles infinitos
+      // Usar múltiples marcadores para mayor robustez
+      Object.defineProperty(desencriptado, '_yaDesencriptado', {
+        value: true,
+        writable: false,
+        configurable: true
+      });
+      Object.defineProperty(desencriptado, '_sinEncriptacion', {
+        value: true,
+        writable: false,
+        configurable: true
+      });
+      Object.defineProperty(desencriptado, '_estrategiaUsada', {
+        value: estrategiaExitosa,
+        writable: false,
+        configurable: true
+      });
+      
+      console.log(`✅ PDF desencriptado exitosamente (Estrategia ${estrategiaExitosa}): ${file.name} (${(desencriptado.size / 1024).toFixed(2)} KB)`);
+      console.log(`✅ Archivo marcado con propiedades inmutables: _yaDesencriptado=true, _sinEncriptacion=true`);
+      
+      // Verificar que el PDF NO esté encriptado
+      try {
+        console.log(`🔍 Verificación final: Intentando leer PDF guardado sin contraseña...`);
+        const testBuffer = await desencriptado.arrayBuffer();
+        await PDFDocument.load(testBuffer); // Si esto funciona, NO tiene contraseña
+        console.log(`✅ Verificación exitosa: PDF sin encriptación confirmado`);
+      } catch (verifyError) {
+        console.warn(`⚠️ ADVERTENCIA: PDF guardado aún podría tener encriptación:`, verifyError.message);
+      }
+      
+      return desencriptado;
+    } catch (error) {
+      console.error(`❌ Error final en desencriptarPDF:`, error.message);
+      
+      // Si el error es específico de contraseña incorrecta
+      if (error.message === 'Contraseña incorrecta') {
+        throw error;
+      }
+      
+      if (error.message && (
+        error.message.toLowerCase().includes('password') || 
+        error.message.toLowerCase().includes('incorrect') ||
+        error.message.toLowerCase().includes('decrypt')
+      )) {
+        throw new Error('Contraseña incorrecta');
+      }
+      
+      // Si el error dice que está encriptado, la contraseña es incorrecta
+      if (error.message && error.message.toLowerCase().includes('encrypted')) {
+        throw new Error('Contraseña incorrecta');
+      }
+      
+      throw new Error(`Error al desencriptar: ${error.message}`);
+    }
+  };
+
+  // Handler: Procesar archivos verificando contraseñas
+  const procesarArchivosConValidacionContraseña = async (files, nombreBase) => {
+    try {
+      const archivosValidados = [];
+      
+      for (const file of files) {
+        // Solo validar si es PDF y NO fue previamente desencriptado
+        // Verificar múltiples marcadores para mayor robustez
+        const yaDesencriptado = file._yaDesencriptado || file._sinEncriptacion;
+        if (file.type === 'application/pdf' && !yaDesencriptado) {
+          console.log(`🔍 Verificando PDF: ${file.name} (${(file.size / 1024).toFixed(2)} KB) [_yaDesencriptado=${file._yaDesencriptado}, _sinEncriptacion=${file._sinEncriptacion}]`);
+          const tienePassword = await pdfTieneContrasena(file);
+          
+          if (tienePassword) {
+            console.log(`🔒 PDF con contraseña detectado: ${file.name}`);
+            // Mostrar modal para pedir contraseña
+            return new Promise((resolve, reject) => {
+              setPendingPasswordFile({ file, resolve, reject, nombreBase, restFiles: files.filter(f => f !== file).concat(archivosValidados) });
+              setOpenPasswordModal(true);
+              setPdfPassword('');
+              setPasswordError('');
+              setPasswordAttempts(0);
+            });
+          } else {
+            console.log(`✅ PDF sin contraseña: ${file.name}`);
+          }
+        } else if (file._yaDesencriptado) {
+          console.log(`⏩ PDF ya procesado, saltando verificación: ${file.name}`);
+        }
+        archivosValidados.push(file);
+      }
+      
+      // Si todos los archivos están validados, procesarlos
+      console.log(`📦 Todos los archivos validados (${archivosValidados.length}), procesando...`);
+      const result = await procesarYCombinarArchivos(archivosValidados, nombreBase);
+      console.log(`✅ Resultado de procesarYCombinarArchivos:`, {
+        tieneBlob: !!result?.blob,
+        tieneFileName: !!result?.fileName,
+        tieneStats: !!result?.stats,
+        blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A'
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ Error al validar contraseñas:', error);
+      throw error;
+    }
+  };
+
+  // Handler: Confirmar contraseña de PDF
+  const handleConfirmarPassword = async () => {
+    if (!pdfPassword.trim()) {
+      setPasswordError('Por favor ingresa la contraseña');
+      return;
+    }
+
+    console.log(`🎯 handleConfirmarPassword iniciado`);
+    console.log(`🔑 Contraseña ingresada: ${pdfPassword ? '[PROPORCIONADA]' : '[VACÍA]'} (longitud: ${pdfPassword.length})`);
+
+    try {
+      const { file, resolve, reject, nombreBase, restFiles } = pendingPasswordFile;
+      console.log(`📄 Archivo a desencriptar: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+      
+      // Intentar desencriptar el PDF
+      const archivoDesencriptado = await desencriptarPDF(file, pdfPassword);
+      
+      console.log(`✅ Desencriptación exitosa, continuando con el procesamiento...`);
+      // Agregar el archivo desencriptado a la lista
+      const todosArchivos = [...restFiles, archivoDesencriptado];
+      
+      // Cerrar modal
+      setOpenPasswordModal(false);
+      setPendingPasswordFile(null);
+      setPdfPassword('');
+      setPasswordError('');
+      setPasswordAttempts(0);
+      
+      // Continuar procesando recursivamente por si hay más archivos con contraseña
+      const result = await procesarArchivosConValidacionContraseña(todosArchivos, nombreBase);
+      resolve(result);
+      
+    } catch (error) {
+      console.error(`❌ Error en handleConfirmarPassword:`, error);
+      const nuevoIntento = passwordAttempts + 1;
+      setPasswordAttempts(nuevoIntento);
+      
+      if (error.message === 'Contraseña incorrecta' || error.message.toLowerCase().includes('encrypted')) {
+        if (nuevoIntento >= 3) {
+          // Después de 3 intentos, ofrecer subir sin desencriptar
+          setPasswordError(
+            '3 intentos fallidos. El PDF puede usar encriptación no soportada. ' +
+            'Puedes intentar: 1) Verificar la contraseña, 2) Desencriptar el PDF con otra herramienta, ' +
+            'o 3) Subir el archivo encriptado (puede causar problemas al visualizarlo).'
+          );
+        } else {
+          setPasswordError(`Contraseña incorrecta o encriptación no soportada (Intento ${nuevoIntento}/3)`);
+        }
+      } else {
+        setPasswordError('Error al procesar el PDF: ' + error.message);
+      }
+    }
+  };
+
+  // Handler: Cancelar contraseña
+  const handleCancelarPassword = () => {
+    setOpenPasswordModal(false);
+    setPendingPasswordFile(null);
+    setPdfPassword('');
+    setPasswordError('');
+    setPasswordAttempts(0);
+    
+    if (pendingPasswordFile) {
+      pendingPasswordFile.reject(new Error('Usuario canceló la operación'));
+    }
+  };
+
+  // Handler: Subir PDF encriptado sin desencriptar (opción de emergencia)
+  const handleSubirEncriptado = async () => {
+    try {
+      const { file, resolve, nombreBase, restFiles } = pendingPasswordFile;
+      console.log(`⚠️ Usuario eligió subir PDF encriptado sin desencriptar: ${file.name}`);
+      
+      // Agregar el archivo encriptado tal cual
+      const todosArchivos = [...restFiles, file];
+      
+      // Cerrar modal
+      setOpenPasswordModal(false);
+      setPendingPasswordFile(null);
+      setPdfPassword('');
+      setPasswordError('');
+      setPasswordAttempts(0);
+      
+      // Mostrar advertencia
+      showToast(
+        'PDF subido sin desencriptar. Puede que no se pueda visualizar correctamente en el sistema.',
+        'warning'
+      );
+      
+      // Continuar procesando
+      const result = await procesarArchivosConValidacionContraseña(todosArchivos, nombreBase);
+      resolve(result);
+    } catch (error) {
+      console.error('❌ Error al subir encriptado:', error);
+      setPasswordError('Error al procesar: ' + error.message);
+    }
+  };
+
+  // Función auxiliar: Procesar y combinar múltiples archivos en un solo PDF
+  const procesarYCombinarArchivos = async (files, nombreBase) => {
+    if (!files || files.length === 0) return null;
+
+    try {
+      console.log(`📄 Procesando ${files.length} archivo(s)...`);
+
+      // Si es solo 1 archivo y ya es PDF, subirlo directamente sin procesamiento
+      if (files.length === 1 && files[0].type === 'application/pdf') {
+        console.log('📄 Un solo PDF detectado, subida directa');
+        return {
+          blob: files[0],
+          fileName: files[0].name,
+          stats: null
+        };
+      }
+
+      // Si es solo 1 archivo imagen, convertirlo a PDF
+      if (files.length === 1 && files[0].type.startsWith('image/')) {
+        console.log('🖼️ Una sola imagen detectada, convirtiendo a PDF...');
+        const result = await combineFilesToPDF([files[0]], { title: nombreBase });
+        return {
+          blob: result.combinedPDF,
+          fileName: `${nombreBase}_${Date.now()}.pdf`,
+          stats: result.stats
+        };
+      }
+
+      // Si hay múltiples archivos (PDFs + imágenes), combinarlos
+      console.log('🔗 Múltiples archivos detectados, combinando en PDF...');
+      const result = await combineFilesToPDF(files, { title: nombreBase });
+      
+      // Validar tamaño del PDF combinado (máx 25MB)
+      const pdfSizeMB = result.combinedPDF.size / (1024 * 1024);
+      if (result.combinedPDF.size > 25 * 1024 * 1024) {
+        throw new Error(`El PDF combinado (${pdfSizeMB.toFixed(2)}MB) supera los 25MB. Intenta con menos archivos.`);
+      }
+
+      return {
+        blob: result.combinedPDF,
+        fileName: `${nombreBase}_${Date.now()}.pdf`,
+        stats: result.stats
+      };
+
+    } catch (error) {
+      console.error('❌ Error al procesar archivos:', error);
+      throw error;
+    }
+  };
+
+  // Helper: Subir archivos pendientes a Storage antes de crear la solicitud
+  const subirArchivosPendientes = async (empleadoId) => {
+    const urls = {};
+    const nombres = {};
+
+    try {
+      // Subir Incapacidad
+      if (pendingFiles.incapacidad) {
+        console.log(`📄 Subiendo incapacidad a Storage...`, {
+          fileName: pendingFiles.incapacidad.fileName,
+          blobSize: `${(pendingFiles.incapacidad.blob.size / 1024).toFixed(2)} KB`,
+          blobType: pendingFiles.incapacidad.blob.type,
+          _yaDesencriptado: pendingFiles.incapacidad.blob._yaDesencriptado,
+          _sinEncriptacion: pendingFiles.incapacidad.blob._sinEncriptacion,
+          _estrategiaUsada: pendingFiles.incapacidad.blob._estrategiaUsada
+        });
+        const storageRef = ref(storage, `incapacidades/${pendingFiles.incapacidad.fileName}`);
+        await uploadBytes(storageRef, pendingFiles.incapacidad.blob);
+        console.log(`✅ Archivo subido, obteniendo URL...`);
+        urls.incapacidadURL = await getDownloadURL(storageRef);
+        console.log(`✅ URL obtenida: ${urls.incapacidadURL.substring(0, 80)}...`);
+        nombres.incapacidadNombre = pendingFiles.incapacidad.stats 
+          ? `${pendingFiles.incapacidad.stats.processedFiles} archivo(s) combinado(s)` 
+          : pendingFiles.incapacidad.fileName;
+      }
+
+      // Subir Epicrisis
+      if (pendingFiles.epicrisis) {
+        console.log(`📄 Subiendo epicrisis a Storage...`, {
+          fileName: pendingFiles.epicrisis.fileName,
+          blobSize: `${(pendingFiles.epicrisis.blob.size / 1024).toFixed(2)} KB`,
+          _yaDesencriptado: pendingFiles.epicrisis.blob._yaDesencriptado,
+          _sinEncriptacion: pendingFiles.epicrisis.blob._sinEncriptacion
+        });
+        const storageRef = ref(storage, `licencias/${pendingFiles.epicrisis.fileName}`);
+        await uploadBytes(storageRef, pendingFiles.epicrisis.blob);
+        urls.epicrisisURL = await getDownloadURL(storageRef);
+        console.log(`✅ Epicrisis subida: ${urls.epicrisisURL.substring(0, 80)}...`);
+        nombres.epicrisisNombre = pendingFiles.epicrisis.stats 
+          ? `${pendingFiles.epicrisis.stats.processedFiles} archivo(s) combinado(s)` 
+          : pendingFiles.epicrisis.fileName;
+      }
+
+      // Subir Nacido Vivo
+      if (pendingFiles.nacidoVivo) {
+        console.log(`📄 Subiendo nacido vivo a Storage...`, {
+          fileName: pendingFiles.nacidoVivo.fileName,
+          blobSize: `${(pendingFiles.nacidoVivo.blob.size / 1024).toFixed(2)} KB`,
+          _yaDesencriptado: pendingFiles.nacidoVivo.blob._yaDesencriptado,
+          _sinEncriptacion: pendingFiles.nacidoVivo.blob._sinEncriptacion
+        });
+        const storageRef = ref(storage, `licencias/${pendingFiles.nacidoVivo.fileName}`);
+        await uploadBytes(storageRef, pendingFiles.nacidoVivo.blob);
+        urls.nacidoVivoURL = await getDownloadURL(storageRef);
+        console.log(`✅ Nacido vivo subido: ${urls.nacidoVivoURL.substring(0, 80)}...`);
+        nombres.nacidoVivoNombre = pendingFiles.nacidoVivo.stats 
+          ? `${pendingFiles.nacidoVivo.stats.processedFiles} archivo(s) combinado(s)` 
+          : pendingFiles.nacidoVivo.fileName;
+      }
+
+      // Subir Historia Clínica
+      if (pendingFiles.historiaClinica) {
+        console.log(`📄 Subiendo historia clínica a Storage...`, {
+          fileName: pendingFiles.historiaClinica.fileName,
+          blobSize: `${(pendingFiles.historiaClinica.blob.size / 1024).toFixed(2)} KB`,
+          _yaDesencriptado: pendingFiles.historiaClinica.blob._yaDesencriptado,
+          _sinEncriptacion: pendingFiles.historiaClinica.blob._sinEncriptacion
+        });
+        const storageRef = ref(storage, `licencias/${pendingFiles.historiaClinica.fileName}`);
+        await uploadBytes(storageRef, pendingFiles.historiaClinica.blob);
+        urls.historiaClinicaURL = await getDownloadURL(storageRef);
+        console.log(`✅ Historia clínica subida: ${urls.historiaClinicaURL.substring(0, 80)}...`);
+        nombres.historiaClinicaNombre = pendingFiles.historiaClinica.stats 
+          ? `${pendingFiles.historiaClinica.stats.processedFiles} archivo(s) combinado(s)` 
+          : pendingFiles.historiaClinica.fileName;
+      }
+
+      // Subir Registro Civil
+      if (pendingFiles.registroCivil) {
+        console.log(`📄 Subiendo registro civil a Storage...`, {
+          fileName: pendingFiles.registroCivil.fileName,
+          blobSize: `${(pendingFiles.registroCivil.blob.size / 1024).toFixed(2)} KB`,
+          _yaDesencriptado: pendingFiles.registroCivil.blob._yaDesencriptado,
+          _sinEncriptacion: pendingFiles.registroCivil.blob._sinEncriptacion
+        });
+        const storageRef = ref(storage, `licencias/${pendingFiles.registroCivil.fileName}`);
+        await uploadBytes(storageRef, pendingFiles.registroCivil.blob);
+        urls.registroCivilURL = await getDownloadURL(storageRef);
+        console.log(`✅ Registro civil subido: ${urls.registroCivilURL.substring(0, 80)}...`);
+        nombres.registroCivilNombre = pendingFiles.registroCivil.stats 
+          ? `${pendingFiles.registroCivil.stats.processedFiles} archivo(s) combinado(s)` 
+          : pendingFiles.registroCivil.fileName;
+      }
+
+      return { urls, nombres };
+    } catch (error) {
+      console.error('❌ Error al subir archivos pendientes:', error);
+      throw new Error('Error al subir archivos a Storage');
+    }
+  };
 
   // Crear o actualizar solicitud
   const handleCrearSolicitud = async () => {
@@ -145,22 +729,106 @@ const SolicitudesRRHH = ({
       }
 
       // Validación de fechas solo para solicitudes que no sean certificaciones
-      if (formSolicitud.tipo !== 'certificacion') {
+      if (!['certificacion', 'adelanto'].includes(formSolicitud.tipo)) {
         if (!formSolicitud.fechaInicio || !formSolicitud.fechaFin) {
           showToast('Por favor completa las fechas de inicio y fin', 'warning');
           return;
         }
+        
+        // Validación: fechas futuras (excepto incapacidades que pueden ser retroactivas)
+        if (formSolicitud.tipo !== 'incapacidad') {
+          const hoyString = getTodayDateString(); // YYYY-MM-DD en hora local
+          const fechaInicioString = formSolicitud.fechaInicio; // Ya es YYYY-MM-DD
+          
+          if (fechaInicioString < hoyString) {
+            showToast('La fecha de inicio no puede ser anterior a hoy', 'warning');
+            return;
+          }
+        }
       }
 
-      // Validación de motivo obligatorio para certificaciones
+      // Validaciones específicas por tipo
       if (formSolicitud.tipo === 'certificacion') {
         if (!formSolicitud.motivo || !formSolicitud.dirigidoA) {
           showToast('Por favor completa el tipo de certificación y a quién va dirigida', 'warning');
           return;
         }
       }
-
+      
+      if (formSolicitud.tipo === 'incapacidad') {
+        // Verificar archivo pendiente o URL existente (edición)
+        if (!pendingFiles.incapacidad && !formSolicitud.incapacidadURL) {
+          showToast('Por favor adjunta el documento de la incapacidad', 'warning');
+          return;
+        }
+      }
+      
+      if (formSolicitud.tipo === 'licencia_maternidad') {
+        if (!formSolicitud.fechaNacimiento) {
+          showToast('Por favor indica la fecha de nacimiento o adopción', 'warning');
+          return;
+        }
+        // Validar documentos obligatorios (Registro Civil es opcional)
+        // Verificar archivos pendientes O URLs existentes (en caso de edición)
+        const docsRequeridos = [
+          { 
+            campo: 'epicrisisURL', 
+            pendiente: 'epicrisis',
+            nombre: 'Epicrisis' 
+          },
+          { 
+            campo: 'nacidoVivoURL', 
+            pendiente: 'nacidoVivo',
+            nombre: 'Certificado de Nacido Vivo' 
+          },
+          { 
+            campo: 'historiaClinicaURL', 
+            pendiente: 'historiaClinica',
+            nombre: 'Historia Clínica' 
+          }
+          // Registro Civil es OPCIONAL (difícil de obtener inmediatamente)
+        ];
+        
+        const docsFaltantes = docsRequeridos.filter(doc => 
+          !pendingFiles[doc.pendiente] && !formSolicitud[doc.campo]
+        );
+        
+        if (docsFaltantes.length > 0) {
+          const nombresFaltantes = docsFaltantes.map(d => d.nombre).join(', ');
+          showToast(`Documentos faltantes: ${nombresFaltantes}`, 'warning');
+          return;
+        }
+      }
+      
+      if (formSolicitud.tipo === 'adelanto') {
+        if (!formSolicitud.montoSolicitado || !formSolicitud.fechaDeduccion) {
+          showToast('Por favor completa el monto y la fecha de deducción', 'warning');
+          return;
+        }
+      }
+      
       const empleado = empleados.find(e => e.id === formSolicitud.empleadoId);
+      
+      // 🚀 PASO 1: Subir archivos pendientes a Storage antes de crear la solicitud
+      console.log(`🚀 PASO 1: Verificando archivos pendientes...`, {
+        tieneIncapacidad: !!pendingFiles.incapacidad,
+        tieneEpicrisis: !!pendingFiles.epicrisis,
+        tieneNacidoVivo: !!pendingFiles.nacidoVivo,
+        tieneHistoriaClinica: !!pendingFiles.historiaClinica,
+        tieneRegistroCivil: !!pendingFiles.registroCivil
+      });
+      let uploadedFiles = { urls: {}, nombres: {} };
+      if (!editingSolicitudId && (pendingFiles.incapacidad || pendingFiles.epicrisis || pendingFiles.nacidoVivo || pendingFiles.historiaClinica || pendingFiles.registroCivil)) {
+        console.log(`📤 Iniciando subida de archivos pendientes...`);
+        try {
+          uploadedFiles = await subirArchivosPendientes(formSolicitud.empleadoId);
+          console.log(`✅ Archivos subidos exitosamente:`, uploadedFiles);
+        } catch (error) {
+          console.error('❌ Error al subir archivos adjuntos:', error);
+          showToast('Error al subir archivos adjuntos', 'error');
+          throw error;
+        }
+      }
       
       // Estructura base del documento
       const solicitudData = {
@@ -175,18 +843,41 @@ const SolicitudesRRHH = ({
         creadoPorNombre: formSolicitud.creadoPorNombre || userProfile.name || userProfile.displayName
       };
 
-      // Agregar fechas solo si no es certificación
-      if (formSolicitud.tipo !== 'certificacion') {
-        solicitudData.fechaInicio = Timestamp.fromDate(new Date(formSolicitud.fechaInicio));
-        solicitudData.fechaFin = Timestamp.fromDate(new Date(formSolicitud.fechaFin));
+      // Agregar campos según tipo
+      if (!['certificacion', 'adelanto'].includes(formSolicitud.tipo)) {
+        solicitudData.fechaInicio = Timestamp.fromDate(createLocalDate(formSolicitud.fechaInicio));
+        solicitudData.fechaFin = Timestamp.fromDate(createLocalDate(formSolicitud.fechaFin));
         solicitudData.dias = formSolicitud.dias;
-      } else {
-        // Agregar campos específicos de certificación
+      }
+      
+      // Campos específicos por tipo
+      if (formSolicitud.tipo === 'certificacion') {
         solicitudData.dirigidoA = formSolicitud.dirigidoA;
         solicitudData.incluirSalario = formSolicitud.incluirSalario;
         if (formSolicitud.fechaRequerida) {
-          solicitudData.fechaRequerida = Timestamp.fromDate(new Date(formSolicitud.fechaRequerida));
+          solicitudData.fechaRequerida = Timestamp.fromDate(createLocalDate(formSolicitud.fechaRequerida));
         }
+      } else if (formSolicitud.tipo === 'incapacidad') {
+        // Usar URLs de archivos recién subidos o las existentes (en caso de edición)
+        solicitudData.incapacidadURL = uploadedFiles.urls.incapacidadURL || formSolicitud.incapacidadURL || '';
+        solicitudData.incapacidadNombre = uploadedFiles.nombres.incapacidadNombre || formSolicitud.incapacidadNombre || '';
+      } else if (formSolicitud.tipo === 'licencia_maternidad') {
+        solicitudData.tipoLicencia = formSolicitud.tipoLicencia;
+        solicitudData.fechaNacimiento = Timestamp.fromDate(createLocalDate(formSolicitud.fechaNacimiento));
+        // Usar URLs de archivos recién subidos o las existentes (en caso de edición)
+        solicitudData.epicrisisURL = uploadedFiles.urls.epicrisisURL || formSolicitud.epicrisisURL || '';
+        solicitudData.epicrisisNombre = uploadedFiles.nombres.epicrisisNombre || formSolicitud.epicrisisNombre || '';
+        solicitudData.nacidoVivoURL = uploadedFiles.urls.nacidoVivoURL || formSolicitud.nacidoVivoURL || '';
+        solicitudData.nacidoVivoNombre = uploadedFiles.nombres.nacidoVivoNombre || formSolicitud.nacidoVivoNombre || '';
+        solicitudData.historiaClinicaURL = uploadedFiles.urls.historiaClinicaURL || formSolicitud.historiaClinicaURL || '';
+        solicitudData.historiaClinicaNombre = uploadedFiles.nombres.historiaClinicaNombre || formSolicitud.historiaClinicaNombre || '';
+        solicitudData.registroCivilURL = uploadedFiles.urls.registroCivilURL || formSolicitud.registroCivilURL || '';
+        solicitudData.registroCivilNombre = uploadedFiles.nombres.registroCivilNombre || formSolicitud.registroCivilNombre || '';
+      } else if (formSolicitud.tipo === 'adelanto') {
+        solicitudData.montoSolicitado = formSolicitud.montoSolicitado;
+        solicitudData.fechaDeduccion = Timestamp.fromDate(createLocalDate(formSolicitud.fechaDeduccion));
+      } else if (formSolicitud.tipo === 'remoto') {
+        solicitudData.confirmaRecursos = formSolicitud.confirmaRecursos;
       }
       
       if (editingSolicitudId) {
@@ -281,247 +972,134 @@ const SolicitudesRRHH = ({
     }
   };
 
-  // Enviar certificado (Admin RRHH) - Abre modal para generar certificado
-  const handleEnviarCertificado = async (solicitud) => {
-    setSelectedSolicitudId(solicitud.id);
+  // Subir certificado (Admin RRHH) - Upload con soporte múltiple y combinación
+  const handleSubirCertificado = (solicitud) => {
+    // Crear input file oculto
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;  // Permitir múltiples archivos
+    input.accept = '.pdf,image/*';
     
-    try {
-      // ESTRATEGIA 1: Buscar por apellido (extraído del nombre completo)
-      // Ejemplo: "David López" → buscar empleado con apellido que contenga "López"
-      const nombreCompleto = solicitud.empleadoNombre || '';
-      const palabras = nombreCompleto.trim().split(' ');
-      const apellido = palabras[palabras.length - 1]; // Última palabra = apellido
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
       
-      console.log(`Buscando empleado por apellido: "${apellido}"`);
-      
-      let empleadoData = null;
-      
-      // Buscar en la colección empleados por apellido
-      const q = query(
-        collection(db, 'empleados'),
-        where('apellidos', '>=', apellido),
-        where('apellidos', '<=', apellido + '\uf8ff')
-      );
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        empleadoData = querySnapshot.docs[0].data();
-        console.log('✅ Empleado encontrado por apellido');
-      } else {
-        // ESTRATEGIA 2: Buscar por createdBy (UID del usuario)
-        console.log('Buscando por createdBy:', solicitud.empleadoId);
-        const q2 = query(
-          collection(db, 'empleados'),
-          where('createdBy', '==', solicitud.empleadoId)
-        );
-        const querySnapshot2 = await getDocs(q2);
-        
-        if (!querySnapshot2.empty) {
-          empleadoData = querySnapshot2.docs[0].data();
-          console.log('✅ Empleado encontrado por createdBy');
-        }
+      // Validar tamaño total antes de procesamiento
+      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > 50 * 1024 * 1024) {
+        showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+        return;
       }
       
-      if (empleadoData) {
-        // Concatenar nombres y apellidos completos de Firestore
-        const nombreCompletoFirestore = `${empleadoData.nombres || ''} ${empleadoData.apellidos || ''}`.trim();
-        
-        // Obtener cargo: primero de empleados, luego de users
-        let cargo = empleadoData.cargo || empleadoData.position || '';
-        
-        // Si no hay cargo en empleados, buscar en users
-        if (!cargo && solicitud.empleadoId) {
-          try {
-            const userRef = doc(db, 'users', solicitud.empleadoId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              cargo = userData.position || '';
-              console.log('Cargo obtenido de users:', cargo);
-            }
-          } catch (error) {
-            console.error('Error al obtener cargo de users:', error);
-          }
-        }
-        
-        // Formatear fecha de ingreso si existe
-        let fechaIngresoFormatted = '';
-        if (empleadoData.fechaInicioContrato) {
-          if (empleadoData.fechaInicioContrato.toDate) {
-            // Es un Timestamp de Firestore
-            const fecha = empleadoData.fechaInicioContrato.toDate();
-            fechaIngresoFormatted = fecha.toISOString().split('T')[0];
-          } else if (typeof empleadoData.fechaInicioContrato === 'string') {
-            // Ya es string formato "2023-07-01"
-            fechaIngresoFormatted = empleadoData.fechaInicioContrato;
-          }
-        }
-
-        // Obtener datos de la empresa contratante
-        let empresaDatos = { nombre: '', nit: '', logo: '', direccion: '', ciudad: '' };
-        
-        console.log('📋 Datos empleado completos:', empleadoData);
-        console.log('🏢 empresaContratante ID:', empleadoData.empresaContratante);
-        
-        if (empleadoData.empresaContratante) {
-          try {
-            // Buscar empresa por nombre (ya que empresaContratante guarda el nombre, no el ID)
-            const empresaQuery = query(
-              collection(db, 'companies'),
-              where('name', '==', empleadoData.empresaContratante)
-            );
-            const empresaSnapshot = await getDocs(empresaQuery);
-            
-            if (!empresaSnapshot.empty) {
-              const empresaData = empresaSnapshot.docs[0].data();
-              console.log('🏢 Datos empresa desde Firestore:', empresaData);
-              
-              empresaDatos = {
-                nombre: empresaData.name || empresaData.nombre || '',
-                nit: empresaData.nit || empresaData.NIT || '',
-                logo: empresaData.logoURL || empresaData.logo || '',
-                direccion: empresaData.address || empresaData.direccion || '',
-                ciudad: empresaData.city || empresaData.ciudad || ''
-              };
-              console.log('✅ Datos empresa procesados:', empresaDatos);
-            } else {
-              console.warn('⚠️ Empresa no encontrada en companies:', empleadoData.empresaContratante);
-            }
-          } catch (error) {
-            console.error('❌ Error al obtener datos de empresa:', error);
-          }
-        } else {
-          console.warn('⚠️ empleadoData.empresaContratante está vacío o no existe');
-        }
-        
-        // Pre-llenar formulario con datos de Firestore
-        setCertificadoData({
-          empleadoNombre: nombreCompletoFirestore || solicitud.empleadoNombre || '',
-          empleadoDocumento: empleadoData.numeroDocumento || '',
-          empleadoCargo: cargo,
-          empleadoSalario: empleadoData.salario || '',
-          fechaIngreso: fechaIngresoFormatted,
-          dirigidoA: solicitud.dirigidoA || '',
-          incluyeSalario: solicitud.incluirSalario || false,
-          empresaNombre: empresaDatos.nombre,
-          empresaNIT: empresaDatos.nit,
-          empresaLogo: empresaDatos.logo,
-          empresaDireccion: empresaDatos.direccion,
-          empresaCiudad: empresaDatos.ciudad
-        });
-        
-        console.log('✅ Datos cargados correctamente:', {
-          nombre: nombreCompletoFirestore,
-          documento: empleadoData.numeroDocumento,
-          cargo: cargo,
-          fechaIngreso: fechaIngresoFormatted
-        });
-      } else {
-        // Si no existe el empleado en Firestore, usar datos de la solicitud
-        setCertificadoData({
-          empleadoNombre: solicitud.empleadoNombre || '',
-          empleadoDocumento: '',
-          empleadoCargo: '',
-          empleadoSalario: '',
-          fechaIngreso: '',
-          dirigidoA: solicitud.dirigidoA || '',
-          incluyeSalario: solicitud.incluirSalario || false,
-          empresaNombre: '',
-          empresaNIT: '',
-          empresaLogo: '',
-          empresaDireccion: '',
-          empresaCiudad: ''
-        });
-        showToast('Empleado no encontrado en la base de datos. Completa manualmente.', 'warning');
-      }
-    } catch (error) {
-      console.error('Error al consultar empleado:', error);
-      // En caso de error, usar datos básicos de la solicitud
-      setCertificadoData({
-        empleadoNombre: solicitud.empleadoNombre || '',
-        empleadoDocumento: '',
-        empleadoCargo: '',
-        empleadoSalario: '',
-        fechaIngreso: '',
-        dirigidoA: solicitud.dirigidoA || '',
-        incluyeSalario: solicitud.incluirSalario || false
-      });
-      showToast('Error al consultar datos del empleado', 'error');
-    }
-    
-    setOpenCertificadoModal(true);
-  };
-
-  // Generar certificado (solo preview, no envía)
-  const handleGenerarCertificado = () => {
-    // Validaciones
-    if (!certificadoData.empleadoNombre || !certificadoData.empleadoDocumento || !certificadoData.empleadoCargo) {
-      showToast('Completa todos los campos obligatorios', 'warning');
-      return;
-    }
-
-    // Cerrar modal de formulario y abrir preview
-    setOpenCertificadoModal(false);
-    setOpenPreviewCertificado(true);
-    showToast('Certificado generado. Revisa y envía.', 'info');
-  };
-
-  // Enviar certificado (después de revisar el preview)
-  const handleEnviarCertificadoFinal = async () => {
-    try {
-      // Aquí iría la lógica de generación del PDF
-      // Por ahora, solo actualizamos el estado
-      const solicitudRef = doc(db, 'solicitudes', selectedSolicitudId);
-      await updateDoc(solicitudRef, {
-        estado: 'enviado',
-        fechaEnvio: new Date(),
-        certificadoData: certificadoData,
-        // certificadoURL: 'URL_DEL_PDF' // Se agregará cuando implementemos generación PDF
-      });
+      setUploadingCertificado(true);
       
-      showToast('Certificado enviado exitosamente', 'success');
-      setOpenPreviewCertificado(false);
-      setCertificadoData({
-        empleadoNombre: '',
-        empleadoDocumento: '',
-        empleadoCargo: '',
-        empleadoSalario: '',
-        fechaIngreso: '',
-        dirigidoA: '',
-        incluyeSalario: false
-      });
-    } catch (error) {
-      console.error('Error al enviar certificado:', error);
-      showToast('Error al enviar el certificado', 'error');
-    }
+      try {
+        // Procesar y combinar archivos (con validación de contraseñas)
+        const result = await procesarArchivosConValidacionContraseña(files, 'certificado');
+        if (!result) throw new Error('Error al procesar archivos');
+
+        // Upload a Storage
+        const timestamp = Date.now();
+        const fileName = `cert_${solicitud.empleadoId}_${timestamp}.pdf`;
+        const storageRef = ref(storage, `certificados/${fileName}`);
+        
+        await uploadBytes(storageRef, result.blob);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        // Actualizar solicitud en Firestore
+        const solicitudRef = doc(db, 'solicitudes', solicitud.id);
+        await updateDoc(solicitudRef, {
+          estado: 'enviado',
+          fechaEnvio: new Date(),
+          certificadoURL: downloadURL,
+          certificadoNombre: result.stats 
+            ? `${result.stats.processedFiles} archivo(s) combinado(s)` 
+            : result.fileName
+        });
+        
+        const mensaje = files.length > 1 
+          ? `${files.length} archivos combinados y enviados exitosamente`
+          : 'Certificado subido y enviado exitosamente';
+        showToast(mensaje, 'success');
+      } catch (error) {
+        console.error('Error al subir certificado:', error);
+        showToast('Error al subir el certificado', 'error');
+      } finally {
+        setUploadingCertificado(false);
+      }
+    };
+    
+    input.click();
   };
 
-  // Ver certificado (Usuario) - Si está "enviado", cambia automáticamente a "recibido"
-  const handleVerCertificado = async (solicitudId, estadoActual) => {
+  // Ver/Descargar certificado - Si está "enviado", cambia automáticamente a "recibido"
+  const handleVerCertificado = async (solicitud) => {
     try {
-      if (estadoActual === 'enviado') {
-        const solicitudRef = doc(db, 'solicitudes', solicitudId);
+      if (!solicitud.certificadoURL) {
+        showToast('No hay certificado disponible', 'warning');
+        return;
+      }
+      
+      // Si el usuario lo ve por primera vez, marcar como recibido
+      if (solicitud.estado === 'enviado') {
+        const solicitudRef = doc(db, 'solicitudes', solicitud.id);
         await updateDoc(solicitudRef, {
           estado: 'recibido',
           fechaRecepcion: new Date()
         });
-        showToast('Certificado marcado como recibido', 'success');
       }
-      // Aquí iría la lógica de visualización del certificado (modal, PDF, etc.)
-      // Por ahora solo cambiamos el estado
+      
+      // Abrir certificado en nueva pestaña
+      window.open(solicitud.certificadoURL, '_blank');
     } catch (error) {
-      console.error('Error al marcar como recibido:', error);
+      console.error('Error al abrir certificado:', error);
       showToast('Error al abrir el certificado', 'error');
     }
   };
 
-  // Eliminar solicitud
+  // Eliminar solicitud (con limpieza automática de archivos en Storage)
   const handleEliminarSolicitud = async (solicitudId) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta solicitud?')) return;
+    if (!window.confirm('¿Estás seguro de eliminar esta solicitud? Los archivos adjuntos también serán eliminados.')) return;
     
     try {
-      await deleteDoc(doc(db, 'solicitudes', solicitudId));
-      showToast('Solicitud eliminada', 'success');
+      // PASO 1: Obtener la solicitud desde Firestore para conocer los archivos adjuntos
+      const solicitudRef = doc(db, 'solicitudes', solicitudId);
+      const solicitudSnap = await getDoc(solicitudRef);
+      
+      if (solicitudSnap.exists()) {
+        const solicitudData = solicitudSnap.data();
+        
+        // PASO 2: Recolectar todas las URLs de archivos adjuntos
+        const archivosAEliminar = [];
+        
+        // Certificado laboral
+        if (solicitudData.certificadoURL) {
+          archivosAEliminar.push(solicitudData.certificadoURL);
+        }
+        
+        // Incapacidad médica
+        if (solicitudData.incapacidadURL) {
+          archivosAEliminar.push(solicitudData.incapacidadURL);
+        }
+        
+        // Documentos de licencia maternidad/paternidad (4 archivos)
+        if (solicitudData.epicrisisURL) archivosAEliminar.push(solicitudData.epicrisisURL);
+        if (solicitudData.nacidoVivoURL) archivosAEliminar.push(solicitudData.nacidoVivoURL);
+        if (solicitudData.historiaClinicaURL) archivosAEliminar.push(solicitudData.historiaClinicaURL);
+        if (solicitudData.registroCivilURL) archivosAEliminar.push(solicitudData.registroCivilURL);
+        
+        // PASO 3: Eliminar archivos de Storage (en paralelo para velocidad)
+        if (archivosAEliminar.length > 0) {
+          await Promise.all(
+            archivosAEliminar.map(url => eliminarArchivoStorage(url))
+          );
+          console.log(`🗑️ ${archivosAEliminar.length} archivo(s) eliminado(s) de Storage`);
+        }
+      }
+      
+      // PASO 4: Eliminar el documento de Firestore
+      await deleteDoc(solicitudRef);
+      showToast('Solicitud y archivos eliminados exitosamente', 'success');
     } catch (error) {
       console.error('Error al eliminar solicitud:', error);
       showToast('Error al eliminar la solicitud', 'error');
@@ -530,6 +1108,15 @@ const SolicitudesRRHH = ({
 
   // Abrir modal
   const handleNuevaSolicitud = () => {
+    // Limpiar archivos pendientes de sesiones anteriores
+    setPendingFiles({
+      incapacidad: null,
+      epicrisis: null,
+      nacidoVivo: null,
+      historiaClinica: null,
+      registroCivil: null
+    });
+    
     // Si NO es admin de RRHH, auto-seleccionar el usuario actual
     const initialForm = {
       tipo: 'vacaciones',
@@ -539,9 +1126,24 @@ const SolicitudesRRHH = ({
       fechaFin: '',
       dias: 0,
       motivo: '',
+      incapacidadURL: '',
+      incapacidadNombre: '',
       dirigidoA: '',
       incluirSalario: false,
-      fechaRequerida: ''
+      fechaRequerida: '',
+      tipoLicencia: 'maternidad',
+      fechaNacimiento: '',
+      epicrisisURL: '',
+      epicrisisNombre: '',
+      nacidoVivoURL: '',
+      nacidoVivoNombre: '',
+      historiaClinicaURL: '',
+      historiaClinicaNombre: '',
+      registroCivilURL: '',
+      registroCivilNombre: '',
+      montoSolicitado: '',
+      fechaDeduccion: '',
+      confirmaRecursos: false
     };
     setFormSolicitud(initialForm);
     setOpenSolicitudModal(true);
@@ -551,6 +1153,14 @@ const SolicitudesRRHH = ({
   const handleCloseModal = () => {
     setOpenSolicitudModal(false);
     setEditingSolicitudId(null);
+    // Limpiar archivos pendientes
+    setPendingFiles({
+      incapacidad: null,
+      epicrisis: null,
+      nacidoVivo: null,
+      historiaClinica: null,
+      registroCivil: null
+    });
     // Resetear formulario
     setFormSolicitud({
       tipo: 'vacaciones',
@@ -560,9 +1170,24 @@ const SolicitudesRRHH = ({
       fechaFin: '',
       dias: 0,
       motivo: '',
+      incapacidadURL: '',
+      incapacidadNombre: '',
       dirigidoA: '',
       incluirSalario: false,
-      fechaRequerida: ''
+      fechaRequerida: '',
+      tipoLicencia: 'maternidad',
+      fechaNacimiento: '',
+      epicrisisURL: '',
+      epicrisisNombre: '',
+      nacidoVivoURL: '',
+      nacidoVivoNombre: '',
+      historiaClinicaURL: '',
+      historiaClinicaNombre: '',
+      registroCivilURL: '',
+      registroCivilNombre: '',
+      montoSolicitado: '',
+      fechaDeduccion: '',
+      confirmaRecursos: false
     });
   };
 
@@ -573,8 +1198,9 @@ const SolicitudesRRHH = ({
     // Convertir fechas a formato YYYY-MM-DD para inputs date
     const formatDateForInput = (date) => {
       if (!date) return '';
-      const d = date instanceof Date ? date : new Date(date);
-      return d.toISOString().split('T')[0];
+      const dateObj = toDate(date); // Usa toDate() para manejar Timestamps
+      if (!dateObj) return '';
+      return dateObj.toISOString().split('T')[0];
     };
 
     setFormSolicitud({
@@ -585,9 +1211,24 @@ const SolicitudesRRHH = ({
       fechaFin: formatDateForInput(solicitud.fechaFin),
       dias: solicitud.dias || 0,
       motivo: solicitud.motivo || '',
+      incapacidadURL: solicitud.incapacidadURL || '',
+      incapacidadNombre: solicitud.incapacidadNombre || '',
       dirigidoA: solicitud.dirigidoA || '',
       incluirSalario: solicitud.incluirSalario || false,
       fechaRequerida: formatDateForInput(solicitud.fechaRequerida),
+      tipoLicencia: solicitud.tipoLicencia || 'maternidad',
+      fechaNacimiento: formatDateForInput(solicitud.fechaNacimiento),
+      epicrisisURL: solicitud.epicrisisURL || '',
+      epicrisisNombre: solicitud.epicrisisNombre || '',
+      nacidoVivoURL: solicitud.nacidoVivoURL || '',
+      nacidoVivoNombre: solicitud.nacidoVivoNombre || '',
+      historiaClinicaURL: solicitud.historiaClinicaURL || '',
+      historiaClinicaNombre: solicitud.historiaClinicaNombre || '',
+      registroCivilURL: solicitud.registroCivilURL || '',
+      registroCivilNombre: solicitud.registroCivilNombre || '',
+      montoSolicitado: solicitud.montoSolicitado || '',
+      fechaDeduccion: formatDateForInput(solicitud.fechaDeduccion),
+      confirmaRecursos: solicitud.confirmaRecursos || false,
       estado: solicitud.estado,
       fechaSolicitud: solicitud.fechaSolicitud,
       creadoPor: solicitud.creadoPor,
@@ -611,8 +1252,29 @@ const SolicitudesRRHH = ({
         return <CompensatorioIcon sx={{ ...iconStyles, color: theme.palette.secondary.main }} />;
       case 'certificacion': 
         return <DocumentoIcon sx={{ ...iconStyles, color: theme.palette.primary.main }} />;
+      case 'licencia_maternidad': 
+        return <MaternidadIcon sx={{ ...iconStyles, color: '#ff6090' }} />;
+      case 'adelanto': 
+        return <AdelantoIcon sx={{ ...iconStyles, color: '#4caf50' }} />;
+      case 'remoto': 
+        return <RemotoIcon sx={{ ...iconStyles, color: '#00bcd4' }} />;
       default: 
         return <AssignmentIcon sx={iconStyles} />;
+    }
+  };
+
+  // Helper: Nombre amigable del tipo
+  const getTipoLabel = (tipo) => {
+    switch (tipo) {
+      case 'vacaciones': return 'Vacaciones';
+      case 'permiso': return 'Permiso';
+      case 'incapacidad': return 'Incapacidad';
+      case 'compensatorio': return 'Día Compensatorio';
+      case 'certificacion': return 'Certificación Laboral';
+      case 'licencia_maternidad': return 'Licencia Maternidad/Paternidad';
+      case 'adelanto': return 'Adelanto de Nómina';
+      case 'remoto': return 'Trabajo Remoto';
+      default: return tipo;
     }
   };
 
@@ -626,6 +1288,75 @@ const SolicitudesRRHH = ({
       case 'recibido': return 'success';
       default: return 'default';
     }
+  };
+
+  // Handler: Abrir modal de detalles
+  const handleOpenDetalles = (solicitud) => {
+    setSelectedSolicitud(solicitud);
+    setOpenDetallesModal(true);
+  };
+
+  // Handler: Cerrar modal de detalles
+  const handleCloseDetalles = () => {
+    setOpenDetallesModal(false);
+    setSelectedSolicitud(null);
+  };
+
+  // Handler: Abrir visor PDF
+  const handleOpenPDF = async (url, nombre) => {
+    setCurrentPDF({ url, nombre });
+    setOpenPDFViewer(true);
+    setDocumentInfoOpen(false);
+    
+    // Obtener metadatos del archivo
+    try {
+      const fileRef = ref(storage, url);
+      const metadata = await getMetadata(fileRef);
+      setDocumentInfo({
+        nombre: nombre,
+        tamano: metadata.size,
+        tipo: metadata.contentType,
+        fechaSubida: metadata.timeCreated,
+        path: metadata.fullPath,
+        url: url
+      });
+    } catch (error) {
+      console.error('Error al obtener metadatos:', error);
+      setDocumentInfo({
+        nombre: nombre,
+        url: url
+      });
+    }
+  };
+
+  // Handler: Cerrar visor PDF
+  const handleClosePDF = () => {
+    setOpenPDFViewer(false);
+    setCurrentPDF({ url: '', nombre: '' });
+    setDocumentInfo(null);
+    setDocumentInfoOpen(false);
+  };
+
+  // Handler: Toggle información del documento
+  const handleToggleDocumentInfo = () => {
+    setDocumentInfoOpen(!documentInfoOpen);
+  };
+
+  // Helper: Formatear tamaño de archivo
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  // Helper: Formatear tipo de documento
+  const formatDocumentType = (mimeType) => {
+    if (!mimeType) return 'Documento';
+    if (mimeType.includes('pdf')) return 'PDF';
+    if (mimeType.includes('image')) return `Imagen ${mimeType.split('/')[1].toUpperCase()}`;
+    if (mimeType.includes('document') || mimeType.includes('word')) return 'Documento Word';
+    return mimeType.split('/')[1].toUpperCase();
   };
 
   // Filtrar solicitudes
@@ -649,21 +1380,24 @@ const SolicitudesRRHH = ({
         <Typography variant="h6" fontWeight={600}>
           {canManageSolicitudes ? 'Gestión de Solicitudes' : 'Mis Solicitudes'}
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleNuevaSolicitud}
-          sx={{
-            backgroundColor: theme.palette.primary.main,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            '&:hover': {
-              backgroundColor: theme.palette.primary.dark,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-            }
-          }}
-        >
-          Nueva Solicitud
-        </Button>
+        {/* Solo mostrar botón "Nueva Solicitud" para usuarios sin permiso de gestión */}
+        {!canManageSolicitudes && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleNuevaSolicitud}
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              '&:hover': {
+                backgroundColor: theme.palette.primary.dark,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+              }
+            }}
+          >
+            Nueva Solicitud
+          </Button>
+        )}
       </Box>
 
       {/* FILTROS */}
@@ -691,6 +1425,10 @@ const SolicitudesRRHH = ({
                 <MenuItem value="permiso">Permiso</MenuItem>
                 <MenuItem value="incapacidad">Incapacidad</MenuItem>
                 <MenuItem value="compensatorio">Día Compensatorio</MenuItem>
+                <MenuItem value="certificacion">Certificación Laboral</MenuItem>
+                <MenuItem value="licencia_maternidad">Licencia Maternidad/Paternidad</MenuItem>
+                <MenuItem value="adelanto">Adelanto de Nómina</MenuItem>
+                <MenuItem value="remoto">Trabajo Remoto</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -706,6 +1444,8 @@ const SolicitudesRRHH = ({
                 <MenuItem value="pendiente">Pendientes</MenuItem>
                 <MenuItem value="aprobada">Aprobadas</MenuItem>
                 <MenuItem value="rechazada">Rechazadas</MenuItem>
+                <MenuItem value="enviado">Enviado (Certificados)</MenuItem>
+                <MenuItem value="recibido">Recibido (Certificados)</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -767,8 +1507,8 @@ const SolicitudesRRHH = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
                       {getTipoIcon(solicitud.tipo)}
                       <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                          {solicitud.tipo}
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                          {getTipoLabel(solicitud.tipo)}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
                           <PersonIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
@@ -789,18 +1529,134 @@ const SolicitudesRRHH = ({
                           Fecha Solicitud
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {format(solicitud.fechaSolicitud, 'dd MMM yyyy', { locale: es })}
+                          {format(toDate(solicitud.fechaSolicitud), 'dd MMM yyyy', { locale: es })}
                         </Typography>
                       </Box>
+                    ) : solicitud.tipo === 'licencia_maternidad' ? (
+                      // LICENCIAS: Mostrar tipo y fecha de nacimiento
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          {solicitud.tipoLicencia === 'maternidad' ? 'Maternidad (18 semanas)' : 'Paternidad (2 semanas)'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Fecha: {solicitud.fechaNacimiento && format(toDate(solicitud.fechaNacimiento), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                          {solicitud.epicrisisURL && (
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label="Epicrisis"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              onClick={() => window.open(solicitud.epicrisisURL, '_blank')}
+                              sx={{ cursor: 'pointer', fontSize: '0.7rem', '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) } }}
+                            />
+                          )}
+                          {solicitud.nacidoVivoURL && (
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label="Nacido Vivo"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              onClick={() => window.open(solicitud.nacidoVivoURL, '_blank')}
+                              sx={{ cursor: 'pointer', fontSize: '0.7rem', '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) } }}
+                            />
+                          )}
+                          {solicitud.historiaClinicaURL && (
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label="Historia Clínica"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              onClick={() => window.open(solicitud.historiaClinicaURL, '_blank')}
+                              sx={{ cursor: 'pointer', fontSize: '0.7rem', '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) } }}
+                            />
+                          )}
+                          {solicitud.registroCivilURL && (
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label="Registro Civil"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                              onClick={() => window.open(solicitud.registroCivilURL, '_blank')}
+                              sx={{ cursor: 'pointer', fontSize: '0.7rem', '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) } }}
+                            />
+                          )}
+                        </Box>
+                      </Box>
+                    ) : solicitud.tipo === 'adelanto' ? (
+                      // ADELANTO: Mostrar monto y fecha de deducción
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          Monto Solicitado
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+                          {solicitud.montoSolicitado}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                          Deducción: {solicitud.fechaDeduccion && format(toDate(solicitud.fechaDeduccion), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                      </Box>
+                    ) : solicitud.tipo === 'incapacidad' ? (
+                      // INCAPACIDAD: Mostrar fechas, días y documento adjunto
+                      <Box>
+                        <Grid container spacing={2}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                              Fecha Inicio
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {solicitud.fechaInicio && format(toDate(solicitud.fechaInicio), 'dd MMM yyyy', { locale: es })}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                              Fecha Fin
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {solicitud.fechaFin && format(toDate(solicitud.fechaFin), 'dd MMM yyyy', { locale: es })}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Chip
+                              label={`${solicitud.dias} día${solicitud.dias !== 1 ? 's' : ''}`}
+                              size="small"
+                              sx={{
+                                bgcolor: alpha(theme.palette.error.main, 0.1),
+                                color: theme.palette.error.main,
+                                fontWeight: 600,
+                                borderRadius: 1
+                              }}
+                            />
+                          </Grid>
+                        </Grid>
+                        {solicitud.incapacidadURL && (
+                          <Box sx={{ mt: 1.5 }}>
+                            <Chip
+                              icon={<AttachFileIcon sx={{ fontSize: 14 }} />}
+                              label="Incapacidad Médica"
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={() => window.open(solicitud.incapacidadURL, '_blank')}
+                              sx={{ cursor: 'pointer', fontSize: '0.7rem', '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) } }}
+                            />
+                          </Box>
+                        )}
+                      </Box>
                     ) : (
-                      // VACACIONES/PERMISOS: Mostrar fechas y días
+                      // VACACIONES/PERMISOS/REMOTO: Mostrar fechas y días
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
                           <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.8 }}>
                             Fecha Inicio
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {solicitud.fechaInicio && format(solicitud.fechaInicio, 'dd MMM yyyy', { locale: es })}
+                            {solicitud.fechaInicio && format(toDate(solicitud.fechaInicio), 'dd MMM yyyy', { locale: es })}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
@@ -808,7 +1664,7 @@ const SolicitudesRRHH = ({
                             Fecha Fin
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {solicitud.fechaFin && format(solicitud.fechaFin, 'dd MMM yyyy', { locale: es })}
+                            {solicitud.fechaFin && format(toDate(solicitud.fechaFin), 'dd MMM yyyy', { locale: es })}
                           </Typography>
                         </Grid>
                         <Grid item xs={12}>
@@ -839,6 +1695,20 @@ const SolicitudesRRHH = ({
                       
                       {/* Acciones */}
                       <Stack direction="row" spacing={0.5}>
+                        {/* BOTÓN: Ver Detalles (Siempre visible) */}
+                        <Tooltip title="Ver Detalles">
+                          <IconButton
+                            size="small"
+                            sx={{
+                              color: theme.palette.info.main,
+                              '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.08) }
+                            }}
+                            onClick={() => handleOpenDetalles(solicitud)}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
                         {solicitud.tipo === 'certificacion' ? (
                           // CERTIFICACIONES: Flujo diferente (Pendiente → Enviado → Recibido)
                           <>
@@ -846,16 +1716,31 @@ const SolicitudesRRHH = ({
                               // Admin RRHH para certificaciones
                               <>
                                 {solicitud.estado === 'pendiente' && (
-                                  <Tooltip title="Enviar Certificado">
+                                  <Tooltip title="Subir Certificado (PDF)">
                                     <IconButton
                                       size="small"
                                       sx={{ 
                                         color: theme.palette.primary.main,
                                         '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) }
                                       }}
-                                      onClick={() => handleEnviarCertificado(solicitud)}
+                                      onClick={() => handleSubirCertificado(solicitud)}
+                                      disabled={uploadingCertificado}
                                     >
-                                      <CheckIcon fontSize="small" />
+                                      <UploadIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {(solicitud.estado === 'enviado' || solicitud.estado === 'recibido') && solicitud.certificadoURL && (
+                                  <Tooltip title="Ver Certificado">
+                                    <IconButton
+                                      size="small"
+                                      sx={{ 
+                                        color: theme.palette.success.main,
+                                        '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.08) }
+                                      }}
+                                      onClick={() => handleVerCertificado(solicitud)}
+                                    >
+                                      <DownloadIcon fontSize="small" />
                                     </IconButton>
                                   </Tooltip>
                                 )}
@@ -875,7 +1760,7 @@ const SolicitudesRRHH = ({
                             ) : (
                               // Usuario para certificaciones
                               <>
-                                {(solicitud.estado === 'enviado' || solicitud.estado === 'recibido') && (
+                                {(solicitud.estado === 'enviado' || solicitud.estado === 'recibido') && solicitud.certificadoURL && (
                                   <Tooltip title="Ver Certificado">
                                     <IconButton
                                       size="small"
@@ -883,7 +1768,7 @@ const SolicitudesRRHH = ({
                                         color: theme.palette.info.main,
                                         '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.08) }
                                       }}
-                                      onClick={() => handleVerCertificado(solicitud.id, solicitud.estado)}
+                                      onClick={() => handleVerCertificado(solicitud)}
                                     >
                                       <DocumentoIcon fontSize="small" />
                                     </IconButton>
@@ -1117,6 +2002,24 @@ const SolicitudesRRHH = ({
                       Certificación Laboral
                     </Box>
                   </MenuItem>
+                  <MenuItem value="licencia_maternidad">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <MaternidadIcon fontSize="small" sx={{ color: '#ff6090' }} />
+                      Licencia Maternidad/Paternidad
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="adelanto">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AdelantoIcon fontSize="small" sx={{ color: '#4caf50' }} />
+                      Adelanto de Nómina
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="remoto">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <RemotoIcon fontSize="small" sx={{ color: '#00bcd4' }} />
+                      Trabajo Remoto (Home Office)
+                    </Box>
+                  </MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1175,7 +2078,7 @@ const SolicitudesRRHH = ({
             </Grid>
 
             {/* Fechas - Solo para tipos que requieren rango de fechas */}
-            {formSolicitud.tipo !== 'certificacion' && (
+            {!['certificacion', 'adelanto', 'licencia_maternidad'].includes(formSolicitud.tipo) && (
               <>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -1185,6 +2088,8 @@ const SolicitudesRRHH = ({
                     value={formSolicitud.fechaInicio}
                     onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaInicio: e.target.value })}
                     InputLabelProps={{ shrink: true }}
+                    inputProps={formSolicitud.tipo === 'incapacidad' ? {} : { min: getTodayDateString() }}
+                    helperText={formSolicitud.tipo === 'incapacidad' ? 'Fecha de inicio de la incapacidad' : 'Solo fechas futuras'}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -1195,10 +2100,12 @@ const SolicitudesRRHH = ({
                     value={formSolicitud.fechaFin}
                     onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaFin: e.target.value })}
                     InputLabelProps={{ shrink: true }}
+                    inputProps={formSolicitud.tipo === 'incapacidad' ? {} : { min: formSolicitud.fechaInicio || getTodayDateString() }}
+                    helperText={formSolicitud.tipo === 'incapacidad' ? 'Fecha de finalización de la incapacidad' : 'Solo fechas futuras'}
                   />
                 </Grid>
 
-                {/* Días Calculados */}
+                {/* Días Calculados - Solo para tipos que NO sean licencia de maternidad */}
                 <Grid item xs={12}>
                   <Alert
                     severity="info"
@@ -1266,6 +2173,710 @@ const SolicitudesRRHH = ({
               </>
             )}
 
+            {/* Campos específicos para Licencia de Maternidad/Paternidad */}
+            {formSolicitud.tipo === 'licencia_maternidad' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Tipo de Licencia</InputLabel>
+                    <Select
+                      value={formSolicitud.tipoLicencia || 'maternidad'}
+                      label="Tipo de Licencia"
+                      onChange={(e) => {
+                        const tipo = e.target.value;
+                        const dias = tipo === 'maternidad' ? 126 : 14;
+                        const fechaNac = formSolicitud.fechaNacimiento;
+                        
+                        // Para paternidad: fecha inicio = fecha nacimiento (automático)
+                        // Para maternidad: fecha inicio se deja en blanco para que usuario la configure
+                        let fechaInicio = '';
+                        let fechaFin = '';
+                        
+                        if (tipo === 'paternidad' && fechaNac) {
+                          fechaInicio = fechaNac;
+                          const fechaFinCalc = new Date(fechaNac + 'T00:00:00');
+                          fechaFinCalc.setDate(fechaFinCalc.getDate() + dias);
+                          fechaFin = fechaFinCalc.toISOString().split('T')[0];
+                        } else if (tipo === 'maternidad' && formSolicitud.fechaInicio) {
+                          // Si ya tenía fecha inicio configurada, recalcular fin
+                          fechaInicio = formSolicitud.fechaInicio;
+                          const fechaFinCalc = new Date(fechaInicio + 'T00:00:00');
+                          fechaFinCalc.setDate(fechaFinCalc.getDate() + dias);
+                          fechaFin = fechaFinCalc.toISOString().split('T')[0];
+                        }
+                        
+                        setFormSolicitud({ 
+                          ...formSolicitud, 
+                          tipoLicencia: tipo,
+                          fechaInicio: fechaInicio,
+                          fechaFin: fechaFin,
+                          dias: dias
+                        });
+                      }}
+                    >
+                      <MenuItem value="maternidad">Licencia de Maternidad (18 semanas)</MenuItem>
+                      <MenuItem value="paternidad">Licencia de Paternidad (2 semanas)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Fecha de Nacimiento/Adopción"
+                    required
+                    value={formSolicitud.fechaNacimiento || ''}
+                    onChange={(e) => {
+                      const fechaNac = e.target.value;
+                      const tipo = formSolicitud.tipoLicencia || 'maternidad';
+                      const dias = tipo === 'maternidad' ? 126 : 14;
+                      
+                      let fechaInicio = '';
+                      let fechaFin = '';
+                      
+                      // Para paternidad: fecha inicio automática = fecha nacimiento
+                      if (tipo === 'paternidad' && fechaNac) {
+                        fechaInicio = fechaNac;
+                        const fechaFinCalc = new Date(fechaNac + 'T00:00:00');
+                        fechaFinCalc.setDate(fechaFinCalc.getDate() + dias);
+                        fechaFin = fechaFinCalc.toISOString().split('T')[0];
+                      } else if (tipo === 'maternidad' && formSolicitud.fechaInicio) {
+                        // Para maternidad: mantener fecha inicio configurada y recalcular fin
+                        fechaInicio = formSolicitud.fechaInicio;
+                        const fechaFinCalc = new Date(fechaInicio + 'T00:00:00');
+                        fechaFinCalc.setDate(fechaFinCalc.getDate() + dias);
+                        fechaFin = fechaFinCalc.toISOString().split('T')[0];
+                      }
+                      
+                      setFormSolicitud({ 
+                        ...formSolicitud, 
+                        fechaNacimiento: fechaNac,
+                        fechaInicio: fechaInicio,
+                        fechaFin: fechaFin,
+                        dias: dias
+                      });
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    helperText="Fecha estimada o real del nacimiento/adopción"
+                  />
+                </Grid>
+                
+                {/* Mostrar campos de fechas según tipo de licencia */}
+                {formSolicitud.fechaNacimiento && (
+                  <>
+                    {/* MATERNIDAD: Fecha Inicio EDITABLE, Fecha Fin CALCULADA */}
+                    {formSolicitud.tipoLicencia === 'maternidad' && (
+                      <>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Fecha Inicio de la Licencia"
+                            required
+                            value={formSolicitud.fechaInicio || ''}
+                            onChange={(e) => {
+                              const fechaInicio = e.target.value;
+                              let fechaFin = '';
+                              
+                              if (fechaInicio) {
+                                const fechaFinCalc = new Date(fechaInicio + 'T00:00:00');
+                                fechaFinCalc.setDate(fechaFinCalc.getDate() + 126);
+                                fechaFin = fechaFinCalc.toISOString().split('T')[0];
+                              }
+                              
+                              setFormSolicitud({ 
+                                ...formSolicitud, 
+                                fechaInicio: fechaInicio,
+                                fechaFin: fechaFin
+                              });
+                            }}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ min: getTodayDateString() }}
+                            helperText="Puede iniciar antes del nacimiento por recomendación médica"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Fecha Fin (Calculada Automáticamente)"
+                            value={formSolicitud.fechaFin || ''}
+                            InputLabelProps={{ shrink: true }}
+                            disabled
+                            helperText="Se calcula automáticamente: Inicio + 126 días"
+                          />
+                        </Grid>
+                      </>
+                    )}
+                    
+                    {/* PATERNIDAD: Ambas fechas AUTOMÁTICAS desde fecha nacimiento */}
+                    {formSolicitud.tipoLicencia === 'paternidad' && (
+                      <>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Fecha Inicio (Calculada)"
+                            value={formSolicitud.fechaInicio || ''}
+                            InputLabelProps={{ shrink: true }}
+                            disabled
+                            helperText="Inicia el día del nacimiento/adopción"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Fecha Fin (Calculada)"
+                            value={formSolicitud.fechaFin || ''}
+                            InputLabelProps={{ shrink: true }}
+                            disabled
+                            helperText="Finaliza 14 días después"
+                          />
+                        </Grid>
+                      </>
+                    )}
+                    
+                    <Grid item xs={12}>
+                      <Alert
+                        severity="info"
+                        icon={<InfoIcon />}
+                        sx={{ 
+                          borderRadius: 1,
+                          backgroundColor: alpha(theme.palette.info.main, 0.08),
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                        }}
+                      >
+                        <Typography variant="body2">
+                          <strong>Duración de la licencia:</strong> {formSolicitud.dias} días ({formSolicitud.tipoLicencia === 'maternidad' ? '18 semanas' : '2 semanas'})
+                        </Typography>
+                        {formSolicitud.tipoLicencia === 'maternidad' && (
+                          <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                            👩‍⚕️ La fecha de inicio puede configurarse según recomendación médica (antes o después del nacimiento)
+                          </Typography>
+                        )}
+                      </Alert>
+                    </Grid>
+                  </>
+                )}
+                
+                {/* Botones de upload individuales para cada documento */}
+                <Grid item xs={12}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 2 }}>
+                    Documentos Requeridos
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                    * Epicrisis, Nacido Vivo e Historia Clínica son obligatorios. Registro Civil es opcional.
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {/* 1. Epicrisis */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          border: `2px dashed ${formSolicitud.epicrisisURL ? theme.palette.success.main : theme.palette.divider}`,
+                          borderRadius: 2,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          bgcolor: formSolicitud.epicrisisURL ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            bgcolor: alpha(theme.palette.primary.main, 0.02)
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.accept = '.pdf,image/*';
+                          
+                          input.onchange = async (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length === 0) return;
+                            
+                            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                            if (totalSize > 50 * 1024 * 1024) {
+                              showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+                              return;
+                            }
+                            
+                            setUploadingDocLicencia(prev => ({ ...prev, epicrisis: true }));
+                            
+                            try {
+                              const result = await procesarArchivosConValidacionContraseña(files, 'epicrisis');
+                              if (!result) throw new Error('Error al procesar archivos');
+
+                              // 🎯 Guardar en memoria (NO subir a Storage aún)
+                              console.log(`💾 Guardando en pendingFiles.epicrisis:`, {
+                                tieneBlob: !!result?.blob,
+                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
+                                fileName: result?.fileName,
+                                _yaDesencriptado: result?.blob?._yaDesencriptado,
+                                _sinEncriptacion: result?.blob?._sinEncriptacion
+                              });
+                              setPendingFiles(prev => ({
+                                ...prev,
+                                epicrisis: result
+                              }));
+                              
+                              setFormSolicitud({
+                                ...formSolicitud,
+                                epicrisisURL: 'pending',  // Indicador temporal
+                                epicrisisNombre: result.stats 
+                                  ? `${result.stats.processedFiles} archivo(s) preparado(s)` 
+                                  : result.fileName
+                              });
+                              
+                              const mensaje = files.length > 1 
+                                ? `${files.length} archivos preparados`
+                                : 'Epicrisis preparada';
+                              showToast(mensaje, 'success');
+                            } catch (error) {
+                              console.error('Error al subir epicrisis:', error);
+                              showToast(error.message || 'Error al subir el archivo', 'error');
+                            } finally {
+                              setUploadingDocLicencia(prev => ({ ...prev, epicrisis: false }));
+                            }
+                          };
+                          
+                          input.click();
+                        }}
+                      >
+                        {uploadingDocLicencia.epicrisis ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <CircularProgress size={20} />
+                            <Typography variant="caption">Subiendo...</Typography>
+                          </Box>
+                        ) : formSolicitud.epicrisisURL ? (
+                          <Box>
+                            <CheckIcon sx={{ fontSize: 28, color: theme.palette.success.main }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main, mt: 0.5 }}>
+                              Epicrisis
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                              {formSolicitud.epicrisisNombre}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <AttachFileIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Epicrisis
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                              Clic para adjuntar (uno o más archivos)
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* 2. Certificado de Nacido Vivo */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          border: `2px dashed ${formSolicitud.nacidoVivoURL ? theme.palette.success.main : theme.palette.divider}`,
+                          borderRadius: 2,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          bgcolor: formSolicitud.nacidoVivoURL ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            bgcolor: alpha(theme.palette.primary.main, 0.02)
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.accept = '.pdf,image/*';
+                          
+                          input.onchange = async (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length === 0) return;
+                            
+                            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                            if (totalSize > 50 * 1024 * 1024) {
+                              showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+                              return;
+                            }
+                            
+                            setUploadingDocLicencia(prev => ({ ...prev, nacidoVivo: true }));
+                            
+                            try {
+                              const result = await procesarArchivosConValidacionContraseña(files, 'nacido_vivo');
+                              if (!result) throw new Error('Error al procesar archivos');
+
+                              // 🎯 Guardar en memoria (NO subir a Storage aún)
+                              console.log(`💾 Guardando en pendingFiles.nacidoVivo:`, {
+                                tieneBlob: !!result?.blob,
+                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
+                                fileName: result?.fileName,
+                                _yaDesencriptado: result?.blob?._yaDesencriptado,
+                                _sinEncriptacion: result?.blob?._sinEncriptacion
+                              });
+                              setPendingFiles(prev => ({
+                                ...prev,
+                                nacidoVivo: result
+                              }));
+                              
+                              setFormSolicitud({
+                                ...formSolicitud,
+                                nacidoVivoURL: 'pending',  // Indicador temporal
+                                nacidoVivoNombre: result.stats 
+                                  ? `${result.stats.processedFiles} archivo(s) preparado(s)` 
+                                  : result.fileName
+                              });
+                              
+                              const mensaje = files.length > 1 
+                                ? `${files.length} archivos preparados`
+                                : 'Certificado de Nacido Vivo preparado';
+                              showToast(mensaje, 'success');
+                            } catch (error) {
+                              console.error('Error al subir certificado:', error);
+                              showToast(error.message || 'Error al subir el archivo', 'error');
+                            } finally {
+                              setUploadingDocLicencia(prev => ({ ...prev, nacidoVivo: false }));
+                            }
+                          };
+                          
+                          input.click();
+                        }}
+                      >
+                        {uploadingDocLicencia.nacidoVivo ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <CircularProgress size={20} />
+                            <Typography variant="caption">Subiendo...</Typography>
+                          </Box>
+                        ) : formSolicitud.nacidoVivoURL ? (
+                          <Box>
+                            <CheckIcon sx={{ fontSize: 28, color: theme.palette.success.main }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main, mt: 0.5 }}>
+                              Nacido Vivo
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                              {formSolicitud.nacidoVivoNombre}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <AttachFileIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Nacido Vivo
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                              Clic para adjuntar (uno o más archivos)
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* 3. Historia Clínica */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          border: `2px dashed ${formSolicitud.historiaClinicaURL ? theme.palette.success.main : theme.palette.divider}`,
+                          borderRadius: 2,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          bgcolor: formSolicitud.historiaClinicaURL ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            bgcolor: alpha(theme.palette.primary.main, 0.02)
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.accept = '.pdf,image/*';
+                          
+                          input.onchange = async (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length === 0) return;
+                            
+                            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                            if (totalSize > 50 * 1024 * 1024) {
+                              showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+                              return;
+                            }
+                            
+                            setUploadingDocLicencia(prev => ({ ...prev, historiaClinica: true }));
+                            
+                            try {
+                              const result = await procesarArchivosConValidacionContraseña(files, 'historia_clinica');
+                              if (!result) throw new Error('Error al procesar archivos');
+
+                              // 🎯 Guardar en memoria (NO subir a Storage aún)
+                              console.log(`💾 Guardando en pendingFiles.historiaClinica:`, {
+                                tieneBlob: !!result?.blob,
+                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
+                                fileName: result?.fileName,
+                                _yaDesencriptado: result?.blob?._yaDesencriptado,
+                                _sinEncriptacion: result?.blob?._sinEncriptacion
+                              });
+                              setPendingFiles(prev => ({
+                                ...prev,
+                                historiaClinica: result
+                              }));
+                              
+                              setFormSolicitud({
+                                ...formSolicitud,
+                                historiaClinicaURL: 'pending',  // Indicador temporal
+                                historiaClinicaNombre: result.stats 
+                                  ? `${result.stats.processedFiles} archivo(s) preparado(s)` 
+                                  : result.fileName
+                              });
+                              
+                              const mensaje = files.length > 1 
+                                ? `${files.length} archivos preparados`
+                                : 'Historia Clínica preparada';
+                              showToast(mensaje, 'success');
+                            } catch (error) {
+                              console.error('Error al subir historia clínica:', error);
+                              showToast(error.message || 'Error al subir el archivo', 'error');
+                            } finally {
+                              setUploadingDocLicencia(prev => ({ ...prev, historiaClinica: false }));
+                            }
+                          };
+                          
+                          input.click();
+                        }}
+                      >
+                        {uploadingDocLicencia.historiaClinica ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <CircularProgress size={20} />
+                            <Typography variant="caption">Subiendo...</Typography>
+                          </Box>
+                        ) : formSolicitud.historiaClinicaURL ? (
+                          <Box>
+                            <CheckIcon sx={{ fontSize: 28, color: theme.palette.success.main }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main, mt: 0.5 }}>
+                              Historia Clínica
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                              {formSolicitud.historiaClinicaNombre}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <AttachFileIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Historia Clínica
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                              Clic para adjuntar (uno o más archivos)
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* 4. Registro Civil */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          border: `2px dashed ${formSolicitud.registroCivilURL ? theme.palette.success.main : theme.palette.divider}`,
+                          borderRadius: 2,
+                          p: 2,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          bgcolor: formSolicitud.registroCivilURL ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            bgcolor: alpha(theme.palette.primary.main, 0.02)
+                          }
+                        }}
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.accept = '.pdf,image/*';
+                          
+                          input.onchange = async (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length === 0) return;
+                            
+                            const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                            if (totalSize > 50 * 1024 * 1024) {
+                              showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+                              return;
+                            }
+                            
+                            setUploadingDocLicencia(prev => ({ ...prev, registroCivil: true }));
+                            
+                            try {
+                              const result = await procesarArchivosConValidacionContraseña(files, 'registro_civil');
+                              if (!result) throw new Error('Error al procesar archivos');
+
+                              // 🎯 Guardar en memoria (NO subir a Storage aún)
+                              console.log(`💾 Guardando en pendingFiles.registroCivil:`, {
+                                tieneBlob: !!result?.blob,
+                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
+                                fileName: result?.fileName,
+                                _yaDesencriptado: result?.blob?._yaDesencriptado,
+                                _sinEncriptacion: result?.blob?._sinEncriptacion
+                              });
+                              setPendingFiles(prev => ({
+                                ...prev,
+                                registroCivil: result
+                              }));
+                              
+                              setFormSolicitud({
+                                ...formSolicitud,
+                                registroCivilURL: 'pending',  // Indicador temporal
+                                registroCivilNombre: result.stats 
+                                  ? `${result.stats.processedFiles} archivo(s) preparado(s)` 
+                                  : result.fileName
+                              });
+                              
+                              const mensaje = files.length > 1 
+                                ? `${files.length} archivos preparados`
+                                : 'Registro Civil preparado';
+                              showToast(mensaje, 'success');
+                            } catch (error) {
+                              console.error('Error al subir registro civil:', error);
+                              showToast(error.message || 'Error al subir el archivo', 'error');
+                            } finally {
+                              setUploadingDocLicencia(prev => ({ ...prev, registroCivil: false }));
+                            }
+                          };
+                          
+                          input.click();
+                        }}
+                      >
+                        {uploadingDocLicencia.registroCivil ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                            <CircularProgress size={20} />
+                            <Typography variant="caption">Subiendo...</Typography>
+                          </Box>
+                        ) : formSolicitud.registroCivilURL ? (
+                          <Box>
+                            <CheckIcon sx={{ fontSize: 28, color: theme.palette.success.main }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main, mt: 0.5 }}>
+                              Registro Civil
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                              {formSolicitud.registroCivilNombre}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <AttachFileIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Registro Civil
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                              Clic para adjuntar (uno o más archivos)
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      📋 3 documentos obligatorios (Registro Civil es opcional)
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                      Puedes seleccionar uno o más archivos (PDF o imágenes). Automáticamente se combinarán en un solo PDF.
+                    </Typography>
+                  </Alert>
+                </Grid>
+              </>
+            )}
+
+            {/* Campos específicos para Adelanto de Nómina */}
+            {formSolicitud.tipo === 'adelanto' && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Monto Solicitado"
+                    required
+                    value={formSolicitud.montoSolicitado || ''}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                      const formatted = rawValue ? new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                      }).format(parseInt(rawValue)) : '';
+                      setFormSolicitud({ ...formSolicitud, montoSolicitado: formatted });
+                    }}
+                    placeholder="Ej: $500,000"
+                    helperText="Máximo 50% del salario mensual"
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Fecha de Deducción Preferida"
+                    required
+                    value={formSolicitud.fechaDeduccion || ''}
+                    onChange={(e) => setFormSolicitud({ ...formSolicitud, fechaDeduccion: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    helperText="¿En qué quincena deseas que se descuente?"
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                    <Typography variant="body2">
+                      <strong>Importante:</strong> El monto será descontado según la fecha indicada. Verifica tu disponibilidad presupuestal.
+                    </Typography>
+                  </Alert>
+                </Grid>
+              </>
+            )}
+
+            {/* Campos específicos para Trabajo Remoto */}
+            {formSolicitud.tipo === 'remoto' && (
+              <>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={Boolean(formSolicitud.confirmaRecursos)}
+                        onChange={(e) => setFormSolicitud({ ...formSolicitud, confirmaRecursos: e.target.checked })}
+                        color="primary"
+                      />
+                    }
+                    label="Confirmo que cuento con internet estable, equipo de cómputo y espacio adecuado para trabajar desde casa"
+                    sx={{ 
+                      '& .MuiFormControlLabel-label': {
+                        fontWeight: 500,
+                        color: 'text.primary'
+                      }
+                    }}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ borderRadius: 1 }}>
+                    <Typography variant="body2">
+                      <strong>Recuerda:</strong> Debes mantener la misma disponibilidad y productividad que en oficina. Se requiere conexión estable a internet y herramientas de comunicación.
+                    </Typography>
+                  </Alert>
+                </Grid>
+              </>
+            )}
+
+
             {/* Motivo */}
             <Grid item xs={12}>
               <TextField
@@ -1273,7 +2884,10 @@ const SolicitudesRRHH = ({
                 multiline
                 rows={3}
                 required={formSolicitud.tipo === 'certificacion'}
-                label={formSolicitud.tipo === 'certificacion' ? 'Tipo de certificación' : 'Motivo (opcional)'}
+                label={
+                  formSolicitud.tipo === 'certificacion' ? 'Tipo de certificación' :
+                  'Motivo (opcional)'
+                }
                 value={formSolicitud.motivo || ''}
                 onChange={(e) => setFormSolicitud({ ...formSolicitud, motivo: e.target.value })}
                 placeholder={
@@ -1281,9 +2895,132 @@ const SolicitudesRRHH = ({
                     ? 'Ej: Certificación laboral, certificación de ingresos, constancia de trabajo...'
                     : 'Describe el motivo de la solicitud...'
                 }
-                helperText={formSolicitud.tipo === 'certificacion' ? 'Especifica qué tipo de certificación necesitas' : ''}
+                helperText={
+                  formSolicitud.tipo === 'certificacion' ? 'Especifica qué tipo de certificación necesitas' : ''
+                }
               />
             </Grid>
+
+            {/* Campos específicos para Incapacidad */}
+            {formSolicitud.tipo === 'incapacidad' && (
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    border: `2px dashed ${formSolicitud.incapacidadURL ? theme.palette.success.main : theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    bgcolor: formSolicitud.incapacidadURL ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                    '&:hover': {
+                      borderColor: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.02)
+                    }
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;  // Permitir múltiples archivos
+                    input.accept = '.pdf,image/*';
+                    
+                    input.onchange = async (e) => {
+                      const files = Array.from(e.target.files);
+                      if (files.length === 0) return;
+                      
+                      // Validar tamaño total antes de procesamiento
+                      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                      if (totalSize > 50 * 1024 * 1024) {
+                        showToast('El tamaño total de archivos no debe superar 50MB', 'warning');
+                        return;
+                      }
+                      
+                      setUploadingIncapacidad(true);
+                      
+                      try {
+                        // Procesar y combinar archivos (con validación de contraseñas)
+                        const result = await procesarArchivosConValidacionContraseña(files, 'incapacidad');
+                        if (!result) throw new Error('Error al procesar archivos');
+
+                        // 🎯 Guardar en memoria (NO subir a Storage aún)
+                        console.log(`💾 Guardando en pendingFiles.incapacidad:`, {
+                          tieneBlob: !!result?.blob,
+                          tieneFileName: !!result?.fileName,
+                          blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
+                          fileName: result?.fileName,
+                          blobType: result?.blob?.type,
+                          _yaDesencriptado: result?.blob?._yaDesencriptado,
+                          _sinEncriptacion: result?.blob?._sinEncriptacion,
+                          _estrategiaUsada: result?.blob?._estrategiaUsada
+                        });
+                        setPendingFiles(prev => ({
+                          ...prev,
+                          incapacidad: result
+                        }));
+                        
+                        // Marcar como preparado en el formulario
+                        setFormSolicitud({
+                          ...formSolicitud,
+                          incapacidadURL: 'pending',  // Indicador temporal
+                          incapacidadNombre: result.stats 
+                            ? `${result.stats.processedFiles} archivo(s) preparado(s)` 
+                            : result.fileName
+                        });
+                        
+                        const mensaje = files.length > 1 
+                          ? `${files.length} archivos preparados (se subirán al crear la solicitud)`
+                          : 'Incapacidad preparada (se subirá al crear la solicitud)';
+                        showToast(mensaje, 'success');
+                      } catch (error) {
+                        console.error('Error al procesar incapacidad:', error);
+                        showToast(error.message || 'Error al procesar el archivo', 'error');
+                      } finally {
+                        setUploadingIncapacidad(false);
+                      }
+                    };
+                    
+                    input.click();
+                  }}
+                >
+                  {uploadingIncapacidad ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <CircularProgress size={20} />
+                      <Typography variant="body2">Subiendo archivo...</Typography>
+                    </Box>
+                  ) : formSolicitud.incapacidadURL ? (
+                    <Box>
+                      <CheckIcon sx={{ fontSize: 28, color: theme.palette.success.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main, mt: 0.5 }}>
+                        Incapacidad Adjunta
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem' }}>
+                        {formSolicitud.incapacidadNombre}
+                      </Typography>
+                      <Button
+                        size="small"
+                        sx={{ mt: 1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormSolicitud({ ...formSolicitud, incapacidadURL: '', incapacidadNombre: '' });
+                        }}
+                      >
+                        Cambiar archivo
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <AttachFileIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Adjuntar Incapacidad Médica *
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        Clic para adjuntar (uno o más archivos)
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            )}
             </Grid>
           </Box>
         </DialogContent>
@@ -1434,324 +3171,969 @@ const SolicitudesRRHH = ({
         </DialogActions>
       </Dialog>
 
-      {/* MODAL: GENERAR CERTIFICADO */}
+      {/* MODAL: DETALLES DE SOLICITUD */}
       <Dialog
-        open={openCertificadoModal}
-        onClose={() => setOpenCertificadoModal(false)}
+        open={openDetallesModal}
+        onClose={handleCloseDetalles}
         maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
           }
         }}
       >
-        <DialogTitle sx={{ pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main }}>
-              <DocumentoIcon />
+        <DialogTitle sx={{
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+        }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box display="flex" alignItems="center" gap={2.5}>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200 }}
+              >
+                <Avatar sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  width: 48,
+                  height: 48
+                }}>
+                  {selectedSolicitud && getTipoIcon(selectedSolicitud.tipo)}
+                </Avatar>
+              </motion.div>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {selectedSolicitud && getTipoLabel(selectedSolicitud.tipo)}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Chip
+                    label={(selectedSolicitud?.estado || 'pendiente').toUpperCase()}
+                    color={getEstadoColor(selectedSolicitud?.estado || 'pendiente')}
+                    size="small"
+                    sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Solicitada: {selectedSolicitud && format(toDate(selectedSolicitud.fechaSolicitud), 'dd MMM yyyy', { locale: es })}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+            <IconButton onClick={handleCloseDetalles} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          {selectedSolicitud && (
+            <Stack spacing={3}>
+              {/* INFORMACIÓN DEL EMPLEADO */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  background: alpha(theme.palette.primary.main, 0.02)
+                }}
+              >
+                <Typography variant="caption" sx={{ 
+                  color: 'text.secondary',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.8,
+                  fontWeight: 600,
+                  display: 'block',
+                  mb: 1.5
+                }}>
+                  📋 Información del Empleado
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  <Typography variant="body1" fontWeight={500}>
+                    {selectedSolicitud.empleadoNombre}
+                  </Typography>
+                </Box>
+              </Paper>
+
+              {/* FECHAS (según tipo de solicitud) */}
+              {(selectedSolicitud.tipo !== 'certificacion' && selectedSolicitud.tipo !== 'adelanto') && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 2
+                  }}>
+                    📅 Fechas
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {selectedSolicitud.fechaInicio && (
+                      <Grid item xs={6}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            Fecha Inicio
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {format(toDate(selectedSolicitud.fechaInicio), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                      </Grid>
+                    )}
+                    {selectedSolicitud.fechaFin && (
+                      <Grid item xs={6}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            Fecha Fin
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {format(toDate(selectedSolicitud.fechaFin), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                      </Grid>
+                    )}
+                    {selectedSolicitud.dias > 0 && (
+                      <Grid item xs={6}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          <ScheduleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            Duración
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {selectedSolicitud.dias} {selectedSolicitud.dias === 1 ? 'día' : 'días'}
+                        </Typography>
+                      </Grid>
+                    )}
+                    {selectedSolicitud.fechaNacimiento && (
+                      <Grid item xs={6}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            Fecha Nacimiento
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {format(toDate(selectedSolicitud.fechaNacimiento), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              )}
+
+              {/* INFORMACIÓN ESPECÍFICA SEGÚN TIPO */}
+              {selectedSolicitud.tipo === 'licencia_maternidad' && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 1.5
+                  }}>
+                    👶 Tipo de Licencia
+                  </Typography>
+                  <Typography variant="body1" fontWeight={500}>
+                    {selectedSolicitud.tipoLicencia === 'maternidad' ? 'Maternidad (18 semanas)' : 'Paternidad (2 semanas)'}
+                  </Typography>
+                </Paper>
+              )}
+
+              {selectedSolicitud.tipo === 'adelanto' && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    background: alpha(theme.palette.success.main, 0.02)
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 2
+                  }}>
+                    💰 Información del Adelanto
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                        <MoneyIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          Monto Solicitado
+                        </Typography>
+                      </Box>
+                      <Typography variant="h6" fontWeight={600} color="success.main">
+                        ${new Intl.NumberFormat('es-CO').format(selectedSolicitud.montoSolicitado)}
+                      </Typography>
+                    </Grid>
+                    {selectedSolicitud.fechaDeduccion && (
+                      <Grid item xs={6}>
+                        <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                          <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            Fecha Deducción
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          {format(toDate(selectedSolicitud.fechaDeduccion), 'dd MMM yyyy', { locale: es })}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              )}
+
+              {selectedSolicitud.tipo === 'certificacion' && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 1.5
+                  }}>
+                    📄 Dirigido A
+                  </Typography>
+                  <Typography variant="body1" fontWeight={500}>
+                    {selectedSolicitud.dirigidoA || 'No especificado'}
+                  </Typography>
+                  <Box mt={1.5}>
+                    <FormControlLabel
+                      control={<Checkbox checked={selectedSolicitud.incluirSalario || false} disabled />}
+                      label="Incluir información salarial"
+                    />
+                  </Box>
+                  {selectedSolicitud.fechaRequerida && (
+                    <Box mt={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        Fecha requerida
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {format(toDate(selectedSolicitud.fechaRequerida), 'dd MMM yyyy', { locale: es })}
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+              )}
+
+              {/* MOTIVO */}
+              {selectedSolicitud.motivo && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 1.5
+                  }}>
+                    📝 Motivo / Descripción
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedSolicitud.motivo}
+                  </Typography>
+                </Paper>
+              )}
+
+              {/* DOCUMENTOS ADJUNTOS */}
+              {(selectedSolicitud.certificadoURL || 
+                selectedSolicitud.incapacidadURL || 
+                selectedSolicitud.epicrisisURL || 
+                selectedSolicitud.nacidoVivoURL || 
+                selectedSolicitud.historiaClinicaURL || 
+                selectedSolicitud.registroCivilURL) && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    background: alpha(theme.palette.info.main, 0.02)
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 2
+                  }}>
+                    📎 Documentos Adjuntos
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {selectedSolicitud.certificadoURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.certificadoURL, selectedSolicitud.certificadoNombre || 'Certificado Laboral')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            📄 {selectedSolicitud.certificadoNombre || 'Certificado Laboral'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                    {selectedSolicitud.incapacidadURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.incapacidadURL, selectedSolicitud.incapacidadNombre || 'Incapacidad Médica')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            🏥 {selectedSolicitud.incapacidadNombre || 'Incapacidad Médica'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                    {selectedSolicitud.epicrisisURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.epicrisisURL, selectedSolicitud.epicrisisNombre || 'Epicrisis')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            📋 {selectedSolicitud.epicrisisNombre || 'Epicrisis'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                    {selectedSolicitud.nacidoVivoURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.nacidoVivoURL, selectedSolicitud.nacidoVivoNombre || 'Certificado de Nacido Vivo')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            👶 {selectedSolicitud.nacidoVivoNombre || 'Certificado de Nacido Vivo'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                    {selectedSolicitud.historiaClinicaURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.historiaClinicaURL, selectedSolicitud.historiaClinicaNombre || 'Historia Clínica')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            📑 {selectedSolicitud.historiaClinicaNombre || 'Historia Clínica'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                    {selectedSolicitud.registroCivilURL && (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => handleOpenPDF(selectedSolicitud.registroCivilURL, selectedSolicitud.registroCivilNombre || 'Registro Civil')}
+                        sx={{
+                          justifyContent: 'flex-start',
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          py: 1.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '&:hover': {
+                            borderColor: theme.palette.primary.main,
+                            background: alpha(theme.palette.primary.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, textAlign: 'left' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            📜 {selectedSolicitud.registroCivilNombre || 'Registro Civil'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click para visualizar (Opcional)
+                          </Typography>
+                        </Box>
+                      </Button>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* INFORMACIÓN DE APROBACIÓN/RECHAZO */}
+              {(selectedSolicitud.estado === 'aprobada' || selectedSolicitud.estado === 'rechazada') && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    background: selectedSolicitud.estado === 'aprobada' 
+                      ? alpha(theme.palette.success.main, 0.04)
+                      : alpha(theme.palette.error.main, 0.04)
+                  }}
+                >
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                    fontWeight: 600,
+                    display: 'block',
+                    mb: 2
+                  }}>
+                    {selectedSolicitud.estado === 'aprobada' ? '✅ Aprobación' : '❌ Rechazo'}
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        {selectedSolicitud.estado === 'aprobada' ? 'Aprobada por' : 'Rechazada por'}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedSolicitud.aprobadoPorNombre || selectedSolicitud.rechazadoPorNombre || 'Sistema'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Fecha
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedSolicitud.fechaAprobacion 
+                          ? format(toDate(selectedSolicitud.fechaAprobacion), 'dd MMM yyyy HH:mm', { locale: es })
+                          : selectedSolicitud.fechaRechazo
+                          ? format(toDate(selectedSolicitud.fechaRechazo), 'dd MMM yyyy HH:mm', { locale: es })
+                          : 'N/A'
+                        }
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  {selectedSolicitud.comentarioAprobacion && (
+                    <Box mt={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        Comentario
+                      </Typography>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {selectedSolicitud.comentarioAprobacion}
+                      </Typography>
+                    </Box>
+                  )}
+                  {selectedSolicitud.motivoRechazo && (
+                    <Box mt={2}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        Motivo del rechazo
+                      </Typography>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {selectedSolicitud.motivoRechazo}
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+
+        <Divider />
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={handleCloseDetalles}
+            variant="contained"
+            sx={{
+              borderRadius: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 4
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* MODAL: VISOR PDF */}
+      <Dialog
+        open={openPDFViewer}
+        onClose={handleClosePDF}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            height: '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+        }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box display="flex" alignItems="center" gap={2.5}>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200 }}
+              >
+                <Avatar sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  width: 40,
+                  height: 40
+                }}>
+                  <InsertDriveFileIcon />
+                </Avatar>
+              </motion.div>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {currentPDF.nombre}
+                </Typography>
+                {documentInfo && (
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDocumentType(documentInfo.tipo)} • {formatFileSize(documentInfo.tamano)}
+                    </Typography>
+                    {documentInfo.fechaSubida && (
+                      <Typography variant="body2" color="text.secondary">
+                        {format(new Date(documentInfo.fechaSubida), 'dd MMM yyyy', { locale: es })}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            </Box>
+            
+            <Box display="flex" gap={1}>
+              <Tooltip title="Información del documento">
+                <IconButton
+                  onClick={handleToggleDocumentInfo}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    background: documentInfoOpen
+                      ? alpha(theme.palette.info.main, 0.15)
+                      : alpha(theme.palette.info.main, 0.08),
+                    '&:hover': {
+                      background: alpha(theme.palette.info.main, 0.2),
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                >
+                  <InfoIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Descargar">
+                <IconButton
+                  component="a"
+                  href={currentPDF.url}
+                  download={currentPDF.nombre}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    background: alpha(theme.palette.success.main, 0.08),
+                    '&:hover': {
+                      background: alpha(theme.palette.success.main, 0.15),
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                >
+                  <GetAppIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <IconButton onClick={handleClosePDF} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </Box>
+        </DialogTitle>
+
+        {/* PANEL INFORMACIÓN EXPANDIBLE */}
+        {documentInfo && documentInfoOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            style={{ overflow: 'hidden' }}
+          >
+            <Box sx={{
+              px: 3,
+              py: 2,
+              background: alpha(theme.palette.info.main, 0.04),
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              maxHeight: '40vh',
+              overflowY: 'auto'
+            }}>
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 2
+              }}>
+                <Box display="flex" alignItems="start" gap={1}>
+                  <FolderOpenIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Ubicación
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem',
+                      wordBreak: 'break-word'
+                    }}>
+                      {documentInfo.path || 'Firebase Storage'}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box display="flex" alignItems="start" gap={1}>
+                  <InsertDriveFileIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tipo
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatDocumentType(documentInfo.tipo)}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Box display="flex" alignItems="start" gap={1}>
+                  <AttachFileIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tamaño
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatFileSize(documentInfo.tamano)}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {documentInfo.fechaSubida && (
+                  <Box display="flex" alignItems="start" gap={1}>
+                    <CalendarIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="caption" sx={{
+                        color: theme.palette.text.secondary,
+                        fontWeight: 500,
+                        display: 'block'
+                      }}>
+                        Fecha de subida
+                      </Typography>
+                      <Typography variant="body2">
+                        {format(new Date(documentInfo.fechaSubida), 'dd MMM yyyy HH:mm', { locale: es })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </motion.div>
+        )}
+
+        <DialogContent sx={{ p: 0, height: '100%', overflow: 'hidden' }}>
+          <Box
+            component="iframe"
+            src={currentPDF.url}
+            sx={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              display: 'block'
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: CONTRASEÑA DE PDF */}
+      <Dialog
+        open={openPasswordModal}
+        onClose={handleCancelarPassword}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.warning.light, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Avatar sx={{
+              background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark} 100%)`,
+              width: 48,
+              height: 48
+            }}>
+              <InfoIcon sx={{ fontSize: 28 }} />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                Generar Certificación Laboral
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                🔒 PDF Protegido con Contraseña
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Completa los datos para generar el certificado
+              <Typography variant="body2" color="text.secondary">
+                Este documento requiere contraseña para continuar
               </Typography>
             </Box>
           </Box>
         </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ p: 3, pt: 5 }}>
-          <Grid container spacing={3}>
-            {/* Nombre Completo */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                required
-                label="Nombre Completo del Empleado"
-                value={certificadoData.empleadoNombre}
-                onChange={(e) => setCertificadoData({ ...certificadoData, empleadoNombre: e.target.value })}
-                placeholder="Ej: Juan Pérez García"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Grid>
 
-            {/* Documento */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                required
-                label="Cédula / Documento"
-                value={certificadoData.empleadoDocumento}
-                onChange={(e) => setCertificadoData({ ...certificadoData, empleadoDocumento: e.target.value })}
-                placeholder="Ej: 1234567890"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Grid>
+        <DialogContent sx={{ p: 3, pt: 4 }}>
+          <Alert 
+            severity={passwordAttempts >= 3 ? "error" : "warning"} 
+            sx={{ mt: 3, mb: 3, borderRadius: 1 }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+              {passwordAttempts >= 3 
+                ? "⚠️ 3 intentos fallidos - Opciones disponibles"
+                : "El PDF que intentas subir está protegido con contraseña"
+              }
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block' }}>
+              {passwordAttempts >= 3 
+                ? "Es posible que: 1) La contraseña sea incorrecta, 2) El PDF use encriptación no soportada. Puedes cancelar y desencriptar el PDF con otra herramienta (Adobe, PDFtk), o subir el archivo encriptado (puede causar problemas al visualizarlo)."
+                : "Por seguridad, necesitamos desencriptar el documento antes de subirlo al sistema. Ingresa la contraseña para continuar."
+              }
+            </Typography>
+          </Alert>
 
-            {/* Cargo */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                required
-                label="Cargo"
-                value={certificadoData.empleadoCargo}
-                onChange={(e) => setCertificadoData({ ...certificadoData, empleadoCargo: e.target.value })}
-                placeholder="Ej: Analista de Sistemas"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Grid>
+          <TextField
+            fullWidth
+            type="password"
+            label="Contraseña del PDF"
+            value={pdfPassword}
+            onChange={(e) => setPdfPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleConfirmarPassword();
+              }
+            }}
+            error={!!passwordError}
+            helperText={passwordError || `Intento ${passwordAttempts + 1} de 3`}
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1
+              }
+            }}
+          />
 
-            {/* Fecha de Ingreso */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                required
-                type="date"
-                label="Fecha de Ingreso"
-                value={certificadoData.fechaIngreso}
-                onChange={(e) => setCertificadoData({ ...certificadoData, fechaIngreso: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Grid>
-
-            {/* Dirigido A */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Dirigido A"
-                value={certificadoData.dirigidoA}
-                onChange={(e) => setCertificadoData({ ...certificadoData, dirigidoA: e.target.value })}
-                placeholder="Ej: A quien pueda interesar, Banco XYZ, etc."
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-              />
-            </Grid>
-
-            {/* Incluir Salario */}
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={certificadoData.incluyeSalario}
-                    onChange={(e) => setCertificadoData({ ...certificadoData, incluyeSalario: e.target.checked })}
-                    sx={{ color: theme.palette.primary.main }}
-                  />
-                }
-                label="Incluir información salarial en el certificado"
-              />
-            </Grid>
-
-            {/* Salario (solo si checkbox está activo) */}
-            {certificadoData.incluyeSalario && (
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Salario Mensual"
-                  value={certificadoData.empleadoSalario}
-                  onChange={(e) => {
-                    // Remover caracteres no numéricos
-                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                    
-                    // Formatear a pesos colombianos
-                    const formatted = rawValue ? new Intl.NumberFormat('es-CO', {
-                      style: 'currency',
-                      currency: 'COP',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    }).format(parseInt(rawValue)) : '';
-                    
-                    setCertificadoData({ ...certificadoData, empleadoSalario: formatted });
-                  }}
-                  placeholder="Ej: $2,500,000"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                />
-              </Grid>
-            )}
-          </Grid>
+          {pendingPasswordFile?.file && (
+            <Box sx={{
+              mt: 2,
+              p: 2,
+              borderRadius: 1,
+              background: alpha(theme.palette.info.main, 0.04),
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+            }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Archivo:
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                📄 {pendingPasswordFile.file.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {(pendingPasswordFile.file.size / 1024).toFixed(2)} KB
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
+
         <Divider />
-        <DialogActions sx={{ p: 3, gap: 1.5 }}>
+        <DialogActions sx={{ p: 3, gap: 1.5, flexWrap: 'wrap' }}>
           <Button
-            onClick={() => setOpenCertificadoModal(false)}
+            onClick={handleCancelarPassword}
             variant="outlined"
             color="secondary"
-            sx={{ borderRadius: 1, fontWeight: 500, textTransform: 'none', px: 3 }}
+            sx={{
+              borderRadius: 1,
+              fontWeight: 500,
+              textTransform: 'none',
+              px: 3
+            }}
           >
             Cancelar
           </Button>
+          
+          {/* Botón de emergencia: Subir encriptado (solo después de 3 intentos) */}
+          {passwordAttempts >= 3 && (
+            <Button
+              onClick={handleSubirEncriptado}
+              variant="outlined"
+              color="warning"
+              sx={{
+                borderRadius: 1,
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3
+              }}
+            >
+              ⚠️ Subir Encriptado
+            </Button>
+          )}
+          
           <Button
-            onClick={handleGenerarCertificado}
+            onClick={handleConfirmarPassword}
             variant="contained"
+            disabled={!pdfPassword.trim() || passwordAttempts >= 3}
             sx={{
               borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
               px: 4,
-              bgcolor: theme.palette.primary.main,
+              bgcolor: theme.palette.warning.main,
               color: '#fff',
-              '&:hover': { bgcolor: theme.palette.primary.dark }
+              '&:hover': {
+                bgcolor: theme.palette.warning.dark
+              }
             }}
           >
-            Generar Certificado
+            Desencriptar y Continuar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* MODAL: PREVIEW CERTIFICADO */}
-      <Dialog
-        open={openPreviewCertificado}
-        onClose={() => setOpenPreviewCertificado(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
-          }
-        }}
-      >
-        <DialogTitle sx={{ pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main }}>
-              <CheckIcon />
-            </Avatar>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                Certificación Laboral Generada
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Revisa la información antes de enviar
-              </Typography>
-            </Box>
-          </Box>
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ p: 3, pt: 5 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 4,
-              borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              bgcolor: alpha(theme.palette.background.paper, 0.5)
-            }}
-          >
-            {/* Encabezado con logo y datos de la empresa */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-              {certificadoData.empresaLogo && (
-                <Avatar
-                  src={certificadoData.empresaLogo}
-                  alt={certificadoData.empresaNombre}
-                  sx={{
-                    width: 120,
-                    height: 120,
-                    mx: 'auto',
-                    mb: 2,
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                  }}
-                  variant="rounded"
-                />
-              )}
-              
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-                {certificadoData.empresaNombre || 'DR Group'}
-              </Typography>
-              
-              {certificadoData.empresaNIT && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  NIT: {certificadoData.empresaNIT}
-                </Typography>
-              )}
-              
-              {certificadoData.empresaDireccion && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  {certificadoData.empresaDireccion}
-                  {certificadoData.empresaCiudad && ` - ${certificadoData.empresaCiudad}`}
-                </Typography>
-              )}
-              
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="h6" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
-                CERTIFICACIÓN LABORAL
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {certificadoData.dirigidoA || 'A quien pueda interesar'}
-              </Typography>
-            </Box>
-
-            <Divider sx={{ my: 3 }} />
-
-            {/* Contenido */}
-            <Typography variant="body1" sx={{ mb: 2, lineHeight: 1.8, textAlign: 'justify' }}>
-              La empresa <strong>{certificadoData.empresaNombre || 'DR Group'}</strong> certifica que:
-            </Typography>
-
-            <Box sx={{ pl: 2, mb: 3 }}>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                <strong>{certificadoData.empleadoNombre}</strong>
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Documento de identidad: {certificadoData.empleadoDocumento}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Cargo: {certificadoData.empleadoCargo}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Fecha de ingreso: {certificadoData.fechaIngreso && new Date(certificadoData.fechaIngreso).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </Typography>
-              {certificadoData.incluyeSalario && certificadoData.empleadoSalario && (
-                <Typography variant="body2" color="text.secondary">
-                  Salario mensual: {certificadoData.empleadoSalario}
-                </Typography>
-              )}
-            </Box>
-
-            <Typography variant="body1" sx={{ lineHeight: 1.8, textAlign: 'justify' }}>
-              Labora actualmente en nuestra organización desempeñando sus funciones de manera satisfactoria.
-            </Typography>
-
-            <Divider sx={{ my: 3 }} />
-
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
-              Se expide la presente certificación a solicitud del interesado.
-            </Typography>
-          </Paper>
-        </DialogContent>
-        <Divider />
-        <DialogActions sx={{ p: 3, gap: 1.5 }}>
-          <Button
-            onClick={() => {
-              setOpenPreviewCertificado(false);
-              setOpenCertificadoModal(true); // Volver a editar
-            }}
-            variant="outlined"
-            color="secondary"
-            sx={{ borderRadius: 1, fontWeight: 500, textTransform: 'none', px: 3 }}
-          >
-            Editar
-          </Button>
-          <Button
-            onClick={handleEnviarCertificadoFinal}
-            variant="contained"
-            sx={{
-              borderRadius: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              px: 4,
-              bgcolor: theme.palette.success.main,
-              color: '#fff',
-              '&:hover': { bgcolor: theme.palette.success.dark }
-            }}
-          >
-            Enviar Certificado
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Modales de generación/preview eliminados - ahora se usa upload directo */}
     </motion.div>
   );
 };
