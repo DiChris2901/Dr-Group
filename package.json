@@ -1,6 +1,6 @@
 {
   "name": "dr-group-dashboard",
-  "version": "3.9.1",
+  "version": "3.9.2",
   "description": "Dashboard de Control de Compromisos Financieros para DR Group",
   "type": "module",
   "scripts": {
@@ -42,6 +42,7 @@
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.624",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.20.1",

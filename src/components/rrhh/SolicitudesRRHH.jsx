@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -82,11 +82,16 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject, getMetadata } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, getMetadata, getBytes } from 'firebase/storage';
 import { differenceInDays } from 'date-fns';
 import { usePermissions } from '../../hooks/usePermissions';
 import { combineFilesToPDF } from '../../utils/pdfCombiner';
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+// PDF.js worker (Vite)
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const SolicitudesRRHH = ({ 
   solicitudes, 
@@ -129,6 +134,8 @@ const SolicitudesRRHH = ({
   const [currentPDF, setCurrentPDF] = useState({ url: '', nombre: '' });
   const [documentInfoOpen, setDocumentInfoOpen] = useState(false);
   const [documentInfo, setDocumentInfo] = useState(null);
+  const [pdfViewerLoading, setPdfViewerLoading] = useState(false);
+  const pdfBlobUrlRef = useRef(null);
   
   // Estados para Modal de Contraseña de PDF
   const [openPasswordModal, setOpenPasswordModal] = useState(false);
@@ -284,78 +291,122 @@ const SolicitudesRRHH = ({
       const fileBuffer = await file.arrayBuffer();
       console.log(`📦 Buffer cargado: ${(fileBuffer.byteLength / 1024).toFixed(2)} KB`);
       
+      // Fallback robusto: pdf-lib NO soporta todos los tipos de encriptación (AES/DRM)
+      // Si pdf-lib falla, usamos PDF.js para desencriptar/renderizar y reempaquetar como PDF limpio.
+      const desencriptarConPdfJs = async () => {
+        console.log('🧩 Fallback: desencriptando con PDF.js y rearmando PDF...');
+        const data = new Uint8Array(fileBuffer);
+
+        const loadingTask = pdfjsLib.getDocument({ data, password });
+        const pdf = await loadingTask.promise;
+
+        try {
+          const outputDoc = await PDFDocument.create();
+          outputDoc.setCreator('DR Group System');
+          outputDoc.setProducer('DR Group PDF Sanitizer');
+
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+            const page = await pdf.getPage(pageNumber);
+            const viewport = page.getViewport({ scale: 2 });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { alpha: false });
+            if (!context) throw new Error('No se pudo inicializar canvas');
+
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const imageBytes = await (await fetch(dataUrl)).arrayBuffer();
+            const jpgImage = await outputDoc.embedJpg(imageBytes);
+
+            const pdfPage = outputDoc.addPage([viewport.width, viewport.height]);
+            pdfPage.drawImage(jpgImage, {
+              x: 0,
+              y: 0,
+              width: viewport.width,
+              height: viewport.height
+            });
+          }
+
+          const pdfBytes = await outputDoc.save();
+          console.log(`✅ PDF.js rearmó el PDF (${(pdfBytes.byteLength / 1024).toFixed(2)} KB)`);
+
+          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          const desencriptado = new File([blob], file.name, {
+            type: 'application/pdf',
+            lastModified: Date.now()
+          });
+
+          Object.defineProperty(desencriptado, '_yaDesencriptado', {
+            value: true,
+            writable: false,
+            configurable: true
+          });
+          Object.defineProperty(desencriptado, '_sinEncriptacion', {
+            value: true,
+            writable: false,
+            configurable: true
+          });
+          Object.defineProperty(desencriptado, '_estrategiaUsada', {
+            value: 3,
+            writable: false,
+            configurable: true
+          });
+
+          return desencriptado;
+        } finally {
+          try {
+            loadingTask.destroy();
+          } catch {
+            // no-op
+          }
+        }
+      };
+
       let pdfDoc;
-      let estrategiaExitosa = null;
-      
-      // Estrategia 1: Intentar con contraseña directamente
       try {
-        console.log(`🔓 Estrategia 1: Cargando PDF con contraseña...`);
-        pdfDoc = await PDFDocument.load(fileBuffer, { 
+        console.log(`🔓 Intentando con pdf-lib (password)...`);
+        pdfDoc = await PDFDocument.load(fileBuffer, {
           password: password,
           updateMetadata: false
         });
-        estrategiaExitosa = 1;
-        console.log(`✅ Estrategia 1 EXITOSA! PDF cargado con contraseña.`);
-      } catch (error1) {
-        console.warn(`⚠️ Estrategia 1 FALLÓ:`, error1.message);
-        
-        // Estrategia 2: Intentar con ignoreEncryption (para PDFs con protección débil)
+        console.log(`✅ pdf-lib cargó el PDF con contraseña.`);
+      } catch (errorPdfLib) {
+        console.warn('⚠️ pdf-lib no pudo desencriptar. Intentando PDF.js...', errorPdfLib?.message);
         try {
-          console.log(`🔓 Estrategia 2: Intentando con ignoreEncryption...`);
-          pdfDoc = await PDFDocument.load(fileBuffer, { 
-            ignoreEncryption: true,
-            updateMetadata: false
-          });
-          estrategiaExitosa = 2;
-          console.log(`✅ Estrategia 2 EXITOSA! PDF cargado ignorando encriptación (protección débil).`);
-        } catch (error2) {
-          console.error(`❌ Estrategia 2 FALLÓ:`, error2.message);
-          console.error(`\n💡 DIAGNÓSTICO: Ambas estrategias fallaron.`);
-          console.error(`   - Estrategia 1 (password): ${error1.message}`);
-          console.error(`   - Estrategia 2 (ignoreEncryption): ${error2.message}`);
-          console.error(`\n📋 POSIBLES CAUSAS:`);
-          console.error(`   1. Contraseña incorrecta`);
-          console.error(`   2. PDF usa encriptación no soportada por pdf-lib (AES-256, etc.)`);
-          console.error(`   3. PDF corrupto o dañado`);
-          console.error(`\n💡 SOLUCIONES:`);
-          console.error(`   - Verificar que la contraseña sea exactamente correcta`);
-          console.error(`   - Desencriptar con Adobe Acrobat, PDFtk u otra herramienta`);
-          console.error(`   - Subir el PDF encriptado (opción de emergencia)\n`);
-          
-          // Si el error original mencionaba "encrypted", es problema de contraseña/encriptación
-          if (error1.message && error1.message.toLowerCase().includes('encrypted')) {
+          return await desencriptarConPdfJs();
+        } catch (errorPdfJs) {
+          const message = String(errorPdfJs?.message || '');
+          if (errorPdfJs?.name === 'PasswordException' || message.toLowerCase().includes('password')) {
             throw new Error('Contraseña incorrecta');
           }
-          throw error1;
+          throw new Error(`Error al desencriptar: ${message || 'Error desconocido'}`);
         }
       }
       
       console.log(`💾 Guardando PDF sin encriptación...`);
       
-      let pdfBytes;
-      if (estrategiaExitosa === 2) {
-        // ESTRATEGIA 2: ignoreEncryption NO remueve la encriptación
-        // Necesitamos RECONSTRUIR el PDF copiando páginas a un documento nuevo
-        console.log(`🔧 Estrategia 2 detectada: Reconstruyendo PDF sin encriptación...`);
-        const newPdfDoc = await PDFDocument.create();
-        
-        // Copiar TODAS las páginas del PDF encriptado al nuevo documento
-        const pageCount = pdfDoc.getPageCount();
-        console.log(`📄 Copiando ${pageCount} página(s)...`);
-        const copiedPages = await newPdfDoc.copyPages(pdfDoc, Array.from({ length: pageCount }, (_, i) => i));
-        copiedPages.forEach(page => newPdfDoc.addPage(page));
-        
-        // Guardar el nuevo documento (sin encriptación)
-        pdfBytes = await newPdfDoc.save();
-        console.log(`✅ PDF reconstruido sin encriptación`);
-      } else {
-        // ESTRATEGIA 1: password funcionó, guardar normalmente
-        console.log(`💾 Estrategia 1: Guardando PDF desencriptado...`);
-        pdfBytes = await pdfDoc.save({
-          useObjectStreams: false,
-          addDefaultPage: false
-        });
-      }
+      // ESTRATEGIA UNIFICADA: SIEMPRE RECONSTRUIR EL PDF
+      // Esto garantiza eliminar cualquier rastro de encriptación o metadata restrictiva
+      // Copiamos las páginas a un documento nuevo y limpio
+      console.log(`🔧 Reconstruyendo PDF limpio (Sanitización)...`);
+      const newPdfDoc = await PDFDocument.create();
+      newPdfDoc.setCreator('DR Group System');
+      newPdfDoc.setProducer('DR Group PDF Sanitizer');
+      
+      const pageCount = pdfDoc.getPageCount();
+      console.log(`📄 Copiando ${pageCount} página(s) al nuevo documento...`);
+      
+      // Copiar páginas del documento original (ya abierto) al nuevo documento
+      const copiedPages = await newPdfDoc.copyPages(pdfDoc, Array.from({ length: pageCount }, (_, i) => i));
+      copiedPages.forEach(page => newPdfDoc.addPage(page));
+      
+      // Guardar el nuevo documento limpio
+      const pdfBytes = await newPdfDoc.save();
+      console.log(`✅ PDF reconstruido exitosamente (${(pdfBytes.byteLength / 1024).toFixed(2)} KB)`);
       
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       
@@ -422,48 +473,50 @@ const SolicitudesRRHH = ({
     }
   };
 
-  // Handler: Procesar archivos verificando contraseñas
-  const procesarArchivosConValidacionContraseña = async (files, nombreBase) => {
+  // Handler: Procesar archivos verificando contraseñas (Lógica Secuencial Mejorada)
+  const procesarArchivosConValidacionContraseña = async (files, nombreBase, currentIndex = 0, archivosProcesados = []) => {
     try {
-      const archivosValidados = [];
-      
-      for (const file of files) {
-        // Solo validar si es PDF y NO fue previamente desencriptado
-        // Verificar múltiples marcadores para mayor robustez
-        const yaDesencriptado = file._yaDesencriptado || file._sinEncriptacion;
-        if (file.type === 'application/pdf' && !yaDesencriptado) {
-          console.log(`🔍 Verificando PDF: ${file.name} (${(file.size / 1024).toFixed(2)} KB) [_yaDesencriptado=${file._yaDesencriptado}, _sinEncriptacion=${file._sinEncriptacion}]`);
-          const tienePassword = await pdfTieneContrasena(file);
-          
-          if (tienePassword) {
-            console.log(`🔒 PDF con contraseña detectado: ${file.name}`);
-            // Mostrar modal para pedir contraseña
-            return new Promise((resolve, reject) => {
-              setPendingPasswordFile({ file, resolve, reject, nombreBase, restFiles: files.filter(f => f !== file).concat(archivosValidados) });
-              setOpenPasswordModal(true);
-              setPdfPassword('');
-              setPasswordError('');
-              setPasswordAttempts(0);
-            });
-          } else {
-            console.log(`✅ PDF sin contraseña: ${file.name}`);
-          }
-        } else if (file._yaDesencriptado) {
-          console.log(`⏩ PDF ya procesado, saltando verificación: ${file.name}`);
-        }
-        archivosValidados.push(file);
+      // Caso base: Si ya procesamos todos, terminar y combinar
+      if (currentIndex >= files.length) {
+        console.log(`📦 Todos los archivos procesados (${archivosProcesados.length}), combinando...`);
+        const result = await procesarYCombinarArchivos(archivosProcesados, nombreBase);
+        return result;
       }
+
+      const file = files[currentIndex];
       
-      // Si todos los archivos están validados, procesarlos
-      console.log(`📦 Todos los archivos validados (${archivosValidados.length}), procesando...`);
-      const result = await procesarYCombinarArchivos(archivosValidados, nombreBase);
-      console.log(`✅ Resultado de procesarYCombinarArchivos:`, {
-        tieneBlob: !!result?.blob,
-        tieneFileName: !!result?.fileName,
-        tieneStats: !!result?.stats,
-        blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A'
-      });
-      return result;
+      // Verificar si es PDF y no ha sido desencriptado aún
+      const yaDesencriptado = file._yaDesencriptado || file._sinEncriptacion;
+      
+      if (file.type === 'application/pdf' && !yaDesencriptado) {
+        console.log(`🔍 Verificando archivo ${currentIndex + 1}/${files.length}: ${file.name}`);
+        const tienePassword = await pdfTieneContrasena(file);
+        
+        if (tienePassword) {
+          console.log(`🔒 PDF con contraseña detectado: ${file.name}`);
+          // Detener proceso y pedir contraseña
+          return new Promise((resolve, reject) => {
+            setPendingPasswordFile({ 
+              file,             // Archivo actual problemático
+              resolve,          // Para continuar la promesa principal
+              reject,
+              nombreBase,
+              originalFiles: files,       // Mantenemos la lista original completa
+              currentIndex,     // Índice donde nos quedamos
+              archivosProcesados // Lo que ya llevamos limpio
+            });
+            setOpenPasswordModal(true);
+            setPdfPassword('');
+            setPasswordError('');
+            setPasswordAttempts(0);
+          });
+        }
+      }
+
+      // Si no tiene password o ya fue procesado, agregarlo y seguir con el siguiente
+      const nuevosProcesados = [...archivosProcesados, file];
+      return procesarArchivosConValidacionContraseña(files, nombreBase, currentIndex + 1, nuevosProcesados);
+
     } catch (error) {
       console.error('❌ Error al validar contraseñas:', error);
       throw error;
@@ -477,49 +530,47 @@ const SolicitudesRRHH = ({
       return;
     }
 
-    console.log(`🎯 handleConfirmarPassword iniciado`);
-    console.log(`🔑 Contraseña ingresada: ${pdfPassword ? '[PROPORCIONADA]' : '[VACÍA]'} (longitud: ${pdfPassword.length})`);
-
     try {
-      const { file, resolve, reject, nombreBase, restFiles } = pendingPasswordFile;
-      console.log(`📄 Archivo a desencriptar: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+      // Recuperar estado completo
+      const { file, resolve, nombreBase, originalFiles, currentIndex, archivosProcesados } = pendingPasswordFile;
       
-      // Intentar desencriptar el PDF
+      console.log(`🔐 Desencriptando archivo ${currentIndex + 1}...`);
+      
+      // Intentar desencriptar
       const archivoDesencriptado = await desencriptarPDF(file, pdfPassword);
       
-      console.log(`✅ Desencriptación exitosa, continuando con el procesamiento...`);
-      // Agregar el archivo desencriptado a la lista
-      const todosArchivos = [...restFiles, archivoDesencriptado];
+      console.log(`✅ Desencriptado. Reanudando cola desde índice ${currentIndex + 1}...`);
       
-      // Cerrar modal
+      // Cerrar modal y limpiar estado UI
       setOpenPasswordModal(false);
       setPendingPasswordFile(null);
       setPdfPassword('');
       setPasswordError('');
       setPasswordAttempts(0);
       
-      // Continuar procesando recursivamente por si hay más archivos con contraseña
-      const result = await procesarArchivosConValidacionContraseña(todosArchivos, nombreBase);
+      // Agregar el archivo desencriptado a los procesados
+      const nuevosProcesados = [...archivosProcesados, archivoDesencriptado];
+      
+      // CONTINUAR RECURSIVIDAD con el siguiente índice
+      // Nota: Pasamos 'originalFiles' sin modificar, pero avanzamos el índice y actualizamos los procesados
+      const result = await procesarArchivosConValidacionContraseña(originalFiles, nombreBase, currentIndex + 1, nuevosProcesados);
       resolve(result);
       
     } catch (error) {
-      console.error(`❌ Error en handleConfirmarPassword:`, error);
+      console.error(`❌ Error password:`, error);
       const nuevoIntento = passwordAttempts + 1;
       setPasswordAttempts(nuevoIntento);
       
       if (error.message === 'Contraseña incorrecta' || error.message.toLowerCase().includes('encrypted')) {
         if (nuevoIntento >= 3) {
-          // Después de 3 intentos, ofrecer subir sin desencriptar
           setPasswordError(
-            '3 intentos fallidos. El PDF puede usar encriptación no soportada. ' +
-            'Puedes intentar: 1) Verificar la contraseña, 2) Desencriptar el PDF con otra herramienta, ' +
-            'o 3) Subir el archivo encriptado (puede causar problemas al visualizarlo).'
+            '3 intentos fallidos. Opciones: 1) Verificar contraseña, 2) Usar herramienta externa, 3) Subir encriptado (Botón abajo).'
           );
         } else {
-          setPasswordError(`Contraseña incorrecta o encriptación no soportada (Intento ${nuevoIntento}/3)`);
+          setPasswordError(`Contraseña incorrecta (Intento ${nuevoIntento}/3)`);
         }
       } else {
-        setPasswordError('Error al procesar el PDF: ' + error.message);
+        setPasswordError('Error: ' + error.message);
       }
     }
   };
@@ -532,7 +583,7 @@ const SolicitudesRRHH = ({
     setPasswordError('');
     setPasswordAttempts(0);
     
-    if (pendingPasswordFile) {
+    if (pendingPasswordFile && pendingPasswordFile.reject) {
       pendingPasswordFile.reject(new Error('Usuario canceló la operación'));
     }
   };
@@ -540,31 +591,26 @@ const SolicitudesRRHH = ({
   // Handler: Subir PDF encriptado sin desencriptar (opción de emergencia)
   const handleSubirEncriptado = async () => {
     try {
-      const { file, resolve, nombreBase, restFiles } = pendingPasswordFile;
-      console.log(`⚠️ Usuario eligió subir PDF encriptado sin desencriptar: ${file.name}`);
-      
-      // Agregar el archivo encriptado tal cual
-      const todosArchivos = [...restFiles, file];
+      const { file, resolve, nombreBase, originalFiles, currentIndex, archivosProcesados } = pendingPasswordFile;
+      console.log(`⚠️ Saltando desencriptación para: ${file.name}`);
       
       // Cerrar modal
       setOpenPasswordModal(false);
       setPendingPasswordFile(null);
       setPdfPassword('');
       setPasswordError('');
-      setPasswordAttempts(0);
       
-      // Mostrar advertencia
-      showToast(
-        'PDF subido sin desencriptar. Puede que no se pueda visualizar correctamente en el sistema.',
-        'warning'
-      );
+      showToast('PDF subido con contraseña. Puede no ser visible en el sistema.', 'warning');
       
-      // Continuar procesando
-      const result = await procesarArchivosConValidacionContraseña(todosArchivos, nombreBase);
+      // Agregar el archivo ORIGINAL (encriptado) a los procesados
+      const nuevosProcesados = [...archivosProcesados, file];
+      
+      // Continuar con el siguiente
+      const result = await procesarArchivosConValidacionContraseña(originalFiles, nombreBase, currentIndex + 1, nuevosProcesados);
       resolve(result);
     } catch (error) {
       console.error('❌ Error al subir encriptado:', error);
-      setPasswordError('Error al procesar: ' + error.message);
+      setPasswordError('Error: ' + error.message);
     }
   };
 
@@ -622,6 +668,7 @@ const SolicitudesRRHH = ({
   const subirArchivosPendientes = async (empleadoId) => {
     const urls = {};
     const nombres = {};
+    const uploadedRefs = [];
 
     try {
       // Subir Incapacidad
@@ -636,6 +683,7 @@ const SolicitudesRRHH = ({
         });
         const storageRef = ref(storage, `incapacidades/${pendingFiles.incapacidad.fileName}`);
         await uploadBytes(storageRef, pendingFiles.incapacidad.blob);
+        uploadedRefs.push(storageRef);
         console.log(`✅ Archivo subido, obteniendo URL...`);
         urls.incapacidadURL = await getDownloadURL(storageRef);
         console.log(`✅ URL obtenida: ${urls.incapacidadURL.substring(0, 80)}...`);
@@ -654,6 +702,7 @@ const SolicitudesRRHH = ({
         });
         const storageRef = ref(storage, `licencias/${pendingFiles.epicrisis.fileName}`);
         await uploadBytes(storageRef, pendingFiles.epicrisis.blob);
+        uploadedRefs.push(storageRef);
         urls.epicrisisURL = await getDownloadURL(storageRef);
         console.log(`✅ Epicrisis subida: ${urls.epicrisisURL.substring(0, 80)}...`);
         nombres.epicrisisNombre = pendingFiles.epicrisis.stats 
@@ -671,6 +720,7 @@ const SolicitudesRRHH = ({
         });
         const storageRef = ref(storage, `licencias/${pendingFiles.nacidoVivo.fileName}`);
         await uploadBytes(storageRef, pendingFiles.nacidoVivo.blob);
+        uploadedRefs.push(storageRef);
         urls.nacidoVivoURL = await getDownloadURL(storageRef);
         console.log(`✅ Nacido vivo subido: ${urls.nacidoVivoURL.substring(0, 80)}...`);
         nombres.nacidoVivoNombre = pendingFiles.nacidoVivo.stats 
@@ -688,6 +738,7 @@ const SolicitudesRRHH = ({
         });
         const storageRef = ref(storage, `licencias/${pendingFiles.historiaClinica.fileName}`);
         await uploadBytes(storageRef, pendingFiles.historiaClinica.blob);
+        uploadedRefs.push(storageRef);
         urls.historiaClinicaURL = await getDownloadURL(storageRef);
         console.log(`✅ Historia clínica subida: ${urls.historiaClinicaURL.substring(0, 80)}...`);
         nombres.historiaClinicaNombre = pendingFiles.historiaClinica.stats 
@@ -705,6 +756,7 @@ const SolicitudesRRHH = ({
         });
         const storageRef = ref(storage, `licencias/${pendingFiles.registroCivil.fileName}`);
         await uploadBytes(storageRef, pendingFiles.registroCivil.blob);
+        uploadedRefs.push(storageRef);
         urls.registroCivilURL = await getDownloadURL(storageRef);
         console.log(`✅ Registro civil subido: ${urls.registroCivilURL.substring(0, 80)}...`);
         nombres.registroCivilNombre = pendingFiles.registroCivil.stats 
@@ -715,6 +767,27 @@ const SolicitudesRRHH = ({
       return { urls, nombres };
     } catch (error) {
       console.error('❌ Error al subir archivos pendientes:', error);
+
+      // Rollback: si algo falla, eliminar lo que ya se alcanzó a subir en este batch
+      if (uploadedRefs.length > 0) {
+        try {
+          await Promise.all(
+            uploadedRefs.map(async (fileRef) => {
+              try {
+                await deleteObject(fileRef);
+              } catch (deleteErr) {
+                if (deleteErr?.code !== 'storage/object-not-found') {
+                  console.warn('⚠️ No se pudo limpiar archivo parcial:', deleteErr);
+                }
+              }
+            })
+          );
+          console.log(`🧹 Rollback completo: ${uploadedRefs.length} archivo(s) eliminado(s) de Storage`);
+        } catch (rollbackErr) {
+          console.warn('⚠️ Rollback incompleto de archivos parciales:', rollbackErr);
+        }
+      }
+
       throw new Error('Error al subir archivos a Storage');
     }
   };
@@ -1304,33 +1377,62 @@ const SolicitudesRRHH = ({
 
   // Handler: Abrir visor PDF
   const handleOpenPDF = async (url, nombre) => {
-    setCurrentPDF({ url, nombre });
     setOpenPDFViewer(true);
+    setCurrentPDF({ url: '', nombre });
     setDocumentInfoOpen(false);
-    
-    // Obtener metadatos del archivo
+    setPdfViewerLoading(true);
+
     try {
       const fileRef = ref(storage, url);
-      const metadata = await getMetadata(fileRef);
-      setDocumentInfo({
-        nombre: nombre,
-        tamano: metadata.size,
-        tipo: metadata.contentType,
-        fechaSubida: metadata.timeCreated,
-        path: metadata.fullPath,
-        url: url
-      });
+
+      // Descargar con el SDK para respetar reglas (auth) y evitar 403 en iframe
+      const bytes = await getBytes(fileRef, 30 * 1024 * 1024);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+      pdfBlobUrlRef.current = objectUrl;
+
+      setCurrentPDF({ url: objectUrl, nombre });
+
+      // Obtener metadatos del archivo
+      try {
+        const metadata = await getMetadata(fileRef);
+        setDocumentInfo({
+          nombre: nombre,
+          tamano: metadata.size,
+          tipo: metadata.contentType,
+          fechaSubida: metadata.timeCreated,
+          path: metadata.fullPath,
+          url: url
+        });
+      } catch (error) {
+        console.error('Error al obtener metadatos:', error);
+        setDocumentInfo({
+          nombre: nombre,
+          url: url
+        });
+      }
     } catch (error) {
-      console.error('Error al obtener metadatos:', error);
-      setDocumentInfo({
-        nombre: nombre,
-        url: url
-      });
+      console.error('Error al cargar PDF:', error);
+      showToast('Error al cargar el documento', 'error');
+      setOpenPDFViewer(false);
+      setCurrentPDF({ url: '', nombre: '' });
+      setDocumentInfo(null);
+      setDocumentInfoOpen(false);
+    } finally {
+      setPdfViewerLoading(false);
     }
   };
 
   // Handler: Cerrar visor PDF
   const handleClosePDF = () => {
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+      pdfBlobUrlRef.current = null;
+    }
     setOpenPDFViewer(false);
     setCurrentPDF({ url: '', nombre: '' });
     setDocumentInfo(null);
@@ -3965,16 +4067,22 @@ const SolicitudesRRHH = ({
         )}
 
         <DialogContent sx={{ p: 0, height: '100%', overflow: 'hidden' }}>
-          <Box
-            component="iframe"
-            src={currentPDF.url}
-            sx={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              display: 'block'
-            }}
-          />
+          {pdfViewerLoading ? (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box
+              component="iframe"
+              src={currentPDF.url}
+              sx={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block'
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
