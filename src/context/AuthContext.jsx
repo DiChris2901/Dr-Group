@@ -1,4 +1,4 @@
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+﻿import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, serverTimestamp as rtdbServerTimestamp, set } from 'firebase/database';
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -22,7 +22,6 @@ const logAuthActivity = async (action, userId, details = {}) => {
       },
       timestamp: new Date()
     });
-    console.log(`✅ Audit log created: ${action}`);
   } catch (error) {
     console.error('❌ Error creating audit log:', error);
   }
@@ -80,7 +79,6 @@ export const AuthProvider = ({ children }) => {
       const cached = localStorage.getItem('drgroup-userProfile');
       if (cached) {
         const profile = JSON.parse(cached);
-        console.log('⚡ [INIT] Perfil cargado desde caché en inicialización (sin flash)');
         return profile;
       }
     } catch (error) {
@@ -104,7 +102,6 @@ export const AuthProvider = ({ children }) => {
   const saveUserProfileToCache = (profile) => {
     try {
       localStorage.setItem('drgroup-userProfile', JSON.stringify(profile));
-      console.log('💾 [CACHE] Perfil guardado en localStorage');
     } catch (error) {
       console.error('❌ [CACHE] Error guardando perfil:', error);
     }
@@ -117,10 +114,8 @@ export const AuthProvider = ({ children }) => {
         const profile = JSON.parse(cached);
         // Verificar que el caché es del usuario correcto
         if (profile.uid === userId) {
-          console.log('⚡ [CACHE] Perfil cargado desde localStorage (instantáneo)');
           return profile;
         } else {
-          console.log('⚠️ [CACHE] Perfil en caché es de otro usuario, ignorando');
           localStorage.removeItem('drgroup-userProfile');
         }
       }
@@ -139,78 +134,68 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       
-      // 📝 Registrar actividad de auditoría - Inicio de sesión exitoso
-      await logAuthActivity('user_login', result.user.uid, {
-        email: result.user.email,
-        ipAddress: 'Unknown', // Requiere servicio externo
-        success: true,
-        sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      });
+      // � FIRE-AND-FORGET: Toda la auditoría se ejecuta en background sin bloquear el login
+      // Esto permite que el dashboard cargue inmediatamente después de autenticarse
+      const uid = result.user.uid;
+      const userEmail = result.user.email;
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // 🆕 Registrar inicio de sesión en historial (con ID único para evitar duplicados)
-      try {
-        const loginHistoryId = `${result.user.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const loginHistoryRef = doc(db, 'loginHistory', loginHistoryId);
-        
-        await setDoc(loginHistoryRef, {
-          userId: result.user.uid,
-          action: 'login',
-          timestamp: new Date(),
-          email: result.user.email,
-          ipAddress: 'Unknown', // Requiere servicio externo para obtener IP real
-          userAgent: navigator.userAgent,
-          deviceType: getDeviceType(),
-          deviceInfo: getBrowserInfo(),
-          success: true
-        }, { merge: true }); // merge: true previene errores si el documento ya existe
-        
-        console.log('✅ Inicio de sesión registrado en historial');
-      } catch (historyError) {
-        console.warn('⚠️ Error registrando historial (no crítico):', historyError.message);
-        // No bloquear el login si falla el registro del historial
-      }
-
-      // ✅ Actualizar lastLogin en el documento del usuario
-      try {
-        const userDocRef = doc(db, 'users', result.user.uid);
-        await updateDoc(userDocRef, {
-          lastLogin: new Date(),
-          updatedAt: new Date()
-        });
-        console.log('✅ Última fecha de acceso actualizada');
-      } catch (updateError) {
-        console.warn('⚠️ Error actualizando lastLogin:', updateError.message);
-      }
-
-      // 🆕 Crear sesión activa
-      try {
-        // Primero, marcar otras sesiones como no actuales
-        const sessionsRef = collection(db, 'activeSessions');
-        const existingSessionsQuery = query(sessionsRef, where('userId', '==', result.user.uid));
-        const existingSessionsSnapshot = await getDocs(existingSessionsQuery);
-        
-        // Actualizar sesiones existentes para marcarlas como no actuales
-        const updatePromises = existingSessionsSnapshot.docs.map(doc => 
-          updateDoc(doc.ref, { isCurrent: false })
-        );
-        await Promise.all(updatePromises);
-
-        // Crear nueva sesión activa
-        await addDoc(collection(db, 'activeSessions'), {
-          userId: result.user.uid,
-          deviceType: getDeviceType(),
-          deviceInfo: getBrowserInfo(),
-          lastActivity: new Date(),
-          loginTime: new Date(),
-          isCurrent: true,
-          location: 'Unknown', // Requiere geolocalización
-          sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        });
-        console.log('✅ Sesión activa creada');
-      } catch (sessionError) {
-        console.error('⚠️ Error creando sesión activa:', sessionError);
-        // No bloquear el login si falla el registro de sesión
-      }
+      Promise.resolve().then(async () => {
+        try {
+          // 📝 Registrar actividad de auditoría
+          logAuthActivity('user_login', uid, {
+            email: userEmail,
+            ipAddress: 'Unknown',
+            success: true,
+            sessionId
+          });
+          
+          // 🆕 Registrar inicio de sesión en historial
+          const loginHistoryId = `${uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const loginHistoryRef = doc(db, 'loginHistory', loginHistoryId);
+          setDoc(loginHistoryRef, {
+            userId: uid,
+            action: 'login',
+            timestamp: new Date(),
+            email: userEmail,
+            ipAddress: 'Unknown',
+            userAgent: navigator.userAgent,
+            deviceType: getDeviceType(),
+            deviceInfo: getBrowserInfo(),
+            success: true
+          }, { merge: true });
+          
+          // ✅ Actualizar lastLogin
+          const userDocRef = doc(db, 'users', uid);
+          updateDoc(userDocRef, {
+            lastLogin: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // 🆕 Crear sesión activa
+          const sessionsRef = collection(db, 'activeSessions');
+          const existingSessionsQuery = query(sessionsRef, where('userId', '==', uid));
+          const existingSessionsSnapshot = await getDocs(existingSessionsQuery);
+          
+          const updatePromises = existingSessionsSnapshot.docs.map(d => 
+            updateDoc(d.ref, { isCurrent: false })
+          );
+          Promise.all(updatePromises);
+          
+          addDoc(collection(db, 'activeSessions'), {
+            userId: uid,
+            deviceType: getDeviceType(),
+            deviceInfo: getBrowserInfo(),
+            lastActivity: new Date(),
+            loginTime: new Date(),
+            isCurrent: true,
+            location: 'Unknown',
+            sessionId
+          });
+          
+        } catch (auditError) {
+        }
+      });
 
       return result;
     } catch (error) {
@@ -232,14 +217,12 @@ export const AuthProvider = ({ children }) => {
             state: 'offline',
             last_changed: rtdbServerTimestamp()
           });
-          console.log('🔴 Usuario marcado como offline en RTDB');
         } catch (rtdbError) {
           console.error('⚠️ Error marcando offline en RTDB:', rtdbError);
         }
       }
       
       // 🧹 Limpiar listeners ANTES del signOut para evitar permission-denied
-      console.log('🧹 Limpiando listeners antes del logout...');
       clearAllListeners();
       
       // 🆕 Limpiar sesiones activas antes de cerrar sesión
@@ -281,7 +264,6 @@ export const AuthProvider = ({ children }) => {
           );
           await Promise.all(deletePromises);
           
-          console.log('✅ Sesión cerrada y registrada en historial');
         } catch (cleanupError) {
           console.error('⚠️ Error en limpieza de sesión:', cleanupError);
           // Continuar con el logout aunque falle la limpieza
@@ -292,7 +274,6 @@ export const AuthProvider = ({ children }) => {
       setUserProfile(null);
       
       // ✅ El listener onAuthStateChanged limpiará localStorage automáticamente
-      console.log('✅ Logout completado, listener limpiará caché automáticamente');
     } catch (error) {
       setError(error.message);
       throw error;
@@ -302,12 +283,10 @@ export const AuthProvider = ({ children }) => {
   // Función para buscar usuario por email (para preview en login)
   const getUserByEmail = async (email) => {
     try {
-      console.log('🔍 Buscando usuario con email:', email);
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
       
-      console.log('📊 Resultados de búsqueda:', querySnapshot.size, 'documentos encontrados');
       
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
@@ -315,10 +294,8 @@ export const AuthProvider = ({ children }) => {
           uid: userDoc.id,
           ...userDoc.data()
         };
-        console.log('✅ Usuario encontrado en Firestore:', userData);
         return userData;
       }
-      console.log('❌ No se encontró usuario con email:', email);
       return null;
     } catch (error) {
       console.error('❌ Error buscando usuario por email:', error);
@@ -334,7 +311,6 @@ export const AuthProvider = ({ children }) => {
       const user = await getUserByEmail(email);
       return user;
     } catch (error) {
-      console.log('💡 No se pudo verificar email (permisos), usando preview genérico');
       return null;
     }
   };
@@ -342,9 +318,6 @@ export const AuthProvider = ({ children }) => {
   // Función para actualizar el perfil del usuario
   const updateUserProfile = async (updates) => {
     try {
-      console.log('🚀 AuthContext - updateUserProfile iniciado');
-      console.log('📊 AuthContext - Updates recibidos:', updates);
-      console.log('👤 AuthContext - CurrentUser:', { uid: currentUser?.uid, email: currentUser?.email });
       
       if (!currentUser) {
         console.error('❌ AuthContext - No hay usuario autenticado');
@@ -352,10 +325,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       const userDocRef = doc(db, 'users', currentUser.uid);
-      console.log('📄 AuthContext - Referencia de documento:', userDocRef.path);
       
       // 🚨 CRÍTICO: NO crear documento automáticamente, solo actualizar si existe
-      console.log('🔍 AuthContext - Verificando si documento existe...');
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
@@ -363,19 +334,15 @@ export const AuthProvider = ({ children }) => {
         throw new Error('El perfil de usuario no existe. Debe ser creado por un administrador.');
       }
       
-      console.log('✅ AuthContext - Documento existe, procediendo con actualización');
       
       // Preparar datos de actualización
       const updateData = {
         ...updates,
         updatedAt: new Date()
       };
-      console.log('📝 AuthContext - Datos a actualizar en Firestore:', updateData);
       
       // Actualizar en Firestore
-      console.log('💾 AuthContext - Actualizando documento en Firestore...');
       await updateDoc(userDocRef, updateData);
-      console.log('✅ AuthContext - Documento actualizado exitosamente en Firestore');
 
       // 📝 Registrar actividad de auditoría - Actualización de perfil
       await logAuthActivity('profile_update', currentUser.uid, {
@@ -388,18 +355,15 @@ export const AuthProvider = ({ children }) => {
       });
 
       // Actualizar estado local
-      console.log('🔄 AuthContext - Actualizando estado local...');
       setUserProfile(prev => {
         const newProfile = {
           ...prev,
           ...updates,
           updatedAt: new Date()
         };
-        console.log('📊 AuthContext - Nuevo estado userProfile:', newProfile);
         return newProfile;
       });
 
-      console.log('🎉 AuthContext - updateUserProfile completado exitosamente');
       return true;
     } catch (error) {
       console.error('❌ AuthContext - Error actualizando perfil:', error);
@@ -446,17 +410,14 @@ export const AuthProvider = ({ children }) => {
       if (prevUser !== undefined) { // Ignorar primera inicialización
         if (prevUser !== null && user === null) {
           // 🧹 Verdadero LOGOUT: Usuario estaba autenticado y ahora no
-          console.log('🧹 Logout detectado (usuario → null), limpiando localStorage');
-          localStorage.removeItem('drgroup-settings');
+          // ⚡ MANTENER localStorage como caché para próximo login (evita flash de defaults)
+          // Solo limpiar perfil, los settings se mantienen para carga instantánea
           localStorage.removeItem('drgroup-userProfile');
-          console.log('✅ Cache limpiada (settings + profile), próximo login descargará desde Firestore');
         } else if (prevUser === null && user !== null) {
           // 🎉 LOGIN: Usuario se autenticó
-          console.log('🎉 Login detectado (null → usuario), localStorage se actualizará desde Firestore');
         }
       } else {
         // Primera inicialización, no hacer nada
-        console.log('⚡ Inicialización de Auth (primera vez)');
       }
       
       // Actualizar refs y estado
@@ -477,17 +438,12 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    console.log('🔄 [PROFILE] Iniciando carga de perfil para:', currentUser.uid);
     const userDocRef = doc(db, 'users', currentUser.uid);
     
     // ⚡ PASO 1: Cargar desde localStorage PRIMERO (instantáneo, sin lag)
     const cachedProfile = loadUserProfileFromCache(currentUser.uid);
     if (cachedProfile) {
-      console.log('⚡ [PROFILE] Usando caché, setUserProfile inmediatamente');
       setUserProfile(cachedProfile);
-      console.log('🖼️ [CACHE] Foto y permisos cargados instantáneamente');
-    } else {
-      console.log('⚠️ [PROFILE] No hay caché, esperando Firestore...');
     }
     
     // 🔄 PASO 2: Actualizar desde Firestore en background
@@ -517,29 +473,6 @@ export const AuthProvider = ({ children }) => {
           email: currentUser.email,
           ...userData
         };
-        
-        console.log('✅ [AUTH] Perfil actualizado desde Firestore (background)');
-        console.log('� [AUTH] DATOS COMPLETOS DEL USUARIO:');
-        console.log('  - Nombre:', userData.name || userData.displayName);
-        console.log('  - Email:', userData.email);
-        console.log('  - Rol Dashboard:', userData.role);
-        console.log('  - Rol App Móvil:', userData.appRole);
-        console.log('  - Departamento:', userData.department);
-        console.log('  - Posición:', userData.position);
-        console.log('  - Compañías:', userData.companies?.length || 0);
-        console.log('  - Teléfono:', userData.phone);
-        console.log('  - Estado:', userData.status);
-        console.log('  - Activo:', userData.isActive);
-        console.log('  - Online:', userData.online);
-        console.log('👤 [AUTH] Permisos:', Object.keys(userData.permissions || {}).filter(k => userData.permissions[k]));
-        console.log('🎨 [AUTH] Colores:', userData.theme);
-        console.log('🖼️ [AUTH] Foto de perfil:', userData.photoURL ? 'Sí' : 'No');
-        console.log('🔔 [AUTH] Notificaciones:', {
-          email: userData.notificationSettings?.emailEnabled,
-          telegram: userData.notificationSettings?.telegramEnabled,
-          channel: userData.notificationSettings?.notificationChannel
-        });
-        
         setUserProfile(fullProfile);
         saveUserProfileToCache(fullProfile); // Guardar en caché para próximo Ctrl+R
       } catch (error) {
@@ -560,10 +493,6 @@ export const AuthProvider = ({ children }) => {
           ...userData
         };
         
-        console.log('🔄 [AUTH] Perfil actualizado en tiempo real (listener)');
-        console.log('📋 [AUTH] Rol Dashboard:', userData.role, '| Rol App:', userData.appRole);
-        console.log('👤 [AUTH] Compañías:', userData.companies?.length || 0);
-        console.log('🔔 [AUTH] Estado:', userData.status, '| Activo:', userData.isActive);
         
         setUserProfile(fullProfile);
         saveUserProfileToCache(fullProfile); // Actualizar caché con cambios en tiempo real

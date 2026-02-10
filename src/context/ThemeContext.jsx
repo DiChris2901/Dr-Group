@@ -15,7 +15,11 @@ export const useTheme = () => {
 
 // Configuración del tema personalizado estilo Boss Lite que usa SettingsContext
 const getTheme = (settings = {}) => {
-  const mode = settings?.theme?.mode || 'light';
+  const rawMode = settings?.theme?.mode || 'light';
+  // MUI solo acepta 'light' | 'dark'. Resolver 'auto' según preferencia del sistema.
+  const mode = rawMode === 'auto'
+    ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : rawMode;
   const primaryColor = settings?.theme?.primaryColor || '#667eea';
   const secondaryColor = settings?.theme?.secondaryColor || '#764ba2';
   const borderRadius = settings?.theme?.borderRadius || 8;
@@ -253,7 +257,10 @@ const getTheme = (settings = {}) => {
 
 export const CustomThemeProvider = ({ children }) => {
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
-  const [currentTheme, setCurrentTheme] = useState(null);
+  
+  // 🔥 CRÍTICO: Inicializar tema INMEDIATAMENTE con settings actuales (NUNCA null)
+  // Esto evita que se desmonte AuthProvider durante la carga de configuraciones
+  const [currentTheme, setCurrentTheme] = useState(() => getTheme(settings));
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -313,11 +320,8 @@ export const CustomThemeProvider = ({ children }) => {
     effectiveMode: getEffectiveMode()
   };
 
-  // No renderizar hasta que el tema esté listo
-  if (!currentTheme) {
-    return null;
-  }
-
+  // 🔥 SOLUCIÓN DEFINITIVA: SIEMPRE renderizar children para que AuthProvider NUNCA se desmonte
+  // El skeleton se muestra como OVERLAY, no como reemplazo de children
   return (
     <ThemeContext.Provider value={value}>
       <ThemeProvider theme={currentTheme}>

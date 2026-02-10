@@ -46,7 +46,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
   const theme = useTheme();
   const { settings } = useSettings();
   const { currentUser, loading: authLoading } = useAuth();
-  const storageStats = useStorageStats();
+  const storageStats = useStorageStats({ autoFetch: true });
   
   // 🔒 No renderizar el menú si no hay usuario autenticado
   if (!currentUser || authLoading) {

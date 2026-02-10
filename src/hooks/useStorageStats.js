@@ -1,272 +1,186 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getStorage, ref, listAll, getMetadata } from 'firebase/storage';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
-export const useStorageStats = () => {
+const CACHE_KEY = 'drgroup-storage-stats';
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
+
+const defaultStats = {
+  used: 0,
+  total: 5.0,
+  documents: 0,
+  images: 0,
+  files: 0,
+  loading: false,
+  error: null
+};
+
+// Leer cache desde localStorage
+const getCachedStats = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return data;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+};
+
+const saveCachedStats = (data) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) { /* ignore */ }
+};
+
+/**
+ * Hook para estadisticas de Firebase Storage.
+ * 
+ * @param {Object} options
+ * @param {boolean} options.autoFetch - Si true, ejecuta el scan completo de Storage.
+ *   Si false (default), solo usa datos cacheados. Esto evita docenas de llamadas
+ *   403 en paginas como el Dashboard donde solo se muestra un % de uso.
+ */
+export const useStorageStats = ({ autoFetch = false } = {}) => {
   const { currentUser, loading: authLoading } = useAuth();
-  const [storageData, setStorageData] = useState({
-    used: 0,
-    total: 5.0, // GB - límite de Firebase Spark plan
-    documents: 0,
-    images: 0,
-    files: 0,
-    loading: true,
-    error: null
+  const [storageData, setStorageData] = useState(() => {
+    const cached = getCachedStats();
+    return cached || defaultStats;
   });
+  const fetchingRef = useRef(false);
 
-  useEffect(() => {
-    //  VALIDACIÓN CRÍTICA: No ejecutar NADA si no hay usuario autenticado
-    if (!currentUser) {
-      // console.log('🔒 useStorageStats: Sin usuario, no se ejecuta');
-      setStorageData(prev => ({ 
-        ...prev, 
-        loading: false,
-        used: 0,
-        documents: 0,
-        images: 0,
-        files: 0
-      }));
-      return;
-    }
-
-    // 🔒 Esperar a que termine de cargar la autenticación
-    if (authLoading) {
-      // console.log('🔒 useStorageStats: Auth cargando, esperando...');
-      return;
-    }
-
-    console.log('🔒 useStorageStats: Usuario autenticado, ejecutando fetch...');
-
-    // ⏰ Delay más largo para asegurar que todos los permisos estén listos
-    const timer = setTimeout(async () => {
-      // ✅ Verificación FINAL antes de ejecutar
-      if (!currentUser) {
-        console.warn('🔒 useStorageStats: Usuario desapareció durante timeout, abortando');
-        return;
-      }
-
-      const fetchStorageStats = async () => {
-        try {
-          setStorageData(prev => ({ ...prev, loading: true, error: null }));
-
-          // 🔍 Intentar una verificación mínima primero
-          let documentsCount = 0;
-          try {
-            documentsCount = await getFirestoreStats();
-          } catch (firestoreError) {
-            console.warn('⚠️ Error en Firestore, usando datos mínimos:', firestoreError.message);
-            documentsCount = 0; // Usar 0 si no tenemos acceso
-          }
-          
-          // � Obtener estadísticas reales de Firebase Storage
-          let storageStats = {
-            totalSize: 0,
-            imageCount: 0,
-            fileCount: 0
-          };
-
-          try {
-            storageStats = await getFirebaseStorageStats();
-            console.log('📊 Estadísticas reales de Storage obtenidas:', storageStats);
-          } catch (storageError) {
-            console.warn('⚠️ Error en Storage, usando datos mínimos:', storageError.message);
-            // Usar datos por defecto si hay error
-          }
-
-          const usedGB = storageStats.totalSize / (1024 * 1024 * 1024);
-
-          const finalStats = {
-            used: parseFloat(usedGB.toFixed(2)),
-            total: 5.0,
-            documents: documentsCount,
-            images: storageStats.imageCount,
-            files: storageStats.fileCount,
-            loading: false,
-            error: null
-          };
-
-          console.log('📊 Stats finales calculadas:', finalStats);
-          console.log('💾 Porcentaje de uso:', ((finalStats.used / finalStats.total) * 100).toFixed(1) + '%');
-
-          setStorageData(finalStats);
-
-        } catch (error) {
-          console.warn('⚠️ Error general en stats, usando valores por defecto:', error.message);
-          setStorageData({
-            used: 0,
-            total: 5.0,
-            documents: 0,
-            images: 0,
-            files: 0,
-            loading: false,
-            error: null // No mostrar error al usuario
-          });
-        }
-      };
-
-      fetchStorageStats();
-    }, 5000); // Esperar 5 segundos tras la autenticación para mayor seguridad
-
-    return () => clearTimeout(timer);
-  }, [currentUser, authLoading]); // 🔒 Dependencias de autenticación
-
-  const getFirestoreStats = async () => {
-    try {
-      // ✅ Intentar acceso limitado primero - solo colecciones básicas
-      const basicCollections = ['users']; // Empezar solo con users que debería ser accesible
-      let totalDocs = 0;
-
-      for (const collectionName of basicCollections) {
-        try {
-          const snapshot = await getDocs(collection(db, collectionName));
-          console.log(`📄 ${collectionName}: ${snapshot.size} documentos`);
-          totalDocs += snapshot.size;
-        } catch (collectionError) {
-          console.warn(`⚠️ No se pudo acceder a la colección ${collectionName}:`, collectionError.message);
-          // Continuar con las demás colecciones
-        }
-      }
-
-      // Si obtuvimos al menos algunos datos, intentar las demás colecciones
-      if (totalDocs > 0) {
-        const additionalCollections = ['commitments', 'companies', 'payments', 'files', 'incomes'];
-        for (const collectionName of additionalCollections) {
-          try {
-            const snapshot = await getDocs(collection(db, collectionName));
-            console.log(`📄 ${collectionName}: ${snapshot.size} documentos`);
-            totalDocs += snapshot.size;
-          } catch (collectionError) {
-            console.warn(`⚠️ Acceso limitado a ${collectionName}, omitiendo...`);
-            // No es crítico, continuar
-          }
-        }
-      }
-
-      console.log(`📊 Total documentos Firestore: ${totalDocs}`);
-      return totalDocs > 0 ? totalDocs : 50; // Usar valor conservador si no se pudo obtener nada
-    } catch (error) {
-      console.warn('⚠️ Error de permisos en Firestore, usando datos simulados:', error.message);
-      return 50; // Valor simulado conservador en caso de error de permisos
-    }
-  };
-
-  const getFirebaseStorageStats = async () => {
-    const storage = getStorage();
+  const getFirestoreStats = useCallback(async () => {
+    let totalDocs = 0;
+    const collections = ['users', 'commitments', 'companies', 'payments', 'files', 'incomes'];
     
+    for (const collectionName of collections) {
+      try {
+        const snapshot = await getDocs(collection(db, collectionName));
+        totalDocs += snapshot.size;
+      } catch (e) {
+        // Acceso limitado, continuar
+      }
+    }
+    return totalDocs > 0 ? totalDocs : 50;
+  }, []);
+
+  const getFirebaseStorageStats = useCallback(async () => {
+    const storage = getStorage();
     let totalSize = 0;
     let imageCount = 0;
     let fileCount = 0;
 
-    try {
-      // 🔒 FIX PRODUCCIÓN: No acceder al root storage directamente
-      // Las reglas de Firebase Security no permiten listAll() en el root
-      // En su lugar, escaneamos las carpetas conocidas
-      const knownFolders = [
-        'logos',
-        'receipts',
-        'profile-photos',
-        'company-documents',
-        'liquidaciones',
-        'payments',
-        'commitments'
-      ];
+    const knownFolders = [
+      'logos', 'receipts', 'profile-photos',
+      'company-documents', 'liquidaciones', 'payments', 'commitments'
+    ];
 
-      console.log('🔍 [StorageStats] Escaneando carpetas conocidas en lugar del root...');
+    for (const folderName of knownFolders) {
+      try {
+        const folderRef = ref(storage, folderName);
+        const result = await listAll(folderRef);
 
-      for (const folderName of knownFolders) {
-        try {
-          const folderRef = ref(storage, folderName);
-          const result = await listAll(folderRef);
-          
-          console.log(`📁 [StorageStats] Procesando carpeta: ${folderName} (${result.items.length} archivos)`);
-          
-          // Procesar archivos en la carpeta
-          for (const itemRef of result.items) {
-            try {
-              const metadata = await getMetadata(itemRef);
-              totalSize += metadata.size || 0;
-              
-              if (metadata.contentType?.startsWith('image/')) {
-                imageCount++;
-              } else {
-                fileCount++;
-              }
-            } catch (metadataError) {
-              console.warn(`⚠️ Error obteniendo metadata de ${itemRef.name}:`, metadataError.message);
-              // Continuar sin bloquear
-            }
-          }
-
-          // Procesar subcarpetas con límites de seguridad
-          const maxSubfolders = 20; // Limitar número de subcarpetas
-          const subfoldersToProcess = result.prefixes.slice(0, maxSubfolders);
-          
-          if (result.prefixes.length > maxSubfolders) {
-            console.warn(`⚠️ Carpeta ${folderName} tiene ${result.prefixes.length} subcarpetas, procesando solo ${maxSubfolders}`);
-          }
-
-          for (const subfolderRef of subfoldersToProcess) {
-            try {
-              // Validar longitud del path (Firebase Storage tiene límites)
-              if (subfolderRef.fullPath.length > 200) {
-                console.warn(`⚠️ Path demasiado largo, omitiendo: ${subfolderRef.fullPath.substring(0, 50)}...`);
-                continue;
-              }
-
-              const subfolderResult = await listAll(subfolderRef);
-              
-              // Solo archivos directos, NO más subcarpetas (profundidad = 1)
-              for (const itemRef of subfolderResult.items) {
-                try {
-                  const metadata = await getMetadata(itemRef);
-                  totalSize += metadata.size || 0;
-                  
-                  if (metadata.contentType?.startsWith('image/')) {
-                    imageCount++;
-                  } else {
-                    fileCount++;
-                  }
-                } catch (metadataError) {
-                  console.warn(`⚠️ Error metadata ${itemRef.name}:`, metadataError.message);
-                }
-              }
-            } catch (subfolderError) {
-              // Error HTTP/2 o path largo - omitir y continuar
-              console.warn(`⚠️ Error subcarpeta ${subfolderRef.name}:`, subfolderError.code || subfolderError.message);
-              continue;
-            }
-          }
-          
-        } catch (folderError) {
-          // 🔒 Error 403: Token de auth no renovado aún (común en Ctrl+R con caché)
-          if (folderError.code === 'storage/unauthorized') {
-            console.log(`⏳ [StorageStats] Token no renovado aún para carpeta "${folderName}", omitiendo...`);
-          } else {
-            console.warn(`⚠️ Error accediendo a carpeta ${folderName}:`, folderError.code || folderError.message);
-          }
-          // Continuar con siguiente carpeta
+        for (const itemRef of result.items) {
+          try {
+            const metadata = await getMetadata(itemRef);
+            totalSize += metadata.size || 0;
+            if (metadata.contentType?.startsWith('image/')) imageCount++;
+            else fileCount++;
+          } catch (e) { /* metadata error, skip */ }
         }
-      }
 
-    } catch (error) {
-      console.error('Error accessing Firebase Storage:', error);
-      throw error;
+        // Subcarpetas (limite de profundidad 1, maximo 20)
+        const subfoldersToProcess = result.prefixes.slice(0, 20);
+        for (const subfolderRef of subfoldersToProcess) {
+          try {
+            if (subfolderRef.fullPath.length > 200) continue;
+            const subResult = await listAll(subfolderRef);
+            for (const itemRef of subResult.items) {
+              try {
+                const metadata = await getMetadata(itemRef);
+                totalSize += metadata.size || 0;
+                if (metadata.contentType?.startsWith('image/')) imageCount++;
+                else fileCount++;
+              } catch (e) { /* skip */ }
+            }
+          } catch (e) {
+            // 403 en subcarpeta, continuar
+            continue;
+          }
+        }
+      } catch (folderError) {
+        // 403/unauthorized en carpeta completa - NO reintentar, solo saltar
+        continue;
+      }
     }
 
     return { totalSize, imageCount, fileCount };
-  };
+  }, []);
 
-  const refreshStats = () => {
-    setStorageData(prev => ({ ...prev, loading: true }));
-    // Re-ejecutar el efecto
+  const fetchStats = useCallback(async () => {
+    if (!currentUser || fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    try {
+      setStorageData(prev => ({ ...prev, loading: true, error: null }));
+
+      let documentsCount = 0;
+      try {
+        documentsCount = await getFirestoreStats();
+      } catch (e) {
+        documentsCount = 0;
+      }
+
+      let storageStats = { totalSize: 0, imageCount: 0, fileCount: 0 };
+      try {
+        storageStats = await getFirebaseStorageStats();
+      } catch (e) {
+        // Error total en storage, usar defaults
+      }
+
+      const usedGB = storageStats.totalSize / (1024 * 1024 * 1024);
+      const finalStats = {
+        used: parseFloat(usedGB.toFixed(2)),
+        total: 5.0,
+        documents: documentsCount,
+        images: storageStats.imageCount,
+        files: storageStats.fileCount,
+        loading: false,
+        error: null
+      };
+
+      setStorageData(finalStats);
+      saveCachedStats(finalStats);
+    } catch (error) {
+      setStorageData(prev => ({
+        ...prev,
+        loading: false,
+        error: null
+      }));
+    } finally {
+      fetchingRef.current = false;
+    }
+  }, [currentUser, getFirestoreStats, getFirebaseStorageStats]);
+
+  // Solo auto-fetch si esta habilitado Y hay usuario autenticado
+  useEffect(() => {
+    if (!autoFetch || !currentUser || authLoading) return;
+
+    // Delay para asegurar que el token este listo
     const timer = setTimeout(() => {
-      window.location.reload(); // Forzar recarga para actualizar stats
-    }, 1000);
-    
+      if (currentUser) fetchStats();
+    }, 3000);
+
     return () => clearTimeout(timer);
-  };
+  }, [autoFetch, currentUser, authLoading, fetchStats]);
+
+  const refreshStats = useCallback(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   return {
     ...storageData,
