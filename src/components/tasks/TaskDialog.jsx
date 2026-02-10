@@ -67,7 +67,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
     descripcion: '',
     prioridad: 'media',
     fechaVencimiento: '',
-    empresa: null,
+    empresa: [],
     asignadoA: null
   });
 
@@ -135,22 +135,36 @@ const TaskDialog = ({ open, onClose, task = null }) => {
 
   useEffect(() => {
     if (task && companies.length > 0) {
-      // Encontrar el objeto empresa si existe
-      let empresaObj = null;
+      // Encontrar las empresas (puede ser una o múltiples)
+      let empresasArray = [];
       if (task.empresa) {
-        // Si task.empresa es un objeto (tiene id o nombre)
-        if (typeof task.empresa === 'object') {
-          // Buscar por ID o por nombre
-          empresaObj = companies.find(c => 
+        // Si task.empresa es un array
+        if (Array.isArray(task.empresa)) {
+          empresasArray = task.empresa.map(emp => {
+            if (typeof emp === 'object') {
+              return companies.find(c => 
+                (emp.id && c.id === emp.id) || 
+                (emp.nombre && c.nombre === emp.nombre)
+              );
+            } else if (typeof emp === 'string') {
+              return companies.find(c => c.id === emp || c.nombre === emp);
+            }
+            return null;
+          }).filter(Boolean);
+        }
+        // Si es un solo objeto o string (retrocompatibilidad)
+        else if (typeof task.empresa === 'object') {
+          const empresaObj = companies.find(c => 
             (task.empresa.id && c.id === task.empresa.id) || 
             (task.empresa.nombre && c.nombre === task.empresa.nombre)
-          ) || null;
+          );
+          if (empresaObj) empresasArray = [empresaObj];
         } else if (typeof task.empresa === 'string') {
-          // Si es un string, buscar por nombre o ID
-          empresaObj = companies.find(c => 
+          const empresaObj = companies.find(c => 
             c.id === task.empresa || 
             c.nombre === task.empresa
-          ) || null;
+          );
+          if (empresaObj) empresasArray = [empresaObj];
         }
       }
 
@@ -161,7 +175,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         fechaVencimiento: task.fechaVencimiento 
           ? new Date(task.fechaVencimiento.seconds * 1000).toISOString().split('T')[0] 
           : '',
-        empresa: empresaObj,
+        empresa: empresasArray,
         asignadoA: task.asignadoA || null
       });
       
@@ -178,7 +192,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         descripcion: '',
         prioridad: 'media',
         fechaVencimiento: '',
-        empresa: null,
+        empresa: [],
         asignadoA: null
       });
       setExistingAttachment(null);
@@ -594,8 +608,8 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         fechaVencimiento: formData.fechaVencimiento 
           ? new Date(formData.fechaVencimiento) 
           : null,
-        // Guardar el objeto completo de la empresa (con id, nombre, logoURL)
-        empresa: formData.empresa || null,
+        // Guardar el array de empresas (con id, nombre, logoURL)
+        empresa: formData.empresa || [],
         // Guardar el objeto completo del usuario asignado (con uid, nombre, email)
         asignadoA: formData.asignadoA || null,
         // Agregar adjunto si existe
@@ -903,53 +917,60 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                   {/* Empresa */}
                   <Grid item xs={12}>
                     <Autocomplete
+                      multiple
                       options={companies}
                       loading={loadingCompanies}
                       getOptionLabel={(option) => option.nombre || ''}
                       value={formData.empresa}
                       onChange={(event, newValue) => handleChange('empresa', newValue)}
+                      renderTags={(value, getTagProps) =>
+                        value.map((option, index) => {
+                          const { key, ...tagProps } = getTagProps({ index });
+                          return (
+                            <Chip
+                              key={key}
+                              label={option.nombre}
+                              {...tagProps}
+                              avatar={
+                                option.logoURL ? (
+                                  <Avatar 
+                                    src={option.logoURL} 
+                                    sx={{ 
+                                      bgcolor: 'transparent !important',
+                                      '& img': {
+                                        objectFit: 'contain'
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
+                                    <BusinessIcon fontSize="small" sx={{ color: 'primary.main' }} />
+                                  </Avatar>
+                                )
+                              }
+                              sx={{
+                                borderRadius: 1,
+                                '& .MuiChip-deleteIcon': {
+                                  color: alpha(theme.palette.text.primary, 0.6),
+                                  '&:hover': {
+                                    color: 'error.main'
+                                  }
+                                }
+                              }}
+                            />
+                          );
+                        })
+                      }
                       renderInput={(params) => (
                         <TextField
                           {...params}
-                          label="Empresa"
-                          placeholder="Selecciona una empresa..."
+                          label="Empresas"
+                          placeholder="Selecciona una o más empresas..."
                           InputProps={{
                             ...params.InputProps,
                             startAdornment: (
                               <>
-                                {formData.empresa ? (
-                                  formData.empresa.logoURL ? (
-                                    <Avatar 
-                                      src={formData.empresa.logoURL} 
-                                      sx={{ 
-                                        width: 24, 
-                                        height: 24,
-                                        ml: 1,
-                                        mr: 0.5,
-                                        bgcolor: 'transparent',
-                                        '& img': {
-                                          objectFit: 'contain'
-                                        }
-                                      }}
-                                    >
-                                      {formData.empresa.nombre.charAt(0).toUpperCase()}
-                                    </Avatar>
-                                  ) : (
-                                    <Avatar 
-                                      sx={{ 
-                                        width: 24, 
-                                        height: 24,
-                                        ml: 1,
-                                        mr: 0.5,
-                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                        color: 'primary.main',
-                                        fontSize: '0.75rem'
-                                      }}
-                                    >
-                                      {formData.empresa.nombre.charAt(0).toUpperCase()}
-                                    </Avatar>
-                                  )
-                                ) : (
+                                {formData.empresa.length === 0 && (
                                   <BusinessIcon sx={{ color: 'text.secondary', ml: 1, mr: -0.5 }} />
                                 )}
                                 {params.InputProps.startAdornment}
