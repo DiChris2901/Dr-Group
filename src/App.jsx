@@ -70,7 +70,7 @@ import AsistenciasPage from './pages/AsistenciasPage';
 
 // Módulo de Recursos Humanos
 import RecursosHumanosPage from './pages/RecursosHumanosPage';
-// SolicitudesPage eliminada - integrada en RecursosHumanosPage (Talento Humano)
+import SolicitudesPage from './pages/SolicitudesPage';
 
 // Módulo de Tareas Delegadas
 import TasksPage from './pages/TasksPage';
@@ -425,14 +425,24 @@ const DashboardLayout = () => {
       <Route 
         path="/recursos-humanos" 
         element={
-          <ProtectedRoute requiredPermission="rrhh">
+          <ProtectedRoute requiredPermissions={['rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'solicitudes', 'solicitudes.gestionar']}>
             <MainLayout title="Talento Humano" breadcrumbs={['RRHH', 'Talento Humano']}>
               <RecursosHumanosPage />
             </MainLayout>
           </ProtectedRoute>
         }
       />
-      {/* Ruta /solicitudes eliminada - ahora integrada en /recursos-humanos (Talento Humano) */}
+      {/* Ruta independiente: Solicitudes para empleados (permiso 'solicitudes') */}
+      <Route 
+        path="/solicitudes" 
+        element={
+          <ProtectedRoute requiredPermission="solicitudes">
+            <MainLayout title="Mis Solicitudes" breadcrumbs={['RRHH', 'Solicitudes']}>
+              <SolicitudesPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
       <Route 
         path="/alerts" 
         element={

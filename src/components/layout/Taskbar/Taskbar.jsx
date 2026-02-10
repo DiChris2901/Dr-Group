@@ -291,7 +291,6 @@ const Taskbar = React.memo(() => {
         { label: 'Talento Humano', path: '/recursos-humanos', icon: BadgeIcon, permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
         { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
         { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' }
-        // Solicitudes integrada en Talento Humano
       ]
     },
     {

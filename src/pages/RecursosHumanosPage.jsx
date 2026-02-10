@@ -50,7 +50,8 @@ const RecursosHumanosPage = () => {
   // Validar permisos granulares
   const hasFullRRHH = hasPermission('rrhh'); // Acceso completo
   const canViewDashboard = hasFullRRHH || hasPermission('rrhh.dashboard');
-  const canViewSolicitudes = hasFullRRHH || hasPermission('solicitudes') || hasPermission('solicitudes.gestionar');
+  // solicitudes.gestionar → gestión dentro de RRHH; 'solicitudes' (crear) tiene su propia ruta /solicitudes
+  const canViewSolicitudes = hasFullRRHH || hasPermission('solicitudes.gestionar');
   // ⚠️ Verificación EXPLÍCITA del permiso de gestión
   // SOLO solicitudes.gestionar explícito o ALL — rrhh NO otorga gestión automáticamente
   const canManageSolicitudes = userProfile?.permissions?.['solicitudes.gestionar'] === true || userProfile?.permissions?.ALL === true;
@@ -229,9 +230,16 @@ const RecursosHumanosPage = () => {
     };
   }, [asistencias, solicitudes, liquidaciones]);
 
-  // ✅ REDIRECCIÓN AUTOMÁTICA: Si solo tiene 1 permiso, redirige directamente (UX optimizada)
+  // ✅ REDIRECCIÓN: Si solo tiene permiso 'solicitudes' (crear), redirigir a /solicitudes (SolicitudesPage)
+  const hasOnlySolicitudes = hasPermission('solicitudes') && !hasPermission('solicitudes.gestionar') && !hasFullRRHH && !canViewDashboard && !canViewLiquidaciones && !canViewReportes;
+  
   useEffect(() => {
-    // Solo ejecutar al montarse o cuando cambien los permisos, NO cuando cambie activeModule
+    if (hasOnlySolicitudes) {
+      navigate('/solicitudes', { replace: true });
+      return;
+    }
+    
+    // Si tiene acceso a módulos de gestión, auto-redirigir si solo 1 disponible
     const availableModules = [
       canViewDashboard && 'dashboard',
       canViewSolicitudes && 'solicitudes',
@@ -239,15 +247,11 @@ const RecursosHumanosPage = () => {
       canViewReportes && 'reportes'
     ].filter(Boolean);
     
-    // Si solo tiene acceso a 1 módulo, redirigir automáticamente (sin HUB redundante)
     if (availableModules.length === 1) {
-      console.log(`🎯 RRHH: Usuario con acceso único a "${availableModules[0]}", redirigiendo directamente (sin HUB)...`);
       setActiveModule(availableModules[0]);
-    } else if (availableModules.length > 1) {
-      console.log(`📊 RRHH: Usuario con acceso a ${availableModules.length} módulos: ${availableModules.join(', ')} → Mostrar HUB`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canViewDashboard, canViewSolicitudes, canViewLiquidaciones, canViewReportes]); // ✅ SIN activeModule para evitar loops
+  }, [hasOnlySolicitudes, canViewDashboard, canViewSolicitudes, canViewLiquidaciones, canViewReportes]);
 
   // ✅ VALIDACIÓN DE PERMISOS
   if (!canViewRRHH) {

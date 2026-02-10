@@ -377,7 +377,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
         { title: 'Empleados', icon: Person, path: '/empleados', permission: 'empleados' },
         { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'asistencias' },
-        // Solicitudes integrada en Talento Humano - ya no necesita entrada independiente en sidebar
       ]
     }
   ];

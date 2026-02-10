@@ -545,7 +545,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'solicitudes.gestionar', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes', 'empleados', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -629,11 +629,7 @@ const UserManagementPage = () => {
             name: formData.displayName,         // ✅ Campo principal (según instrucciones del proyecto)
             phone: formData.phone || '',
             role: formData.role,
-            permissions: (() => {
-              const permObj = {};
-              formData.permissions.forEach(p => { permObj[p] = true; });
-              return permObj;
-            })(),
+            permissions: formData.permissions,
             companies: formData.companies,
             isActive: true,
             department: formData.department || 'Administración',
@@ -1778,378 +1774,566 @@ const UserManagementPage = () => {
               </Box>
             )}
 
-            {/* TAB 2: PERMISOS DE ACCESO - TABLA HÍBRIDA */}
+            {/* TAB 2: PERMISOS DE ACCESO */}
             {activeTab === 1 && (
               <Box sx={{ p: 3, overflowY: 'auto', flexGrow: 1 }}>
+              
+              <Grid container spacing={2}>
                 {(() => {
-                  // Función helper para renderizar una fila de permiso
-                  const renderPermissionRow = (perm, level = 1, parentColor, parentIsActive = false, parentPerm = null) => {
-                    const color = perm.color || parentColor;
-                    const isDirectlyActive = formData.permissions.includes(perm.key);
-                    // No heredar estado del padre si tiene noAutoActivate (ej: solicitudes.gestionar)
-                    const isActive = isDirectlyActive || (parentIsActive && !perm.noAutoActivate);
-                    const paddingLeft = level === 1 ? 2 : level === 2 ? 5 : 8;
-                    
-                    // Calcular contador de sub-permisos activos
-                    let badge = null;
-                    if (perm.subPermissions && level === 1) {
-                      const totalCount = perm.subPermissions.length;
+                  // Array completo de permisos
+                        const allPermissions = [
+                      { key: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, color: theme.palette.primary.main },
+                      { 
+                        key: 'compromisos', 
+                        label: 'Compromisos', 
+                        icon: <AccountBalance />, 
+                        color: theme.palette.secondary.main,
+                        subPermissions: [
+                          { key: 'compromisos.ver_todos', label: 'Ver Todos' },
+                          { key: 'compromisos.agregar_nuevo', label: 'Agregar Nuevo' }
+                        ]
+                      },
+                      { 
+                        key: 'pagos', 
+                        label: 'Pagos', 
+                        icon: <Receipt />, 
+                        color: theme.palette.primary.main,
+                        subPermissions: [
+                          { key: 'pagos.historial', label: 'Historial' },
+                          { key: 'pagos.nuevo_pago', label: 'Nuevo Pago' }
+                        ]
+                      },
+                      { 
+                        key: 'ingresos', 
+                        label: 'Ingresos', 
+                        icon: <TrendingUp />, 
+                        color: '#4caf50',
+                        subPermissions: [
+                          { key: 'ingresos.registrar', label: 'Registrar Ingreso' },
+                          { key: 'ingresos.historial', label: 'Historial' },
+                          { key: 'ingresos.cuentas', label: 'Cuentas Bancarias' }
+                        ]
+                      },
+                      { 
+                        key: 'gestion_empresarial', 
+                        label: 'Gestión Empresarial', 
+                        icon: <BusinessIcon />, 
+                        color: theme.palette.secondary.main,
+                        subPermissions: [
+                          { key: 'gestion_empresarial.empresas', label: 'Empresas' },
+                          { key: 'gestion_empresarial.salas', label: 'Salas' },
+                          { key: 'gestion_empresarial.clientes', label: 'Clientes' }
+                        ]
+                      },
+                      { 
+                        key: 'liquidaciones', 
+                        label: 'Liquidaciones', 
+                        icon: <Receipt />, 
+                        color: '#ff9800',
+                        subPermissions: [
+                          { key: 'liquidaciones.liquidaciones', label: 'Liquidaciones' },
+                          { key: 'liquidaciones.historico', label: 'Histórico de Liquidaciones' },
+                          { key: 'liquidaciones.estadisticas', label: 'Estadísticas' }
+                        ]
+                      },
+                      { 
+                        key: 'facturacion', 
+                        label: 'Facturación', 
+                        icon: <AttachMoney />, 
+                        color: '#2196f3',
+                        subPermissions: [
+                          { key: 'facturacion.liquidaciones_por_sala', label: 'Liquidaciones por Sala' },
+                          { key: 'facturacion.cuentas_cobro', label: 'Cuentas de Cobro' }
+                        ]
+                      },
+                      { 
+                        key: 'reportes', 
+                        label: 'Reportes', 
+                        icon: <Assessment />, 
+                        color: theme.palette.primary.main,
+                        subPermissions: [
+                          { key: 'reportes.resumen', label: 'Resumen General' },
+                          { key: 'reportes.por_empresa', label: 'Por Empresa' },
+                          { key: 'reportes.por_periodo', label: 'Por Período' },
+                          { key: 'reportes.por_concepto', label: 'Por Concepto' }
+                        ]
+                      },
+                      { 
+                        key: 'rrhh_group', 
+                        label: 'RRHH', 
+                        icon: <BadgeIcon />, 
+                        color: '#ff9800',
+                        subPermissions: [
+                          { 
+                            key: 'rrhh', 
+                            label: 'Talento Humano',
+                            subPermissions: [
+                              { key: 'rrhh.dashboard', label: 'Dashboard' },
+                              { key: 'solicitudes', label: 'Realizar Solicitudes', mutuallyExclusiveWith: 'solicitudes.gestionar' },
+                              { key: 'solicitudes.gestionar', label: 'Gestionar Solicitudes', mutuallyExclusiveWith: 'solicitudes', noAutoActivate: true },
+                              { key: 'rrhh.liquidaciones', label: 'Liquidaciones' },
+                              { key: 'rrhh.reportes', label: 'Reportes' }
+                            ]
+                          },
+                          { key: 'empleados', label: 'Empleados' },
+                          { key: 'asistencias', label: 'Asistencias' }
+                        ]
+                      },
+                      { 
+                        key: 'tareas', 
+                        label: 'Tareas', 
+                        icon: <AssignmentIcon />, 
+                        color: '#00bcd4',
+                        subPermissions: [
+                          { key: 'tareas.crear', label: 'Administrador de Tareas' },
+                          { key: 'tareas.asignar', label: 'Gestionar tareas propias' },
+                          { key: 'tareas.ver_todas', label: 'Ver todas las Tareas' }
+                        ]
+                      },
+                      { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
+                      { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
+                      { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
+                      ];
                       
-                      // Si el padre está activo, TODOS los sub-permisos están activos
-                      if (isActive) {
-                        badge = `${totalCount}/${totalCount}`;
-                      } else {
-                        // Si el padre NO está activo, contar cuántos sub-permisos individuales están activos
-                        const activeCount = perm.subPermissions.filter(sp => 
-                          formData.permissions.includes(sp.key)
-                        ).length;
-                        badge = `${activeCount}/${totalCount}`;
-                      }
-                    }
-
-                    const handleToggle = (e) => {
-                      e.stopPropagation();
-                      let newPermissions;
-                      
-                      if (parentIsActive && parentPerm) {
-                        // Caso especial: el padre está activo y el usuario interactúa con un hijo
-                        // → Desactivar el padre, expandir a permisos individuales
-                        newPermissions = formData.permissions.filter(p => p !== parentPerm.key);
-                        
-                        if (isActive) {
-                          // El hijo ESTABA activo → usuario quiere DESACTIVARLO
-                          // Activar todos los hermanos EXCEPTO este (respetando noAutoActivate y exclusividad)
-                          parentPerm.subPermissions.forEach(sibling => {
-                            if (sibling.key !== perm.key && !newPermissions.includes(sibling.key)) {
-                              if (!sibling.noAutoActivate) {
-                                newPermissions.push(sibling.key);
-                              }
+                      return allPermissions;
+                })().map((permission) => (
+                  <Grid item xs={12} sm={6} md={4} key={permission.key}>
+                        <Card sx={{
+                          border: (() => {
+                            if (permission.subPermissions) {
+                              const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              return (hasParent || allChildrenActive)
+                                ? `2px solid ${permission.color}` 
+                                : `1px solid ${theme.palette.divider}`;
                             }
-                          });
-                        } else {
-                          // El hijo NO estaba activo (noAutoActivate) → usuario quiere ACTIVARLO
-                          // Activar todos los hermanos que estaban activos + este, respetando exclusividad mutua
-                          parentPerm.subPermissions.forEach(sibling => {
-                            if (!newPermissions.includes(sibling.key)) {
-                              if (!sibling.noAutoActivate) {
-                                newPermissions.push(sibling.key);
-                              }
+                            return formData.permissions.includes(permission.key) 
+                              ? `2px solid ${permission.color}` 
+                              : `1px solid ${theme.palette.divider}`;
+                          })(),
+                          background: (() => {
+                            if (permission.subPermissions) {
+                              const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              return (hasParent || allChildrenActive)
+                                ? alpha(permission.color, 0.05)
+                                : theme.palette.background.paper;
                             }
-                          });
-                          // Agregar el permiso clickeado
-                          if (!newPermissions.includes(perm.key)) {
-                            newPermissions.push(perm.key);
+                            return formData.permissions.includes(permission.key)
+                              ? alpha(permission.color, 0.05)
+                              : theme.palette.background.paper;
+                          })(),
+                          cursor: permission.subPermissions ? 'default' : 'pointer',
+                          transition: 'all 0.2s ease',
+                          width: '100%',
+                          minHeight: permission.subPermissions ? 140 : 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          '&:hover': {
+                            boxShadow: `0 2px 8px ${alpha(permission.color, 0.15)}`
                           }
-                          // Exclusividad mutua: quitar el permiso mutuamente excluyente
-                          if (perm.mutuallyExclusiveWith) {
-                            newPermissions = newPermissions.filter(p => p !== perm.mutuallyExclusiveWith);
-                          }
-                        }
-                        
-                        updateFormData({ permissions: newPermissions });
-                        return;
-                      }
-                      
-                      if (isDirectlyActive) {
-                        // Desactivar
-                        newPermissions = formData.permissions.filter(p => p !== perm.key);
-                        
-                        // Si tiene sub-permisos, también desactivarlos
-                        if (perm.subPermissions) {
-                          perm.subPermissions.forEach(sp => {
-                            newPermissions = newPermissions.filter(p => p !== sp.key);
-                            // Si el sub-permiso tiene sub-sub-permisos
-                            if (sp.subPermissions) {
-                              sp.subPermissions.forEach(ssp => {
-                                newPermissions = newPermissions.filter(p => p !== ssp.key);
-                              });
-                            }
-                          });
-                        }
-                        
-                        // Casos especiales
-                        if (perm.key === 'rrhh') {
-                          newPermissions = newPermissions.filter(p => !p.startsWith('rrhh.'));
-                        }
-                      } else {
-                        // Activar
-                        newPermissions = [...formData.permissions, perm.key];
-                        
-                        // Exclusividad mutua directa (ej: solicitudes ↔ solicitudes.gestionar)
-                        if (perm.mutuallyExclusiveWith) {
-                          newPermissions = newPermissions.filter(p => p !== perm.mutuallyExclusiveWith);
-                        }
-                        
-                        // Si tiene sub-permisos, activarlos (respetando noAutoActivate)
-                        if (perm.subPermissions) {
-                          perm.subPermissions.forEach(sp => {
-                            if (!sp.noAutoActivate && !newPermissions.includes(sp.key)) {
-                              newPermissions.push(sp.key);
-                              
-                              // Respetar exclusividad mutua
-                              if (sp.mutuallyExclusiveWith) {
-                                newPermissions = newPermissions.filter(p => p !== sp.mutuallyExclusiveWith);
-                              }
-                            }
-                          });
-                        }
-                        
-                        // Casos especiales
-                        if (perm.key === 'rrhh') {
-                          const rrhhModules = ['rrhh.dashboard', 'solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes'];
-                          rrhhModules.forEach(module => {
-                            if (!newPermissions.includes(module)) {
-                              newPermissions.push(module);
-                            }
-                          });
-                          newPermissions = newPermissions.filter(p => p !== 'solicitudes.gestionar');
-                        }
-                      }
-                      
-                      updateFormData({ permissions: newPermissions });
-                    };
-
-                    return (
-                      <React.Fragment key={perm.key}>
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            py: 1,
-                            px: 2,
-                            pl: paddingLeft,
-                            cursor: 'pointer',
-                            backgroundColor: level === 1 && isActive ? alpha(color, 0.04) : 'transparent',
-                            borderBottom: level === 1 ? `1px solid ${alpha(theme.palette.divider, 0.08)}` : 'none',
-                            '&:hover': {
-                              backgroundColor: alpha(color, 0.06)
-                            }
-                          }}
-                          onClick={handleToggle}
+                        }}
+                        onClick={!permission.subPermissions ? () => {
+                          const newPermissions = formData.permissions.includes(permission.key)
+                            ? formData.permissions.filter(p => p !== permission.key)
+                            : [...formData.permissions, permission.key];
+                          updateFormData({ permissions: newPermissions });
+                        } : undefined}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                            {level === 1 && perm.icon && (
+                          <CardContent sx={{ 
+                            p: 1.5,
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            '&:last-child': { pb: 1.5 }
+                          }}>
+                            {/* Permiso Principal */}
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between',
+                              cursor: permission.subPermissions ? 'pointer' : 'default'
+                            }}
+                            onClick={permission.subPermissions ? (e) => {
+                              e.stopPropagation();
+                              const hasParent = formData.permissions.includes(permission.key);
+                              const allChildrenActive = permission.subPermissions.every(sp => 
+                                formData.permissions.includes(sp.key)
+                              );
+                              
+                              let newPermissions;
+                              if (hasParent || allChildrenActive) {
+                                // Desactivar: Remover permiso padre, todos los sub-permisos Y sub-sub-permisos
+                                const subPermKeys = permission.subPermissions.map(sp => sp.key);
+                                // Recolectar también sub-sub-permisos (tercer nivel)
+                                const subSubPermKeys = [];
+                                permission.subPermissions.forEach(sp => {
+                                  if (sp.subPermissions) {
+                                    sp.subPermissions.forEach(ssp => subSubPermKeys.push(ssp.key));
+                                  }
+                                });
+                                const allKeysToRemove = [permission.key, ...subPermKeys, ...subSubPermKeys];
+                                newPermissions = formData.permissions.filter(p => 
+                                  !allKeysToRemove.includes(p) &&
+                                  !p.startsWith(`${permission.key}.`)
+                                );
+                              } else {
+                                // Activar: Agregar permiso padre Y TODOS los sub-permisos
+                                const subPermKeys = permission.subPermissions.map(sp => sp.key);
+                                newPermissions = [...formData.permissions.filter(p => !p.startsWith(`${permission.key}.`)), permission.key, ...subPermKeys];
+                              }
+                              updateFormData({ permissions: newPermissions });
+                            } : undefined}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: '40px' }}>
+                                <Box sx={{ 
+                                  color: (() => {
+                                    if (permission.subPermissions) {
+                                      const hasParent = formData.permissions.includes(permission.key);
+                                      const allChildrenActive = permission.subPermissions.every(sp => 
+                                        formData.permissions.includes(sp.key)
+                                      );
+                                      return (hasParent || allChildrenActive) ? permission.color : 'text.secondary';
+                                    }
+                                    return formData.permissions.includes(permission.key) 
+                                      ? permission.color 
+                                      : 'text.secondary';
+                                  })(),
+                                  transition: 'color 0.2s ease',
+                                  flexShrink: 0
+                                }}>
+                                  {permission.icon}
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                  <Typography variant="body2" sx={{ 
+                                    fontWeight: (() => {
+                                      if (permission.subPermissions) {
+                                        const hasParent = formData.permissions.includes(permission.key);
+                                        const allChildrenActive = permission.subPermissions.every(sp => 
+                                          formData.permissions.includes(sp.key)
+                                        );
+                                        return (hasParent || allChildrenActive) ? 600 : 400;
+                                      }
+                                      return formData.permissions.includes(permission.key) ? 600 : 400;
+                                    })(),
+                                    color: (() => {
+                                      if (permission.subPermissions) {
+                                        const hasParent = formData.permissions.includes(permission.key);
+                                        const allChildrenActive = permission.subPermissions.every(sp => 
+                                          formData.permissions.includes(sp.key)
+                                        );
+                                        return (hasParent || allChildrenActive) ? 'text.primary' : 'text.secondary';
+                                      }
+                                      return formData.permissions.includes(permission.key) 
+                                        ? 'text.primary' 
+                                        : 'text.secondary';
+                                    })(),
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {permission.label}
+                                  </Typography>
+                                  {permission.subPermissions && (() => {
+                                    const activeCount = permission.subPermissions.filter(sp =>
+                                      formData.permissions.includes(sp.key)
+                                    ).length;
+                                    const totalCount = permission.subPermissions.length;
+                                    const allActive = formData.permissions.includes(permission.key);
+                                    
+                                    return (
+                                      <Chip 
+                                        label={allActive ? `${totalCount} de ${totalCount}` : `${activeCount} de ${totalCount}`}
+                                        size="small"
+                                        icon={allActive || activeCount === totalCount ? <CheckCircleIcon sx={{ fontSize: 12 }} /> : undefined}
+                                        sx={{ 
+                                          height: 18,
+                                          fontSize: '0.65rem',
+                                          fontWeight: 600,
+                                          bgcolor: allActive || activeCount === totalCount 
+                                            ? alpha(permission.color, 0.25) 
+                                            : activeCount > 0 
+                                              ? alpha(permission.color, 0.15)
+                                                : alpha(theme.palette.divider, 0.3),
+                                            color: allActive || activeCount > 0 ? permission.color : 'text.secondary',
+                                            '& .MuiChip-label': {
+                                              px: 0.75
+                                            },
+                                            '& .MuiChip-icon': {
+                                              ml: 0.5,
+                                              mr: -0.25
+                                            }
+                                          }}
+                                        />
+                                    );
+                                  })()}
+                                </Box>
+                              </Box>
+                              
+                              <Tooltip 
+                                title={
+                                  <Box>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                      {formData.permissions.includes(permission.key) 
+                                        ? `Acceso Completo a ${permission.label}` 
+                                        : `Activar ${permission.label}`}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, fontSize: '0.7rem' }}>
+                                      {formData.permissions.includes(permission.key)
+                                        ? `El usuario tiene acceso a TODAS las páginas de ${permission.label}`
+                                        : `Al activar, el usuario tendrá acceso completo a ${permission.label}`}
+                                    </Typography>
+                                    {permission.subPermissions && !formData.permissions.includes(permission.key) && (
+                                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic', fontSize: '0.65rem' }}>
+                                        💡 O activa solo las páginas específicas que necesite
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                                arrow
+                                placement="top"
+                              >
+                                <Switch
+                                  checked={(() => {
+                                    // Para grupos con sub-permisos, verificar si el padre está activo O si todos los hijos están activos
+                                    if (permission.subPermissions) {
+                                      const hasParent = formData.permissions.includes(permission.key);
+                                      const allChildrenActive = permission.subPermissions.every(sp => 
+                                        formData.permissions.includes(sp.key)
+                                      );
+                                      return hasParent || allChildrenActive;
+                                    }
+                                    // Para permisos individuales, verificación normal
+                                    return formData.permissions.includes(permission.key);
+                                  })()}
+                                  size="small"
+                                  onClick={(e) => permission.subPermissions && e.stopPropagation()}
+                                  sx={{
+                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                      color: permission.color,
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                      backgroundColor: permission.color,
+                                    },
+                                  }}
+                                />
+                              </Tooltip>
+                            </Box>
+
+                            {/* Sub-permisos - SIEMPRE VISIBLES */}
+                            {permission.subPermissions && (
                               <Box sx={{ 
-                                color: isActive ? color : theme.palette.text.secondary,
-                                display: 'flex',
-                                alignItems: 'center',
-                                fontSize: 24
+                                mt: 2, 
+                                pl: 2, 
+                                borderLeft: `2px solid ${alpha(permission.color, 0.3)}`,
+                                opacity: (() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  return (hasParent || allChildrenActive) ? 0.6 : 1;
+                                })(),
+                                pointerEvents: (() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  return (hasParent || allChildrenActive) ? 'none' : 'auto';
+                                })()
                               }}>
-                                {perm.icon}
+                                {(() => {
+                                  const hasParent = formData.permissions.includes(permission.key);
+                                  const allChildrenActive = permission.subPermissions.every(sp => 
+                                    formData.permissions.includes(sp.key)
+                                  );
+                                  
+                                  if (hasParent || allChildrenActive) {
+                                    // Cuando el padre está activo O todos los hijos están activos - mostrar mensaje
+                                    return (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                                        <CheckCircleIcon sx={{ fontSize: 16, color: permission.color }} />
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                                          Acceso completo a todas las páginas de {permission.label}
+                                        </Typography>
+                                      </Box>
+                                    );
+                                  } else {
+                                    // Cuando el padre está inactivo - sub-permisos editables
+                                    return (
+                                      <>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                                      Seleccionar páginas específicas:
+                                    </Typography>
+                                    {permission.subPermissions.map((subPerm) => (
+                                      <Box key={subPerm.key}>
+                                        <Box 
+                                          sx={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'space-between',
+                                            py: 0.5,
+                                            cursor: 'pointer'
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            let newPermissions;
+                                            if (formData.permissions.includes(subPerm.key)) {
+                                              // Desactivar sub-permiso
+                                              newPermissions = formData.permissions.filter(p => p !== subPerm.key);
+                                              
+                                              // Si tiene sub-sub-permisos, también desactivarlos todos
+                                              if (subPerm.subPermissions) {
+                                                subPerm.subPermissions.forEach(subSubPerm => {
+                                                  newPermissions = newPermissions.filter(p => p !== subSubPerm.key);
+                                                });
+                                              }
+                                              
+                                              // Si se desactiva 'rrhh', también desactivar todos los módulos rrhh.*
+                                              if (subPerm.key === 'rrhh') {
+                                                newPermissions = newPermissions.filter(p => !p.startsWith('rrhh.'));
+                                              }
+                                            } else {
+                                              // Activar sub-permiso
+                                              newPermissions = [...formData.permissions, subPerm.key];
+                                              
+                                              // Si tiene sub-sub-permisos, también activarlos todos (respetando noAutoActivate y exclusividad mutua)
+                                              if (subPerm.subPermissions) {
+                                                subPerm.subPermissions.forEach(subSubPerm => {
+                                                  // Respetar noAutoActivate: no activar automáticamente (ej: solicitudes.gestionar)
+                                                  if (subSubPerm.noAutoActivate) return;
+                                                  if (!newPermissions.includes(subSubPerm.key)) {
+                                                    newPermissions.push(subSubPerm.key);
+                                                    // Respetar exclusividad mutua al auto-activar
+                                                    if (subSubPerm.mutuallyExclusiveWith) {
+                                                      newPermissions = newPermissions.filter(p => p !== subSubPerm.mutuallyExclusiveWith);
+                                                    }
+                                                  }
+                                                });
+                                              }
+                                              
+                                              // Si se activa 'rrhh', también activar todos los módulos rrhh.*
+                                              if (subPerm.key === 'rrhh') {
+                                                const rrhhModules = ['rrhh.dashboard', 'solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes'];
+                                                rrhhModules.forEach(module => {
+                                                  if (!newPermissions.includes(module)) {
+                                                    newPermissions.push(module);
+                                                  }
+                                                });
+                                                // Asegurar exclusividad: si se agregó solicitudes, quitar solicitudes.gestionar
+                                                newPermissions = newPermissions.filter(p => p !== 'solicitudes.gestionar');
+                                              }
+                                              
+                                              // ⚠️ NO auto-promover al padre cuando todos los hijos están activos
+                                              // Esto causaba conflictos con permisos mutuamente excluyentes
+                                              // (ej: solicitudes ↔ solicitudes.gestionar)
+                                              // El padre solo se activa manualmente desde el switch principal
+                                            }
+                                            updateFormData({ permissions: newPermissions });
+                                          }}
+                                        >
+                                          <Typography variant="caption" sx={{ 
+                                            color: formData.permissions.includes(subPerm.key) ? 'text.primary' : 'text.secondary',
+                                            fontWeight: formData.permissions.includes(subPerm.key) ? 600 : 400
+                                          }}>
+                                            {subPerm.label}
+                                          </Typography>
+                                          <Tooltip
+                                            title={`Acceso solo a: ${subPerm.label}`}
+                                            arrow
+                                            placement="left"
+                                          >
+                                            <Switch
+                                              checked={formData.permissions.includes(subPerm.key)}
+                                              size="small"
+                                              onClick={(e) => e.stopPropagation()}
+                                              sx={{
+                                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                                  color: permission.color,
+                                                },
+                                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                  backgroundColor: permission.color,
+                                                },
+                                              }}
+                                            />
+                                          </Tooltip>
+                                        </Box>
+
+                                        {/* Renderizar sub-sub-permisos si existen (tercer nivel) */}
+                                        {subPerm.subPermissions && formData.permissions.includes(subPerm.key) && (
+                                          <Box sx={{ ml: 3, mt: 1, mb: 1.5, pl: 2, borderLeft: `2px solid ${alpha(permission.color, 0.2)}` }}>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+                                              Módulos de {subPerm.label}:
+                                            </Typography>
+                                            {subPerm.subPermissions.map((subSubPerm) => (
+                                              <Box 
+                                                key={subSubPerm.key}
+                                                sx={{ 
+                                                  display: 'flex', 
+                                                  alignItems: 'center', 
+                                                  justifyContent: 'space-between',
+                                                  py: 0.4,
+                                                  cursor: 'pointer',
+                                                  '&:hover': {
+                                                    backgroundColor: alpha(permission.color, 0.04)
+                                                  }
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  let newPermissions;
+                                                  if (formData.permissions.includes(subSubPerm.key)) {
+                                                    // Desactivar sub-sub-permiso
+                                                    newPermissions = formData.permissions.filter(p => p !== subSubPerm.key);
+                                                  } else {
+                                                    // Activar sub-sub-permiso
+                                                    newPermissions = [...formData.permissions, subSubPerm.key];
+                                                    // Exclusividad mutua: desactivar el permiso mutuamente excluyente
+                                                    if (subSubPerm.mutuallyExclusiveWith) {
+                                                      newPermissions = newPermissions.filter(p => p !== subSubPerm.mutuallyExclusiveWith);
+                                                    }
+                                                  }
+                                                  updateFormData({ permissions: newPermissions });
+                                                }}
+                                              >
+                                                <Typography variant="caption" sx={{ 
+                                                  color: formData.permissions.includes(subSubPerm.key) ? 'text.primary' : 'text.secondary',
+                                                  fontWeight: formData.permissions.includes(subSubPerm.key) ? 500 : 400,
+                                                  fontSize: '0.7rem'
+                                                }}>
+                                                  {subSubPerm.label}
+                                                </Typography>
+                                                <Switch
+                                                  checked={formData.permissions.includes(subSubPerm.key)}
+                                                  size="small"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  sx={{
+                                                    transform: 'scale(0.85)',
+                                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                                      color: permission.color,
+                                                    },
+                                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                                      backgroundColor: permission.color,
+                                                    },
+                                                  }}
+                                                />
+                                              </Box>
+                                            ))}
+                                          </Box>
+                                        )}
+                                      </Box>
+                                    ))}
+                                    </>
+                                  );
+                                }
+                              })()}
                               </Box>
                             )}
-                            
-                            <Typography variant="body2" sx={{ 
-                              fontWeight: level === 1 ? 600 : level === 2 ? 500 : 400,
-                              color: isActive ? theme.palette.text.primary : theme.palette.text.secondary,
-                              fontSize: level === 3 ? '0.8rem' : '0.875rem'
-                            }}>
-                              {perm.label}
-                            </Typography>
-                            
-                            {badge && (
-                              <Chip 
-                                label={badge}
-                                size="small"
-                                sx={{ 
-                                  height: 20,
-                                  fontSize: '0.7rem',
-                                  fontWeight: 600,
-                                  bgcolor: alpha(color, 0.15),
-                                  color: color
-                                }}
-                              />
-                            )}
-                          </Box>
-                          
-                          <Switch
-                            checked={isActive}
-                            size="small"
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{
-                              '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: color,
-                              },
-                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: color,
-                              },
-                            }}
-                          />
-                        </Box>
-                        
-                        {/* Renderizar sub-permisos */}
-                        {perm.subPermissions && perm.subPermissions.map(subPerm => renderPermissionRow(subPerm, level + 1, color, isActive, perm))}
-                      </React.Fragment>
-                    );
-                  };
-
-                  // Dividir permisos en dos columnas
-                  const leftColumnPerms = [
-                    { key: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, color: theme.palette.primary.main },
-                    { 
-                      key: 'compromisos', 
-                      label: 'Compromisos', 
-                      icon: <AccountBalance />, 
-                      color: theme.palette.secondary.main,
-                      subPermissions: [
-                        { key: 'compromisos.ver_todos', label: 'Ver Todos' },
-                        { key: 'compromisos.agregar_nuevo', label: 'Agregar Nuevo' }
-                      ]
-                    },
-                    { 
-                      key: 'pagos', 
-                      label: 'Pagos', 
-                      icon: <Receipt />, 
-                      color: theme.palette.primary.main,
-                      subPermissions: [
-                        { key: 'pagos.historial', label: 'Historial' },
-                        { key: 'pagos.nuevo_pago', label: 'Nuevo Pago' }
-                      ]
-                    },
-                    { 
-                      key: 'ingresos', 
-                      label: 'Ingresos', 
-                      icon: <TrendingUp />, 
-                      color: '#4caf50',
-                      subPermissions: [
-                        { key: 'ingresos.registrar', label: 'Registrar Ingreso' },
-                        { key: 'ingresos.historial', label: 'Historial' },
-                        { key: 'ingresos.cuentas', label: 'Cuentas Bancarias' }
-                      ]
-                    },
-                    { 
-                      key: 'gestion_empresarial', 
-                      label: 'Gestión Empresarial', 
-                      icon: <BusinessIcon />, 
-                      color: theme.palette.secondary.main,
-                      subPermissions: [
-                        { key: 'gestion_empresarial.empresas', label: 'Empresas' },
-                        { key: 'gestion_empresarial.salas', label: 'Salas' },
-                        { key: 'gestion_empresarial.clientes', label: 'Clientes' }
-                      ]
-                    },
-                    { 
-                      key: 'liquidaciones', 
-                      label: 'Liquidaciones', 
-                      icon: <Receipt />, 
-                      color: '#ff9800',
-                      subPermissions: [
-                        { key: 'liquidaciones.liquidaciones', label: 'Liquidaciones' },
-                        { key: 'liquidaciones.historico', label: 'Histórico de Liquidaciones' },
-                        { key: 'liquidaciones.estadisticas', label: 'Estadísticas' }
-                      ]
-                    },
-                    { 
-                      key: 'facturacion', 
-                      label: 'Facturación', 
-                      icon: <AttachMoney />, 
-                      color: '#2196f3',
-                      subPermissions: [
-                        { key: 'facturacion.liquidaciones_por_sala', label: 'Liquidaciones por Sala' },
-                        { key: 'facturacion.cuentas_cobro', label: 'Cuentas de Cobro' }
-                      ]
-                    }
-                  ];
-
-                  const rightColumnPerms = [
-                    { 
-                      key: 'reportes', 
-                      label: 'Reportes', 
-                      icon: <Assessment />, 
-                      color: theme.palette.primary.main,
-                      subPermissions: [
-                        { key: 'reportes.resumen', label: 'Resumen General' },
-                        { key: 'reportes.por_empresa', label: 'Por Empresa' },
-                        { key: 'reportes.por_periodo', label: 'Por Período' },
-                        { key: 'reportes.por_concepto', label: 'Por Concepto' }
-                      ]
-                    },
-                    { 
-                      key: 'rrhh_group', 
-                      label: 'RRHH', 
-                      icon: <BadgeIcon />, 
-                      color: '#ff9800',
-                      subPermissions: [
-                        { 
-                          key: 'rrhh', 
-                          label: 'Talento Humano',
-                          subPermissions: [
-                            { key: 'rrhh.dashboard', label: 'Dashboard' },
-                            { key: 'solicitudes', label: 'Realizar Solicitudes', mutuallyExclusiveWith: 'solicitudes.gestionar' },
-                            { key: 'solicitudes.gestionar', label: 'Gestionar Solicitudes', mutuallyExclusiveWith: 'solicitudes', noAutoActivate: true },
-                            { key: 'rrhh.liquidaciones', label: 'Liquidaciones' },
-                            { key: 'rrhh.reportes', label: 'Reportes' }
-                          ]
-                        },
-                        { key: 'empleados', label: 'Empleados' },
-                        { key: 'asistencias', label: 'Asistencias' }
-                      ]
-                    },
-                    { 
-                      key: 'tareas', 
-                      label: 'Tareas', 
-                      icon: <AssignmentIcon />, 
-                      color: '#00bcd4',
-                      subPermissions: [
-                        { key: 'tareas.crear', label: 'Administrador de Tareas' },
-                        { key: 'tareas.asignar', label: 'Gestionar tareas propias' },
-                        { key: 'tareas.ver_todas', label: 'Ver todas las Tareas' }
-                      ]
-                    },
-                    { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
-                    { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
-                    { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
-                  ];
-
-                  return (
-                    <Grid container spacing={2}>
-                      {/* Columna Izquierda - Operaciones */}
-                      <Grid item xs={12} md={6}>
-                        <Box sx={{ 
-                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                          borderRadius: 2,
-                          overflow: 'hidden'
-                        }}>
-                          <Box sx={{ 
-                            p: 2, 
-                            backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                          }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
-                              OPERACIONES
-                            </Typography>
-                          </Box>
-                          <Box>
-                            {leftColumnPerms.map(perm => renderPermissionRow(perm))}
-                          </Box>
-                        </Box>
+                          </CardContent>
+                        </Card>
                       </Grid>
-
-                      {/* Columna Derecha - Administración */}
-                      <Grid item xs={12} md={6}>
-                        <Box sx={{ 
-                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                          borderRadius: 2,
-                          overflow: 'hidden'
-                        }}>
-                          <Box sx={{ 
-                            p: 2, 
-                            backgroundColor: alpha(theme.palette.secondary.main, 0.04),
-                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                          }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.secondary.main }}>
-                              ADMINISTRACIÓN
-                            </Typography>
-                          </Box>
-                          <Box>
-                            {rightColumnPerms.map(perm => renderPermissionRow(perm))}
-                          </Box>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  );
-                })()}
+                ))}
+              </Grid>
               </Box>
             )}
 
