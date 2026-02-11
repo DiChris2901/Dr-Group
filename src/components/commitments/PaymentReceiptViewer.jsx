@@ -87,6 +87,10 @@ const PaymentReceiptViewer = ({
   const [installmentInfo, setInstallmentInfo] = useState(null);
   const [loadingInstallmentInfo, setLoadingInstallmentInfo] = useState(false);
 
+  // 📄 Estado para PDF del compromiso
+  const [commitmentPdfViewerOpen, setCommitmentPdfViewerOpen] = useState(false);
+  const [commitmentPdfUrl, setCommitmentPdfUrl] = useState(null);
+
   // Efecto para abrir automáticamente el PDF viewer cuando autoOpenPdf es true
   useEffect(() => {
     if (open && autoOpenPdf && commitment?.receiptUrls?.length > 0) {
@@ -761,8 +765,193 @@ const PaymentReceiptViewer = ({
                     </Box>
                   </Grid>
                 </Grid>
+              </Paper>
+            </motion.div>
 
-                {/* 💳 SECCIÓN DE INFORMACIÓN DE CUOTAS */}
+            {/* 🔗 NUEVA SECCIÓN: Compromiso Enlazado */}
+            {originalCommitment && (
+              <motion.div
+                key="commitment-info"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.4 }}
+              >
+                <Paper sx={{ 
+                  mt: 3, 
+                  p: 3, 
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : 'white',
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <Avatar sx={{
+                      width: 40,
+                      height: 40,
+                      backgroundColor: alpha(theme.palette.info.main, 0.1),
+                      color: 'info.main'
+                    }}>
+                      <ReceiptIcon sx={{ fontSize: 20 }} />
+                    </Avatar>
+                    <Typography variant="h6" sx={{ 
+                      color: 'text.primary', 
+                      fontWeight: 600, 
+                      fontSize: '1.1rem',
+                      flex: 1
+                    }}>
+                      Compromiso Enlazado
+                    </Typography>
+                  </Box>
+                  
+                  <Grid container spacing={2}>
+                    {/* Fecha de Creación del Compromiso */}
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mb: 1,
+                        p: 1.5,
+                        borderRadius: 2,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Fecha de Creación
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
+                          {originalCommitment.createdAt ? 
+                            format(originalCommitment.createdAt.toDate?.() || new Date(originalCommitment.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es }) 
+                            : 'No disponible'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+
+                    {/* Saldo Pendiente */}
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mb: 1,
+                        p: 1.5,
+                        borderRadius: 2,
+                        backgroundColor: alpha(
+                          originalCommitment.remainingBalance > 0 ? theme.palette.warning.main : theme.palette.success.main, 
+                          0.08
+                        ),
+                        border: `1px solid ${alpha(
+                          originalCommitment.remainingBalance > 0 ? theme.palette.warning.main : theme.palette.success.main, 
+                          0.3
+                        )}`
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Saldo Pendiente
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 600, 
+                            color: originalCommitment.remainingBalance > 0 ? 'warning.main' : 'success.main',
+                            fontSize: '0.9rem' 
+                          }}
+                        >
+                          {fCurrency(originalCommitment.remainingBalance || 0)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+
+                    {/* Comentario/Observaciones */}
+                    {(originalCommitment.observations || originalCommitment.paymentNotes || originalCommitment.paymentReference) && (
+                      <Grid item xs={12}>
+                        <Box sx={{ 
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+                            Comentario
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                            {originalCommitment.observations || originalCommitment.paymentNotes || originalCommitment.paymentReference}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* Documento Adjunto - Factura del Compromiso */}
+                    {originalCommitment.invoices && originalCommitment.invoices.length > 0 && (
+                      <Grid item xs={12}>
+                        <Box sx={{ 
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.info.main, 0.05),
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2
+                        }}>
+                          <Avatar sx={{
+                            width: 40,
+                            height: 40,
+                            backgroundColor: alpha(theme.palette.error.main, 0.1),
+                            color: 'error.main'
+                          }}>
+                            <ReceiptIcon sx={{ fontSize: 20 }} />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+                              Factura del Compromiso
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {originalCommitment.invoices[0].fileName || 'Documento PDF'}
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<Visibility />}
+                            onClick={() => {
+                              setCommitmentPdfUrl(originalCommitment.invoices[0].url);
+                              setCommitmentPdfViewerOpen(true);
+                            }}
+                            sx={{
+                              borderRadius: 1,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                              '&:hover': {
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                              }
+                            }}
+                          >
+                            Ver Factura
+                          </Button>
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Paper>
+              </motion.div>
+            )}
+
+            {/* 💳 SECCIÓN DE INFORMACIÓN DE CUOTAS */}
+            <motion.div
+              key="installment-info"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+            >
+              <Paper sx={{ 
+                mt: 3, 
+                p: 3, 
+                borderRadius: 3,
+                backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                backdropFilter: 'none',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+              }}>
                 {(() => {
                   console.log('💳 [DEBUG RENDER CUOTAS] Checking installment render condition:', {
                     'installmentInfo': installmentInfo,
@@ -1369,7 +1558,7 @@ const PaymentReceiptViewer = ({
         </Dialog>
       )}
 
-      {/* 📄 Vista previa del PDF - COMPONENTE COMPARTIDO IDÉNTICO */}
+      {/* 📄 Vista previa del PDF del Pago - COMPONENTE COMPARTIDO IDÉNTICO */}
       <PDFPreviewDialog
         open={previewDialogOpen}
         onClose={() => {
@@ -1383,6 +1572,15 @@ const PaymentReceiptViewer = ({
         receiptMetadata={receiptMetadata}
         canDownloadReceipts={false} // Sin descarga en visor de comprobantes ya pagados
         title="Vista Previa del Comprobante"
+      />
+
+      {/* 📄 Vista previa del PDF del Compromiso (Factura) */}
+      <PDFPreviewDialog
+        open={commitmentPdfViewerOpen}
+        onClose={() => setCommitmentPdfViewerOpen(false)}
+        receiptUrl={commitmentPdfUrl}
+        canDownloadReceipts={false}
+        title="Factura del Compromiso"
       />
     </AnimatePresence>
   );

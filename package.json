@@ -1,6 +1,6 @@
 {
   "name": "dr-group-dashboard",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "description": "Dashboard de Control de Compromisos Financieros para DR Group",
   "type": "module",
   "scripts": {

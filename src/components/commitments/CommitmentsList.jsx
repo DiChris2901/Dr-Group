@@ -208,7 +208,7 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
 };
 
 // Encabezado tabla (reintroducido) - ✅ Corregido para coincidir con contenido
-const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', 'Vence', 'Comentarios', 'Acciones'] }) => {
+const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', 'Creado', 'Comentarios', 'Acciones'] }) => {
   const theme = useTheme();
   return (
     <Box sx={{
@@ -513,7 +513,7 @@ const CommitmentsList = ({
         );
         
         if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
-          q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+          q = query(q, where('createdAt', '>=', startDate), where('createdAt', '<=', endDate));
         }
       }
 
@@ -591,16 +591,16 @@ const CommitmentsList = ({
       setLoading(true);
       setError(null);
 
-      let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
+      let q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
 
       // Aplicar filtros básicos en Firestore
       if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0) {
         // Firestore 'in' operator has a limit of 10 items
         if (debouncedCompanyFilter.length <= 10) {
-          q = query(collection(db, 'commitments'), where('companyId', 'in', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
+          q = query(collection(db, 'commitments'), where('companyId', 'in', debouncedCompanyFilter), orderBy('createdAt', 'desc'));
         } else {
           // Si hay más de 10 empresas, no aplicar el filtro en Firestore y filtrar localmente después
-          q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
+          q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
         }
       }
       
@@ -616,15 +616,15 @@ const CommitmentsList = ({
           if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0 && debouncedCompanyFilter.length <= 10) {
             q = query(collection(db, 'commitments'), 
               where('companyId', 'in', debouncedCompanyFilter),
-              where('dueDate', '>=', startDate),
-              where('dueDate', '<=', endDate),
-              orderBy('dueDate', 'desc')
+              where('createdAt', '>=', startDate),
+              where('createdAt', '<=', endDate),
+              orderBy('createdAt', 'desc')
             );
           } else {
             q = query(collection(db, 'commitments'), 
-              where('dueDate', '>=', startDate),
-              where('dueDate', '<=', endDate),
-              orderBy('dueDate', 'desc')
+              where('createdAt', '>=', startDate),
+              where('createdAt', '<=', endDate),
+              orderBy('createdAt', 'desc')
             );
           }
         }
@@ -780,7 +780,7 @@ const CommitmentsList = ({
     
     // console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
     
-    let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
+    let q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
 
     // Nota: el filtro por empresa se aplicará localmente para soportar selección múltiple.
     
@@ -796,16 +796,16 @@ const CommitmentsList = ({
         if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
           q = query(
             collection(db, 'commitments'),
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         } else {
           q = query(
             collection(db, 'commitments'),
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         }
       }
@@ -827,15 +827,15 @@ const CommitmentsList = ({
         if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
           q = query(collection(db, 'commitments'), 
             where('companyId', '==', debouncedCompanyFilter),
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         } else {
           q = query(collection(db, 'commitments'), 
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         }
       }
@@ -857,15 +857,15 @@ const CommitmentsList = ({
         if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
           q = query(collection(db, 'commitments'), 
             where('companyId', '==', debouncedCompanyFilter),
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         } else {
           q = query(collection(db, 'commitments'), 
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
+            where('createdAt', '>=', startDate),
+            where('createdAt', '<=', endDate),
+            orderBy('createdAt', 'desc')
           );
         }
       }
@@ -2907,14 +2907,14 @@ const CommitmentsList = ({
                       />
                     </Box>
 
-                    {/* Fecha con DateDisplayDS3 (alineada a la izquierda) */}
+                    {/* Fecha de Creación (alineada a la izquierda) */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                       <DateDisplayDS3
-                        date={commitment.dueDate}
+                        date={commitment.createdAt}
                         variant="standard"
-                        showDaysRemaining
-                        isOverdue={isOverdue}
-                        isDueSoon={isDueSoon}
+                        showDaysRemaining={false}
+                        isOverdue={false}
+                        isDueSoon={false}
                         isPaid={commitment.paid || commitment.isPaid}
                         theme={theme}
                       />
