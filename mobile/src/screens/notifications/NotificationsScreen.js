@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking } from 'react-native';
-import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, Divider, SegmentedButtons, Button } from 'react-native-paper';
+import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
+import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, Divider, SegmentedButtons, Button, Menu } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { OverlineText } from '../../components';
@@ -23,6 +23,10 @@ export default function NotificationsScreen({ navigation }) {
   const [filter, setFilter] = useState('unread'); // all, unread, high
   const [limitCount, setLimitCount] = useState(20);
   const unsubscribeRef = useRef(null);
+  
+  // Menu state
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // ✅ Memoizar helpers para evitar recreaciones
   const getIcon = useCallback((type) => {
@@ -56,6 +60,109 @@ export default function NotificationsScreen({ navigation }) {
   const loadMore = useCallback(() => {
     setLimitCount(prev => prev + 20);
   }, []);
+  
+  // ✅ Marcar todas como leídas
+  const markAllAsRead = useCallback(async () => {
+    if (actionLoading) return;
+    
+    try {
+      setActionLoading(true);
+      setMenuVisible(false);
+      
+      // Query para todas las notificaciones no leídas del usuario
+      const q = query(
+        collection(db, 'notifications'),
+        where('uid', '==', user.uid),
+        where('read', '==', false)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        Alert.alert('Info', 'No tienes notificaciones sin leer');
+        setActionLoading(false);
+        return;
+      }
+      
+      // Usar batch para actualizar múltiples documentos
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((document) => {
+        batch.update(document.ref, { read: true });
+      });
+      
+      await batch.commit();
+      
+      Alert.alert(
+        'Éxito',
+        `${snapshot.size} notificación${snapshot.size > 1 ? 'es' : ''} marcada${snapshot.size > 1 ? 's' : ''} como leída${snapshot.size > 1 ? 's' : ''}`,
+        [{ text: 'OK' }]
+      );
+      
+      setActionLoading(false);
+    } catch (error) {
+      console.error('Error marcando todas como leídas:', error);
+      Alert.alert('Error', 'No se pudieron marcar las notificaciones como leídas');
+      setActionLoading(false);
+    }
+  }, [user, actionLoading]);
+  
+  // ✅ Eliminar todas las notificaciones
+  const deleteAllNotifications = useCallback(async () => {
+    if (actionLoading) return;
+    
+    setMenuVisible(false);
+    
+    Alert.alert(
+      '¿Eliminar todas?',
+      'Esta acción eliminará permanentemente todas tus notificaciones. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              
+              // Query para todas las notificaciones del usuario
+              const q = query(
+                collection(db, 'notifications'),
+                where('uid', '==', user.uid)
+              );
+              
+              const snapshot = await getDocs(q);
+              
+              if (snapshot.empty) {
+                Alert.alert('Info', 'No tienes notificaciones para eliminar');
+                setActionLoading(false);
+                return;
+              }
+              
+              // Usar batch para eliminar múltiples documentos
+              const batch = writeBatch(db);
+              snapshot.docs.forEach((document) => {
+                batch.delete(document.ref);
+              });
+              
+              await batch.commit();
+              
+              Alert.alert(
+                'Eliminadas',
+                `${snapshot.size} notificación${snapshot.size > 1 ? 'es' : ''} eliminada${snapshot.size > 1 ? 's' : ''}`,
+                [{ text: 'OK' }]
+              );
+              
+              setActionLoading(false);
+            } catch (error) {
+              console.error('Error eliminando notificaciones:', error);
+              Alert.alert('Error', 'No se pudieron eliminar las notificaciones');
+              setActionLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  }, [user, actionLoading]);
 
   // ✅ useFocusEffect para limpiar listener al perder foco
   useFocusEffect(
@@ -169,10 +276,41 @@ export default function NotificationsScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <Text variant="headlineSmall" style={{ fontWeight: '400', fontFamily: 'Roboto-Flex', marginLeft: 8 }}>
-          Notificaciones
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
+          <Text variant="headlineSmall" style={{ fontWeight: '400', fontFamily: 'Roboto-Flex', marginLeft: 8 }}>
+            Notificaciones
+          </Text>
+        </View>
+        
+        {/* Menú de acciones */}
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <IconButton
+              icon="dots-vertical"
+              onPress={() => setMenuVisible(true)}
+              disabled={actionLoading}
+            />
+          }
+          anchorPosition="bottom"
+        >
+          <Menu.Item
+            leadingIcon="check-all"
+            onPress={markAllAsRead}
+            title="Marcar todas como leídas"
+            disabled={actionLoading || notifications.filter(n => !n.read).length === 0}
+          />
+          <Divider />
+          <Menu.Item
+            leadingIcon="delete-outline"
+            onPress={deleteAllNotifications}
+            title="Eliminar todas"
+            disabled={actionLoading || notifications.length === 0}
+            titleStyle={{ color: theme.colors.error }}
+          />
+        </Menu>
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
@@ -330,7 +468,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 8,
   },
   list: {
     padding: 20,

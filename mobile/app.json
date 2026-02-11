@@ -1,8 +1,8 @@
-{
+﻿{
     "expo":  {
                  "name":  "DR Group Asistencia",
                  "slug":  "drgroup-mobile",
-                 "version":  "3.4.2",
+                 "version":  "3.5.0",
                  "orientation":  "default",
                  "icon":  "./assets/icon.png",
                  "userInterfaceStyle":  "light",
@@ -38,6 +38,7 @@
                                       "color":  "#004A98"
                                   },
                  "updates":  {
+                                 "enabled":  false,
                                  "url":  "https://u.expo.dev/169f6749-ebbd-4386-9359-b60f7afe299d",
                                  "fallbackToCacheTimeout":  0
                              },

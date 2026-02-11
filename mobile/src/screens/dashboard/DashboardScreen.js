@@ -56,7 +56,8 @@ export default function DashboardScreen() {
     finalizarAlmuerzo, 
     finalizarJornada,
     signOut,
-    isStartingSession // 🔒 Estado de procesamiento del inicio
+    isStartingSession, // 🔒 Estado de procesamiento del inicio
+    hasPendingSync // ✅ Estado de sincronización pendiente
   } = useAuth();
   
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
@@ -233,6 +234,51 @@ export default function DashboardScreen() {
             </PaperText>
           </View>
         </View>
+        
+        {/* ✅ NUEVO: Indicador de Sincronización Pendiente */}
+        {hasPendingSync && (
+          <Surface
+            style={{
+              backgroundColor: theme.colors.warningContainer || '#FFF4E5',
+              borderRadius: designSystem.borderRadius.components.card.medium,
+              padding: 16,
+              marginBottom: 16,
+              marginHorizontal: 0,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              borderLeftWidth: 4,
+              borderLeftColor: theme.colors.warning || '#FF9800'
+            }}
+            elevation={0}
+          >
+            <MaterialCommunityIcons 
+              name="cloud-sync-outline" 
+              size={24} 
+              color={theme.colors.warning || '#FF9800'} 
+            />
+            <View style={{ flex: 1 }}>
+              <PaperText 
+                variant="bodyMedium"
+                style={{ 
+                  color: theme.colors.onSurface,
+                  fontWeight: '600'
+                }}
+              >
+                Sincronización Pendiente
+              </PaperText>
+              <PaperText 
+                variant="bodySmall"
+                style={{ 
+                  color: theme.colors.onSurfaceVariant,
+                  marginTop: 2
+                }}
+              >
+                Tus registros se sincronizarán automáticamente cuando tengas internet
+              </PaperText>
+            </View>
+          </Surface>
+        )}
 
         {/* Action Buttons Row */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, paddingHorizontal: 0 }}>

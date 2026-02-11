@@ -13,6 +13,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/NotificationService';
 import { logger } from '../utils/logger';
 import { notifyAdminsWorkEvent } from '../utils/notificationHelpers';
+import {
+  generateId,
+  obtenerColaPendiente,
+  guardarEnCola,
+  marcarComoSincronizado,
+  hayAccionesPendientes,
+  intentarSincronizar,
+  procesarColaPendiente as procesarColaOfflineSync,
+  obtenerSesionLocal
+} from '../services/offlineSync';
 
 const ACTIVE_SESSION_KEY = '@active_session_state';
 
@@ -26,17 +36,28 @@ export const AuthProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(true);
   const [isStartingSession, setIsStartingSession] = useState(false); // 🔒 CANDADO: Prevenir múltiples inicios
   const [lastCreatedSessionId, setLastCreatedSessionId] = useState(null); // 🔒 TRACK: Último registro creado
+  const [hasPendingSync, setHasPendingSync] = useState(false); // ✅ NUEVO: Rastrea acciones pendientes
 
-  // ✅ Monitorear conexión y sincronizar
+  // ✅ Monitorear conexión y sincronizar automáticamente
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsConnected(state.isConnected);
-      if (state.isConnected) {
+      if (state.isConnected && state.isInternetReachable) {
+        // Sincronizar con el NUEVO sistema de offlineSync
         syncPendingActions();
       }
     });
     return unsubscribe;
   }, []);
+  
+  // ✅ NUEVO: Verificar acciones pendientes al montar
+  useEffect(() => {
+    const checkPending = async () => {
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
+    };
+    checkPending();
+  }, [activeSession]);
 
   // 🔒 CAPA 1: Verificar si ya se creó registro hoy (Cache Local)
   const checkTodaySessionInCache = async (uid, todayStr) => {
@@ -67,78 +88,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+    // ✅ ACTUALIZADO: Usa el nuevo sistema de offlineSync.js
   const syncPendingActions = async () => {
     try {
-      const pending = await AsyncStorage.getItem('pending_actions');
-      if (!pending) return;
-
-      const actions = JSON.parse(pending);
-      if (actions.length === 0) return;
-
-      console.log('🔄 Sincronizando acciones pendientes:', actions.length);
+      console.log('🔄 Iniciando sincronización de acciones pendientes...');
+      const { exitosas, fallidas } = await procesarColaOfflineSync();
       
-      // 🔒 FILTRAR DUPLICADOS: Solo procesar acciones únicas
-      const uniqueActions = [];
-      const seenSessionIds = new Set();
-      
-      for (const action of actions) {
-        if (action.type === 'create_session') {
-          // Verificar si ya procesamos esta fecha
-          const cacheKey = `session_${action.data.uid}_${action.data.fecha}`;
-          if (seenSessionIds.has(cacheKey)) {
-            console.log('⚠️ Acción duplicada detectada, saltando:', cacheKey);
-            continue;
-          }
-          seenSessionIds.add(cacheKey);
-          uniqueActions.push(action);
-        } else {
-          uniqueActions.push(action);
+      if (exitosas > 0) {
+        Alert.alert(
+          'Sincronización Completada', 
+          `${exitosas} registro(s) sincronizado(s) correctamente.${fallidas > 0 ? ` ${fallidas} fallidos.` : ''}`,
+          [{ text: 'OK' }]
+        );
+        
+        // Cargar sesión local si existe
+        const sesionLocal = await obtenerSesionLocal();
+        if (sesionLocal && sesionLocal.entrada) {
+          setActiveSession(sesionLocal);
         }
       }
       
-      console.log(`📊 Acciones únicas a sincronizar: ${uniqueActions.length} de ${actions.length}`);
-      
-      for (const action of uniqueActions) {
-        if (action.type === 'update_session') {
-          await updateDoc(doc(db, 'asistencias', action.sessionId), action.data);
-        } else if (action.type === 'create_session') {
-          // 🔒 Verificar que no exista antes de crear
-          const qCheck = query(
-            collection(db, 'asistencias'),
-            where('uid', '==', action.data.uid),
-            where('fecha', '==', action.data.fecha)
-          );
-          const existingSnap = await getDocs(qCheck);
-          
-          if (existingSnap.empty) {
-            const newDoc = await addDoc(collection(db, 'asistencias'), action.data);
-            console.log('✅ Sesión offline creada:', newDoc.id);
-          } else {
-            console.log('⚠️ Sesión ya existe en Firestore, saltando creación');
-          }
-        }
-      }
-
-      await AsyncStorage.removeItem('pending_actions');
-      if (uniqueActions.length > 0) {
-        Alert.alert('Sincronización', 'Tus registros offline se han subido correctamente.');
-      }
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
     } catch (error) {
-      console.error('Error sincronizando:', error);
+      console.error('Error sincronizando acciones pendientes:', error);
     }
   };
 
-  const queueAction = async (action) => {
-    try {
-      const pending = await AsyncStorage.getItem('pending_actions');
-      const actions = pending ? JSON.parse(pending) : [];
-      actions.push(action);
-      await AsyncStorage.setItem('pending_actions', JSON.stringify(actions));
-      Alert.alert('Modo Offline', 'Registro guardado localmente. Se subirá cuando tengas internet.');
-    } catch (error) {
-      console.error('Error encolando acción:', error);
-    }
-  };
+  // ✅ ELIMINADO: queueAction antigua - Ahora usamos guardarEnCola de offlineSync.js
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -691,21 +669,67 @@ export const AuthProvider = ({ children }) => {
         return { success: true, sessionId: existingDoc.id, resumed: true, preventedDuplicate: true };
       }
 
-      const asistenciaRef = await addDoc(collection(db, 'asistencias'), asistenciaData);
-      console.log('✅ Registro creado exitosamente:', asistenciaRef.id);
+      // ✅ NUEVO: Sistema offline-first con offlineSync.js
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline (SIEMPRE, nunca falla)
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'entrada',
+        timestamp: new Date().toISOString(),
+        ubicacion: location,
+        dispositivo: deviceInfo,
+        locationProvider: locationMetadata.provider,
+        locationAccuracy: locationMetadata.accuracy,
+        locationIsMocked: locationMetadata.isMocked,
+        estado: 'pendiente'
+      });
+      
+      // 2️⃣ Intentar sincronizar a Firestore inmediatamente
+      let sessionId = null;
+      if (isConnected) {
+        try {
+          const asistenciaRef = await addDoc(collection(db, 'asistencias'), asistenciaData);
+          sessionId = asistenciaRef.id;
+          console.log('✅ Registro creado exitosamente en Firestore:', asistenciaRef.id);
+          
+          // Marcar como sincronizado
+          await marcarComoSincronizado(accionId);
+          
+          // Guardar en caché local
+          await saveTodaySessionInCache(user.uid, today, asistenciaRef.id);
+        } catch (firestoreError) {
+          console.warn('⚠️ No se pudo sincronizar a Firestore, quedará en cola:', firestoreError.message);
+          sessionId = `temp_${accionId}`; // ID temporal
+          Alert.alert(
+            'Modo Offline',
+            'Tu jornada se guardó localmente. Se sincronizará cuando tengas internet.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        console.log('⚠️ Sin internet, jornada guardada localmente');
+        sessionId = `temp_${accionId}`; // ID temporal
+        Alert.alert(
+          'Modo Offline',
+          'Tu jornada se guardó localmente. Se sincronizará cuando tengas internet.',
+          [{ text: 'OK' }]
+        );
+      }
       
       // 🔒 Guardar en tracking para prevenir duplicados
       setLastCreatedSessionId(sessionUniqueId);
       
-      // 🔒 Guardar en caché local
-      await saveTodaySessionInCache(user.uid, today, asistenciaRef.id);
-      
       const sessionState = {
         ...asistenciaData,
-        id: asistenciaRef.id
+        id: sessionId
       };
       
       setActiveSession(sessionState);
+      
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
       
       // ✅ Persistir activeSession completa para recuperar al reabrir app
       try {
@@ -786,7 +810,19 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const breakInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'inicioBreak',
+        timestamp: now.toISOString(),
+        estado: 'pendiente'
+      });
+      
+      const breakInicio = Timestamp.now();
       const updatedBreaks = [
         ...activeSession.breaks,
         {
@@ -802,23 +838,23 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
-      if (isConnected) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
-        
-        // 🔔 Notificar a admins sobre inicio de break
-        notifyAdminsWorkEvent(
-          'breakStart',
-          userProfile?.name || userProfile?.displayName || user?.email,
-          '☕ Break Iniciado',
-          `${userProfile?.name || userProfile?.displayName || user?.email} inició un break`,
-          { userName: userProfile?.name, breakTime: new Date().toISOString() }
-        ).catch(e => logger.error('Error notificando break:', e));
-      } else {
-        await queueAction({
-          type: 'update_session',
-          sessionId: activeSession.id,
-          data: updateData
-        });
+      // 2️⃣ Intentar sincronizar
+      if (isConnected && !activeSession.id.startsWith('temp_')) {
+        try {
+          await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+          await marcarComoSincronizado(accionId);
+          
+          // Notificar a admins
+          notifyAdminsWorkEvent(
+            'breakStart',
+            userProfile?.name || userProfile?.displayName || user?.email,
+            '☕ Break Iniciado',
+            `${userProfile?.name || userProfile?.displayName || user?.email} inició un break`,
+            { userName: userProfile?.name, breakTime: new Date().toISOString() }
+          ).catch(e => logger.error('Error notificando break:', e));
+        } catch (error) {
+          console.warn('⚠️ No se pudo sincronizar break, quedará en cola');
+        }
       }
 
       setActiveSession({
@@ -826,11 +862,13 @@ export const AuthProvider = ({ children }) => {
         breaks: updatedBreaks,
         estadoActual: 'break'
       });
-
-      // ✅ Programar notificación si el break es muy largo (15 min)
-      await NotificationService.notifyLongBreak(15);
       
-      // ✅ Actualizar notificación persistente
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
+
+      // Programar notificación si el break es muy largo
+      await NotificationService.notifyLongBreak(15);
       await NotificationService.updateStateNotification('break', new Date());
     } catch (error) {
       console.error('Error registrando break:', error);
@@ -845,13 +883,23 @@ export const AuthProvider = ({ children }) => {
       const breakActual = activeSession.breaks[activeSession.breaks.length - 1];
       if (breakActual.fin) return; // Ya está finalizado
 
-      const fin = Timestamp.now(); // ✅ Usar Timestamp de Firestore
-      // ✅ El inicio ya es Timestamp, convertir a Date para cálculos
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'finBreak',
+        timestamp: now.toISOString(),
+        estado: 'pendiente'
+      });
+
+      const fin = Timestamp.now();
       const inicioDate = breakActual.inicio.toDate ? breakActual.inicio.toDate() : new Date(breakActual.inicio);
       const finDate = fin.toDate();
       const diffMs = finDate - inicioDate;
       
-      // Calcular HH:MM:SS
       const horas = Math.floor(diffMs / 1000 / 60 / 60);
       const minutos = Math.floor((diffMs / 1000 / 60) % 60);
       const segundos = Math.floor((diffMs / 1000) % 60);
@@ -870,17 +918,16 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
-      if (isConnected) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
-      } else {
-        await queueAction({
-          type: 'update_session',
-          sessionId: activeSession.id,
-          data: updateData
-        });
+      // 2️⃣ Intentar sincronizar
+      if (isConnected && !activeSession.id.startsWith('temp_')) {
+        try {
+          await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+          await marcarComoSincronizado(accionId);
+        } catch (error) {
+          console.warn('⚠️ No se pudo sincronizar finalización de break, quedará en cola');
+        }
       }
 
-      // ✅ Actualizar notificación persistente
       await NotificationService.updateStateNotification('trabajando', new Date());
 
       setActiveSession({
@@ -888,6 +935,10 @@ export const AuthProvider = ({ children }) => {
         breaks: updatedBreaks,
         estadoActual: 'trabajando'
       });
+      
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
     } catch (error) {
       console.error('Error finalizando break:', error);
       throw error;
@@ -903,7 +954,19 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const almuerzoInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'inicioAlmuerzo',
+        timestamp: now.toISOString(),
+        estado: 'pendiente'
+      });
+
+      const almuerzoInicio = Timestamp.now();
 
       const updateData = {
         almuerzo: {
@@ -915,26 +978,25 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
-      if (isConnected) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
-        
-        // 🔔 Notificar a admins sobre inicio de almuerzo
-        notifyAdminsWorkEvent(
-          'lunchStart',
-          userProfile?.name || userProfile?.displayName || user?.email,
-          '🍽️ Almuerzo Iniciado',
-          `${userProfile?.name || userProfile?.displayName || user?.email} inició su almuerzo`,
-          { userName: userProfile?.name, lunchTime: new Date().toISOString() }
-        ).catch(e => logger.error('Error notificando almuerzo:', e));
-      } else {
-        await queueAction({
-          type: 'update_session',
-          sessionId: activeSession.id,
-          data: updateData
-        });
+      // 2️⃣ Intentar sincronizar
+      if (isConnected && !activeSession.id.startsWith('temp_')) {
+        try {
+          await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+          await marcarComoSincronizado(accionId);
+          
+          // Notificar a admins
+          notifyAdminsWorkEvent(
+            'lunchStart',
+            userProfile?.name || userProfile?.displayName || user?.email,
+            '🍽️ Almuerzo Iniciado',
+            `${userProfile?.name || userProfile?.displayName || user?.email} inició su almuerzo`,
+            { userName: userProfile?.name, lunchTime: new Date().toISOString() }
+          ).catch(e => logger.error('Error notificando almuerzo:', e));
+        } catch (error) {
+          console.warn('⚠️ No se pudo sincronizar almuerzo, quedará en cola');
+        }
       }
 
-      // ✅ Actualizar notificación persistente
       await NotificationService.updateStateNotification('almuerzo', new Date());
 
       setActiveSession({
@@ -946,6 +1008,10 @@ export const AuthProvider = ({ children }) => {
         },
         estadoActual: 'almuerzo'
       });
+      
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
     } catch (error) {
       console.error('Error registrando almuerzo:', error);
       throw error;
@@ -956,13 +1022,23 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession || !activeSession.almuerzo) return;
 
     try {
-      const fin = Timestamp.now(); // ✅ Usar Timestamp de Firestore
-      // ✅ El inicio ya es Timestamp, convertir a Date para cálculos
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'finAlmuerzo',
+        timestamp: now.toISOString(),
+        estado: 'pendiente'
+      });
+
+      const fin = Timestamp.now();
       const inicioDate = activeSession.almuerzo.inicio.toDate ? activeSession.almuerzo.inicio.toDate() : new Date(activeSession.almuerzo.inicio);
       const finDate = fin.toDate();
       const diffMs = finDate - inicioDate;
       
-      // Calcular HH:MM:SS
       const horas = Math.floor(diffMs / 1000 / 60 / 60);
       const minutos = Math.floor((diffMs / 1000 / 60) % 60);
       const segundos = Math.floor((diffMs / 1000) % 60);
@@ -978,14 +1054,14 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
-      if (isConnected) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
-      } else {
-        await queueAction({
-          type: 'update_session',
-          sessionId: activeSession.id,
-          data: updateData
-        });
+      // 2️⃣ Intentar sincronizar
+      if (isConnected && !activeSession.id.startsWith('temp_')) {
+        try {
+          await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+          await marcarComoSincronizado(accionId);
+        } catch (error) {
+          console.warn('⚠️ No se pudo sincronizar finalización de almuerzo, quedará en cola');
+        }
       }
 
       setActiveSession({
@@ -998,7 +1074,10 @@ export const AuthProvider = ({ children }) => {
         estadoActual: 'trabajando'
       });
       
-      // ✅ Actualizar notificación persistente
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
+      
       await NotificationService.updateStateNotification('trabajando', new Date());
     } catch (error) {
       console.error('Error finalizando almuerzo:', error);
@@ -1010,6 +1089,18 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession) return;
 
     try {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const accionId = generateId();
+      
+      // 1️⃣ Guardar en cola offline PRIMERO
+      await guardarEnCola(user.uid, today, {
+        id: accionId,
+        tipo: 'salida',
+        timestamp: now.toISOString(),
+        estado: 'pendiente'
+      });
+
       // ⚡ ULTRA-OPTIMIZADO: GPS con timeout agresivo de 2 segundos
       const locationPromise = (async () => {
         let location = { tipo: 'Remoto (Sin GPS)', isFallback: true }; // ⚡ Fallback por defecto
@@ -1124,33 +1215,32 @@ export const AuthProvider = ({ children }) => {
         updatedAt: Timestamp.now()
       };
 
-      // ⚡ Update a Firestore
-      if (isConnected) {
-        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
-        
-        // 🔔 OPTIMIZADO: Notificar finalización de jornada a admins configurados
+      // 2️⃣ Intentar sincronizar a Firestore
+      if (isConnected && !activeSession.id.startsWith('temp_')) {
         try {
-          await notifyAdminsWorkEvent(
-            'clockOut',
-            userProfile.name || userProfile.displayName || userProfile.email,
-            `🏠 Jornada Finalizada - ${userProfile.name || userProfile.displayName || userProfile.email}`,
-            `Horas trabajadas: ${horasTrabajadas} | ${location.tipo || 'Ubicación desconocida'}`,
-            {
-              userId: user.uid,
-              horasTrabajadas: horasTrabajadas,
-              ubicacion: location,
-              fecha: format(salidaDate, 'dd/MM/yyyy HH:mm:ss', { locale: es })
-            }
-          );
-        } catch (notifError) {
-          console.log('Error enviando notificación de salida:', notifError);
+          await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+          await marcarComoSincronizado(accionId);
+          
+          // Notificar a admins
+          try {
+            await notifyAdminsWorkEvent(
+              'clockOut',
+              userProfile.name || userProfile.displayName || userProfile.email,
+              `🏠 Jornada Finalizada - ${userProfile.name || userProfile.displayName || userProfile.email}`,
+              `Horas trabajadas: ${horasTrabajadas} | ${location.tipo || 'Ubicación desconocida'}`,
+              {
+                userId: user.uid,
+                horasTrabajadas: horasTrabajadas,
+                ubicacion: location,
+                fecha: salidaDate.toISOString()
+              }
+            );
+          } catch (notifError) {
+            console.log('Error enviando notificación de salida:', notifError);
+          }
+        } catch (error) {
+          console.warn('⚠️ No se pudo sincronizar finalización de jornada, quedará en cola');
         }
-      } else {
-        await queueAction({
-          type: 'update_session',
-          sessionId: activeSession.id,
-          data: updateData
-        });
       }
 
       // ✅ Limpiar AsyncStorage al finalizar
@@ -1166,6 +1256,10 @@ export const AuthProvider = ({ children }) => {
         ...updateData,
         estadoActual: 'finalizado'
       });
+      
+      // Actualizar estado de pendientes
+      const pending = await hayAccionesPendientes();
+      setHasPendingSync(pending);
       
       // ⚡ Notificaciones en background (no bloquean)
       Promise.all([
@@ -1222,6 +1316,7 @@ export const AuthProvider = ({ children }) => {
     hasPermission,
     isConnected, // 🔒 Estado de conexión
     isStartingSession, // 🔒 Estado de procesamiento del inicio
+    hasPendingSync, // ✅ Estado de sincronización pendiente
     reloadUserProfile: async () => {
       if (user) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
