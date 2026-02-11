@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     Alert,
     Dimensions,
+    Pressable,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -459,6 +460,71 @@ export default function DashboardScreen() {
           </Button>
         </Surface>
 
+        {/* Directorio - Acceso rápido a Empresas y Empleados */}
+        {(can(APP_PERMISSIONS.EMPRESAS_VER) || can(APP_PERMISSIONS.EMPLEADOS_VER)) && (
+          <View style={{ marginTop: 16, gap: 8 }}>
+            <PaperText variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '600', paddingLeft: 4 }}>
+              Directorio
+            </PaperText>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {can(APP_PERMISSIONS.EMPRESAS_VER) && (
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    navigation.navigate('Empresas');
+                  }}
+                  android_ripple={{ color: theme.colors.primary + '1F' }}
+                  style={({ pressed }) => [
+                    styles.directoryCard,
+                    {
+                      backgroundColor: theme.colors.surfaceContainerLow,
+                      flex: 1,
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    },
+                  ]}
+                >
+                  <Avatar.Icon
+                    size={40}
+                    icon="domain"
+                    style={{ backgroundColor: theme.colors.primaryContainer }}
+                    color={theme.colors.primary}
+                  />
+                  <PaperText variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600', marginTop: 8 }}>
+                    Empresas
+                  </PaperText>
+                </Pressable>
+              )}
+              {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    navigation.navigate('Empleados');
+                  }}
+                  android_ripple={{ color: theme.colors.secondary + '1F' }}
+                  style={({ pressed }) => [
+                    styles.directoryCard,
+                    {
+                      backgroundColor: theme.colors.surfaceContainerLow,
+                      flex: 1,
+                      transform: [{ scale: pressed ? 0.97 : 1 }],
+                    },
+                  ]}
+                >
+                  <Avatar.Icon
+                    size={40}
+                    icon="account-group"
+                    style={{ backgroundColor: theme.colors.secondaryContainer }}
+                    color={theme.colors.secondary}
+                  />
+                  <PaperText variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600', marginTop: 8 }}>
+                    Empleados
+                  </PaperText>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Spacer for Floating Action Bar */}
         <View style={{ height: 180 }} />
 
@@ -606,6 +672,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
-  }
+  },
+  directoryCard: {
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+  },
 });
 

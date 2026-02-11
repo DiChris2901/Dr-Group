@@ -36,6 +36,12 @@ export const APP_PERMISSIONS = {
   // REPORTES (2 permisos)
   REPORTES_PROPIOS: 'reportes.propios',            // Ver SOLO mi desempeño
   REPORTES_TODOS: 'reportes.todos',                // Ver desempeño de TODOS
+
+  // ====================================
+  // 🏢 CONSULTA (2 permisos) - Solo lectura
+  // ====================================
+  EMPRESAS_VER: 'empresas.ver',                    // Consultar directorio de empresas
+  EMPLEADOS_VER: 'empleados.ver',                  // Consultar directorio de empleados
 };
 
 // ========================================
@@ -70,6 +76,16 @@ export const PERMISSION_CATEGORIES = [
     ],
   },
   {
+    id: 'consulta',
+    name: '🏢 Consulta',
+    description: 'Directorios de empresas y empleados (solo lectura)',
+    icon: 'office-building',
+    permissions: [
+      APP_PERMISSIONS.EMPRESAS_VER,
+      APP_PERMISSIONS.EMPLEADOS_VER,
+    ],
+  },
+  {
     id: 'admin',
     name: '👑 Administrativos',
     description: 'Funciones de administración y control',
@@ -89,7 +105,7 @@ export const PERMISSION_CATEGORIES = [
 // 📊 CONSTANTES DEL SISTEMA
 // ========================================
 
-export const TOTAL_PERMISSIONS = 16; // Total de permisos en el sistema v2.0
+export const TOTAL_PERMISSIONS = 18; // Total de permisos en el sistema v2.1
 
 // ========================================
 // 🎭 ROLES Y PERMISOS POR DEFECTO

@@ -565,6 +565,33 @@ export default function AdminDashboardScreen({ navigation }) {
           )}
         </View>
 
+        {/* Directorio - Empresas y Empleados */}
+        {(can(APP_PERMISSIONS.EMPRESAS_VER) || can(APP_PERMISSIONS.EMPLEADOS_VER)) && (
+          <View style={{ marginTop: 24 }}>
+            <OverlineText color={getPrimaryColor()}>DIRECTORIO</OverlineText>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {can(APP_PERMISSIONS.EMPRESAS_VER) && (
+                <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                  <IconButton icon="domain" size={32} iconColor={theme.colors.primary} onPress={() => {
+                    triggerHaptic('selection');
+                    navigation.navigate('Empresas');
+                  }} />
+                  <Text variant="labelMedium" style={{ textAlign: 'center' }}>Empresas</Text>
+                </Surface>
+              )}
+              {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
+                <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
+                  <IconButton icon="account-group" size={32} iconColor={theme.colors.secondary} onPress={() => {
+                    triggerHaptic('selection');
+                    navigation.navigate('Empleados');
+                  }} />
+                  <Text variant="labelMedium" style={{ textAlign: 'center' }}>Empleados</Text>
+                </Surface>
+              )}
+            </View>
+          </View>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );

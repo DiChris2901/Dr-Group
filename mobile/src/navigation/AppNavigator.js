@@ -22,6 +22,10 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import EditProfileScreen from '../screens/settings/EditProfileScreen';
 import NotificationPreferencesScreen from '../screens/settings/NotificationPreferencesScreen';
 import AdminNotificationControlScreen from '../screens/admin/AdminNotificationControlScreen';
+import EmpresasScreen from '../screens/empresas/EmpresasScreen';
+import EmpresaDetailScreen from '../screens/empresas/EmpresaDetailScreen';
+import EmpleadosScreen from '../screens/empleados/EmpleadosScreen';
+import EmpleadoDetailScreen from '../screens/empleados/EmpleadoDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -65,6 +69,10 @@ function AppNavigator({ navigation }, ref) {
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
             <Stack.Screen name="AdminNotificationControl" component={AdminNotificationControlScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Empresas" component={EmpresasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="EmpresaDetail" component={EmpresaDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Empleados" component={EmpleadosScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="EmpleadoDetail" component={EmpleadoDetailScreen} options={{ headerShown: false }} />
           </>
         ) : (
           // Usuario no autenticado
