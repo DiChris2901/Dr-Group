@@ -747,6 +747,28 @@ const NewCommitmentPage = () => {
         return;
       }
 
+      // 🔒 Auditoría: registrar un log por cada compromiso que se eliminará
+      // (esto permite trazabilidad por ID específico, incluso en borrados masivos)
+      try {
+        for (const commitmentDoc of commitmentsSnapshot.docs) {
+          const commitmentData = commitmentDoc.data();
+          await logActivity('delete_commitment', 'commitment', commitmentDoc.id, {
+            phase: 'before_delete',
+            reason: 'delete_concept',
+            conceptDeleted: conceptToDelete,
+            companyId: commitmentData.companyId || null,
+            companyName: commitmentData.companyName || null,
+            beneficiary: commitmentData.beneficiary || null,
+            dueDate: commitmentData.dueDate || null,
+            status: commitmentData.status || null,
+            totalAmount: commitmentData.totalAmount || null,
+            periodicity: commitmentData.periodicity || null
+          });
+        }
+      } catch {
+        // No bloquear el borrado masivo si falla la auditoría
+      }
+
       // Eliminar compromisos en batch
       const batch = writeBatch(db);
       commitmentsSnapshot.forEach((doc) => {
@@ -754,6 +776,16 @@ const NewCommitmentPage = () => {
       });
 
       await batch.commit();
+
+      // 🔒 Auditoría: log resumen de borrado masivo por concepto
+      try {
+        await logActivity('bulk_delete_commitments_by_concept', 'commitments', `concept:${conceptToDelete}`, {
+          concept: conceptToDelete,
+          deletedCount: commitmentsSnapshot.size
+        });
+      } catch {
+        // No bloquear si falla la auditoría
+      }
 
       // Actualizar sugerencias localmente
       setConceptsSuggestions(prev => prev.filter(concept => concept !== conceptToDelete));

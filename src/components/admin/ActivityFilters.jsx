@@ -29,6 +29,13 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { motion } from 'framer-motion';
+import {
+  ACTION_CATALOG,
+  ENTITY_TYPE_CATALOG,
+  getActionLabel,
+  getEntityTypeLabel,
+  humanizeKey
+} from '../../utils/activityLogCatalog';
 
 /**
  * Componente de filtros para la página de auditoría
@@ -39,31 +46,44 @@ const ActivityFilters = ({ filters, onFiltersChange, onKeyPress }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const [users, setUsers] = useState([]);
 
-  // Opciones predefinidas para los filtros con iconos y colores
+  const parseLocalDate = (dateString, { endOfDay } = { endOfDay: false }) => {
+    if (!dateString) return null;
+    const [year, month, day] = String(dateString).split('-').map((p) => parseInt(p, 10));
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  };
+
+  const formatLocalDateInput = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const actionOptions = [
     { value: '', label: '📋 Todas las acciones', color: theme.palette.grey[600] },
-    { value: 'create_commitment', label: '➕ Crear Compromiso', color: theme.palette.success.main },
-    { value: 'update_commitment', label: '✏️ Editar Compromiso', color: theme.palette.warning.main },
-    { value: 'delete_commitment', label: '🗑️ Eliminar Compromiso', color: theme.palette.error.main },
-    { value: 'create_payment', label: '💰 Registrar Pago', color: theme.palette.success.main },
-    { value: 'update_payment', label: '💳 Editar Pago', color: theme.palette.warning.main },
-    { value: 'delete_payment', label: '❌ Eliminar Pago', color: theme.palette.error.main },
-    { value: 'view_report', label: '👁️ Ver Reporte', color: theme.palette.info.main },
-    { value: 'download_report', label: '📄 Descargar Reporte', color: theme.palette.info.main },
-    { value: 'export_data', label: '📊 Exportar Datos', color: theme.palette.secondary.main },
-    { value: 'login', label: '🔑 Iniciar Sesión', color: theme.palette.success.main },
-    { value: 'logout', label: '🚪 Cerrar Sesión', color: theme.palette.warning.main },
-    { value: 'profile_update', label: '👤 Actualizar Perfil', color: theme.palette.info.main }
+    ...ACTION_CATALOG.map((a) => ({
+      value: a.key,
+      label: getActionLabel(a.key),
+      color: a.key.includes('delete')
+        ? theme.palette.error.main
+        : a.key.includes('update')
+          ? theme.palette.warning.main
+          : a.key.includes('create')
+            ? theme.palette.success.main
+            : theme.palette.info.main
+    }))
   ];
 
   const entityTypeOptions = [
     { value: '', label: '🌐 Todas las entidades', color: theme.palette.grey[600] },
-    { value: 'commitment', label: '📝 Compromiso', color: theme.palette.primary.main },
-    { value: 'payment', label: '💸 Pago', color: theme.palette.success.main },
-    { value: 'report', label: '📈 Reporte', color: theme.palette.info.main },
-    { value: 'user', label: '👥 Usuario', color: theme.palette.secondary.main },
-    { value: 'auth', label: '🔐 Autenticación', color: theme.palette.warning.main },
-    { value: 'system', label: '⚙️ Sistema', color: theme.palette.error.main }
+    ...ENTITY_TYPE_CATALOG.map((e) => ({
+      value: e.key,
+      label: getEntityTypeLabel(e.key),
+      color: theme.palette.text.primary
+    }))
   ];
 
   const userRoleOptions = [
@@ -460,10 +480,9 @@ const ActivityFilters = ({ filters, onFiltersChange, onKeyPress }) => {
                 size="small"
                 type="date"
                 label="Fecha de Inicio"
-                value={localFilters.startDate ? 
-                  localFilters.startDate.toISOString().split('T')[0] : ''}
+                value={formatLocalDateInput(localFilters.startDate)}
                 onChange={(e) => {
-                  const date = e.target.value ? new Date(e.target.value) : null;
+                  const date = parseLocalDate(e.target.value, { endOfDay: false });
                   handleFilterChange('startDate', date);
                 }}
                 onKeyPress={onKeyPress}
@@ -521,10 +540,9 @@ const ActivityFilters = ({ filters, onFiltersChange, onKeyPress }) => {
                 size="small"
                 type="date"
                 label="Fecha de Fin"
-                value={localFilters.endDate ? 
-                  localFilters.endDate.toISOString().split('T')[0] : ''}
+                value={formatLocalDateInput(localFilters.endDate)}
                 onChange={(e) => {
-                  const date = e.target.value ? new Date(e.target.value) : null;
+                  const date = parseLocalDate(e.target.value, { endOfDay: true });
                   handleFilterChange('endDate', date);
                 }}
                 onKeyPress={onKeyPress}

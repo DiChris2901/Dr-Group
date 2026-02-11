@@ -12,6 +12,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Hook personalizado para manejo de logs de actividad
@@ -21,6 +22,22 @@ const useActivityLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { currentUser, userProfile } = useAuth();
+
+  const normalizeText = (value) => {
+    if (value == null) return '';
+    return String(value).trim().toLowerCase();
+  };
+
+  const toCanonicalKey = (value) => {
+    const text = normalizeText(value);
+    if (!text) return '';
+    return text
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
+  };
 
   /**
    * Registra una nueva actividad en el sistema
@@ -34,30 +51,32 @@ const useActivityLogs = () => {
    */
   const logActivity = async (action, entityType, entityId, details = {}, userId, userName, userEmail) => {
     try {
-      // ✅ Validación de parámetros críticos
-      if (!userId) {
-        console.warn('⚠️ userId es undefined, no se registrará el log de actividad');
-        return null;
-      }
+      const effectiveUserId = userId || currentUser?.uid;
+      if (!effectiveUserId) return null;
 
-      // 🐛 Debug: Verificar parámetros recibidos
-      console.log('🔍 Registrando actividad:', { 
-        action, 
-        entityType, 
-        entityId, 
-        userId: userId?.substring(0, 8) + '...', 
-        userName,
-        userEmail: userEmail?.substring(0, 5) + '***'
-      });
+      const effectiveUserName =
+        userName ||
+        userProfile?.name ||
+        userProfile?.displayName ||
+        currentUser?.displayName ||
+        currentUser?.email ||
+        'Usuario desconocido';
+
+      const effectiveUserEmail =
+        userEmail ||
+        currentUser?.email ||
+        userProfile?.email ||
+        'Sin email';
 
       const logData = {
         action,
         entityType,
         entityId,
         details,
-        userId,
-        userName: userName || 'Usuario desconocido',
-        userEmail: userEmail || 'Sin email',
+        userId: effectiveUserId,
+        userName: effectiveUserName,
+        userEmail: effectiveUserEmail,
+        userRole: userProfile?.role || null,
         timestamp: serverTimestamp(),
         createdAt: serverTimestamp(),
         // Metadatos adicionales
@@ -67,8 +86,6 @@ const useActivityLogs = () => {
       };
 
       const docRef = await addDoc(collection(db, 'activity_logs'), logData);
-      console.log('✅ Log de actividad registrado:', docRef.id);
-      
       return docRef.id;
     } catch (error) {
       console.error('❌ Error al registrar log de actividad:', error);
@@ -87,69 +104,55 @@ const useActivityLogs = () => {
     setError(null);
 
     try {
-      let logsData = [];
-      
-      if (filters.userId) {
-        // Obtener todos los logs del usuario (sin orderBy para evitar índice compuesto)
-        const userQuery = query(
-          collection(db, 'activity_logs'),
-          where('userId', '==', filters.userId),
-          limit(pageSize * 3) // Obtener más para compensar filtros adicionales
-        );
-        
-        const snapshot = await getDocs(userQuery);
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          logsData.push({
-            id: doc.id,
-            ...data,
-            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
-          });
-        });
-        
-        // Ordenar por timestamp en el cliente
-        logsData.sort((a, b) => b.timestamp - a.timestamp);
-        
-      } else {
-        // Sin filtro de usuario, solo orderBy timestamp
-        const generalQuery = query(
-          collection(db, 'activity_logs'),
-          orderBy('timestamp', 'desc'),
-          limit(pageSize * 2)
-        );
-        
-        const snapshot = await getDocs(generalQuery);
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          logsData.push({
-            id: doc.id,
-            ...data,
-            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
-          });
-        });
-      }
+      const constraints = [];
 
-      // Aplicar filtros adicionales en el cliente
-      if (filters.action) {
-        logsData = logsData.filter(log => log.action === filters.action);
-      }
-      
-      if (filters.entityType) {
-        logsData = logsData.filter(log => log.entityType === filters.entityType);
-      }
-
+      // ✅ Server-side: narrow by timestamp range (on-demand reads)
       if (filters.startDate) {
-        logsData = logsData.filter(log => log.timestamp >= filters.startDate);
-      }
-      
-      if (filters.endDate) {
-        logsData = logsData.filter(log => log.timestamp <= filters.endDate);
+        constraints.push(where('timestamp', '>=', Timestamp.fromDate(filters.startDate)));
       }
 
-      // Limitar a la cantidad solicitada
-      logsData = logsData.slice(0, pageSize);
+      if (filters.endDate) {
+        constraints.push(where('timestamp', '<=', Timestamp.fromDate(filters.endDate)));
+      }
+
+      // Always sort by timestamp for a stable result set
+      constraints.push(orderBy('timestamp', 'desc'));
+      constraints.push(limit(pageSize));
+
+      const q = query(collection(db, 'activity_logs'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      let logsData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        logsData.push({
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+        });
+      });
+
+      // ✅ Client-side: apply the rest of filters without fetching historical data
+      if (filters.userId) {
+        const targetUserId = String(filters.userId).trim();
+        logsData = logsData.filter((log) => String(log.userId || '').trim() === targetUserId);
+      }
+
+      if (filters.userRole) {
+        const targetUserRole = toCanonicalKey(filters.userRole);
+        logsData = logsData.filter((log) => toCanonicalKey(log.userRole) === targetUserRole);
+      }
+
+      if (filters.action) {
+        const targetAction = toCanonicalKey(filters.action);
+        logsData = logsData.filter((log) => toCanonicalKey(log.action) === targetAction);
+      }
+
+      if (filters.entityType) {
+        const targetEntityType = toCanonicalKey(filters.entityType);
+        logsData = logsData.filter((log) => toCanonicalKey(log.entityType) === targetEntityType);
+      }
 
       setLogs(logsData);
       return logsData;

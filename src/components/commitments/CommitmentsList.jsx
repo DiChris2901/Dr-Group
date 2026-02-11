@@ -44,6 +44,7 @@ import { useAuth } from '../../context/AuthContext';
 import { isAdminUser } from '../../utils/permissions';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
+import useActivityLogs from '../../hooks/useActivityLogs';
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import { useCommitmentCompleteStatus } from '../../hooks/useCommitmentPaymentStatus';
@@ -322,6 +323,7 @@ const CommitmentsList = ({
   }, [shouldLoadData]);
   // Context & hooks
   const { currentUser, userProfile } = useAuth();
+  const { logActivity } = useActivityLogs();
   const isAdmin = useMemo(() => isAdminUser(currentUser, userProfile), [currentUser, userProfile]);
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
@@ -444,6 +446,7 @@ const CommitmentsList = ({
   const [documentInfoOpen, setDocumentInfoOpen] = useState(false);
   const [jumpToPage, setJumpToPage] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeletingCommitment, setIsDeletingCommitment] = useState(false);
 
   // Eliminados en esta versión: visor de comprobantes de pago y estados relacionados
 
@@ -538,7 +541,9 @@ const CommitmentsList = ({
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.observations && commitment.observations.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.notes && commitment.notes.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
           );
         }
 
@@ -691,7 +696,9 @@ const CommitmentsList = ({
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.observations && commitment.observations.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.notes && commitment.notes.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
         );
       }
 
@@ -908,7 +915,9 @@ const CommitmentsList = ({
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.observations && commitment.observations.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.notes && commitment.notes.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
         );
       }
 
@@ -1562,6 +1571,9 @@ const CommitmentsList = ({
   const confirmDelete = async () => {
     if (!commitmentToDelete) return;
 
+    // Evitar dobles clicks / doble ejecución
+    if (isDeletingCommitment) return;
+
     // ✅ VALIDACIÓN CRÍTICA: Verificar que el compromiso tenga ID
     if (!commitmentToDelete.id) {
       console.error('❌ ERROR CRÍTICO: Compromiso sin ID', commitmentToDelete);
@@ -1576,10 +1588,29 @@ const CommitmentsList = ({
       return;
     }
 
+    setIsDeletingCommitment(true);
+
     console.group(`🗑️ ELIMINANDO COMPROMISO: ${commitmentToDelete.concept || commitmentToDelete.description || commitmentToDelete.id}`);
     console.log('🔑 ID del compromiso:', commitmentToDelete.id);
     
     try {
+      // 🔒 Auditoría: registrar intento de eliminación ANTES de borrar
+      try {
+        await logActivity('delete_commitment', 'commitment', commitmentToDelete.id, {
+          phase: 'before_delete',
+          concept: commitmentToDelete.concept || commitmentToDelete.description || null,
+          companyId: commitmentToDelete.companyId || null,
+          companyName: commitmentToDelete.companyName || null,
+          beneficiary: commitmentToDelete.beneficiary || null,
+          dueDate: commitmentToDelete.dueDate || null,
+          status: commitmentToDelete.status || null,
+          totalAmount: commitmentToDelete.totalAmount || null,
+          periodicity: commitmentToDelete.periodicity || null
+        });
+      } catch {
+        // No bloquear el borrado si el log falla
+      }
+
       // 1. Análisis previo de archivos
       const filesToDelete = [];
       
@@ -1921,6 +1952,27 @@ const CommitmentsList = ({
       console.log('🗑️ Eliminando documento de Firestore...');
       await deleteDoc(docRef);
       // console.log('✅ Documento eliminado de Firestore exitosamente');
+
+      // 🔒 Auditoría: registrar eliminación confirmada
+      try {
+        await logActivity('delete_commitment', 'commitment', commitmentToDelete.id, {
+          phase: 'after_delete',
+          concept: commitmentToDelete.concept || commitmentToDelete.description || null,
+          companyId: commitmentToDelete.companyId || null,
+          companyName: commitmentToDelete.companyName || null,
+          beneficiary: commitmentToDelete.beneficiary || null,
+          dueDate: commitmentToDelete.dueDate || null,
+          status: commitmentToDelete.status || null,
+          totalAmount: commitmentToDelete.totalAmount || null,
+          periodicity: commitmentToDelete.periodicity || null,
+          deletedFilesCount: deletedFiles.length,
+          failedFilesCount: failedFiles.length,
+          deletedPaymentsCount: deletedPayments,
+          failedPaymentDeletionsCount: failedPaymentDeletions
+        });
+      } catch {
+        // No bloquear el flujo si el log falla
+      }
       
       // 4. Actualizar estado local
       // console.log(`🔄 Actualizando estado local: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
@@ -2001,6 +2053,8 @@ const CommitmentsList = ({
       // Cerrar el diálogo incluso si hubo error
       setDeleteDialogOpen(false);
       setCommitmentToDelete(null);
+    } finally {
+      setIsDeletingCommitment(false);
     }
   };
 
@@ -3973,6 +4027,7 @@ const CommitmentsList = ({
         commitment={commitmentToDelete}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
+        isDeleting={isDeletingCommitment}
       />
 
       {/* Paginación Sobria - Diseño Empresarial */}
@@ -4355,7 +4410,7 @@ const CommitmentsList = ({
 };
 
 // Componente para Confirmar Eliminación
-const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
+const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel, isDeleting = false }) => {
   const theme = useTheme();
   
   if (!commitment) return null;
@@ -4363,7 +4418,7 @@ const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
   return (
     <Dialog 
       open={open} 
-      onClose={onCancel}
+      onClose={isDeleting ? undefined : onCancel}
       maxWidth="sm"
       PaperProps={{
         sx: {
@@ -4396,6 +4451,7 @@ const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
         <Button 
           onClick={onCancel} 
           variant="outlined"
+          disabled={isDeleting}
           sx={{ borderRadius: 2 }}
         >
           Cancelar
@@ -4404,9 +4460,10 @@ const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
           onClick={onConfirm} 
           variant="contained" 
           color="error"
+          disabled={isDeleting}
           sx={{ borderRadius: 2 }}
         >
-          Eliminar
+          {isDeleting ? 'Eliminando…' : 'Eliminar'}
         </Button>
       </DialogActions>
     </Dialog>

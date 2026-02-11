@@ -40,6 +40,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import { getActionLabel, getEntityTypeLabel, humanizeKey } from '../../utils/activityLogCatalog';
 
 /**
  * Tabla de logs de actividad con diseño sobrio y profesional
@@ -94,24 +95,7 @@ const ActivityLogTable = ({ logs, loading }) => {
     return 'default';
   };
 
-  // Función para formatear el tipo de acción para mostrar
-  const formatAction = (action) => {
-    const actionMap = {
-      'create_commitment': 'Crear Compromiso',
-      'update_commitment': 'Editar Compromiso',
-      'delete_commitment': 'Eliminar Compromiso',
-      'create_payment': 'Registrar Pago',
-      'update_payment': 'Editar Pago',
-      'delete_payment': 'Eliminar Pago',
-      'view_report': 'Ver Reporte',
-      'download_report': 'Descargar Reporte',
-      'export_data': 'Exportar Datos',
-      'login': 'Iniciar Sesión',
-      'logout': 'Cerrar Sesión',
-      'profile_update': 'Actualizar Perfil'
-    };
-    return actionMap[action] || action.replace('_', ' ').toUpperCase();
-  };
+  const formatAction = (action) => getActionLabel(action);
 
   // Función para obtener color del rol
   const getRoleColor = (role) => {
@@ -131,7 +115,7 @@ const ActivityLogTable = ({ logs, loading }) => {
       'user': 'Usuario',
       'viewer': 'Solo Lectura'
     };
-    return roleMap[role] || role;
+    return roleMap[String(role || '').toLowerCase()] || humanizeKey(role);
   };
 
   if (loading) {
@@ -252,7 +236,7 @@ const ActivityLogTable = ({ logs, loading }) => {
                   {/* Tipo de entidad */}
                   <TableCell>
                     <Chip
-                      label={log.entityType?.toUpperCase() || 'N/A'}
+                      label={getEntityTypeLabel(log.entityType)}
                       color="default"
                       size="small"
                       variant="filled"

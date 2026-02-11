@@ -12,13 +12,13 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // Eliminada animación de entrada (se removió framer-motion para el header)
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
+import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';

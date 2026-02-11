@@ -15,8 +15,7 @@ import {
   Stack,
   Divider,
   Button,
-  alpha,
-  TablePagination
+  alpha
 } from '@mui/material';
 import {
   Security,
@@ -80,10 +79,6 @@ const ActivityLogsPage = () => {
   const [stats, setStats] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'stats'
-  
-  // Estados para paginación
-  const [page, setPage] = useState(0);
-  const [rowsPerPage] = useState(10);
   
   // Estados para Fase 2
   const [showCharts, setShowCharts] = useState(false);
@@ -166,23 +161,15 @@ const ActivityLogsPage = () => {
     if (!hasAdminAccess) return;
     
     setAppliedFilters({ ...filters });
-    setPage(0); // Resetear paginación
     
     // Cargar logs con filtros aplicados
     await loadActivityLogs();
-    
-    // Si hay filtros, suscribirse a tiempo real
-    if (Object.values(filters).some(v => v !== '' && v !== null)) {
-      const unsubscribe = subscribeToRecentLogs(filters, 100);
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
-    }
   };
 
   // Función para limpiar filtros
   const handleClearFilters = () => {
     setFilters({
+      userId: '',
       action: '',
       entityType: '',
       startDate: null,
@@ -190,7 +177,6 @@ const ActivityLogsPage = () => {
       userRole: ''
     });
     setAppliedFilters(null);
-    setPage(0);
   };
 
   // Función para manejar Enter en los filtros
@@ -198,11 +184,6 @@ const ActivityLogsPage = () => {
     if (event.key === 'Enter') {
       handleApplyFilters();
     }
-  };
-
-  // Función para cambio de página
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
   };
 
   const loadActivityLogs = async (customFilters = filters) => {
@@ -229,7 +210,6 @@ const ActivityLogsPage = () => {
 
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
-    loadActivityLogs(newFilters);
   };
 
   const handleRefreshData = async () => {
@@ -651,30 +631,9 @@ const ActivityLogsPage = () => {
               // Tabla con paginación cuando hay filtros aplicados
               <>
                 <ActivityLogTable 
-                  logs={logs.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)}
+                  logs={logs}
                   loading={loading}
                 />
-                
-                {/* Paginación */}
-                {logs.length > 0 && (
-                  <TablePagination
-                    component="div"
-                    count={logs.length}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    rowsPerPageOptions={[10]}
-                    labelDisplayedRows={({ from, to, count }) => 
-                      `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
-                    }
-                    labelRowsPerPage="Registros por página:"
-                    sx={{
-                      mt: 2,
-                      borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      pt: 2
-                    }}
-                  />
-                )}
               </>
             )}
           </CardContent>
