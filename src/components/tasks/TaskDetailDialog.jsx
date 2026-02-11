@@ -46,15 +46,23 @@ import DocumentPreviewModal from '../common/DocumentPreviewModal';
  */
 const TaskDetailDialog = ({ open, onClose, task }) => {
   const theme = useTheme();
-  const [empresaData, setEmpresaData] = useState(null);
+  const [empresasData, setEmpresasData] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  // La empresa ya viene completa con logo desde Firestore
+  // Normalizar empresas a array (soporta empresa única o múltiple)
   useEffect(() => {
     if (task?.empresa) {
-      setEmpresaData(task.empresa);
+      if (Array.isArray(task.empresa)) {
+        // Ya es un array de empresas
+        setEmpresasData(task.empresa);
+      } else if (typeof task.empresa === 'object' && task.empresa !== null) {
+        // Es un objeto único, convertir a array
+        setEmpresasData([task.empresa]);
+      } else {
+        setEmpresasData([]);
+      }
     } else {
-      setEmpresaData(null);
+      setEmpresasData([]);
     }
   }, [task]);
 
@@ -390,8 +398,8 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                 </Typography>
               </Grid>
 
-              {/* Empresa */}
-              <Grid item xs={12} sm={4}>
+              {/* Empresas (una o múltiples) */}
+              <Grid item xs={12} sm={empresasData.length > 1 ? 12 : 4}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                   <Typography 
@@ -403,29 +411,71 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
                       color: 'text.secondary'
                     }}
                   >
-                    Empresa
+                    {empresasData.length > 1 ? 'Empresas' : 'Empresa'}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {empresaData?.logoURL ? (
-                    <Avatar
-                      src={empresaData.logoURL}
-                      alt={empresaData.nombre}
-                      sx={{ 
-                        width: 20, 
-                        height: 20,
-                        '& img': {
-                          objectFit: 'contain'
+                {empresasData.length === 0 ? (
+                  <Typography variant="body2" fontWeight={500} color="text.secondary">
+                    Sin empresa
+                  </Typography>
+                ) : empresasData.length === 1 ? (
+                  // Una sola empresa (diseño compacto)
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {empresasData[0]?.logoURL ? (
+                      <Avatar
+                        src={empresasData[0].logoURL}
+                        alt={empresasData[0].nombre}
+                        sx={{ 
+                          width: 20, 
+                          height: 20,
+                          '& img': {
+                            objectFit: 'contain'
+                          }
+                        }}
+                      />
+                    ) : (
+                      <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                    )}
+                    <Typography variant="body2" fontWeight={500}>
+                      {empresasData[0]?.nombre || 'Sin nombre'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  // Múltiples empresas (lista con chips)
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                    {empresasData.map((empresa, index) => (
+                      <Chip
+                        key={index}
+                        avatar={
+                          empresa?.logoURL ? (
+                            <Avatar 
+                              src={empresa.logoURL} 
+                              alt={empresa.nombre}
+                              sx={{ 
+                                '& img': {
+                                  objectFit: 'contain'
+                                }
+                              }}
+                            />
+                          ) : undefined
                         }
-                      }}
-                    />
-                  ) : (
-                    <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  )}
-                  <Typography variant="body2" fontWeight={500}>
-                    {empresaData?.nombre || 'Sin empresa'}
-                  </Typography>
-                </Box>
+                        label={empresa?.nombre || 'Sin nombre'}
+                        size="small"
+                        sx={{ 
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          color: 'text.primary',
+                          fontWeight: 500,
+                          borderRadius: 1,
+                          height: 28,
+                          '& .MuiChip-avatar': {
+                            width: 20,
+                            height: 20
+                          }
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
               </Grid>
             </Grid>
           </Paper>
@@ -514,6 +564,140 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
               </Typography>
             </Paper>
           </Box>
+
+        {/* Resultado de Revisión (Aprobación/Rechazo) */}
+        {(() => {
+          // Buscar el último estado con información de aprobación
+          const estadoConAprobacion = task.historialEstados?.slice().reverse().find(estado => estado.aprobacion);
+          
+          if (estadoConAprobacion && estadoConAprobacion.aprobacion) {
+            const aprobacion = estadoConAprobacion.aprobacion;
+            const aprobado = aprobacion.aprobado;
+            const comentario = estadoConAprobacion.comentario || '';
+            
+            // Extraer solo el comentario del revisor (remover prefijo "Aprobado:" o "Rechazado:")
+            const motivoLimpio = comentario.replace(/^(Aprobado|Rechazado):\s*/i, '');
+
+            return (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(aprobado ? theme.palette.success.main : theme.palette.error.main, 0.3)}`,
+                  bgcolor: alpha(aprobado ? theme.palette.success.main : theme.palette.error.main, 0.06),
+                  mb: 3
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <CheckCircleIcon sx={{ 
+                    fontSize: 24, 
+                    color: aprobado ? 'success.main' : 'error.main' 
+                  }} />
+                  <Typography 
+                    variant="h6" 
+                    fontWeight={700}
+                    sx={{ color: aprobado ? 'success.main' : 'error.main' }}
+                  >
+                    {aprobado ? 'Tarea Aprobada' : 'Tarea Rechazada'}
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ mb: 2, borderColor: alpha(aprobado ? theme.palette.success.main : theme.palette.error.main, 0.2) }} />
+
+                <Grid container spacing={2}>
+                  {/* Motivo/Comentario del Revisor */}
+                  <Grid item xs={12}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                        display: 'block',
+                        mb: 1
+                      }}
+                    >
+                      {aprobado ? 'Comentarios de Aprobación' : 'Motivo de Rechazo'}
+                    </Typography>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 1,
+                        bgcolor: alpha(theme.palette.background.paper, 0.8),
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                      }}
+                    >
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: 'text.primary',
+                          fontWeight: 500,
+                          lineHeight: 1.6,
+                          fontStyle: motivoLimpio ? 'normal' : 'italic'
+                        }}
+                      >
+                        {motivoLimpio || (aprobado ? 'Sin comentarios adicionales' : 'Sin motivo especificado')}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+
+                  {/* Fecha de Revisión */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                        display: 'block',
+                        mb: 0.5
+                      }}
+                    >
+                      Fecha de Revisión
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {aprobacion.fecha?.toDate ? format(aprobacion.fecha.toDate(), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es }) : 'No disponible'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Próximos Pasos (Solo si fue rechazada) */}
+                  {!aprobado && (
+                    <Grid item xs={12}>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 1,
+                          bgcolor: alpha(theme.palette.warning.main, 0.08),
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <AssignmentIcon sx={{ fontSize: 18, color: 'warning.main' }} />
+                          <Typography 
+                            variant="caption" 
+                            fontWeight={600}
+                            sx={{ color: 'warning.main', textTransform: 'uppercase', letterSpacing: 0.5 }}
+                          >
+                            Próximos Pasos
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+                          Revisa el motivo de rechazo y realiza las correcciones necesarias. Puedes volver a enviar la tarea a revisión cuando esté lista.
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            );
+          }
+          return null;
+        })()}
 
         {/* Adjunto */}
         {task.adjunto && (
