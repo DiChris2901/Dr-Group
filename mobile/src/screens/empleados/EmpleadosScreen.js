@@ -25,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { useEmpleados } from '../../hooks/useEmpleados';
 import { LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
+import { useTheme as useAppTheme } from '../../contexts/ThemeContext';
 
 /**
  * EmpleadosScreen - Directorio de empleados
@@ -34,8 +35,39 @@ import materialTheme from '../../../material-theme.json';
 export default function EmpleadosScreen() {
   const navigation = useNavigation();
   const theme = useTheme();
-  const isDark = theme.dark;
-  const scheme = isDark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+  const { isDarkMode } = useAppTheme();
+
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      onTertiary: scheme.onTertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const {
     filteredEmpleados,
@@ -64,10 +96,10 @@ export default function EmpleadosScreen() {
   // Sin permiso
   if (!hasPermission) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTop}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Material You Expressive */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <IconButton
               icon="arrow-left"
               size={24}
@@ -75,33 +107,45 @@ export default function EmpleadosScreen() {
                 Haptics.selectionAsync();
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
+            <View style={{ flexDirection: 'row' }}>
+              <IconButton
+                icon="account-multiple-outline"
+                mode="contained-tonal"
+                size={20}
+                style={{ backgroundColor: surfaceColors.primaryContainer }}
+                iconColor={surfaceColors.onPrimaryContainer}
+              />
+            </View>
           </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
+          <View style={{ paddingHorizontal: 4 }}>
+            <PaperText style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 57,
+              lineHeight: 64,
+              fontWeight: '400', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
               Empleados
             </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            <PaperText style={{ 
+              fontSize: 16,
+              color: surfaceColors.onSurfaceVariant, 
+              marginTop: 4
+            }}>
               Directorio de Personal
             </PaperText>
           </View>
         </View>
         <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="lock-outline" size={64} color={scheme.outline} />
-          <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: scheme.onSurface }]}>
+          <MaterialCommunityIcons name="lock-outline" size={64} color={surfaceColors.outline} />
+          <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: surfaceColors.onSurface }]}>
             Acceso Restringido
           </PaperText>
-          <PaperText variant="bodyMedium" style={[styles.deniedMessage, { color: scheme.onSurfaceVariant }]}>
+          <PaperText variant="bodyMedium" style={[styles.deniedMessage, { color: surfaceColors.onSurfaceVariant }]}>
             No tienes permiso para ver el directorio de empleados. Contacta a tu administrador.
           </PaperText>
         </View>
@@ -112,10 +156,10 @@ export default function EmpleadosScreen() {
   // Loading
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTop}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Material You Expressive */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <IconButton
               icon="arrow-left"
               size={24}
@@ -123,23 +167,35 @@ export default function EmpleadosScreen() {
                 Haptics.selectionAsync();
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
+            <View style={{ flexDirection: 'row' }}>
+              <IconButton
+                icon="account-multiple-outline"
+                mode="contained-tonal"
+                size={20}
+                style={{ backgroundColor: surfaceColors.primaryContainer }}
+                iconColor={surfaceColors.onPrimaryContainer}
+              />
+            </View>
           </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
+          <View style={{ paddingHorizontal: 4 }}>
+            <PaperText style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 57,
+              lineHeight: 64,
+              fontWeight: '400', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
               Empleados
             </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            <PaperText style={{ 
+              fontSize: 16,
+              color: surfaceColors.onSurfaceVariant, 
+              marginTop: 4
+            }}>
               Directorio de Personal
             </PaperText>
           </View>
@@ -168,12 +224,12 @@ export default function EmpleadosScreen() {
     return (
       <Pressable
         onPress={() => handlePressEmpleado(item)}
-        android_ripple={{ color: scheme.primary + '1F' }}
+        android_ripple={{ color: surfaceColors.primary + '1F' }}
         style={({ pressed }) => [
           styles.empleadoCard,
           {
-            backgroundColor: scheme.surfaceContainerLow,
-            borderColor: isRetirado ? scheme.error + '40' : scheme.outlineVariant,
+            backgroundColor: surfaceColors.surfaceContainerLow,
+            borderColor: isRetirado ? surfaceColors.error + '40' : surfaceColors.outlineVariant,
             transform: [{ scale: pressed ? 0.98 : 1 }],
             opacity: isRetirado ? 0.7 : 1,
           },
@@ -184,10 +240,10 @@ export default function EmpleadosScreen() {
           size={48}
           label={getInitials(item.nombres, item.apellidos)}
           style={{
-            backgroundColor: isRetirado ? scheme.errorContainer : scheme.primaryContainer,
+            backgroundColor: isRetirado ? surfaceColors.errorContainer : surfaceColors.primaryContainer,
           }}
           labelStyle={{
-            color: isRetirado ? scheme.onErrorContainer : scheme.onPrimaryContainer,
+            color: isRetirado ? surfaceColors.onErrorContainer : surfaceColors.onPrimaryContainer,
             fontWeight: '600',
           }}
         />
@@ -197,7 +253,7 @@ export default function EmpleadosScreen() {
           <PaperText
             variant="titleMedium"
             numberOfLines={1}
-            style={{ color: scheme.onSurface, fontWeight: '600' }}
+            style={{ color: surfaceColors.onSurface, fontWeight: '600' }}
           >
             {item.apellidos || ''} {item.nombres || ''}
           </PaperText>
@@ -205,7 +261,7 @@ export default function EmpleadosScreen() {
           <PaperText
             variant="bodySmall"
             numberOfLines={1}
-            style={{ color: scheme.onSurfaceVariant, marginTop: 2 }}
+            style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}
           >
             {item.tipoDocumento || 'CC'}: {item.numeroDocumento || 'No registrado'}
           </PaperText>
@@ -215,7 +271,7 @@ export default function EmpleadosScreen() {
               icon="domain"
               compact
               textStyle={styles.chipText}
-              style={[styles.chip, { backgroundColor: scheme.surfaceContainer }]}
+              style={[styles.chip, { backgroundColor: surfaceColors.surfaceContainer }]}
             >
               {companyName}
             </Chip>
@@ -223,8 +279,8 @@ export default function EmpleadosScreen() {
               <Chip
                 icon="account-off"
                 compact
-                textStyle={[styles.chipText, { color: scheme.error }]}
-                style={[styles.chip, { backgroundColor: scheme.errorContainer }]}
+                textStyle={[styles.chipText, { color: surfaceColors.error }]}
+                style={[styles.chip, { backgroundColor: surfaceColors.errorContainer }]}
               >
                 Retirado
               </Chip>
@@ -236,17 +292,17 @@ export default function EmpleadosScreen() {
         <MaterialCommunityIcons
           name="chevron-right"
           size={24}
-          color={scheme.outline}
+          color={surfaceColors.outline}
         />
       </Pressable>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header Expresivo */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTop}>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <IconButton
             icon="arrow-left"
             size={24}
@@ -254,39 +310,42 @@ export default function EmpleadosScreen() {
               Haptics.selectionAsync();
               navigation.goBack();
             }}
-            iconColor={scheme.onSurface}
+            iconColor={surfaceColors.onSurface}
           />
-          <View style={styles.actionButtons}>
+          <View style={{ flexDirection: 'row' }}>
             <IconButton
-              icon="account-multiple"
+              icon="account-multiple-outline"
               mode="contained-tonal"
               size={20}
               onPress={() => {
                 Haptics.selectionAsync();
                 // Navegar a resumen de empleados o acción futura
               }}
-              iconColor={scheme.primary}
               style={{
-                backgroundColor: scheme.primaryContainer,
+                backgroundColor: surfaceColors.primaryContainer,
                 marginLeft: 8,
               }}
+              iconColor={surfaceColors.onPrimaryContainer}
             />
           </View>
         </View>
-        <View style={styles.headerContent}>
-          <PaperText
-            variant="displaySmall"
-            style={{
-              fontWeight: '400',
-              color: scheme.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4,
-            }}
-          >
+        <View style={{ paddingHorizontal: 4 }}>
+          <PaperText style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
             Empleados
           </PaperText>
-          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+          <PaperText style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
             {filteredCount} en el directorio
           </PaperText>
         </View>
@@ -299,21 +358,21 @@ export default function EmpleadosScreen() {
             Haptics.selectionAsync();
             setFilterEstado('activos');
           }}
-          android_ripple={{ color: scheme.primary + '1F' }}
+          android_ripple={{ color: surfaceColors.primary + '1F' }}
           style={({ pressed }) => [
             styles.statChip,
             {
-              backgroundColor: scheme.primaryContainer,
+              backgroundColor: surfaceColors.primaryContainer,
               transform: [{ scale: pressed ? 0.95 : 1 }],
               borderWidth: filterEstado === 'activos' ? 3 : 0,
-              borderColor: scheme.primary,
+              borderColor: surfaceColors.primary,
             },
           ]}
         >
-          <PaperText variant="titleMedium" style={{ color: scheme.onPrimaryContainer, fontWeight: '700' }}>
+          <PaperText variant="titleMedium" style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '700' }}>
             {stats.activos}
           </PaperText>
-          <PaperText variant="labelSmall" style={{ color: scheme.onPrimaryContainer }}>
+          <PaperText variant="labelSmall" style={{ color: surfaceColors.onPrimaryContainer }}>
             Activos
           </PaperText>
         </Pressable>
@@ -322,21 +381,21 @@ export default function EmpleadosScreen() {
             Haptics.selectionAsync();
             setFilterEstado('retirados');
           }}
-          android_ripple={{ color: scheme.error + '1F' }}
+          android_ripple={{ color: surfaceColors.error + '1F' }}
           style={({ pressed }) => [
             styles.statChip,
             {
-              backgroundColor: scheme.errorContainer,
+              backgroundColor: surfaceColors.errorContainer,
               transform: [{ scale: pressed ? 0.95 : 1 }],
               borderWidth: filterEstado === 'retirados' ? 3 : 0,
-              borderColor: scheme.error,
+              borderColor: surfaceColors.error,
             },
           ]}
         >
-          <PaperText variant="titleMedium" style={{ color: scheme.onErrorContainer, fontWeight: '700' }}>
+          <PaperText variant="titleMedium" style={{ color: surfaceColors.onErrorContainer, fontWeight: '700' }}>
             {stats.retirados}
           </PaperText>
-          <PaperText variant="labelSmall" style={{ color: scheme.onErrorContainer }}>
+          <PaperText variant="labelSmall" style={{ color: surfaceColors.onErrorContainer }}>
             Retirados
           </PaperText>
         </Pressable>
@@ -345,21 +404,21 @@ export default function EmpleadosScreen() {
             Haptics.selectionAsync();
             setFilterEstado('todos');
           }}
-          android_ripple={{ color: scheme.primary + '1F' }}
+          android_ripple={{ color: surfaceColors.primary + '1F' }}
           style={({ pressed }) => [
             styles.statChip,
             {
-              backgroundColor: scheme.surfaceContainerHigh,
+              backgroundColor: surfaceColors.surfaceContainerHigh,
               transform: [{ scale: pressed ? 0.95 : 1 }],
               borderWidth: filterEstado === 'todos' ? 3 : 0,
-              borderColor: scheme.outline,
+              borderColor: surfaceColors.outline,
             },
           ]}
         >
-          <PaperText variant="titleMedium" style={{ color: scheme.onSurface, fontWeight: '700' }}>
+          <PaperText variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '700' }}>
             {stats.total}
           </PaperText>
-          <PaperText variant="labelSmall" style={{ color: scheme.onSurfaceVariant }}>
+          <PaperText variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant }}>
             Total
           </PaperText>
         </Pressable>
@@ -371,7 +430,7 @@ export default function EmpleadosScreen() {
           placeholder="Buscar por nombre, documento, email..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          style={[styles.searchbar, { backgroundColor: scheme.surfaceContainerHigh }]}
+          style={[styles.searchbar, { backgroundColor: surfaceColors.surfaceContainerHigh }]}
           inputStyle={{ fontSize: 14 }}
           elevation={0}
         />
@@ -389,8 +448,8 @@ export default function EmpleadosScreen() {
             Haptics.selectionAsync();
             setEmpresaModalVisible(true);
           }}
-          style={[styles.filterChip, { backgroundColor: filterEmpresa !== 'all' ? scheme.secondaryContainer : scheme.surfaceContainerHigh }]}
-          textStyle={{ fontSize: 12, color: filterEmpresa !== 'all' ? scheme.onSecondaryContainer : scheme.onSurfaceVariant }}
+          style={[styles.filterChip, { backgroundColor: filterEmpresa !== 'all' ? surfaceColors.secondaryContainer : surfaceColors.surfaceContainerHigh }]}
+          textStyle={{ fontSize: 12, color: filterEmpresa !== 'all' ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant }}
         >
           {filterEmpresa === 'all' ? 'Filtrar Empresa' : getCompanyName(filterEmpresa)}
         </Chip>
@@ -398,7 +457,7 @@ export default function EmpleadosScreen() {
         {/* Resultado count */}
         <PaperText
           variant="labelSmall"
-          style={[styles.resultCount, { color: scheme.onSurfaceVariant }]}
+          style={[styles.resultCount, { color: surfaceColors.onSurfaceVariant }]}
         >
           {filteredCount} resultados
         </PaperText>
@@ -416,22 +475,22 @@ export default function EmpleadosScreen() {
           onPress={() => setEmpresaModalVisible(false)}
         >
           <Pressable
-            style={[styles.modalContent, { backgroundColor: scheme.surfaceContainerHigh }]}
+            style={[styles.modalContent, { backgroundColor: surfaceColors.surfaceContainerHigh }]}
             onPress={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <View style={styles.modalHeader}>
-              <PaperText variant="titleLarge" style={{ color: scheme.onSurface, fontWeight: '600' }}>
+              <PaperText variant="titleLarge" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
                 Filtrar por Empresa
               </PaperText>
               <IconButton
                 icon="close"
                 size={24}
                 onPress={() => setEmpresaModalVisible(false)}
-                iconColor={scheme.onSurfaceVariant}
+                iconColor={surfaceColors.onSurfaceVariant}
               />
             </View>
-            <Divider style={{ backgroundColor: scheme.outlineVariant }} />
+            <Divider style={{ backgroundColor: surfaceColors.outlineVariant }} />
 
             {/* Lista de empresas */}
             <ScrollView style={styles.modalList}>
@@ -442,20 +501,20 @@ export default function EmpleadosScreen() {
                   setFilterEmpresa('all');
                   setEmpresaModalVisible(false);
                 }}
-                android_ripple={{ color: scheme.primary + '1F' }}
+                android_ripple={{ color: surfaceColors.primary + '1F' }}
                 style={[styles.modalItem, {
-                  backgroundColor: filterEmpresa === 'all' ? scheme.primaryContainer : 'transparent'
+                  backgroundColor: filterEmpresa === 'all' ? surfaceColors.primaryContainer : 'transparent'
                 }]}
               >
                 <MaterialCommunityIcons
                   name={filterEmpresa === 'all' ? 'check-circle' : 'circle-outline'}
                   size={24}
-                  color={filterEmpresa === 'all' ? scheme.primary : scheme.outline}
+                  color={filterEmpresa === 'all' ? surfaceColors.primary : surfaceColors.outline}
                 />
                 <PaperText
                   variant="bodyLarge"
                   style={{
-                    color: filterEmpresa === 'all' ? scheme.onPrimaryContainer : scheme.onSurface,
+                    color: filterEmpresa === 'all' ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
                     fontWeight: filterEmpresa === 'all' ? '600' : '400',
                     flex: 1,
                   }}
@@ -473,20 +532,20 @@ export default function EmpleadosScreen() {
                     setFilterEmpresa(company.id);
                     setEmpresaModalVisible(false);
                   }}
-                  android_ripple={{ color: scheme.primary + '1F' }}
+                  android_ripple={{ color: surfaceColors.primary + '1F' }}
                   style={[styles.modalItem, {
-                    backgroundColor: filterEmpresa === company.id ? scheme.primaryContainer : 'transparent'
+                    backgroundColor: filterEmpresa === company.id ? surfaceColors.primaryContainer : 'transparent'
                   }]}
                 >
                   <MaterialCommunityIcons
                     name={filterEmpresa === company.id ? 'check-circle' : 'circle-outline'}
                     size={24}
-                    color={filterEmpresa === company.id ? scheme.primary : scheme.outline}
+                    color={filterEmpresa === company.id ? surfaceColors.primary : surfaceColors.outline}
                   />
                   <PaperText
                     variant="bodyLarge"
                     style={{
-                      color: filterEmpresa === company.id ? scheme.onPrimaryContainer : scheme.onSurface,
+                      color: filterEmpresa === company.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
                       fontWeight: filterEmpresa === company.id ? '600' : '400',
                       flex: 1,
                     }}
@@ -510,22 +569,22 @@ export default function EmpleadosScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
             <View style={styles.emptyStateContainer}>
-              <View style={[styles.emptyStateCircle, { backgroundColor: scheme.surfaceContainerHigh }]}>
+              <View style={[styles.emptyStateCircle, { backgroundColor: surfaceColors.surfaceContainerHigh }]}>
                 <MaterialCommunityIcons
                   name={searchQuery || filterEmpresa !== 'all' ? 'account-search' : 'account-group'}
                   size={64}
-                  color={scheme.primary}
+                  color={surfaceColors.primary}
                 />
               </View>
               <PaperText
                 variant="headlineSmall"
-                style={{ color: scheme.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
+                style={{ color: surfaceColors.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
               >
                 {searchQuery || filterEmpresa !== 'all' ? 'Sin resultados' : 'Directorio vacío'}
               </PaperText>
               <PaperText
                 variant="bodyLarge"
-                style={{ color: scheme.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
+                style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
               >
                 {searchQuery
                   ? `No se encontraron empleados para "${searchQuery}"`

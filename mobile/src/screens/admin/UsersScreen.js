@@ -51,6 +51,8 @@ import {
   SUPERADMIN_PERMISSIONS,
   TOTAL_PERMISSIONS,
 } from '../../constants/permissions';
+import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 
 export default function UsersScreen() {
   const navigation = useNavigation();
@@ -58,6 +60,39 @@ export default function UsersScreen() {
   const { can, isSuperAdmin } = usePermissions();
   const theme = usePaperTheme();
   const { getPrimaryColor, getSecondaryColor, triggerHaptic, isDarkMode } = useTheme();
+
+  // Surface colors dinámicos
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      onTertiary: scheme.onTertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   // Estados
   const [users, setUsers] = useState([]);
@@ -428,14 +463,14 @@ export default function UsersScreen() {
   // Si no tiene acceso, mostrar mensaje
   if (!hasAccessToScreen) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
         <View style={styles.deniedContainer}>
-          <Surface style={[styles.deniedCard, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-            <MaterialCommunityIcons name="shield-lock-outline" size={64} color={theme.colors.error} />
-            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, marginTop: 20, fontWeight: '600' }}>
+          <Surface style={[styles.deniedCard, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+            <MaterialCommunityIcons name="shield-lock-outline" size={64} color={surfaceColors.error} />
+            <Text variant="headlineSmall" style={{ color: surfaceColors.onSurface, marginTop: 20, fontWeight: '600' }}>
               Acceso Restringido
             </Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center', marginTop: 8 }}>
               No tienes permisos para gestionar usuarios.
             </Text>
           </Surface>
@@ -447,10 +482,10 @@ export default function UsersScreen() {
   // Loading inicial
   if (loading && users.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={getPrimaryColor()} />
-          <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant, marginTop: 16 }}>
+          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 16 }}>
             Cargando usuarios...
           </Text>
         </View>
@@ -459,29 +494,53 @@ export default function UsersScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          size={24}
-          iconColor={theme.colors.onSurface}
-          onPress={() => {
-            triggerHaptic('selection');
-            navigation.goBack();
-          }}
-          style={{ margin: 0 }}
-        />
-        <View style={styles.headerContent}>
-          <View style={styles.headerTextContainer}>
-            <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
-              Gestión de Usuarios
-            </Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-              {filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}
-            </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="account-group-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+              }}
+            />
           </View>
-          <MaterialCommunityIcons name="shield-account" size={40} color={getPrimaryColor()} />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
+            Gestión de Usuarios
+          </Text>
+          <Text style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
+            {filteredUsers.length} usuario{filteredUsers.length !== 1 ? 's' : ''}
+          </Text>
         </View>
       </View>
 
@@ -491,7 +550,7 @@ export default function UsersScreen() {
           placeholder="Buscar por nombre, email o rol..."
           onChangeText={handleSearch}
           value={searchQuery}
-          style={[styles.searchbar, { backgroundColor: theme.colors.surfaceContainerHigh }]}
+          style={[styles.searchbar, { backgroundColor: surfaceColors.surfaceContainerHigh }]}
           iconColor={getPrimaryColor()}
           elevation={0}
         />
@@ -528,10 +587,10 @@ export default function UsersScreen() {
                     source={{ uri: userItem.photoURL || 'https://via.placeholder.com/150' }}
                   />
                   <View style={styles.userDetails}>
-                    <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                    <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
                       {userItem.name || 'Sin nombre'}
                     </Text>
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                    <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
                       {userItem.email}
                     </Text>
                     
@@ -542,10 +601,10 @@ export default function UsersScreen() {
                         {
                           backgroundColor:
                             userItem.appRole === 'SUPERADMIN'
-                              ? theme.colors.errorContainer
+                              ? surfaceColors.errorContainer
                               : userItem.appRole === 'ADMIN'
-                              ? theme.colors.tertiaryContainer
-                              : theme.colors.secondaryContainer,
+                              ? surfaceColors.tertiaryContainer
+                              : surfaceColors.secondaryContainer,
                         },
                       ]}
                       elevation={0}
@@ -554,10 +613,10 @@ export default function UsersScreen() {
                         variant="labelSmall" 
                         style={{ 
                           color: userItem.appRole === 'SUPERADMIN'
-                            ? theme.colors.onErrorContainer
+                            ? surfaceColors.onErrorContainer
                             : userItem.appRole === 'ADMIN'
-                            ? theme.colors.onTertiaryContainer
-                            : theme.colors.onSecondaryContainer,
+                            ? surfaceColors.onTertiaryContainer
+                            : surfaceColors.onSecondaryContainer,
                           fontWeight: '600',
                         }}
                       >
@@ -570,18 +629,18 @@ export default function UsersScreen() {
                 {/* Permisos Count */}
                 <View style={styles.permissionsInfo}>
                   <Surface 
-                    style={[styles.permissionsBadge, { backgroundColor: theme.colors.primaryContainer }]}
+                    style={[styles.permissionsBadge, { backgroundColor: surfaceColors.primaryContainer }]}
                     elevation={0}
                   >
                     <MaterialCommunityIcons
                       name="shield-check"
                       size={18}
-                      color={theme.colors.onPrimaryContainer}
+                      color={surfaceColors.onPrimaryContainer}
                     />
                     <Text 
                       variant="labelLarge" 
                       style={{ 
-                        color: theme.colors.onPrimaryContainer, 
+                        color: surfaceColors.onPrimaryContainer, 
                         fontWeight: '600',
                         marginLeft: 4,
                       }}
@@ -594,7 +653,7 @@ export default function UsersScreen() {
                     <IconButton
                       icon="chevron-right"
                       size={24}
-                      iconColor={theme.colors.onSurfaceVariant}
+                      iconColor={surfaceColors.onSurfaceVariant}
                       style={{ margin: 0 }}
                     />
                   )}
@@ -610,7 +669,7 @@ export default function UsersScreen() {
         <Modal
           visible={editModalVisible}
           onDismiss={() => setEditModalVisible(false)}
-          contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}
+          contentContainerStyle={[styles.modal, { backgroundColor: surfaceColors.surface }]}
         >
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header del Modal */}
@@ -621,7 +680,7 @@ export default function UsersScreen() {
                   source={{ uri: selectedUser?.photoURL || 'https://via.placeholder.com/150' }}
                 />
                 <View style={styles.modalTitleText}>
-                  <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                  <Text variant="titleLarge" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
                     {selectedUser?.name}
                   </Text>
                   <Surface
@@ -629,8 +688,8 @@ export default function UsersScreen() {
                       styles.permissionCounter,
                       { 
                         backgroundColor: selectedPermissions.length === TOTAL_PERMISSIONS 
-                          ? theme.colors.primaryContainer 
-                          : theme.colors.secondaryContainer 
+                          ? surfaceColors.primaryContainer 
+                          : surfaceColors.secondaryContainer 
                       }
                     ]}
                     elevation={0}
@@ -638,12 +697,12 @@ export default function UsersScreen() {
                     <MaterialCommunityIcons
                       name="shield-check"
                       size={16}
-                      color={selectedPermissions.length === TOTAL_PERMISSIONS ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer}
+                      color={selectedPermissions.length === TOTAL_PERMISSIONS ? surfaceColors.onPrimaryContainer : surfaceColors.onSecondaryContainer}
                     />
                     <Text 
                       variant="labelLarge" 
                       style={{ 
-                        color: selectedPermissions.length === TOTAL_PERMISSIONS ? theme.colors.onPrimaryContainer : theme.colors.onSecondaryContainer,
+                        color: selectedPermissions.length === TOTAL_PERMISSIONS ? surfaceColors.onPrimaryContainer : surfaceColors.onSecondaryContainer,
                         fontWeight: '600',
                         marginLeft: 4,
                       }}
@@ -656,7 +715,7 @@ export default function UsersScreen() {
               <IconButton
                 icon="close"
                 size={24}
-                iconColor={theme.colors.onSurfaceVariant}
+                iconColor={surfaceColors.onSurfaceVariant}
                 onPress={() => setEditModalVisible(false)}
               />
             </View>
@@ -698,7 +757,7 @@ export default function UsersScreen() {
               return (
                 <Surface 
                   key={category.id} 
-                  style={[styles.categoryContainer, { backgroundColor: theme.colors.surfaceContainerLow }]}
+                  style={[styles.categoryContainer, { backgroundColor: surfaceColors.surfaceContainerLow }]}
                   elevation={0}
                 >
                   {/* Header de Categoría */}
@@ -712,20 +771,20 @@ export default function UsersScreen() {
                   >
                     <View style={styles.categoryTitleContainer}>
                       <Surface 
-                        style={[styles.categoryIconContainer, { backgroundColor: theme.colors.primaryContainer }]}
+                        style={[styles.categoryIconContainer, { backgroundColor: surfaceColors.primaryContainer }]}
                         elevation={0}
                       >
                         <MaterialCommunityIcons
                           name={category.icon}
                           size={20}
-                          color={theme.colors.onPrimaryContainer}
+                          color={surfaceColors.onPrimaryContainer}
                         />
                       </Surface>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
+                        <Text variant="titleSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
                           {category.name}
                         </Text>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                        <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
                           {selectedCount}/{categoryPerms.length} activos
                         </Text>
                       </View>
@@ -743,7 +802,7 @@ export default function UsersScreen() {
                       <MaterialCommunityIcons
                         name={isExpanded ? 'chevron-up' : 'chevron-down'}
                         size={24}
-                        color={theme.colors.onSurfaceVariant}
+                        color={surfaceColors.onSurfaceVariant}
                         style={{ marginLeft: 8 }}
                       />
                     </View>
@@ -751,7 +810,7 @@ export default function UsersScreen() {
 
                   {/* Permisos Individuales */}
                   {isExpanded && (
-                    <View style={[styles.permissionsContainer, { backgroundColor: theme.colors.surfaceContainerHighest }]}>
+                    <View style={[styles.permissionsContainer, { backgroundColor: surfaceColors.surfaceContainerHighest }]}>
                       {categoryPerms.map((perm) => (
                         <TouchableOpacity
                           key={perm}
@@ -765,7 +824,7 @@ export default function UsersScreen() {
                           <Text 
                             variant="bodyMedium" 
                             style={{ 
-                              color: theme.colors.onSurface, 
+                              color: surfaceColors.onSurface, 
                               flex: 1,
                               fontWeight: selectedPermissions.includes(perm) ? '600' : '400',
                             }}
@@ -794,7 +853,7 @@ export default function UsersScreen() {
                 mode="outlined"
                 onPress={() => setEditModalVisible(false)}
                 style={styles.cancelButton}
-                textColor={theme.colors.onSurface}
+                textColor={surfaceColors.onSurface}
               >
                 Cancelar
               </Button>
@@ -828,7 +887,7 @@ export default function UsersScreen() {
           contentContainerStyle={{
             margin: 20,
             borderRadius: 32,
-            backgroundColor: theme.colors.surfaceContainerHigh,
+            backgroundColor: surfaceColors.surfaceContainerHigh,
             padding: 0,
           }}
         >
@@ -858,7 +917,7 @@ export default function UsersScreen() {
                 fontSize: 24,
                 letterSpacing: -0.5,
                 textAlign: 'center',
-                color: theme.colors.onSurface,
+                color: surfaceColors.onSurface,
               }}
             >
               Permisos Actualizados
@@ -869,17 +928,17 @@ export default function UsersScreen() {
           <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 12 }}>
             <View
               style={{
-                backgroundColor: theme.colors.surfaceContainerLow,
+                backgroundColor: surfaceColors.surfaceContainerLow,
                 padding: 16,
                 borderRadius: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
               }}
             >
-              <MaterialCommunityIcons name="account" size={20} color={theme.colors.primary} />
+              <MaterialCommunityIcons name="account" size={20} color={surfaceColors.primary} />
               <Text
                 variant="bodyMedium"
-                style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+                style={{ color: surfaceColors.onSurface, marginLeft: 8, flex: 1 }}
               >
                 {successDialogData.userName} ahora es {successDialogData.newRole}
               </Text>
@@ -887,17 +946,17 @@ export default function UsersScreen() {
 
             <View
               style={{
-                backgroundColor: theme.colors.surfaceContainerLow,
+                backgroundColor: surfaceColors.surfaceContainerLow,
                 padding: 16,
                 borderRadius: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
               }}
             >
-              <MaterialCommunityIcons name="shield-check" size={20} color={theme.colors.secondary} />
+              <MaterialCommunityIcons name="shield-check" size={20} color={surfaceColors.secondary} />
               <Text
                 variant="bodyMedium"
-                style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+                style={{ color: surfaceColors.onSurface, marginLeft: 8, flex: 1 }}
               >
                 {successDialogData.permissionsCount}/{successDialogData.totalPermissions} permisos activos
               </Text>
@@ -906,17 +965,17 @@ export default function UsersScreen() {
             {successDialogData.oldRole !== successDialogData.newRole && (
               <View
                 style={{
-                  backgroundColor: theme.colors.surfaceContainerLow,
+                  backgroundColor: surfaceColors.surfaceContainerLow,
                   padding: 16,
                   borderRadius: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
                 }}
               >
-                <MaterialCommunityIcons name="swap-horizontal" size={20} color={theme.colors.tertiary} />
+                <MaterialCommunityIcons name="swap-horizontal" size={20} color={surfaceColors.tertiary} />
                 <Text
                   variant="bodyMedium"
-                  style={{ color: theme.colors.onSurface, marginLeft: 8, flex: 1 }}
+                  style={{ color: surfaceColors.onSurface, marginLeft: 8, flex: 1 }}
                 >
                   {successDialogData.oldRole} → {successDialogData.newRole}
                 </Text>
@@ -926,7 +985,7 @@ export default function UsersScreen() {
             <Text
               variant="bodySmall"
               style={{
-                color: theme.colors.onSurfaceVariant,
+                color: surfaceColors.onSurfaceVariant,
                 textAlign: 'center',
                 marginTop: 8,
               }}

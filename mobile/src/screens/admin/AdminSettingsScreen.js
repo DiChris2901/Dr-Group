@@ -30,11 +30,40 @@ import { APP_PERMISSIONS } from '../../constants/permissions';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 
 export default function AdminSettingsScreen({ navigation }) {
   const theme = usePaperTheme();
-  const { getPrimaryColor, getSecondaryColor } = useTheme();
+  const { getPrimaryColor, getSecondaryColor, isDarkMode } = useTheme();
   const { can } = usePermissions();
+
+  // Surface colors dinámicos
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -284,8 +313,8 @@ export default function AdminSettingsScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: surfaceColors.background }}>
+        <ActivityIndicator size="large" color={surfaceColors.primary} />
       </View>
     );
   }
@@ -293,9 +322,9 @@ export default function AdminSettingsScreen({ navigation }) {
   // ✅ Validación de permiso (después de todos los hooks)
   if (!can(APP_PERMISSIONS.ADMIN_SETTINGS)) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
           <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
           <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para configuración laboral</Text>
           <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
@@ -305,24 +334,67 @@ export default function AdminSettingsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, flex: 1 }}>Configuración</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="cog-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+              }}
+            />
+          </View>
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
+            Configuración
+          </Text>
+          <Text style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
+            Jornada laboral y ubicación de oficina
+          </Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         
         {/* Work Schedule Section */}
         <View style={styles.sectionHeader}>
-          <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>JORNADA LABORAL</Text>
+          <Text variant="labelLarge" style={{ color: surfaceColors.primary, fontWeight: 'bold' }}>JORNADA LABORAL</Text>
         </View>
         
         <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
             <View style={{ marginBottom: 20 }}>
               <Text variant="titleMedium" style={{ fontWeight: '600' }}>Días de Operación</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+              <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
                 Toca los días para activar o desactivar
               </Text>
             </View>
@@ -336,14 +408,14 @@ export default function AdminSettingsScreen({ navigation }) {
                     onPress={() => toggleDay(day.id)}
                     style={[
                       styles.dayCircle,
-                      isSelected && { backgroundColor: theme.colors.primary },
-                      !isSelected && { borderColor: theme.colors.outline, borderWidth: 1 }
+                      isSelected && { backgroundColor: surfaceColors.primary },
+                      !isSelected && { borderColor: surfaceColors.outline, borderWidth: 1 }
                     ]}
                   >
                     <Text 
                       variant="labelLarge" 
                       style={{ 
-                        color: isSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant,
+                        color: isSelected ? surfaceColors.onPrimary : surfaceColors.onSurfaceVariant,
                         fontWeight: isSelected ? 'bold' : 'normal'
                       }}
                     >
@@ -400,14 +472,14 @@ export default function AdminSettingsScreen({ navigation }) {
 
         {/* Location Section */}
         <View style={styles.sectionHeader}>
-          <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>GEOLOCALIZACIÓN</Text>
+          <Text variant="labelLarge" style={{ color: surfaceColors.primary, fontWeight: 'bold' }}>GEOLOCALIZACIÓN</Text>
         </View>
 
         <SobrioCard style={{ marginBottom: 24 }} borderColor={getPrimaryColor()}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <View>
                 <Text variant="titleMedium" style={{ fontWeight: '600' }}>Zona de Oficina</Text>
-                <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>
+                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
                   Radio permitido: {locationRadius}m
                 </Text>
               </View>
@@ -435,15 +507,15 @@ export default function AdminSettingsScreen({ navigation }) {
               {officeLocation ? (
                 <View style={styles.mapPreviewContent}>
                   <View style={styles.coordinateRow}>
-                    <IconButton icon="map-marker" size={24} iconColor={theme.colors.primary} />
+                    <IconButton icon="map-marker" size={24} iconColor={surfaceColors.primary} />
                     <View style={{ flex: 1 }}>
-                      <Text variant="labelMedium" style={{ color: theme.colors.secondary }}>Ubicación Registrada</Text>
+                      <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant }}>Ubicación Registrada</Text>
                       {officeAddress ? (
                         <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 2 }}>
                           {officeAddress}
                         </Text>
                       ) : null}
-                      <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: theme.colors.outline }}>
+                      <Text variant="bodySmall" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: surfaceColors.outline }}>
                         {officeLocation.lat.toFixed(6)}, {officeLocation.lon.toFixed(6)}
                       </Text>
                     </View>
@@ -451,8 +523,8 @@ export default function AdminSettingsScreen({ navigation }) {
                 </View>
               ) : (
                 <View style={styles.emptyMapState}>
-                  <IconButton icon="map-marker-off" size={32} iconColor={theme.colors.error} />
-                  <Text variant="bodyMedium" style={{ color: theme.colors.error }}>Sin ubicación registrada</Text>
+                  <IconButton icon="map-marker-off" size={32} iconColor={surfaceColors.error} />
+                  <Text variant="bodyMedium" style={{ color: surfaceColors.error }}>Sin ubicación registrada</Text>
                 </View>
               )}
             </Surface>
@@ -498,7 +570,7 @@ export default function AdminSettingsScreen({ navigation }) {
         <Modal
           visible={mapVisible}
           onDismiss={() => setMapVisible(false)}
-          contentContainerStyle={{ flex: 1, backgroundColor: theme.colors.background }}
+          contentContainerStyle={{ flex: 1, backgroundColor: surfaceColors.background }}
         >
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.mapHeader}>
@@ -519,7 +591,7 @@ export default function AdminSettingsScreen({ navigation }) {
               <IconButton 
                 icon="arrow-right" 
                 mode="contained" 
-                containerColor={theme.colors.primary} 
+                containerColor={surfaceColors.primary} 
                 iconColor="white" 
                 onPress={handleSearchAddress} 
               />
@@ -544,7 +616,7 @@ export default function AdminSettingsScreen({ navigation }) {
               </MapView>
             )}
 
-            <View style={{ padding: 20, backgroundColor: theme.colors.surface }}>
+            <View style={{ padding: 20, backgroundColor: surfaceColors.surfaceContainerLow }}>
               <Button 
                 mode="contained" 
                 onPress={confirmMapLocation}

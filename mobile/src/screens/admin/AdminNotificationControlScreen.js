@@ -28,8 +28,37 @@ export default function AdminNotificationControlScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
 
   // Surface colors from theme for depth
-  const surfaceContainer = isDarkMode ? materialTheme.schemes.dark.surfaceContainer : materialTheme.schemes.light.surfaceContainer;
-  const surfaceContainerHigh = isDarkMode ? materialTheme.schemes.dark.surfaceContainerHigh : materialTheme.schemes.light.surfaceContainerHigh;
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      onTertiary: scheme.onTertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -212,26 +241,26 @@ export default function AdminNotificationControlScreen({ navigation }) {
           <Avatar.Image 
             size={44} 
             source={{ uri: item.photoURL || 'https://via.placeholder.com/150' }}
-            style={{ backgroundColor: surfaceContainerHigh }}
+            style={{ backgroundColor: surfaceColors.surfaceContainerHigh }}
           />
           <View style={{ flex: 1 }}>
             <Text variant="titleMedium" style={{ fontWeight: '600' }}>{displayName}</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.secondary }}>{item.email}</Text>
+            <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>{item.email}</Text>
             {isAdmin && (
               <Surface 
                 style={{ 
                   alignSelf: 'flex-start', 
-                  backgroundColor: theme.colors.primaryContainer, 
+                  backgroundColor: surfaceColors.primaryContainer, 
                   paddingHorizontal: 6, paddingVertical: 2, 
                   borderRadius: 8, marginTop: 4 
                 }} 
                 elevation={0}
               >
-                <Text variant="labelSmall" style={{ color: theme.colors.onPrimaryContainer, fontSize: 10 }}>ADMIN</Text>
+                <Text variant="labelSmall" style={{ color: surfaceColors.onPrimaryContainer, fontSize: 10 }}>ADMIN</Text>
               </Surface>
             )}
           </View>
-          <IconButton icon="chevron-right" iconColor={theme.colors.onSurfaceVariant} size={20} />
+          <IconButton icon="chevron-right" iconColor={surfaceColors.onSurfaceVariant} size={20} />
         </View>
       </SobrioCard>
     );
@@ -240,9 +269,9 @@ export default function AdminNotificationControlScreen({ navigation }) {
   // ✅ Validación de permiso (después de todos los hooks)
   if (!can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL)) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: surfaceColors.background }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
           <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
           <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para controlar notificaciones</Text>
           <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
@@ -252,29 +281,54 @@ export default function AdminNotificationControlScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={{ padding: 20, paddingBottom: 12 }}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
-        >
-           <Avatar.Icon size={40} icon="arrow-left" style={{ backgroundColor: theme.colors.surfaceVariant }} color={theme.colors.onSurfaceVariant} />
-        </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: surfaceColors.background }}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              triggerHaptic('selection');
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="bell-cog-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+              }}
+            />
+          </View>
+        </View>
         
-        <Text 
-          variant="headlineLarge" 
-          style={{ 
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
             fontFamily: 'Roboto-Flex', 
-            fontWeight: '500', 
-            letterSpacing: -0.25,
-            color: theme.colors.onBackground
-          }}
-        >
-          Notificaciones
-        </Text>
-        <Text variant="bodyLarge" style={{ color: theme.colors.secondary, marginTop: 4 }}>
-          Gestionar preferencias por usuario
-        </Text>
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
+            Notificaciones
+          </Text>
+          <Text style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
+            Gestionar preferencias por usuario
+          </Text>
+        </View>
       </View>
 
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
@@ -283,13 +337,13 @@ export default function AdminNotificationControlScreen({ navigation }) {
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={{ 
-            backgroundColor: surfaceContainerHigh,
+            backgroundColor: surfaceColors.surfaceContainerHigh,
             borderRadius: 24, 
             elevation: 0,
             height: 48
           }}
           inputStyle={{ fontFamily: 'Roboto-Flex', fontSize: 15 }}
-          iconColor={theme.colors.primary}
+          iconColor={surfaceColors.primary}
         />
       </View>
 
@@ -301,7 +355,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
         ListEmptyComponent={
           !loading && (
             <View style={{ alignItems: 'center', marginTop: 40, opacity: 0.6 }}>
-              <Avatar.Icon size={64} icon="account-search-outline" style={{ backgroundColor: 'transparent' }} color={theme.colors.secondary} />
+              <Avatar.Icon size={64} icon="account-search-outline" style={{ backgroundColor: 'transparent' }} color={surfaceColors.onSurfaceVariant} />
               <Text variant="titleMedium" style={{ marginTop: 16 }}>No se encontraron usuarios</Text>
             </View>
           )
@@ -314,13 +368,13 @@ export default function AdminNotificationControlScreen({ navigation }) {
         presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={{ flex: 1, backgroundColor: surfaceColors.background }}>
           {selectedUser && userPreferences ? (
             <>
-              <Surface style={{ padding: 20, backgroundColor: theme.colors.surface }} elevation={0}>
+              <Surface style={{ padding: 20, backgroundColor: surfaceColors.surface }} elevation={0}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <TouchableOpacity onPress={() => setModalVisible(false)}>
-                    <Avatar.Icon size={40} icon="close" style={{ backgroundColor: theme.colors.surfaceVariant }} color={theme.colors.onSurfaceVariant} />
+                    <Avatar.Icon size={40} icon="close" style={{ backgroundColor: surfaceColors.surfaceContainerHigh }} color={surfaceColors.onSurfaceVariant} />
                   </TouchableOpacity>
                   <Button mode="text" onPress={savePreferences} disabled={saving} textColor={getPrimaryColor()}>
                      {saving ? 'Guardando...' : 'Guardar'}
@@ -332,7 +386,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
                      <Text variant="titleLarge" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>
                        {selectedUser.name || selectedUser.displayName} 
                      </Text>
-                     <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>Configuración individual</Text>
+                     <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant }}>Configuración individual</Text>
                    </View>
                 </View>
               </Surface>
@@ -343,7 +397,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
                   <Surface style={styles.settingCard} elevation={0}>
                     <View style={styles.cardHeader}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <Avatar.Icon size={40} icon="calendar-month" style={{ backgroundColor: theme.colors.secondaryContainer }} color={theme.colors.onSecondaryContainer} />
+                        <Avatar.Icon size={40} icon="calendar-month" style={{ backgroundColor: surfaceColors.secondaryContainer }} color={surfaceColors.onSecondaryContainer} />
                         <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Calendario</Text>
                       </View>
                       <Switch value={userPreferences.calendar.enabled} onValueChange={() => handleToggleSection('calendar')} color={getPrimaryColor()} />
@@ -376,7 +430,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
                 <Surface style={styles.settingCard} elevation={0}>
                   <View style={styles.cardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                       <Avatar.Icon size={40} icon="account-clock" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.onPrimaryContainer} />
+                       <Avatar.Icon size={40} icon="account-clock" style={{ backgroundColor: surfaceColors.primaryContainer }} color={surfaceColors.onPrimaryContainer} />
                        <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Eventos de Jornada</Text>
                     </View>
                     <Switch value={userPreferences.workEvents.enabled} onValueChange={() => handleToggleSection('workEvents')} color={getPrimaryColor()} />
@@ -396,7 +450,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
                 <Surface style={styles.settingCard} elevation={0}>
                   <View style={styles.cardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                       <Avatar.Icon size={40} icon="clock-check-outline" style={{ backgroundColor: theme.colors.tertiaryContainer }} color={theme.colors.onTertiaryContainer} />
+                       <Avatar.Icon size={40} icon="clock-check-outline" style={{ backgroundColor: surfaceColors.tertiaryContainer }} color={surfaceColors.onTertiaryContainer} />
                        <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Asistencia</Text>
                     </View>
                     <Switch value={userPreferences.attendance.enabled} onValueChange={() => handleToggleSection('attendance')} color={getPrimaryColor()} />
@@ -414,7 +468,7 @@ export default function AdminNotificationControlScreen({ navigation }) {
                  <Surface style={styles.settingCard} elevation={0}>
                   <View style={styles.cardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                       <Avatar.Icon size={40} icon="bell-ring-outline" style={{ backgroundColor: theme.colors.errorContainer }} color={theme.colors.onErrorContainer} />
+                       <Avatar.Icon size={40} icon="bell-ring-outline" style={{ backgroundColor: surfaceColors.errorContainer }} color={surfaceColors.onErrorContainer} />
                        <Text variant="titleMedium" style={{ fontFamily: 'Roboto-Flex', fontWeight: '600' }}>Alertas</Text>
                     </View>
                     <Switch value={userPreferences.alerts.enabled} onValueChange={() => handleToggleSection('alerts')} color={getPrimaryColor()} />

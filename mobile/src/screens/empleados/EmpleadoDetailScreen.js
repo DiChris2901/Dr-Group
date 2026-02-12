@@ -26,6 +26,7 @@ import { db } from '../../services/firebase';
 
 import { DetailRow, OverlineText, LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
+import { useTheme as useAppTheme } from '../../contexts/ThemeContext';
 
 // Lista de bancos para referencia
 const BANCOS_MAP = {
@@ -53,8 +54,39 @@ export default function EmpleadoDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const theme = useTheme();
-  const isDark = theme.dark;
-  const scheme = isDark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+  const { isDarkMode } = useAppTheme();
+
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      onTertiary: scheme.onTertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const { empleadoId } = route.params || {};
   const [empleado, setEmpleado] = useState(null);
@@ -161,20 +193,20 @@ export default function EmpleadoDetailScreen() {
 
   // Estado del contrato
   const contractStatus = useMemo(() => {
-    if (empleado?.retirado) return { label: 'Retirado', color: scheme.error, icon: 'account-off' };
-    if (!empleado?.fechaFinContrato) return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
+    if (empleado?.retirado) return { label: 'Retirado', color: surfaceColors.error, icon: 'account-off' };
+    if (!empleado?.fechaFinContrato) return { label: 'Activo', color: surfaceColors.primary, icon: 'account-check' };
     try {
       const fin = empleado.fechaFinContrato.toDate
         ? empleado.fechaFinContrato.toDate()
         : new Date(empleado.fechaFinContrato);
       const diffDays = Math.ceil((fin - new Date()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) return { label: 'Contrato vencido', color: scheme.error, icon: 'alert-circle' };
-      if (diffDays <= 30) return { label: `Vence en ${diffDays} días`, color: scheme.tertiary, icon: 'clock-alert' };
-      return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
+      if (diffDays < 0) return { label: 'Contrato vencido', color: surfaceColors.error, icon: 'alert-circle' };
+      if (diffDays <= 30) return { label: `Vence en ${diffDays} días`, color: surfaceColors.tertiary, icon: 'clock-alert' };
+      return { label: 'Activo', color: surfaceColors.primary, icon: 'account-check' };
     } catch {
-      return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
+      return { label: 'Activo', color: surfaceColors.primary, icon: 'account-check' };
     }
-  }, [empleado, scheme]);
+  }, [empleado, surfaceColors]);
 
   // Acciones de contacto
   const handleCall = useCallback((phone) => {
@@ -228,8 +260,8 @@ export default function EmpleadoDetailScreen() {
   // Loading
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Minimal */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
             <IconButton
@@ -239,25 +271,8 @@ export default function EmpleadoDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
-          </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
-              Empleado
-            </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-              Información Detallada
-            </PaperText>
           </View>
         </View>
         <LoadingState message="Cargando información del empleado..." />
@@ -267,8 +282,8 @@ export default function EmpleadoDetailScreen() {
 
   if (!empleado) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Minimal */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
             <IconButton
@@ -278,25 +293,8 @@ export default function EmpleadoDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
-          </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
-              Empleado
-            </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-              No Encontrado
-            </PaperText>
           </View>
         </View>
         <View style={styles.errorContainer}>
@@ -311,8 +309,8 @@ export default function EmpleadoDetailScreen() {
   const isRetirado = empleado.retirado === true;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header Expresivo */}
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+      {/* Header Minimal */}
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
           <IconButton
@@ -322,21 +320,34 @@ export default function EmpleadoDetailScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               navigation.goBack();
             }}
-            iconColor={scheme.onSurface}
+            iconColor={surfaceColors.onSurface}
           />
           <View style={styles.actionButtons}>
             {empleado.telefono && (
-              <IconButton
-                icon="phone"
-                mode="contained-tonal"
-                size={20}
-                onPress={() => handleCall(empleado.telefono)}
-                iconColor={scheme.primary}
-                style={{
-                  backgroundColor: scheme.primaryContainer,
-                  marginLeft: 8,
-                }}
-              />
+              <>
+                <IconButton
+                  icon="phone"
+                  mode="contained-tonal"
+                  size={20}
+                  onPress={() => handleCall(empleado.telefono)}
+                  iconColor={surfaceColors.primary}
+                  style={{
+                    backgroundColor: surfaceColors.primaryContainer,
+                    marginLeft: 8,
+                  }}
+                />
+                <IconButton
+                  icon="whatsapp"
+                  mode="contained-tonal"
+                  size={20}
+                  onPress={() => handleWhatsApp(empleado.telefono)}
+                  iconColor={surfaceColors.primary}
+                  style={{
+                    backgroundColor: surfaceColors.primaryContainer,
+                    marginLeft: 8,
+                  }}
+                />
+              </>
             )}
             {empleado.email && (
               <IconButton
@@ -344,31 +355,14 @@ export default function EmpleadoDetailScreen() {
                 mode="contained-tonal"
                 size={20}
                 onPress={() => handleEmail(empleado.email)}
-                iconColor={scheme.primary}
+                iconColor={surfaceColors.primary}
                 style={{
-                  backgroundColor: scheme.primaryContainer,
+                  backgroundColor: surfaceColors.primaryContainer,
                   marginLeft: 8,
                 }}
               />
             )}
           </View>
-        </View>
-        <View style={styles.headerContent}>
-          <PaperText
-            variant="displaySmall"
-            style={{
-              fontWeight: '400',
-              color: scheme.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4,
-            }}
-          >
-            {fullName || 'Empleado'}
-          </PaperText>
-          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-            {empleado.tipoDocumento || 'CC'}: {empleado.numeroDocumento || 'No registrado'}
-          </PaperText>
         </View>
       </View>
 
@@ -378,15 +372,15 @@ export default function EmpleadoDetailScreen() {
       >
         {/* Profile Header */}
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
+          <Surface style={[styles.headerCard, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
             <Avatar.Text
               size={72}
               label={initials}
               style={{
-                backgroundColor: isRetirado ? scheme.errorContainer : scheme.primaryContainer,
+                backgroundColor: isRetirado ? surfaceColors.errorContainer : surfaceColors.primaryContainer,
               }}
               labelStyle={{
-                color: isRetirado ? scheme.onErrorContainer : scheme.onPrimaryContainer,
+                color: isRetirado ? surfaceColors.onErrorContainer : surfaceColors.onPrimaryContainer,
                 fontWeight: '700',
                 fontSize: 28,
               }}
@@ -396,7 +390,7 @@ export default function EmpleadoDetailScreen() {
               style={[
                 styles.headerName,
                 {
-                  color: scheme.onSurface,
+                  color: surfaceColors.onSurface,
                   fontWeight: '600',
                   letterSpacing: -0.25,
                 },
@@ -453,92 +447,92 @@ export default function EmpleadoDetailScreen() {
 
         {/* Datos Personales */}
         <View style={styles.section}>
-          <OverlineText color={scheme.primary}>DATOS PERSONALES</OverlineText>
-          <DetailRow icon="account" label="Nombres" value={empleado.nombres || 'No registrado'} iconColor={scheme.primary} />
-          <DetailRow icon="account" label="Apellidos" value={empleado.apellidos || 'No registrado'} iconColor={scheme.primary} />
-          <DetailRow icon="flag" label="Nacionalidad" value={empleado.nacionalidad || 'No registrada'} iconColor={scheme.primary} />
+          <OverlineText color={surfaceColors.primary}>DATOS PERSONALES</OverlineText>
+          <DetailRow icon="account" label="Nombres" value={empleado.nombres || 'No registrado'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="account" label="Apellidos" value={empleado.apellidos || 'No registrado'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="flag" label="Nacionalidad" value={empleado.nacionalidad || 'No registrada'} iconColor={surfaceColors.primary} />
           <DetailRow
             icon="card-account-details"
             label={empleado.tipoDocumento || 'Documento'}
             value={empleado.numeroDocumento || 'No registrado'}
-            iconColor={scheme.primary}
+            iconColor={surfaceColors.primary}
           />
-          <DetailRow icon="email-outline" label="Email Corporativo" value={empleado.emailCorporativo || 'No registrado'} iconColor={scheme.primary} />
-          <DetailRow icon="phone" label="Teléfono" value={empleado.telefono || 'No registrado'} iconColor={scheme.primary} />
-          <DetailRow icon="cake-variant" label="Edad" value={edadCalculada} iconColor={scheme.primary} />
-          <DetailRow icon="calendar" label="Fecha de Nacimiento" value={formatDate(empleado.fechaNacimiento)} iconColor={scheme.primary} />
+          <DetailRow icon="email-outline" label="Email Corporativo" value={empleado.emailCorporativo || 'No registrado'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="phone" label="Teléfono" value={empleado.telefono || 'No registrado'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="cake-variant" label="Edad" value={edadCalculada} iconColor={surfaceColors.primary} />
+          <DetailRow icon="calendar" label="Fecha de Nacimiento" value={formatDate(empleado.fechaNacimiento)} iconColor={surfaceColors.primary} />
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Información Laboral */}
         <View style={styles.section}>
-          <OverlineText color={scheme.tertiary}>INFORMACIÓN LABORAL</OverlineText>
+          <OverlineText color={surfaceColors.tertiary}>INFORMACIÓN LABORAL</OverlineText>
           <DetailRow
             icon="domain"
             label="Empresa Contratante"
             value={empleado.empresaContratanteName || empleado.empresaContratante || 'No especificada'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="calendar-start"
             label="Inicio de Contrato"
             value={formatDate(empleado.fechaInicioContrato)}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="file-document-outline"
             label="Tipo de Vigencia"
             value={empleado.tipoVigencia || 'No especificado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="calendar-end"
             label="Fin de Contrato"
             value={formatDate(empleado.fechaFinContrato)}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="autorenew"
             label="Se Renueva"
             value={empleado.seRenueva === true ? 'Sí' : empleado.seRenueva === false ? 'No' : 'No especificado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="clock-outline"
             label="Tiempo en Empresa"
             value={tiempoEnEmpresa}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
             highlight
-            highlightColor={scheme.primary}
+            highlightColor={surfaceColors.primary}
           />
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Información Bancaria */}
         <View style={styles.section}>
-          <OverlineText color={scheme.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
-          <DetailRow icon="bank" label="Banco" value={empleado.banco || 'No registrado'} iconColor={scheme.tertiary} />
+          <OverlineText color={surfaceColors.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
+          <DetailRow icon="bank" label="Banco" value={empleado.banco || 'No registrado'} iconColor={surfaceColors.tertiary} />
           <DetailRow
             icon="credit-card-outline"
             label="Tipo de Cuenta"
             value={empleado.tipoCuenta || 'No especificado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="numeric"
             label="Número de Cuenta"
             value={empleado.numeroCuenta || 'No registrado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Documentos */}
         <View style={styles.section}>
-          <OverlineText color={scheme.secondary}>DOCUMENTOS</OverlineText>
+          <OverlineText color={surfaceColors.secondary}>DOCUMENTOS</OverlineText>
 
           <View style={styles.docsGrid}>
             {empleado.contratoURL && (
@@ -546,8 +540,8 @@ export default function EmpleadoDetailScreen() {
                 mode="outlined"
                 icon="file-document"
                 onPress={() => handleOpenURL(empleado.contratoURL, 'Contrato')}
-                style={[styles.docButton, { borderColor: scheme.outline }]}
-                textColor={scheme.primary}
+                style={[styles.docButton, { borderColor: surfaceColors.outline }]}
+                textColor={surfaceColors.primary}
                 contentStyle={styles.docButtonContent}
                 labelStyle={{ fontSize: 12 }}
               >
@@ -559,8 +553,8 @@ export default function EmpleadoDetailScreen() {
                 mode="outlined"
                 icon="bank"
                 onPress={() => handleOpenURL(empleado.certificadoBancarioURL, 'Certificado Bancario')}
-                style={[styles.docButton, { borderColor: scheme.outline }]}
-                textColor={scheme.primary}
+                style={[styles.docButton, { borderColor: surfaceColors.outline }]}
+                textColor={surfaceColors.primary}
                 contentStyle={styles.docButtonContent}
                 labelStyle={{ fontSize: 12 }}
               >
@@ -572,8 +566,8 @@ export default function EmpleadoDetailScreen() {
                 mode="outlined"
                 icon="card-account-details"
                 onPress={() => handleOpenURL(empleado.documentoIdentidadURL, 'Documento de Identidad')}
-                style={[styles.docButton, { borderColor: scheme.outline }]}
-                textColor={scheme.primary}
+                style={[styles.docButton, { borderColor: surfaceColors.outline }]}
+                textColor={surfaceColors.primary}
                 contentStyle={styles.docButtonContent}
                 labelStyle={{ fontSize: 12 }}
               >
@@ -584,11 +578,11 @@ export default function EmpleadoDetailScreen() {
 
           {!empleado.contratoURL && !empleado.certificadoBancarioURL && !empleado.documentoIdentidadURL && (
             <Surface
-              style={[styles.noDocsCard, { backgroundColor: scheme.surfaceContainerLow }]}
+              style={[styles.noDocsCard, { backgroundColor: surfaceColors.surfaceContainerLow }]}
               elevation={0}
             >
-              <MaterialCommunityIcons name="file-remove" size={32} color={scheme.outline} />
-              <PaperText variant="bodySmall" style={{ color: scheme.onSurfaceVariant, marginTop: 8 }}>
+              <MaterialCommunityIcons name="file-remove" size={32} color={surfaceColors.outline} />
+              <PaperText variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8 }}>
                 No hay documentos adjuntos
               </PaperText>
             </Surface>
@@ -598,23 +592,23 @@ export default function EmpleadoDetailScreen() {
         {/* Estado Laboral (si retirado) */}
         {isRetirado && (
           <>
-            <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+            <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
             <View style={styles.section}>
-              <OverlineText color={scheme.error}>ESTADO LABORAL</OverlineText>
+              <OverlineText color={surfaceColors.error}>ESTADO LABORAL</OverlineText>
               <Surface
-                style={[styles.retiroCard, { backgroundColor: scheme.errorContainer + '40' }]}
+                style={[styles.retiroCard, { backgroundColor: surfaceColors.errorContainer + '40' }]}
                 elevation={0}
               >
-                <MaterialCommunityIcons name="account-off" size={32} color={scheme.error} />
+                <MaterialCommunityIcons name="account-off" size={32} color={surfaceColors.error} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <PaperText variant="titleSmall" style={{ color: scheme.error, fontWeight: '600' }}>
+                  <PaperText variant="titleSmall" style={{ color: surfaceColors.error, fontWeight: '600' }}>
                     Empleado Retirado
                   </PaperText>
-                  <PaperText variant="bodySmall" style={{ color: scheme.onSurfaceVariant, marginTop: 4 }}>
+                  <PaperText variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
                     Fecha: {formatDate(empleado.fechaRetiro)}
                   </PaperText>
                   {empleado.motivoRetiro && (
-                    <PaperText variant="bodySmall" style={{ color: scheme.onSurfaceVariant, marginTop: 2 }}>
+                    <PaperText variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}>
                       Motivo: {empleado.motivoRetiro}
                     </PaperText>
                   )}

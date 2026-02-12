@@ -26,6 +26,7 @@ import { db } from '../../services/firebase';
 
 import { DetailRow, OverlineText, LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
+import { useTheme as useAppTheme } from '../../contexts/ThemeContext';
 
 /**
  * EmpresaDetailScreen - Detalle completo de una empresa
@@ -41,8 +42,40 @@ export default function EmpresaDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const theme = useTheme();
-  const isDark = theme.dark;
-  const scheme = isDark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+  const { isDarkMode } = useAppTheme();
+
+  // Surface colors para Material You Expressive
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      onTertiary: scheme.onTertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      onError: scheme.onError,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const { empresaId } = route.params || {};
   const [empresa, setEmpresa] = useState(null);
@@ -111,14 +144,14 @@ export default function EmpresaDetailScreen() {
       const now = new Date();
       const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
 
-      if (diffDays < 0) return { expired: true, label: `Vencido hace ${Math.abs(diffDays)} días`, color: scheme.error };
-      if (diffDays <= 30) return { expired: false, label: `Vence en ${diffDays} días`, color: scheme.error };
-      if (diffDays <= 90) return { expired: false, label: `Vence en ${diffDays} días`, color: scheme.tertiary };
-      return { expired: false, label: `Vigente (${diffDays} días)`, color: scheme.primary };
+      if (diffDays < 0) return { expired: true, label: `Vencido hace ${Math.abs(diffDays)} días`, color: surfaceColors.error };
+      if (diffDays <= 30) return { expired: false, label: `Vence en ${diffDays} días`, color: surfaceColors.error };
+      if (diffDays <= 90) return { expired: false, label: `Vence en ${diffDays} días`, color: surfaceColors.tertiary };
+      return { expired: false, label: `Vigente (${diffDays} días)`, color: surfaceColors.primary };
     } catch {
       return { expired: false, label: '' };
     }
-  }, [empresa, scheme]);
+  }, [empresa, surfaceColors]);
 
   // Acciones de contacto
   const handleCall = useCallback((phone) => {
@@ -147,7 +180,7 @@ export default function EmpresaDetailScreen() {
   // Loading
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
         {/* Header Expresivo */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
@@ -158,25 +191,8 @@ export default function EmpresaDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
-          </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
-              Empresa
-            </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-              Información Detallada
-            </PaperText>
           </View>
         </View>
         <LoadingState message="Cargando información de la empresa..." />
@@ -186,7 +202,7 @@ export default function EmpresaDetailScreen() {
 
   if (!empresa) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
         {/* Header Expresivo */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
@@ -197,25 +213,8 @@ export default function EmpresaDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
-          </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
-              Empresa
-            </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-              No Encontrada
-            </PaperText>
           </View>
         </View>
         <View style={styles.errorContainer}>
@@ -228,7 +227,7 @@ export default function EmpresaDetailScreen() {
   const hasLogo = empresa.logoURL && empresa.logoURL.trim() !== '';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
       {/* Header Expresivo */}
       <View style={styles.headerContainer}>
         <View style={styles.headerTop}>
@@ -239,7 +238,7 @@ export default function EmpresaDetailScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               navigation.goBack();
             }}
-            iconColor={scheme.onSurface}
+            iconColor={surfaceColors.onSurface}
           />
           <View style={styles.actionButtons}>
             {empresa.phone && (
@@ -248,9 +247,9 @@ export default function EmpresaDetailScreen() {
                 mode="contained-tonal"
                 size={20}
                 onPress={() => handleCall(empresa.phone)}
-                iconColor={scheme.primary}
+                iconColor={surfaceColors.primary}
                 style={{
-                  backgroundColor: scheme.primaryContainer,
+                  backgroundColor: surfaceColors.primaryContainer,
                   marginLeft: 8,
                 }}
               />
@@ -261,31 +260,14 @@ export default function EmpresaDetailScreen() {
                 mode="contained-tonal"
                 size={20}
                 onPress={() => handleEmail(empresa.email)}
-                iconColor={scheme.primary}
+                iconColor={surfaceColors.primary}
                 style={{
-                  backgroundColor: scheme.primaryContainer,
+                  backgroundColor: surfaceColors.primaryContainer,
                   marginLeft: 8,
                 }}
               />
             )}
           </View>
-        </View>
-        <View style={styles.headerContent}>
-          <PaperText
-            variant="displaySmall"
-            style={{
-              fontWeight: '400',
-              color: scheme.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4,
-            }}
-          >
-            {empresa.name || 'Empresa'}
-          </PaperText>
-          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
-            NIT: {empresa.nit || 'No registrado'}
-          </PaperText>
         </View>
       </View>
 
@@ -295,19 +277,19 @@ export default function EmpresaDetailScreen() {
       >
         {/* Logo & Name Header */}
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
+          <Surface style={[styles.headerCard, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
             {hasLogo ? (
               <Image
                 source={{ uri: empresa.logoURL }}
-                style={[styles.headerLogo, { backgroundColor: scheme.surfaceContainer }]}
+                style={[styles.headerLogo, { backgroundColor: surfaceColors.surfaceContainer }]}
                 resizeMode="contain"
               />
             ) : (
               <Avatar.Icon
                 size={72}
                 icon="domain"
-                style={{ backgroundColor: scheme.primaryContainer }}
-                color={scheme.onPrimaryContainer}
+                style={{ backgroundColor: surfaceColors.primaryContainer }}
+                color={surfaceColors.onPrimaryContainer}
               />
             )}
             <PaperText
@@ -315,7 +297,7 @@ export default function EmpresaDetailScreen() {
               style={[
                 styles.headerName,
                 {
-                  color: scheme.onSurface,
+                  color: surfaceColors.onSurface,
                   fontWeight: '600',
                   letterSpacing: -0.25,
                 },
@@ -323,7 +305,7 @@ export default function EmpresaDetailScreen() {
             >
               {empresa.name}
             </PaperText>
-            <PaperText variant="bodyLarge" style={{ color: scheme.onSurfaceVariant, fontWeight: '500' }}>
+            <PaperText variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, fontWeight: '500' }}>
               NIT: {empresa.nit || 'No registrado'}
             </PaperText>
 
@@ -359,28 +341,28 @@ export default function EmpresaDetailScreen() {
 
         {/* Información General */}
         <View style={styles.section}>
-          <OverlineText color={scheme.primary}>INFORMACIÓN GENERAL</OverlineText>
-          <DetailRow icon="phone" label="Teléfono" value={empresa.phone || 'No registrado'} iconColor={scheme.primary} />
-          <DetailRow icon="map-marker" label="Dirección" value={empresa.address || 'No registrada'} iconColor={scheme.primary} />
-          <DetailRow icon="city" label="Ciudad" value={empresa.city || 'No registrada'} iconColor={scheme.primary} />
+          <OverlineText color={surfaceColors.primary}>INFORMACIÓN GENERAL</OverlineText>
+          <DetailRow icon="phone" label="Teléfono" value={empresa.phone || 'No registrado'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="map-marker" label="Dirección" value={empresa.address || 'No registrada'} iconColor={surfaceColors.primary} />
+          <DetailRow icon="city" label="Ciudad" value={empresa.city || 'No registrada'} iconColor={surfaceColors.primary} />
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Contrato */}
         <View style={styles.section}>
-          <OverlineText color={scheme.tertiary}>CONTRATO</OverlineText>
+          <OverlineText color={surfaceColors.tertiary}>CONTRATO</OverlineText>
           <DetailRow
             icon="file-document-outline"
             label="Número de Contrato"
             value={empresa.contractNumber || 'No registrado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="calendar-clock"
             label="Vencimiento"
             value={formatDate(empresa.contractExpirationDate)}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
             highlight={contractStatus.expired}
             highlightColor={contractStatus.color}
           />
@@ -398,42 +380,42 @@ export default function EmpresaDetailScreen() {
           ) : null}
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Representante Legal */}
         <View style={styles.section}>
-          <OverlineText color={scheme.secondary}>REPRESENTANTE LEGAL</OverlineText>
+          <OverlineText color={surfaceColors.secondary}>REPRESENTANTE LEGAL</OverlineText>
           <DetailRow
             icon="account-tie"
             label="Nombre"
             value={empresa.legalRepresentative || 'No registrado'}
-            iconColor={scheme.secondary}
+            iconColor={surfaceColors.secondary}
           />
           <DetailRow
             icon="card-account-details"
             label="Cédula"
             value={empresa.legalRepresentativeId || 'No registrada'}
-            iconColor={scheme.secondary}
+            iconColor={surfaceColors.secondary}
           />
         </View>
 
-        <Divider style={[styles.divider, { backgroundColor: scheme.outlineVariant }]} />
+        <Divider style={[styles.divider, { backgroundColor: surfaceColors.outlineVariant }]} />
 
         {/* Información Bancaria */}
         <View style={styles.section}>
-          <OverlineText color={scheme.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
-          <DetailRow icon="bank" label="Banco" value={empresa.bankName || 'No registrado'} iconColor={scheme.tertiary} />
+          <OverlineText color={surfaceColors.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
+          <DetailRow icon="bank" label="Banco" value={empresa.bankName || 'No registrado'} iconColor={surfaceColors.tertiary} />
           <DetailRow
             icon="credit-card-outline"
             label="Tipo de Cuenta"
             value={empresa.accountType || 'No especificado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
           <DetailRow
             icon="numeric"
             label="Número de Cuenta"
             value={empresa.bankAccount || 'No registrado'}
-            iconColor={scheme.tertiary}
+            iconColor={surfaceColors.tertiary}
           />
 
           {empresa.bankCertificationURL && (
@@ -441,8 +423,8 @@ export default function EmpresaDetailScreen() {
               mode="outlined"
               icon="file-pdf-box"
               onPress={() => handleOpenURL(empresa.bankCertificationURL, 'Certificación Bancaria')}
-              style={[styles.pdfButton, { borderColor: scheme.outline }]}
-              textColor={scheme.primary}
+              style={[styles.pdfButton, { borderColor: surfaceColors.outline }]}
+              textColor={surfaceColors.primary}
             >
               Ver Certificación Bancaria
             </Button>

@@ -15,10 +15,41 @@ import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, DetailRow, OverlineText } from '../../components';
+import materialTheme from '../../../material-theme.json';
 
 export default function AdminDashboardScreen({ navigation }) {
   const theme = usePaperTheme();
   const { getPrimaryColor, isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
+  
+  const surfaceColors = useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      errorContainer: scheme.errorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
+
   const { user, userProfile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
   const { updateAvailable, showUpdateDialog } = useAppDistribution();
@@ -227,43 +258,68 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: surfaceColors.background }}>
+        <ActivityIndicator size="large" color={surfaceColors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header Admin */}
-      <View style={[styles.header, { paddingHorizontal: 24, paddingTop: 24, marginBottom: 0 }]}>
-        <View>
-          <Text 
-            variant="headlineLarge"
-            style={{ 
-              color: theme.colors.primary,
-              fontFamily: 'Roboto-Flex',
-              fontWeight: '500',
-              letterSpacing: -0.5,
-              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
-            }}
-          >
-            Hola, {userProfile?.displayName?.split(' ')[0] || 'Admin'}
-          </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>
-            {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Admin - Material You Expressive (Display Medium) */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, marginBottom: 0 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text 
+              style={{ 
+                fontFamily: 'Roboto-Flex', 
+                fontSize: 45, 
+                lineHeight: 52, 
+                fontWeight: '400', 
+                color: surfaceColors.primary,
+                letterSpacing: -0.25,
+                fontVariationSettings: [{ axis: 'wdth', value: 110 }] 
+              }}
+            >
+              Hola, {userProfile?.displayName?.split(' ')[0] || 'Admin'}
+            </Text>
+            <Text 
+              variant="bodyLarge" 
+              style={{ 
+                color: surfaceColors.onSurfaceVariant,
+                marginTop: 4 
+              }}
+            >
+              {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
+          </View>
+          {userProfile?.photoURL ? (
+            <Avatar.Image 
+              size={56} 
+              source={{ uri: userProfile.photoURL }} 
+              style={{ backgroundColor: surfaceColors.surfaceContainerHighest }}
+            />
+          ) : (
+            <Avatar.Text 
+              size={56} 
+              label={(userProfile?.displayName || userProfile?.name || 'A').substring(0, 2).toUpperCase()} 
+              style={{ backgroundColor: surfaceColors.primaryContainer }}
+              color={surfaceColors.onPrimaryContainer}
+            />
+          )}
         </View>
       </View>
 
       {/* Action Buttons Row */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 0, paddingHorizontal: 24 }}>
-        <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 8 }}>
           <View>
             <IconButton 
               icon="bell-outline" 
               mode="contained-tonal"
               size={24}
+              containerColor={surfaceColors.secondaryContainer}
+              iconColor={surfaceColors.onSecondaryContainer}
               onPress={() => {
                 triggerHaptic('selection');
                 navigation.navigate('Notifications');
@@ -273,7 +329,7 @@ export default function AdminDashboardScreen({ navigation }) {
               <Badge
                 visible={unreadCount > 0}
                 size={16}
-                style={{ position: 'absolute', top: 4, right: 4 }}
+                style={{ position: 'absolute', top: 4, right: 4, backgroundColor: surfaceColors.error }}
               >
                 {unreadCount}
               </Badge>
@@ -283,6 +339,8 @@ export default function AdminDashboardScreen({ navigation }) {
             icon={isDarkMode ? "white-balance-sunny" : "moon-waning-crescent"} 
             mode="contained-tonal"
             size={24}
+            containerColor={surfaceColors.secondaryContainer}
+            iconColor={surfaceColors.onSecondaryContainer}
             onPress={() => {
               triggerHaptic('selection');
               toggleDarkMode();
@@ -292,6 +350,8 @@ export default function AdminDashboardScreen({ navigation }) {
             icon="cog-outline" 
             mode="contained-tonal"
             size={24}
+            containerColor={surfaceColors.secondaryContainer}
+            iconColor={surfaceColors.onSecondaryContainer}
             onPress={() => {
               triggerHaptic('selection');
               navigation.navigate('Settings');
@@ -300,9 +360,9 @@ export default function AdminDashboardScreen({ navigation }) {
           <IconButton 
             icon="logout" 
             mode="outlined"
-            iconColor={theme.colors.error}
+            iconColor={surfaceColors.error}
             size={24}
-            style={{ borderColor: theme.colors.error }}
+            style={{ borderColor: surfaceColors.error }}
             onPress={() => {
               triggerHaptic('warning');
               Alert.alert(
@@ -364,49 +424,49 @@ export default function AdminDashboardScreen({ navigation }) {
         {/* KPI Section - Grid 2 Rows (2 top, 3 bottom) */}
         <View style={styles.kpiContainer}>
           {/* Row 1: Critical States */}
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
             <KPICard 
-              icon="account-check" 
-              label="Trabajando" 
-              value={stats.active} 
-              color={theme.colors.onPrimaryContainer}
-              bgColor={theme.colors.primaryContainer}
-              filterType="working"
+              icon="account-group" 
+              value={stats.totalEmployees} 
+              label="Total" 
+              color={surfaceColors.onSurface} 
+              bgColor={surfaceColors.surfaceContainerHigh}
+              filterType="all"
             />
             <KPICard 
-              icon="account-alert" 
-              label="Ausentes" 
-              value={stats.absent} 
-              color={theme.colors.onErrorContainer}
-              bgColor={theme.colors.errorContainer}
-              filterType="absent"
+              icon="briefcase-clock" 
+              value={stats.active} 
+              label="Activos" 
+              color={surfaceColors.primary} 
+              bgColor={surfaceColors.primaryContainer}
+              filterType="working"
             />
           </View>
           
           {/* Row 2: Secondary States */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
             <KPICard 
               icon="coffee" 
-              label="Break" 
-              value={stats.break} 
-              color={theme.colors.onTertiaryContainer}
-              bgColor={theme.colors.tertiaryContainer}
+              value={stats.break + stats.lunch} 
+              label="Descanso" 
+              color={surfaceColors.tertiary} 
+              bgColor={surfaceColors.tertiaryContainer}
               filterType="break"
             />
             <KPICard 
-              icon="food" 
-              label="Almuerzo" 
-              value={stats.lunch} 
-              color={theme.colors.onSecondaryContainer}
-              bgColor={theme.colors.secondaryContainer}
-              filterType="lunch"
+              icon="account-off" 
+              value={stats.absent} 
+              label="Ausentes" 
+              color={surfaceColors.error} 
+              bgColor={surfaceColors.errorContainer}
+              filterType="absent"
             />
             <KPICard 
               icon="check-circle-outline" 
-              label="Fin" 
               value={stats.finished} 
-              color={theme.colors.onSurfaceVariant}
-              bgColor={theme.colors.surfaceVariant}
+              label="Finalizado"
+              color={surfaceColors.onSurfaceVariant}
+              bgColor={surfaceColors.surfaceVariant}
               filterType="finished"
             />
           </View>
@@ -518,27 +578,27 @@ export default function AdminDashboardScreen({ navigation }) {
             </SobrioCard>
           ))
         ) : (
-          <Surface style={{ padding: 24, borderRadius: 16, alignItems: 'center', backgroundColor: theme.colors.surfaceVariant }} elevation={0}>
-            <Avatar.Icon size={48} icon="account-search" style={{ backgroundColor: 'transparent' }} color={theme.colors.secondary} />
-            <Text variant="bodyLarge" style={{ color: theme.colors.secondary, marginTop: 8 }}>
+          <Surface style={{ padding: 24, borderRadius: 24, alignItems: 'center', backgroundColor: surfaceColors.surfaceVariant }} elevation={0}>
+            <Avatar.Icon size={48} icon="account-search" style={{ backgroundColor: 'transparent' }} color={surfaceColors.secondary} />
+            <Text variant="bodyLarge" style={{ color: surfaceColors.secondary, marginTop: 8 }}>
               No hay empleados en esta categoría
             </Text>
           </Surface>
         )}
 
         {/* Quick Actions */}
-        <View style={{ marginTop: 24 }}>
-          <OverlineText color={getPrimaryColor()}>ACCIONES RÁPIDAS</OverlineText>
+        <View style={{ marginTop: 20 }}>
+          <OverlineText color={surfaceColors.primary}>ACCIONES RÁPIDAS</OverlineText>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {can(APP_PERMISSIONS.ADMIN_CREATE_ALERT) && (
-              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-ring-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="bell-ring-outline" size={32} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
                 <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
               </Surface>
             )}
             {can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL) && (
-              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-cog" size={32} iconColor={theme.colors.primary} onPress={() => {
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="bell-cog" size={32} iconColor={surfaceColors.primary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('AdminNotificationControl');
                 }} />
@@ -546,16 +606,16 @@ export default function AdminDashboardScreen({ navigation }) {
               </Surface>
             )}
             {can(APP_PERMISSIONS.ADMIN_SETTINGS) && (
-              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="cog-outline" size={32} iconColor={theme.colors.primary} onPress={() => navigation.navigate('AdminSettings')} />
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="cog-outline" size={32} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminSettings')} />
                 <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
               </Surface>
             )}
           </View>
           {can(APP_PERMISSIONS.USUARIOS_GESTIONAR) && (
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-              <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="shield-account" size={32} iconColor={theme.colors.primary} onPress={() => {
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="shield-account" size={32} iconColor={surfaceColors.primary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('Users');
                 }} />
@@ -567,12 +627,12 @@ export default function AdminDashboardScreen({ navigation }) {
 
         {/* Directorio - Empresas y Empleados */}
         {(can(APP_PERMISSIONS.EMPRESAS_VER) || can(APP_PERMISSIONS.EMPLEADOS_VER)) && (
-          <View style={{ marginTop: 24 }}>
-            <OverlineText color={getPrimaryColor()}>DIRECTORIO</OverlineText>
+          <View style={{ marginTop: 20 }}>
+            <OverlineText color={surfaceColors.primary}>DIRECTORIO</OverlineText>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               {can(APP_PERMISSIONS.EMPRESAS_VER) && (
-                <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="domain" size={32} iconColor={theme.colors.primary} onPress={() => {
+                <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                  <IconButton icon="domain" size={32} iconColor={surfaceColors.primary} onPress={() => {
                     triggerHaptic('selection');
                     navigation.navigate('Empresas');
                   }} />
@@ -580,8 +640,8 @@ export default function AdminDashboardScreen({ navigation }) {
                 </Surface>
               )}
               {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
-                <Surface style={[styles.quickAction, { backgroundColor: theme.colors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="account-group" size={32} iconColor={theme.colors.secondary} onPress={() => {
+                <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                  <IconButton icon="account-group" size={32} iconColor={surfaceColors.secondary} onPress={() => {
                     triggerHaptic('selection');
                     navigation.navigate('Empleados');
                   }} />
@@ -611,28 +671,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   content: {
     padding: 20,
     paddingBottom: 40,
   },
   kpiContainer: {
-    marginBottom: 32,
+    marginBottom: 20,
   },
   kpiCard: {
     flex: 1,
-    padding: 16,
+    padding: 12,
     borderRadius: 24,
     alignItems: 'flex-start', // Align left for cleaner grid look
     justifyContent: 'center',
     gap: 4,
-    minHeight: 110, // Ensure consistent height
+    minHeight: 100, // Ensure consistent height
   },
   quickAction: {
     flex: 1,
-    padding: 16,
-    borderRadius: 28,
+    padding: 12, // Reduced padding
+    borderRadius: 24, // Consistent radius
     alignItems: 'center',
     // backgroundColor: '#f1f5f9', // Removed hardcoded color
   },

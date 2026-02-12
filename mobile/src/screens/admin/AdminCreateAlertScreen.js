@@ -18,10 +18,41 @@ import { es } from 'date-fns/locale';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
+import materialTheme from '../../../material-theme.json';
 
 export default function AdminCreateAlertScreen() {
   const theme = usePaperTheme();
-  const { getPrimaryColor } = useTheme();
+  const { getPrimaryColor, isDarkMode } = useTheme();
+  
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      onSecondary: scheme.onSecondary,
+      secondaryContainer: scheme.secondaryContainer,
+      onSecondaryContainer: scheme.onSecondaryContainer,
+      tertiary: scheme.tertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      error: scheme.error,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
   const { user, userProfile } = useAuth();
   const { can } = usePermissions();
   const navigation = useNavigation();
@@ -493,9 +524,9 @@ export default function AdminCreateAlertScreen() {
   // ✅ Validación de permiso (después de todos los hooks)
   if (!can(APP_PERMISSIONS.ADMIN_CREATE_ALERT)) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
           <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
           <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center' }}>No tienes permiso para crear alertas</Text>
           <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
@@ -505,14 +536,51 @@ export default function AdminCreateAlertScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <IconButton 
-          icon="arrow-left" 
-          size={28} 
-          onPress={() => navigation.goBack()}
-          style={{ marginLeft: -8 }}
-        />
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton 
+            icon="arrow-left" 
+            size={24} 
+            onPress={() => navigation.goBack()}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="bell-alert-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+              }}
+            />
+          </View>
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
+            Alertas
+          </Text>
+          <Text style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
+            Envía notificaciones importantes a todo el equipo
+          </Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView 
@@ -520,26 +588,6 @@ export default function AdminCreateAlertScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.content}>
-          
-          {/* Title Section */}
-          <View style={{ marginBottom: 24 }}>
-            <Text 
-              style={{ 
-                color: theme.colors.onSurface,
-                fontFamily: 'Roboto-Flex',
-                fontSize: 36,
-                fontWeight: '400',
-                letterSpacing: -0.5,
-                lineHeight: 44,
-                fontVariationSettings: [{ axis: 'wdth', value: 110 }]
-              }}
-            >
-              Nueva Alerta
-            </Text>
-            <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-              Envía notificaciones importantes a todo el equipo en tiempo real.
-            </Text>
-          </View>
 
           {/* Audience Selector */}
           <View style={[styles.formGroup, isEditing && { opacity: 0.5 }]}>
@@ -558,10 +606,10 @@ export default function AdminCreateAlertScreen() {
                     elevation={0}
                     style={{
                       width: '48%',
-                      borderRadius: 16,
-                      backgroundColor: isSelected ? theme.colors.secondaryContainer : theme.colors.surfaceContainerLow,
+                      borderRadius: 24,
+                      backgroundColor: isSelected ? surfaceColors.secondaryContainer : surfaceColors.surfaceContainerLow,
                       borderWidth: 1,
-                      borderColor: isSelected ? theme.colors.primary : 'transparent',
+                      borderColor: isSelected ? surfaceColors.primary : 'transparent',
                       overflow: 'hidden'
                     }}
                   >
@@ -577,12 +625,12 @@ export default function AdminCreateAlertScreen() {
                       <MaterialCommunityIcons 
                         name={option.icon} 
                         size={24} 
-                        color={isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant} 
+                        color={isSelected ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant} 
                       />
                       <Text 
                         variant="labelLarge" 
                         style={{ 
-                          color: isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant,
+                          color: isSelected ? surfaceColors.onSecondaryContainer : surfaceColors.onSurfaceVariant,
                           fontWeight: isSelected ? 'bold' : '500'
                         }}
                       >
@@ -600,8 +648,8 @@ export default function AdminCreateAlertScreen() {
                   mode="outlined" 
                   onPress={() => setUserModalVisible(true)}
                   icon="account-plus"
-                  style={{ borderRadius: 12, borderColor: theme.colors.primary }}
-                  textColor={theme.colors.primary}
+                  style={{ borderRadius: 12, borderColor: surfaceColors.primary }}
+                  textColor={surfaceColors.primary}
                 >
                   {selectedUsers.length > 0 
                     ? `Seleccionados: ${selectedUsers.length} usuarios` 
@@ -616,8 +664,8 @@ export default function AdminCreateAlertScreen() {
                         <Chip 
                           key={uid} 
                           onClose={() => toggleUserSelection(uid)}
-                          style={{ marginRight: 8, backgroundColor: theme.colors.secondaryContainer }}
-                          textStyle={{ color: theme.colors.onSecondaryContainer }}
+                          style={{ marginRight: 8, backgroundColor: surfaceColors.secondaryContainer }}
+                          textStyle={{ color: surfaceColors.onSecondaryContainer }}
                           avatar={
                             user?.photoURL ? <Avatar.Image size={24} source={{ uri: user.photoURL }} /> : <Avatar.Text size={24} label={(user?.name || 'U').charAt(0)} />
                           }
@@ -649,9 +697,9 @@ export default function AdminCreateAlertScreen() {
                   value: 'high',
                   label: 'Urgente',
                   icon: 'alert-circle-outline',
-                  checkedColor: theme.colors.onErrorContainer,
+                  checkedColor: surfaceColors.onErrorContainer,
                   style: { 
-                    backgroundColor: priority === 'high' ? theme.colors.errorContainer : undefined,
+                    backgroundColor: priority === 'high' ? surfaceColors.errorContainer : undefined,
                     borderTopRightRadius: 24, 
                     borderBottomRightRadius: 24 
                   }
@@ -668,8 +716,8 @@ export default function AdminCreateAlertScreen() {
               value={title}
               onChangeText={setTitle}
               mode="outlined"
-              outlineStyle={{ borderRadius: 16 }}
-              style={{ backgroundColor: theme.colors.surface }}
+              outlineStyle={{ borderRadius: 24 }}
+              style={{ backgroundColor: surfaceColors.surface }}
             />
           </View>
 
@@ -682,7 +730,7 @@ export default function AdminCreateAlertScreen() {
               multiline
               numberOfLines={10} // Increased height
               outlineStyle={{ borderRadius: 24 }}
-              style={{ backgroundColor: theme.colors.surface, paddingVertical: 12, minHeight: 160 }}
+              style={{ backgroundColor: surfaceColors.surface, paddingVertical: 12, minHeight: 160 }}
             />
           </View>
 
@@ -697,7 +745,7 @@ export default function AdminCreateAlertScreen() {
                     onPress={pickDocument}
                     icon="file-document-outline"
                     style={{ flex: 1, borderRadius: 12, borderStyle: 'dashed' }}
-                    textColor={theme.colors.onSurfaceVariant}
+                    textColor={surfaceColors.onSurfaceVariant}
                   >
                     Archivo
                   </Button>
@@ -706,7 +754,7 @@ export default function AdminCreateAlertScreen() {
                     onPress={takePhoto}
                     icon="camera-outline"
                     style={{ flex: 1, borderRadius: 12, borderStyle: 'dashed' }}
-                    textColor={theme.colors.onSurfaceVariant}
+                    textColor={surfaceColors.onSurfaceVariant}
                   >
                     Cámara
                   </Button>
@@ -716,14 +764,14 @@ export default function AdminCreateAlertScreen() {
                   flexDirection: 'row', 
                   alignItems: 'center', 
                   padding: 12, 
-                  borderRadius: 16, 
-                  backgroundColor: theme.colors.surfaceContainerHigh 
+                  borderRadius: 24, 
+                  backgroundColor: surfaceColors.surfaceContainerHigh 
                 }} elevation={0}>
                   <View style={{ 
                     width: 40, 
                     height: 40, 
                     borderRadius: 8, 
-                    backgroundColor: theme.colors.primaryContainer,
+                    backgroundColor: surfaceColors.primaryContainer,
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 12
@@ -731,14 +779,14 @@ export default function AdminCreateAlertScreen() {
                     <MaterialCommunityIcons 
                       name={attachment.mimeType?.includes('image') ? 'image' : 'file-pdf-box'} 
                       size={24} 
-                      color={theme.colors.primary} 
+                      color={surfaceColors.primary} 
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyMedium" numberOfLines={1} style={{ fontWeight: '600' }}>
                       {attachment.name}
                     </Text>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant }}>
                       {attachment.size ? (attachment.size / 1024 / 1024).toFixed(2) + ' MB' : 'Archivo adjunto'}
                     </Text>
                   </View>
@@ -755,21 +803,21 @@ export default function AdminCreateAlertScreen() {
           {/* Live Preview */}
           {(title || message || attachment) && (
             <View style={styles.previewContainer}>
-              <OverlineText color={theme.colors.onSurfaceVariant} style={{ marginBottom: 12 }}>VISTA PREVIA</OverlineText>
-              <Surface style={[styles.previewCard, { backgroundColor: theme.colors.surfaceContainerLow }]} elevation={0}>
+              <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 12 }}>VISTA PREVIA</OverlineText>
+              <Surface style={[styles.previewCard, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
                 <View style={{ flexDirection: 'row', gap: 16 }}>
-                  <View style={[styles.iconBox, { backgroundColor: priority === 'high' ? theme.colors.errorContainer : theme.colors.primaryContainer }]}>
+                  <View style={[styles.iconBox, { backgroundColor: priority === 'high' ? surfaceColors.errorContainer : surfaceColors.primaryContainer }]}>
                     <MaterialCommunityIcons 
                       name={priority === 'high' ? "alert" : "bell"} 
                       size={24} 
-                      color={priority === 'high' ? theme.colors.onErrorContainer : theme.colors.onPrimaryContainer} 
+                      color={priority === 'high' ? surfaceColors.onErrorContainer : surfaceColors.onPrimaryContainer} 
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text variant="titleMedium" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+                    <Text variant="titleMedium" style={{ fontWeight: 'bold', color: surfaceColors.onSurface }}>
                       {title || 'Título de la alerta'}
                     </Text>
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                    <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
                       {message || 'El contenido de tu mensaje aparecerá aquí...'}
                     </Text>
                     
@@ -777,46 +825,46 @@ export default function AdminCreateAlertScreen() {
                     {linkPreview && (
                       <Surface style={{ 
                         marginTop: 8, 
-                        borderRadius: 12, 
-                        backgroundColor: theme.colors.surface, 
+                        borderRadius: 24, 
+                        backgroundColor: surfaceColors.surface, 
                         overflow: 'hidden',
                         borderWidth: 1,
-                        borderColor: theme.colors.outlineVariant
+                        borderColor: surfaceColors.outlineVariant
                       }} elevation={0}>
                         <View style={{ padding: 12, flexDirection: 'row', alignItems: 'center' }}>
                           <View style={{ 
                             width: 32, 
                             height: 32, 
                             borderRadius: 16, 
-                            backgroundColor: theme.colors.secondaryContainer,
+                            backgroundColor: surfaceColors.secondaryContainer,
                             alignItems: 'center', 
                             justifyContent: 'center',
                             marginRight: 12
                           }}>
-                            <MaterialCommunityIcons name="web" size={18} color={theme.colors.onSecondaryContainer} />
+                            <MaterialCommunityIcons name="web" size={18} color={surfaceColors.onSecondaryContainer} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text variant="labelLarge" numberOfLines={1} style={{ color: theme.colors.primary }}>
+                            <Text variant="labelLarge" numberOfLines={1} style={{ color: surfaceColors.primary }}>
                               {linkPreview.domain}
                             </Text>
-                            <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
+                            <Text variant="bodySmall" numberOfLines={1} style={{ color: surfaceColors.onSurfaceVariant }}>
                               {linkPreview.url}
                             </Text>
                           </View>
-                          <MaterialCommunityIcons name="open-in-new" size={16} color={theme.colors.outline} />
+                          <MaterialCommunityIcons name="open-in-new" size={16} color={surfaceColors.outline} />
                         </View>
                       </Surface>
                     )}
 
                     {attachment && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, backgroundColor: 'rgba(0,0,0,0.05)', padding: 8, borderRadius: 8 }}>
-                        <MaterialCommunityIcons name="paperclip" size={16} color={theme.colors.primary} />
-                        <Text variant="labelSmall" style={{ marginLeft: 4, color: theme.colors.primary, fontWeight: '600' }}>
+                        <MaterialCommunityIcons name="paperclip" size={16} color={surfaceColors.primary} />
+                        <Text variant="labelSmall" style={{ marginLeft: 4, color: surfaceColors.primary, fontWeight: '600' }}>
                           {attachment.name}
                         </Text>
                       </View>
                     )}
-                    <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 8 }}>
+                    <Text variant="labelSmall" style={{ color: surfaceColors.outline, marginTop: 8 }}>
                       Ahora mismo
                     </Text>
                   </View>
@@ -853,7 +901,7 @@ export default function AdminCreateAlertScreen() {
                 }}
                 style={{ borderRadius: 28 }}
                 contentStyle={{ height: 48 }}
-                textColor={theme.colors.error}
+                textColor={surfaceColors.error}
               >
                 Cancelar Edición
               </Button>
@@ -864,11 +912,11 @@ export default function AdminCreateAlertScreen() {
           {recentAlerts.length > 0 && (
             <View style={styles.historyContainer}>
               <Divider style={{ marginVertical: 32 }} />
-              <OverlineText color={theme.colors.onSurfaceVariant} style={{ marginBottom: 16 }}>ENVIADOS RECIENTEMENTE</OverlineText>
+              <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 16 }}>ENVIADOS RECIENTEMENTE</OverlineText>
               {recentAlerts.map((alert) => {
                 const isHighPriority = alert.priority === 'high';
                 const icon = isHighPriority ? 'alert' : 'bullhorn';
-                const color = isHighPriority ? theme.colors.error : theme.colors.primary;
+                const color = isHighPriority ? surfaceColors.error : surfaceColors.primary;
                 
                 return (
                   <TouchableOpacity key={alert.id} onPress={() => openHistoryDetail(alert)} activeOpacity={0.7}>
@@ -876,29 +924,29 @@ export default function AdminCreateAlertScreen() {
                       style={[
                         styles.historyCard, 
                         { 
-                          backgroundColor: theme.colors.surfaceContainerLow,
-                          borderColor: theme.colors.outlineVariant,
+                          backgroundColor: surfaceColors.surfaceContainerLow,
+                          borderColor: surfaceColors.outlineVariant,
                           borderWidth: 1
                         }
                       ]} 
                       elevation={0}
                     >
-                      <View style={[styles.historyIconContainer, { backgroundColor: theme.colors.surfaceContainerHigh }]}>
+                      <View style={[styles.historyIconContainer, { backgroundColor: surfaceColors.surfaceContainerHigh }]}>
                         <MaterialCommunityIcons name={icon} size={24} color={color} />
                       </View>
                       
                       <View style={styles.historyTextContainer}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Text variant="titleMedium" style={{ fontWeight: '600', color: theme.colors.onSurface, flex: 1 }}>
+                          <Text variant="titleMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface, flex: 1 }}>
                             {alert.title}
                           </Text>
                         </View>
                         
-                        <Text variant="bodyMedium" numberOfLines={2} style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                        <Text variant="bodyMedium" numberOfLines={2} style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
                           {alert.message}
                         </Text>
                         
-                        <Text variant="labelSmall" style={{ color: theme.colors.outline, marginTop: 8 }}>
+                        <Text variant="labelSmall" style={{ color: surfaceColors.outline, marginTop: 8 }}>
                           {alert.createdAt ? formatDistanceToNow(alert.createdAt.toDate(), { addSuffix: true, locale: es }) : 'Reciente'}
                         </Text>
                       </View>
@@ -920,7 +968,7 @@ export default function AdminCreateAlertScreen() {
         onRequestClose={() => setHistoryModalVisible(false)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 }}>
-          <Surface style={{ borderRadius: 28, padding: 24, backgroundColor: theme.colors.surfaceContainerHigh }} elevation={0}>
+          <Surface style={{ borderRadius: 28, padding: 24, backgroundColor: surfaceColors.surfaceContainerHigh }} elevation={0}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <Text variant="headlineSmall" style={{ fontWeight: '400', fontFamily: 'Roboto-Flex' }}>Detalle de Alerta</Text>
               <IconButton icon="close" onPress={() => setHistoryModalVisible(false)} />
@@ -933,19 +981,19 @@ export default function AdminCreateAlertScreen() {
                     width: 48, 
                     height: 48, 
                     borderRadius: 24, 
-                    backgroundColor: selectedHistoryItem.priority === 'high' ? theme.colors.errorContainer : theme.colors.primaryContainer,
+                    backgroundColor: selectedHistoryItem.priority === 'high' ? surfaceColors.errorContainer : surfaceColors.primaryContainer,
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
                     <MaterialCommunityIcons 
                       name={selectedHistoryItem.priority === 'high' ? 'alert' : 'bell'} 
                       size={24} 
-                      color={selectedHistoryItem.priority === 'high' ? theme.colors.onErrorContainer : theme.colors.onPrimaryContainer} 
+                      color={selectedHistoryItem.priority === 'high' ? surfaceColors.onErrorContainer : surfaceColors.onPrimaryContainer} 
                     />
                   </View>
                   <View style={{ marginLeft: 16 }}>
-                    <OverlineText color={theme.colors.onSurfaceVariant}>ENVIADO EL</OverlineText>
-                    <Text variant="bodyLarge" style={{ fontWeight: '500', color: theme.colors.onSurface }}>
+                    <OverlineText color={surfaceColors.onSurfaceVariant}>ENVIADO EL</OverlineText>
+                    <Text variant="bodyLarge" style={{ fontWeight: '500', color: surfaceColors.onSurface }}>
                       {selectedHistoryItem.createdAt ? format(selectedHistoryItem.createdAt.toDate(), "d 'de' MMMM, h:mm a", { locale: es }) : 'Fecha desconocida'}
                     </Text>
                   </View>
@@ -955,19 +1003,19 @@ export default function AdminCreateAlertScreen() {
 
                 <View style={{ flexDirection: 'row', marginBottom: 24 }}>
                   <View style={{ flex: 1 }}>
-                    <OverlineText color={theme.colors.onSurfaceVariant} style={{ marginBottom: 8 }}>REMITENTE</OverlineText>
+                    <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 8 }}>REMITENTE</OverlineText>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Avatar.Text 
                         size={32} 
                         label={(selectedHistoryItem.senderName || 'A').charAt(0)} 
-                        style={{ backgroundColor: theme.colors.secondaryContainer }}
-                        color={theme.colors.onSecondaryContainer}
+                        style={{ backgroundColor: surfaceColors.secondaryContainer }}
+                        color={surfaceColors.onSecondaryContainer}
                       />
                       <View style={{ marginLeft: 12 }}>
-                        <Text variant="bodyMedium" style={{ fontWeight: '600', color: theme.colors.onSurface }}>
+                        <Text variant="bodyMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
                           {selectedHistoryItem.senderName || 'Administrador (Sistema)'}
                         </Text>
-                        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant }}>
                           {selectedHistoryItem.senderRole || 'ADMIN'}
                         </Text>
                       </View>
@@ -976,10 +1024,10 @@ export default function AdminCreateAlertScreen() {
                 </View>
 
                 <View style={{ marginBottom: 24 }}>
-                  <OverlineText color={theme.colors.onSurfaceVariant} style={{ marginBottom: 8 }}>DESTINATARIO</OverlineText>
+                  <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 8 }}>DESTINATARIO</OverlineText>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <MaterialCommunityIcons name="account-arrow-right" size={20} color={theme.colors.primary} />
-                    <Text variant="bodyMedium" style={{ marginLeft: 12, color: theme.colors.onSurface, flex: 1 }}>
+                    <MaterialCommunityIcons name="account-arrow-right" size={20} color={surfaceColors.primary} />
+                    <Text variant="bodyMedium" style={{ marginLeft: 12, color: surfaceColors.onSurface, flex: 1 }}>
                       {(() => {
                         const { audience, recipients, uid } = selectedHistoryItem;
                         
@@ -1009,32 +1057,32 @@ export default function AdminCreateAlertScreen() {
                 </View>
 
                 <View style={{ marginBottom: 24 }}>
-                  <OverlineText color={theme.colors.onSurfaceVariant} style={{ marginBottom: 8 }}>MENSAJE</OverlineText>
-                  <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: theme.colors.onSurface }}>
+                  <OverlineText color={surfaceColors.onSurfaceVariant} style={{ marginBottom: 8 }}>MENSAJE</OverlineText>
+                  <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 8, color: surfaceColors.onSurface }}>
                     {selectedHistoryItem.title}
                   </Text>
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 20 }}>
+                  <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, lineHeight: 20 }}>
                     {selectedHistoryItem.message}
                   </Text>
                 </View>
 
                 {selectedHistoryItem.attachment && (
                   <Surface style={{ 
-                    borderRadius: 16, 
-                    backgroundColor: theme.colors.surface, 
+                    borderRadius: 24, 
+                    backgroundColor: surfaceColors.surface, 
                     borderWidth: 1, 
-                    borderColor: theme.colors.outlineVariant,
+                    borderColor: surfaceColors.outlineVariant,
                     overflow: 'hidden'
                   }} elevation={0}>
                     <TouchableOpacity 
                       onPress={() => Linking.openURL(selectedHistoryItem.attachment.url)}
                       style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}
                     >
-                      <MaterialCommunityIcons name="paperclip" size={20} color={theme.colors.primary} />
-                      <Text variant="labelLarge" style={{ marginLeft: 12, color: theme.colors.primary, flex: 1 }}>
+                      <MaterialCommunityIcons name="paperclip" size={20} color={surfaceColors.primary} />
+                      <Text variant="labelLarge" style={{ marginLeft: 12, color: surfaceColors.primary, flex: 1 }}>
                         {selectedHistoryItem.attachment.name}
                       </Text>
-                      <MaterialCommunityIcons name="open-in-new" size={16} color={theme.colors.onSurfaceVariant} />
+                      <MaterialCommunityIcons name="open-in-new" size={16} color={surfaceColors.onSurfaceVariant} />
                     </TouchableOpacity>
                   </Surface>
                 )}
@@ -1043,8 +1091,8 @@ export default function AdminCreateAlertScreen() {
                   <Button 
                     mode="outlined" 
                     onPress={() => handleEditAlert(selectedHistoryItem)}
-                    style={{ flex: 1, borderColor: theme.colors.primary }}
-                    textColor={theme.colors.primary}
+                    style={{ flex: 1, borderColor: surfaceColors.primary }}
+                    textColor={surfaceColors.primary}
                     icon="pencil"
                   >
                     Editar
@@ -1052,8 +1100,8 @@ export default function AdminCreateAlertScreen() {
                   <Button 
                     mode="outlined" 
                     onPress={() => handleDeleteAlert(selectedHistoryItem)}
-                    style={{ flex: 1, borderColor: theme.colors.error }}
-                    textColor={theme.colors.error}
+                    style={{ flex: 1, borderColor: surfaceColors.error }}
+                    textColor={surfaceColors.error}
                     icon="delete"
                   >
                     Eliminar
@@ -1072,11 +1120,11 @@ export default function AdminCreateAlertScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setUserModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={{ flex: 1, backgroundColor: surfaceColors.background }}>
           {/* Header con diseño elevado */}
           <View style={{ 
             padding: 20, 
-            backgroundColor: theme.colors.surfaceContainerLow,
+            backgroundColor: surfaceColors.surfaceContainerLow,
             borderBottomLeftRadius: 24,
             borderBottomRightRadius: 24,
             flexDirection: 'row', 
@@ -1084,7 +1132,7 @@ export default function AdminCreateAlertScreen() {
             justifyContent: 'space-between',
             elevation: 0
           }}>
-            <Text variant="titleLarge" style={{ fontWeight: '600', color: theme.colors.onSurface }}>
+            <Text variant="titleLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
               Seleccionar Usuarios
             </Text>
             <Button 
@@ -1103,12 +1151,12 @@ export default function AdminCreateAlertScreen() {
               onChangeText={setSearchQuery}
               value={searchQuery}
               style={{ 
-                backgroundColor: theme.colors.surfaceContainerHigh,
+                backgroundColor: surfaceColors.surfaceContainerHigh,
                 borderRadius: 32,
                 elevation: 0
               }}
               inputStyle={{ fontSize: 14 }}
-              iconColor={theme.colors.onSurfaceVariant}
+              iconColor={surfaceColors.onSurfaceVariant}
             />
           </View>
 
@@ -1131,8 +1179,8 @@ export default function AdminCreateAlertScreen() {
                     paddingVertical: 14,
                     borderRadius: 24,
                     backgroundColor: isSelected 
-                      ? theme.colors.primaryContainer 
-                      : theme.colors.surfaceContainerLow,
+                      ? surfaceColors.primaryContainer 
+                      : surfaceColors.surfaceContainerLow,
                     elevation: 0,
                     borderWidth: isSelected ? 2 : 0,
                     borderColor: isSelected ? getPrimaryColor() : 'transparent'
@@ -1144,7 +1192,7 @@ export default function AdminCreateAlertScreen() {
                       size={48} 
                       source={{ uri: item.photoURL }}
                       style={{ 
-                        backgroundColor: theme.colors.surfaceContainerHigh 
+                        backgroundColor: surfaceColors.surfaceContainerHigh 
                       }}
                     />
                   ) : (
@@ -1155,7 +1203,7 @@ export default function AdminCreateAlertScreen() {
                         backgroundColor: getPrimaryColor() 
                       }}
                       labelStyle={{ 
-                        color: theme.colors.onPrimary,
+                        color: surfaceColors.onPrimary,
                         fontWeight: '600'
                       }}
                     />
@@ -1167,7 +1215,7 @@ export default function AdminCreateAlertScreen() {
                       variant="bodyLarge" 
                       style={{ 
                         fontWeight: '600',
-                        color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurface,
+                        color: isSelected ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
                         marginBottom: 2
                       }}
                     >
@@ -1177,8 +1225,8 @@ export default function AdminCreateAlertScreen() {
                       variant="bodySmall" 
                       style={{ 
                         color: isSelected 
-                          ? theme.colors.onPrimaryContainer 
-                          : theme.colors.onSurfaceVariant,
+                          ? surfaceColors.onPrimaryContainer 
+                          : surfaceColors.onSurfaceVariant,
                         fontSize: 12
                       }}
                     >
@@ -1209,7 +1257,8 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 16,
+    marginBottom: 0,
   },
   content: {
     paddingHorizontal: 24,
@@ -1229,7 +1278,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },

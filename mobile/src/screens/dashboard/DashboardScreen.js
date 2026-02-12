@@ -232,21 +232,18 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      >
-        {/* Header Material You Expressive */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, marginBottom: 12 }}>
-          <View>
+      {/* Header Material You Expressive (Display Medium) */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, marginBottom: 0 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
             <PaperText 
               style={{ 
                 fontFamily: 'Roboto-Flex',
-                fontSize: 57,
-                lineHeight: 64,
+                fontSize: 45,
+                lineHeight: 52,
                 fontWeight: '400',
                 color: surfaceColors.primary,
-                letterSpacing: -0.5,
+                letterSpacing: -0.25,
                 fontVariationSettings: [{ axis: 'wdth', value: 110 }]
               }}
             >
@@ -262,7 +259,27 @@ export default function DashboardScreen() {
               {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
             </PaperText>
           </View>
+          {userProfile?.photoURL ? (
+            <Avatar.Image 
+              size={56} 
+              source={{ uri: userProfile.photoURL }} 
+              style={{ backgroundColor: surfaceColors.surfaceContainerHighest }}
+            />
+          ) : (
+            <Avatar.Text 
+              size={56} 
+              label={(userProfile?.displayName || userProfile?.name || 'U').substring(0, 2).toUpperCase()} 
+              style={{ backgroundColor: surfaceColors.primaryContainer }}
+              color={surfaceColors.onPrimaryContainer}
+            />
+          )}
         </View>
+      </View>
+      
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         
         {/* ✅ NUEVO: Indicador de Sincronización Pendiente */}
         {hasPendingSync && (

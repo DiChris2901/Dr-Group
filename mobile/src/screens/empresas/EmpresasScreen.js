@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { useEmpresas } from '../../hooks/useEmpresas';
 import { LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
+import { useTheme as useAppTheme } from '../../contexts/ThemeContext';
 
 /**
  * EmpresasScreen - Directorio de empresas
@@ -32,8 +33,33 @@ import materialTheme from '../../../material-theme.json';
 export default function EmpresasScreen() {
   const navigation = useNavigation();
   const theme = useTheme();
-  const isDark = theme.dark;
-  const scheme = isDark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+  const { isDarkMode } = useAppTheme();
+
+  // Surface colors dinámicos
+  const surfaceColors = React.useMemo(() => {
+    const scheme = isDarkMode ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      background: scheme.background,
+      surface: scheme.surface,
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      secondary: scheme.secondary,
+      secondaryContainer: scheme.secondaryContainer,
+      tertiary: scheme.tertiary,
+      error: scheme.error,
+      errorContainer: scheme.errorContainer,
+      outline: scheme.outline,
+      outlineVariant: scheme.outlineVariant,
+    };
+  }, [isDarkMode]);
 
   const {
     filteredEmpresas,
@@ -54,44 +80,61 @@ export default function EmpresasScreen() {
   // Sin permiso
   if (!hasPermission) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTop}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Material You Expressive */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+          {/* Header Top - Navigation Buttons */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <IconButton
               icon="arrow-left"
               size={24}
               onPress={() => {
-                Haptics.selectionAsync();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconButton
+                icon="domain"
+                mode="contained-tonal"
+                size={20}
+                iconColor={surfaceColors.primary}
+                style={{
+                  backgroundColor: surfaceColors.primaryContainer,
+                }}
+              />
+            </View>
           </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
+          
+          {/* Header Content - Title */}
+          <View style={{ paddingHorizontal: 4 }}>
+            <PaperText style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 57,
+              lineHeight: 64,
+              fontWeight: '400', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
               Empresas
             </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            <PaperText style={{ 
+              fontSize: 16,
+              color: surfaceColors.onSurfaceVariant, 
+              marginTop: 4
+            }}>
               Directorio de Organizaciones
             </PaperText>
           </View>
         </View>
         <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="lock-outline" size={64} color={scheme.outline} />
-          <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: scheme.onSurface }]}>
+          <MaterialCommunityIcons name="lock-outline" size={64} color={surfaceColors.outline} />
+          <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: surfaceColors.onSurface }]}>
             Acceso Restringido
           </PaperText>
-          <PaperText variant="bodyMedium" style={[styles.deniedMessage, { color: scheme.onSurfaceVariant }]}>
+          <PaperText variant="bodyMedium" style={[styles.deniedMessage, { color: surfaceColors.onSurfaceVariant }]}>
             No tienes permiso para ver el directorio de empresas. Contacta a tu administrador.
           </PaperText>
         </View>
@@ -102,34 +145,51 @@ export default function EmpresasScreen() {
   // Loading
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        {/* Header Expresivo */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTop}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+        {/* Header Material You Expressive */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+          {/* Header Top - Navigation Buttons */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <IconButton
               icon="arrow-left"
               size={24}
               onPress={() => {
-                Haptics.selectionAsync();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.goBack();
               }}
-              iconColor={scheme.onSurface}
+              iconColor={surfaceColors.onSurface}
             />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconButton
+                icon="domain"
+                mode="contained-tonal"
+                size={20}
+                iconColor={surfaceColors.primary}
+                style={{
+                  backgroundColor: surfaceColors.primaryContainer,
+                }}
+              />
+            </View>
           </View>
-          <View style={styles.headerContent}>
-            <PaperText
-              variant="displaySmall"
-              style={{
-                fontWeight: '400',
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-                fontFamily: 'Roboto-Flex',
-                marginBottom: 4,
-              }}
-            >
+          
+          {/* Header Content - Title */}
+          <View style={{ paddingHorizontal: 4 }}>
+            <PaperText style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 57,
+              lineHeight: 64,
+              fontWeight: '400', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
               Empresas
             </PaperText>
-            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            <PaperText style={{ 
+              fontSize: 16,
+              color: surfaceColors.onSurfaceVariant, 
+              marginTop: 4
+            }}>
               Directorio de Organizaciones
             </PaperText>
           </View>
@@ -148,12 +208,12 @@ export default function EmpresasScreen() {
     return (
       <Pressable
         onPress={() => handlePressEmpresa(item)}
-        android_ripple={{ color: scheme.primary + '1F' }}
+        android_ripple={{ color: surfaceColors.primary + '1F' }}
         style={({ pressed }) => [
           styles.empresaCard,
           {
-            backgroundColor: scheme.surfaceContainerLow,
-            borderColor: scheme.outlineVariant,
+            backgroundColor: surfaceColors.surfaceContainerLow,
+            borderColor: surfaceColors.outlineVariant,
             transform: [{ scale: pressed ? 0.98 : 1 }],
           },
         ]}
@@ -163,15 +223,15 @@ export default function EmpresasScreen() {
           {hasLogo ? (
             <Image
               source={{ uri: item.logoURL }}
-              style={[styles.logo, { backgroundColor: scheme.surfaceContainer }]}
+              style={[styles.logo, { backgroundColor: surfaceColors.surfaceContainer }]}
               resizeMode="contain"
             />
           ) : (
             <Avatar.Icon
               size={48}
               icon="domain"
-              style={{ backgroundColor: scheme.primaryContainer }}
-              color={scheme.onPrimaryContainer}
+              style={{ backgroundColor: surfaceColors.primaryContainer }}
+              color={surfaceColors.onPrimaryContainer}
             />
           )}
         </View>
@@ -181,7 +241,7 @@ export default function EmpresasScreen() {
           <PaperText
             variant="titleMedium"
             numberOfLines={1}
-            style={{ color: scheme.onSurface, fontWeight: '600' }}
+            style={{ color: surfaceColors.onSurface, fontWeight: '600' }}
           >
             {item.name || 'Sin nombre'}
           </PaperText>
@@ -189,7 +249,7 @@ export default function EmpresasScreen() {
           <PaperText
             variant="bodySmall"
             numberOfLines={1}
-            style={{ color: scheme.onSurfaceVariant, marginTop: 2 }}
+            style={{ color: surfaceColors.onSurfaceVariant, marginTop: 2 }}
           >
             NIT: {item.nit || 'No registrado'}
           </PaperText>
@@ -200,7 +260,7 @@ export default function EmpresasScreen() {
                 icon="map-marker"
                 compact
                 textStyle={styles.chipText}
-                style={[styles.chip, { backgroundColor: scheme.surfaceContainer }]}
+                style={[styles.chip, { backgroundColor: surfaceColors.surfaceContainer }]}
               >
                 {item.city}
               </Chip>
@@ -209,8 +269,8 @@ export default function EmpresasScreen() {
               <Chip
                 icon="alert-circle"
                 compact
-                textStyle={[styles.chipText, { color: scheme.error }]}
-                style={[styles.chip, { backgroundColor: scheme.errorContainer }]}
+                textStyle={[styles.chipText, { color: surfaceColors.error }]}
+                style={[styles.chip, { backgroundColor: surfaceColors.errorContainer }]}
               >
                 Vencido
               </Chip>
@@ -222,27 +282,28 @@ export default function EmpresasScreen() {
         <MaterialCommunityIcons
           name="chevron-right"
           size={24}
-          color={scheme.outline}
+          color={surfaceColors.outline}
         />
       </Pressable>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header Expresivo */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerTop}>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.surface }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <IconButton
             icon="arrow-left"
             size={24}
             onPress={() => {
-              Haptics.selectionAsync();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               navigation.goBack();
             }}
-            iconColor={scheme.onSurface}
+            iconColor={surfaceColors.onSurface}
           />
-          <View style={styles.actionButtons}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <IconButton
               icon="domain"
               mode="contained-tonal"
@@ -251,28 +312,32 @@ export default function EmpresasScreen() {
                 Haptics.selectionAsync();
                 // Navegar a resumen de empresas o acción futura
               }}
-              iconColor={scheme.primary}
+              iconColor={surfaceColors.primary}
               style={{
-                backgroundColor: scheme.primaryContainer,
-                marginLeft: 8,
+                backgroundColor: surfaceColors.primaryContainer,
               }}
             />
           </View>
         </View>
-        <View style={styles.headerContent}>
-          <PaperText
-            variant="displaySmall"
-            style={{
-              fontWeight: '400',
-              color: scheme.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4,
-            }}
-          >
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <PaperText style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
             Empresas
           </PaperText>
-          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+          <PaperText style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 4
+          }}>
             {filteredCount} en el directorio
           </PaperText>
         </View>
@@ -283,16 +348,16 @@ export default function EmpresasScreen() {
         <Surface
           style={[
             styles.statsChip,
-            { backgroundColor: scheme.primaryContainer },
+            { backgroundColor: surfaceColors.primaryContainer },
           ]}
           elevation={0}
         >
-          <MaterialCommunityIcons name="domain" size={24} color={scheme.onPrimaryContainer} />
+          <MaterialCommunityIcons name="domain" size={24} color={surfaceColors.onPrimaryContainer} />
           <View style={{ marginLeft: 12 }}>
-            <PaperText variant="labelSmall" style={{ color: scheme.onPrimaryContainer }}>
+            <PaperText variant="labelSmall" style={{ color: surfaceColors.onPrimaryContainer }}>
               Total Organizaciones
             </PaperText>
-            <PaperText variant="titleLarge" style={{ color: scheme.onPrimaryContainer, fontWeight: '700' }}>
+            <PaperText variant="titleLarge" style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '700' }}>
               {totalCount}
             </PaperText>
           </View>
@@ -305,13 +370,13 @@ export default function EmpresasScreen() {
           placeholder="Buscar por nombre, NIT, ciudad..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          style={[styles.searchbar, { backgroundColor: scheme.surfaceContainerHigh }]}
+          style={[styles.searchbar, { backgroundColor: surfaceColors.surfaceContainerHigh }]}
           inputStyle={{ fontSize: 14 }}
           elevation={0}
         />
         <PaperText
           variant="labelSmall"
-          style={[styles.resultCount, { color: scheme.onSurfaceVariant }]}
+          style={[styles.resultCount, { color: surfaceColors.onSurfaceVariant }]}
         >
           {filteredCount} de {totalCount} empresas
         </PaperText>
@@ -327,22 +392,22 @@ export default function EmpresasScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
             <View style={styles.emptyStateContainer}>
-              <View style={[styles.emptyStateCircle, { backgroundColor: scheme.surfaceContainerHigh }]}>
+              <View style={[styles.emptyStateCircle, { backgroundColor: surfaceColors.surfaceContainerHigh }]}>
                 <MaterialCommunityIcons
                   name={searchQuery ? 'domain-off' : 'domain-plus'}
                   size={64}
-                  color={scheme.primary}
+                  color={surfaceColors.primary}
                 />
               </View>
               <PaperText
                 variant="headlineSmall"
-                style={{ color: scheme.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
+                style={{ color: surfaceColors.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
               >
                 {searchQuery ? 'Sin resultados' : 'Directorio vacío'}
               </PaperText>
               <PaperText
                 variant="bodyLarge"
-                style={{ color: scheme.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
+                style={{ color: surfaceColors.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
               >
                 {searchQuery
                   ? `No se encontraron empresas para "${searchQuery}"`
