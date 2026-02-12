@@ -101,8 +101,8 @@ export default function EmpresaDetailScreen() {
 
       if (diffDays < 0) return { expired: true, label: `Vencido hace ${Math.abs(diffDays)} días`, color: scheme.error };
       if (diffDays <= 30) return { expired: false, label: `Vence en ${diffDays} días`, color: scheme.error };
-      if (diffDays <= 90) return { expired: false, label: `Vence en ${diffDays} días`, color: '#FF9800' };
-      return { expired: false, label: `Vigente (${diffDays} días)`, color: '#4CAF50' };
+      if (diffDays <= 90) return { expired: false, label: `Vence en ${diffDays} días`, color: scheme.tertiary };
+      return { expired: false, label: `Vigente (${diffDays} días)`, color: scheme.primary };
     } catch {
       return { expired: false, label: '' };
     }
@@ -290,19 +290,19 @@ export default function EmpresaDetailScreen() {
 
         {/* Información Bancaria */}
         <View style={styles.section}>
-          <OverlineText color="#4CAF50">INFORMACIÓN BANCARIA</OverlineText>
-          <DetailRow icon="bank" label="Banco" value={empresa.bankName || 'No registrado'} iconColor="#4CAF50" />
+          <OverlineText color={scheme.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
+          <DetailRow icon="bank" label="Banco" value={empresa.bankName || 'No registrado'} iconColor={scheme.tertiary} />
           <DetailRow
             icon="credit-card-outline"
             label="Tipo de Cuenta"
             value={empresa.accountType || 'No especificado'}
-            iconColor="#4CAF50"
+            iconColor={scheme.tertiary}
           />
           <DetailRow
             icon="numeric"
             label="Número de Cuenta"
             value={empresa.bankAccount || 'No registrado'}
-            iconColor="#4CAF50"
+            iconColor={scheme.tertiary}
           />
 
           {empresa.bankCertificationURL && (
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerName: {
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 8,
     textAlign: 'center',
   },

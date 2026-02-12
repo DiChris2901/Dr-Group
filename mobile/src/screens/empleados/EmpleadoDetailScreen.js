@@ -150,17 +150,17 @@ export default function EmpleadoDetailScreen() {
   // Estado del contrato
   const contractStatus = useMemo(() => {
     if (empleado?.retirado) return { label: 'Retirado', color: scheme.error, icon: 'account-off' };
-    if (!empleado?.fechaFinContrato) return { label: 'Activo', color: '#4CAF50', icon: 'account-check' };
+    if (!empleado?.fechaFinContrato) return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
     try {
       const fin = empleado.fechaFinContrato.toDate
         ? empleado.fechaFinContrato.toDate()
         : new Date(empleado.fechaFinContrato);
       const diffDays = Math.ceil((fin - new Date()) / (1000 * 60 * 60 * 24));
       if (diffDays < 0) return { label: 'Contrato vencido', color: scheme.error, icon: 'alert-circle' };
-      if (diffDays <= 30) return { label: `Vence en ${diffDays} días`, color: '#FF9800', icon: 'clock-alert' };
-      return { label: 'Activo', color: '#4CAF50', icon: 'account-check' };
+      if (diffDays <= 30) return { label: `Vence en ${diffDays} días`, color: scheme.tertiary, icon: 'clock-alert' };
+      return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
     } catch {
-      return { label: 'Activo', color: '#4CAF50', icon: 'account-check' };
+      return { label: 'Activo', color: scheme.primary, icon: 'account-check' };
     }
   }, [empleado, scheme]);
 
@@ -378,7 +378,7 @@ export default function EmpleadoDetailScreen() {
             value={tiempoEnEmpresa}
             iconColor={scheme.tertiary}
             highlight
-            highlightColor="#4CAF50"
+            highlightColor={scheme.primary}
           />
         </View>
 
@@ -386,19 +386,19 @@ export default function EmpleadoDetailScreen() {
 
         {/* Información Bancaria */}
         <View style={styles.section}>
-          <OverlineText color="#4CAF50">INFORMACIÓN BANCARIA</OverlineText>
-          <DetailRow icon="bank" label="Banco" value={empleado.banco || 'No registrado'} iconColor="#4CAF50" />
+          <OverlineText color={scheme.tertiary}>INFORMACIÓN BANCARIA</OverlineText>
+          <DetailRow icon="bank" label="Banco" value={empleado.banco || 'No registrado'} iconColor={scheme.tertiary} />
           <DetailRow
             icon="credit-card-outline"
             label="Tipo de Cuenta"
             value={empleado.tipoCuenta || 'No especificado'}
-            iconColor="#4CAF50"
+            iconColor={scheme.tertiary}
           />
           <DetailRow
             icon="numeric"
             label="Número de Cuenta"
             value={empleado.numeroCuenta || 'No registrado'}
-            iconColor="#4CAF50"
+            iconColor={scheme.tertiary}
           />
         </View>
 
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerName: {
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 12,
     textAlign: 'center',
   },
@@ -563,12 +563,12 @@ const styles = StyleSheet.create({
   noDocsCard: {
     alignItems: 'center',
     padding: 24,
-    borderRadius: 16,
+    borderRadius: 20,
   },
   retiroCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
   },
 });

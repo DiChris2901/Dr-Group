@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
-    borderRadius: 16,
+    borderRadius: 20,
   },
   searchContainer: {
     paddingHorizontal: 16,
