@@ -137,6 +137,10 @@ export default function UsersScreen() {
       'novedades.reportar': '📝 Reportar incidencias',
       'novedades.gestionar': '🔧 Gestionar incidencias',
       
+      // Directorios
+      'empresas.ver': '🏢 Directorio de Empresas',
+      'empleados.ver': '👥 Directorio de Empleados',
+      
       // Admin
       'admin.dashboard': '🎛️ Panel Admin',
       'admin.novedades': '📋 Admin Novedades',
