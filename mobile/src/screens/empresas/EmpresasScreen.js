@@ -7,13 +7,13 @@ import {
   Image,
 } from 'react-native';
 import {
-  Appbar,
   Searchbar,
   Text as PaperText,
   Surface,
   Avatar,
   Chip,
   useTheme,
+  IconButton,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,7 +21,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useEmpresas } from '../../hooks/useEmpresas';
-import { LoadingState, EmptyState } from '../../components';
+import { LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
 
 /**
@@ -55,10 +55,37 @@ export default function EmpresasScreen() {
   if (!hasPermission) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empresas" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.selectionAsync();
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empresas
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Directorio de Organizaciones
+            </PaperText>
+          </View>
+        </View>
         <View style={styles.deniedContainer}>
           <MaterialCommunityIcons name="lock-outline" size={64} color={scheme.outline} />
           <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: scheme.onSurface }]}>
@@ -76,10 +103,37 @@ export default function EmpresasScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empresas" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.selectionAsync();
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empresas
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Directorio de Organizaciones
+            </PaperText>
+          </View>
+        </View>
         <LoadingState message="Cargando directorio de empresas..." />
       </SafeAreaView>
     );
@@ -176,11 +230,74 @@ export default function EmpresasScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header */}
-      <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Empresas" />
-      </Appbar.Header>
+      {/* Header Expresivo */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTop}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.selectionAsync();
+              navigation.goBack();
+            }}
+            iconColor={scheme.onSurface}
+          />
+          <View style={styles.actionButtons}>
+            <IconButton
+              icon="domain"
+              mode="contained-tonal"
+              size={20}
+              onPress={() => {
+                Haptics.selectionAsync();
+                // Navegar a resumen de empresas o acción futura
+              }}
+              iconColor={scheme.primary}
+              style={{
+                backgroundColor: scheme.primaryContainer,
+                marginLeft: 8,
+              }}
+            />
+          </View>
+        </View>
+        <View style={styles.headerContent}>
+          <PaperText
+            variant="displaySmall"
+            style={{
+              fontWeight: '400',
+              color: scheme.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4,
+            }}
+          >
+            Empresas
+          </PaperText>
+          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            {filteredCount} en el directorio
+          </PaperText>
+        </View>
+      </View>
+
+      {/* Stats Chip */}
+      <View style={styles.statsContainer}>
+        <Surface
+          style={[
+            styles.statsChip,
+            { backgroundColor: scheme.primaryContainer },
+          ]}
+          elevation={0}
+        >
+          <MaterialCommunityIcons name="domain" size={24} color={scheme.onPrimaryContainer} />
+          <View style={{ marginLeft: 12 }}>
+            <PaperText variant="labelSmall" style={{ color: scheme.onPrimaryContainer }}>
+              Total Organizaciones
+            </PaperText>
+            <PaperText variant="titleLarge" style={{ color: scheme.onPrimaryContainer, fontWeight: '700' }}>
+              {totalCount}
+            </PaperText>
+          </View>
+        </Surface>
+      </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -207,19 +324,33 @@ export default function EmpresasScreen() {
         renderItem={renderEmpresaItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
-          <EmptyState
-            icon="domain"
-            message={
-              searchQuery
-                ? `No se encontraron empresas para "${searchQuery}"`
-                : 'No hay empresas registradas'
-            }
-            iconColor={scheme.outline}
-          />
-        }
-      />
+            <View style={styles.emptyStateContainer}>
+              <View style={[styles.emptyStateCircle, { backgroundColor: scheme.surfaceContainerHigh }]}>
+                <MaterialCommunityIcons
+                  name={searchQuery ? 'domain-off' : 'domain-plus'}
+                  size={64}
+                  color={scheme.primary}
+                />
+              </View>
+              <PaperText
+                variant="headlineSmall"
+                style={{ color: scheme.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
+              >
+                {searchQuery ? 'Sin resultados' : 'Directorio vacío'}
+              </PaperText>
+              <PaperText
+                variant="bodyLarge"
+                style={{ color: scheme.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
+              >
+                {searchQuery
+                  ? `No se encontraron empresas para "${searchQuery}"`
+                  : 'No hay empresas registradas en el sistema'}
+              </PaperText>
+            </View>
+          }
+        />
     </SafeAreaView>
   );
 }
@@ -243,30 +374,73 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
   },
+  headerContainer: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerContent: {
+    paddingHorizontal: 4,
+  },
+  statsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  statsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 24,
+  },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   searchbar: {
     borderRadius: 24,
   },
   resultCount: {
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: 8,
     paddingRight: 8,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
     flexGrow: 1,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginTop: 60,
+  },
+  emptyStateCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
   empresaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderRadius: 24,
     borderWidth: 0.5,
-    gap: 12,
+    gap: 16,
   },
   logoContainer: {
     width: 48,

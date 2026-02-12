@@ -6,6 +6,8 @@ import {
   RefreshControl,
   Modal,
   Pressable,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
   Platform,
   Dimensions,
   Animated,
@@ -25,7 +27,8 @@ import {
   Divider,
   Searchbar,
   Button,
-  TextInput
+  TextInput,
+  Menu
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -59,6 +62,7 @@ export default function AsistenciasScreen({ navigation }) {
   const [filterType, setFilterType] = useState('today'); // 'today' | 'week' | 'month' | 'custom'
   const [searchQuery, setSearchQuery] = useState(''); // ✅ Búsqueda por texto
   const [hasSearched, setHasSearched] = useState(false); // ✅ Controla si se ha buscado alguna vez
+  const [periodoMenuVisible, setPeriodoMenuVisible] = useState(false); // ✅ Menu de período
   
   // ✅ NUEVO: Estados para rango de fechas personalizado
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -141,6 +145,15 @@ export default function AsistenciasScreen({ navigation }) {
   // ✅ Solo cargar usuarios al montar (no asistencias)
   useEffect(() => {
     cargarUsuarios();
+    
+    // 🧹 Limpiar TODOS los cachés de asistencias al iniciar (fix para datos corruptos previos)
+    AsyncStorage.getAllKeys().then(keys => {
+      const asistenciasKeys = keys.filter(key => key.startsWith('asistencias_'));
+      if (asistenciasKeys.length > 0) {
+        console.log('🧹 Limpiando', asistenciasKeys.length, 'cachés antiguos de asistencias');
+        AsyncStorage.multiRemove(asistenciasKeys);
+      }
+    });
   }, []);
 
   // ✅ NUEVO: Detectar cambios de permisos y limpiar datos
@@ -196,10 +209,12 @@ export default function AsistenciasScreen({ navigation }) {
         case 'today':
           startDateStr = format(now, 'yyyy-MM-dd');
           endDateStr = format(now, 'yyyy-MM-dd');
+          console.log('🔍 Filtrando HOY:', startDateStr, '→', endDateStr);
           break;
         case 'week':
           startDateStr = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
           endDateStr = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          console.log('🔍 Filtrando SEMANA:', startDateStr, '→', endDateStr);
           break;
         case 'month':
           startDateStr = format(startOfMonth(now), 'yyyy-MM-dd');
@@ -225,22 +240,24 @@ export default function AsistenciasScreen({ navigation }) {
       // ✅ Generar clave única para caché
       const cacheKey = `asistencias_${filterType}_${startDateStr}_${endDateStr}_${user?.uid}_${puedeVerTodos}`;
       
-      // ✅ Verificar caché local (válido por 1 hora)
-      try {
-        const cachedData = await AsyncStorage.getItem(cacheKey);
-        if (cachedData) {
-          const { data, timestamp } = JSON.parse(cachedData);
-          const oneHourAgo = Date.now() - (60 * 60 * 1000);
-          
-          if (timestamp > oneHourAgo) {
-            // Caché válido: usar datos guardados (NO leer Firestore)
-            setAsistencias(data);
-            setLoading(false);
-            return;
+      // ✅ Verificar caché local (NO cachear "today" — datos cambian en tiempo real)
+      if (filterType !== 'today') {
+        try {
+          const cachedData = await AsyncStorage.getItem(cacheKey);
+          if (cachedData) {
+            const { data, timestamp } = JSON.parse(cachedData);
+            const oneHourAgo = Date.now() - (60 * 60 * 1000);
+            
+            if (timestamp > oneHourAgo) {
+              // Caché válido: usar datos guardados (NO leer Firestore)
+              setAsistencias(data);
+              setLoading(false);
+              return;
+            }
           }
+        } catch (cacheError) {
+          console.log('Error leyendo caché:', cacheError);
         }
-      } catch (cacheError) {
-        console.log('Error leyendo caché:', cacheError);
       }
       
       // 🔒 CONTROL DE ACCESO BASADO EN PERMISOS
@@ -278,10 +295,16 @@ export default function AsistenciasScreen({ navigation }) {
 
       const querySnapshot = await getDocs(q);
       
-      let asistenciasData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('📊 Documentos encontrados:', querySnapshot.size);
+      
+      let asistenciasData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('  📄 ID:', doc.id, '| Fecha:', data.fecha, '| UID:', data.uid);
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
       
       // ✅ Ordenar por createdAt (más preciso)
       asistenciasData = asistenciasData.sort((a, b) => {
@@ -292,14 +315,16 @@ export default function AsistenciasScreen({ navigation }) {
       
       setAsistencias(asistenciasData);
 
-      // ✅ Guardar en caché local para futuras consultas
-      try {
-        await AsyncStorage.setItem(cacheKey, JSON.stringify({
-          data: asistenciasData,
-          timestamp: Date.now()
-        }));
-      } catch (cacheError) {
-        console.log('Error guardando caché:', cacheError);
+      // ✅ Guardar en caché local solo para datos históricos (NO "today")
+      if (filterType !== 'today') {
+        try {
+          await AsyncStorage.setItem(cacheKey, JSON.stringify({
+            data: asistenciasData,
+            timestamp: Date.now()
+          }));
+        } catch (cacheError) {
+          console.log('Error guardando caché:', cacheError);
+        }
       }
     } catch (error) {
       console.error('Error cargando asistencias:', error);
@@ -545,42 +570,65 @@ export default function AsistenciasScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top', 'left', 'right']}>
-      {/* Header con título y descripción */}
-      <View style={[styles.header, puedeVerTodos && { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <View>
-          <Text 
-            variant="displaySmall" 
-            style={{ 
-              fontWeight: '400', 
-              color: surfaceColors.onSurface,
-              letterSpacing: -0.5,
-              fontFamily: 'Roboto-Flex',
-              marginBottom: 4
+      {/* Header Expresivo */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
             }}
-          >
-                Historial
-              </Text>
-              <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant }}>
-                {puedeVerTodos ? 'Registro de Todos' : 'Tus Registros'}
-              </Text>
-            </View>
-            {/* ✅ Botón Exportar PDF (Solo con permiso asistencias.todos) */}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="clock-time-eight-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+                marginRight: 8,
+              }}
+            />
             {puedeVerTodos && (
               <IconButton
                 icon="file-pdf-box"
-                size={28}
-                iconColor={surfaceColors.primary}
-                style={{ 
-                  backgroundColor: surfaceColors.primaryContainer,
-                  borderRadius: 16 
+                size={24}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  handleExportPDF();
                 }}
-                onPress={handleExportPDF}
+                iconColor={surfaceColors.onSurface}
               />
             )}
           </View>
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57, // Display Small
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
+          }}>
+            Historial
+          </Text>
+          <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+            {puedeVerTodos ? 'Registro de Todos' : 'Tus Registros'}
+          </Text>
+        </View>
+      </View>
 
       {/* ✅ Búsqueda por texto */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
         <Searchbar
           placeholder={(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') 
             ? "Buscar por nombre o fecha..." 
@@ -597,84 +645,118 @@ export default function AsistenciasScreen({ navigation }) {
         />
       </View>
 
-      {/* ✅ NUEVO: Filtros Rápidos (Chips) */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-        <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          Filtros Rápidos
-        </Text>
-        {/* Grid 2x2 */}
-        <View style={{ gap: 8 }}>
-          {/* Fila 1: Hoy | Esta Semana */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[
-              { value: 'today', label: 'Hoy', icon: 'calendar-today' },
-              { value: 'week', label: 'Esta Semana', icon: 'calendar-week' },
-            ].map((option) => {
-              const isSelected = filterType === option.value;
-              return (
-                <Button
-                  key={option.value}
-                  mode={isSelected ? 'contained' : 'outlined'}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setFilterType(option.value);
-                  }}
-                  icon={option.icon}
-                  style={{
-                    flex: 1,
-                    borderRadius: 16,
-                    borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                  }}
-                  contentStyle={{ paddingVertical: 4 }}
-                  labelStyle={{
-                    fontSize: 14,
-                    fontWeight: isSelected ? '600' : '400',
-                  }}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </View>
-
-          {/* Fila 2: Este Mes | Rango Personalizado */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[
-              { value: 'month', label: 'Este Mes', icon: 'calendar-month' },
-              { value: 'custom', label: 'Rango', icon: 'calendar-range' },
-            ].map((option) => {
-              const isSelected = filterType === option.value;
-              return (
-                <Button
-                  key={option.value}
-                  mode={isSelected ? 'contained' : 'outlined'}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setFilterType(option.value);
-                  }}
-                  icon={option.icon}
-                  style={{
-                    flex: 1,
-                    borderRadius: 16,
-                    borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                  }}
-                  contentStyle={{ paddingVertical: 4 }}
-                  labelStyle={{
-                    fontSize: 14,
-                    fontWeight: isSelected ? '600' : '400',
-                  }}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </View>
-        </View>
+      {/* ✅ Filtro de Período (Menu Dropdown) */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+        <Menu
+          visible={periodoMenuVisible}
+          onDismiss={() => setPeriodoMenuVisible(false)}
+          anchor={
+            <TouchableWithoutFeedback
+              onPress={() => {
+                Haptics.selectionAsync();
+                setTimeout(() => setPeriodoMenuVisible(true), 50);
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  borderRadius: 24,
+                  paddingVertical: 16,
+                  paddingHorizontal: 20,
+                  borderWidth: 1,
+                  borderColor: surfaceColors.outlineVariant,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ 
+                    fontSize: 11, 
+                    color: surfaceColors.onSurfaceVariant,
+                    fontFamily: 'Roboto-Flex',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    marginBottom: 4
+                  }}>
+                    Período
+                  </Text>
+                  <Text style={{ 
+                    fontSize: 15, 
+                    color: surfaceColors.onSurface,
+                    fontFamily: 'Roboto-Flex',
+                    fontWeight: '500'
+                  }}>
+                    {filterType === 'today' ? 'Hoy' : filterType === 'week' ? 'Esta Semana' : filterType === 'month' ? 'Este Mes' : 'Rango Personalizado'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons 
+                  name={periodoMenuVisible ? 'chevron-up' : 'chevron-down'} 
+                  size={24} 
+                  color={surfaceColors.onSurfaceVariant} 
+                />
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          }
+          contentStyle={{
+            backgroundColor: surfaceColors.surfaceContainerHigh,
+            borderRadius: 16,
+          }}
+        >
+          <Menu.Item
+            onPress={() => { 
+              setPeriodoMenuVisible(false);
+              setTimeout(() => setFilterType('today'), 100);
+            }}
+            title="Hoy"
+            leadingIcon="calendar-today"
+            titleStyle={{
+              color: filterType === 'today' ? surfaceColors.primary : surfaceColors.onSurface,
+              fontWeight: filterType === 'today' ? '600' : '400'
+            }}
+          />
+          <Menu.Item
+            onPress={() => { 
+              setPeriodoMenuVisible(false);
+              setTimeout(() => setFilterType('week'), 100);
+            }}
+            title="Esta Semana"
+            leadingIcon="calendar-week"
+            titleStyle={{
+              color: filterType === 'week' ? surfaceColors.primary : surfaceColors.onSurface,
+              fontWeight: filterType === 'week' ? '600' : '400'
+            }}
+          />
+          <Menu.Item
+            onPress={() => { 
+              setPeriodoMenuVisible(false);
+              setTimeout(() => setFilterType('month'), 100);
+            }}
+            title="Este Mes"
+            leadingIcon="calendar-month"
+            titleStyle={{
+              color: filterType === 'month' ? surfaceColors.primary : surfaceColors.onSurface,
+              fontWeight: filterType === 'month' ? '600' : '400'
+            }}
+          />
+          <Menu.Item
+            onPress={() => { 
+              setPeriodoMenuVisible(false);
+              setTimeout(() => setFilterType('custom'), 100);
+            }}
+            title="Rango Personalizado"
+            leadingIcon="calendar-range"
+            titleStyle={{
+              color: filterType === 'custom' ? surfaceColors.primary : surfaceColors.onSurface,
+              fontWeight: filterType === 'custom' ? '600' : '400'
+            }}
+          />
+        </Menu>
       </View>
 
       {/* ✅ NUEVO: Selectores de Fecha (Solo si filterType === 'custom') */}
       {filterType === 'custom' && (
-        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {/* Fecha Inicio */}
             <View style={{ flex: 1 }}>
@@ -739,39 +821,34 @@ export default function AsistenciasScreen({ navigation }) {
         </View>
       )}
 
-      {/* ✅ NUEVO: Botón Aplicar Filtros */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 24, flexDirection: 'row', gap: 12 }}>
-        <Button
-          mode="outlined"
-          onPress={limpiarFiltros}
-          disabled={loading}
-          icon="filter-off-outline"
-          style={{
-            flex: 1,
-            borderRadius: 16,
-            borderColor: surfaceColors.outline,
-          }}
-          contentStyle={{ paddingVertical: 6 }}
-          labelStyle={{ fontSize: 15, fontWeight: '600', color: surfaceColors.onSurfaceVariant }}
-        >
-          Limpiar
-        </Button>
-        <Button
-          mode="contained"
-          onPress={cargarAsistencias}
-          loading={loading}
-          disabled={loading}
-          icon="magnify"
-          style={{
-            flex: 1,
-            borderRadius: 16,
-            paddingVertical: 6,
-          }}
-          contentStyle={{ paddingVertical: 6 }}
-          labelStyle={{ fontSize: 15, fontWeight: '600', letterSpacing: 0.2 }}
-        >
-          {loading ? 'Buscando...' : 'Aplicar'}
-        </Button>
+      {/* ✅ Botones Aplicar/Limpiar */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Button
+            mode="contained"
+            onPress={cargarAsistencias}
+            loading={loading}
+            disabled={loading}
+            icon="filter-check"
+            style={{ flex: 1, borderRadius: 24 }}
+            contentStyle={{ paddingVertical: 10 }}
+            labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+          >
+            Aplicar Filtros
+          </Button>
+          <Button
+            mode="outlined"
+            onPress={limpiarFiltros}
+            disabled={loading}
+            icon="filter-remove"
+            style={{ flex: 1, borderRadius: 24, borderColor: surfaceColors.outlineVariant }}
+            contentStyle={{ paddingVertical: 10 }}
+            labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+            textColor={surfaceColors.onSurface}
+          >
+            Limpiar
+          </Button>
+        </View>
       </View>
 
       {/* ✅ Date Pickers (Modal nativo) */}

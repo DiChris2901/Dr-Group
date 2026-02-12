@@ -4,17 +4,18 @@ import {
   FlatList,
   StyleSheet,
   Pressable,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import {
-  Appbar,
   Searchbar,
   Text as PaperText,
   Surface,
   Avatar,
   Chip,
-  Menu,
   IconButton,
   useTheme,
+  Divider,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,7 +23,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useEmpleados } from '../../hooks/useEmpleados';
-import { LoadingState, EmptyState } from '../../components';
+import { LoadingState } from '../../components';
 import materialTheme from '../../../material-theme.json';
 
 /**
@@ -53,8 +54,7 @@ export default function EmpleadosScreen() {
     filteredCount,
   } = useEmpleados();
 
-  const [empresaMenuVisible, setEmpresaMenuVisible] = useState(false);
-  const [estadoMenuVisible, setEstadoMenuVisible] = useState(false);
+  const [empresaModalVisible, setEmpresaModalVisible] = useState(false);
 
   const handlePressEmpleado = useCallback((empleado) => {
     Haptics.selectionAsync();
@@ -65,10 +65,37 @@ export default function EmpleadosScreen() {
   if (!hasPermission) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empleados" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.selectionAsync();
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empleados
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Directorio de Personal
+            </PaperText>
+          </View>
+        </View>
         <View style={styles.deniedContainer}>
           <MaterialCommunityIcons name="lock-outline" size={64} color={scheme.outline} />
           <PaperText variant="titleMedium" style={[styles.deniedTitle, { color: scheme.onSurface }]}>
@@ -86,10 +113,37 @@ export default function EmpleadosScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empleados" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.selectionAsync();
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empleados
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Directorio de Personal
+            </PaperText>
+          </View>
+        </View>
         <LoadingState message="Cargando directorio de empleados..." />
       </SafeAreaView>
     );
@@ -190,17 +244,71 @@ export default function EmpleadosScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header */}
-      <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Empleados" />
-      </Appbar.Header>
+      {/* Header Expresivo */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTop}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.selectionAsync();
+              navigation.goBack();
+            }}
+            iconColor={scheme.onSurface}
+          />
+          <View style={styles.actionButtons}>
+            <IconButton
+              icon="account-multiple"
+              mode="contained-tonal"
+              size={20}
+              onPress={() => {
+                Haptics.selectionAsync();
+                // Navegar a resumen de empleados o acción futura
+              }}
+              iconColor={scheme.primary}
+              style={{
+                backgroundColor: scheme.primaryContainer,
+                marginLeft: 8,
+              }}
+            />
+          </View>
+        </View>
+        <View style={styles.headerContent}>
+          <PaperText
+            variant="displaySmall"
+            style={{
+              fontWeight: '400',
+              color: scheme.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4,
+            }}
+          >
+            Empleados
+          </PaperText>
+          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            {filteredCount} en el directorio
+          </PaperText>
+        </View>
+      </View>
 
-      {/* Stats Row */}
+      {/* Stats Row - Funcionan como filtros */}
       <View style={styles.statsRow}>
-        <Surface
-          style={[styles.statChip, { backgroundColor: scheme.primaryContainer }]}
-          elevation={0}
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setFilterEstado('activos');
+          }}
+          android_ripple={{ color: scheme.primary + '1F' }}
+          style={({ pressed }) => [
+            styles.statChip,
+            {
+              backgroundColor: scheme.primaryContainer,
+              transform: [{ scale: pressed ? 0.95 : 1 }],
+              borderWidth: filterEstado === 'activos' ? 3 : 0,
+              borderColor: scheme.primary,
+            },
+          ]}
         >
           <PaperText variant="titleMedium" style={{ color: scheme.onPrimaryContainer, fontWeight: '700' }}>
             {stats.activos}
@@ -208,10 +316,22 @@ export default function EmpleadosScreen() {
           <PaperText variant="labelSmall" style={{ color: scheme.onPrimaryContainer }}>
             Activos
           </PaperText>
-        </Surface>
-        <Surface
-          style={[styles.statChip, { backgroundColor: scheme.errorContainer }]}
-          elevation={0}
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setFilterEstado('retirados');
+          }}
+          android_ripple={{ color: scheme.error + '1F' }}
+          style={({ pressed }) => [
+            styles.statChip,
+            {
+              backgroundColor: scheme.errorContainer,
+              transform: [{ scale: pressed ? 0.95 : 1 }],
+              borderWidth: filterEstado === 'retirados' ? 3 : 0,
+              borderColor: scheme.error,
+            },
+          ]}
         >
           <PaperText variant="titleMedium" style={{ color: scheme.onErrorContainer, fontWeight: '700' }}>
             {stats.retirados}
@@ -219,10 +339,22 @@ export default function EmpleadosScreen() {
           <PaperText variant="labelSmall" style={{ color: scheme.onErrorContainer }}>
             Retirados
           </PaperText>
-        </Surface>
-        <Surface
-          style={[styles.statChip, { backgroundColor: scheme.surfaceContainerHigh }]}
-          elevation={0}
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setFilterEstado('todos');
+          }}
+          android_ripple={{ color: scheme.primary + '1F' }}
+          style={({ pressed }) => [
+            styles.statChip,
+            {
+              backgroundColor: scheme.surfaceContainerHigh,
+              transform: [{ scale: pressed ? 0.95 : 1 }],
+              borderWidth: filterEstado === 'todos' ? 3 : 0,
+              borderColor: scheme.outline,
+            },
+          ]}
         >
           <PaperText variant="titleMedium" style={{ color: scheme.onSurface, fontWeight: '700' }}>
             {stats.total}
@@ -230,7 +362,7 @@ export default function EmpleadosScreen() {
           <PaperText variant="labelSmall" style={{ color: scheme.onSurfaceVariant }}>
             Total
           </PaperText>
-        </Surface>
+        </Pressable>
       </View>
 
       {/* Search Bar */}
@@ -248,70 +380,20 @@ export default function EmpleadosScreen() {
       {/* Filters Row */}
       <View style={styles.filtersRow}>
         {/* Filtro empresa */}
-        <Menu
-          visible={empresaMenuVisible}
-          onDismiss={() => setEmpresaMenuVisible(false)}
-          anchor={
-            <Chip
-              icon="domain"
-              onPress={() => {
-                Haptics.selectionAsync();
-                setEmpresaMenuVisible(true);
-              }}
-              selected={filterEmpresa !== 'all'}
-              showSelectedOverlay
-              compact
-              style={[styles.filterChip, { backgroundColor: filterEmpresa !== 'all' ? scheme.secondaryContainer : scheme.surfaceContainerHigh }]}
-              textStyle={{ fontSize: 12, color: filterEmpresa !== 'all' ? scheme.onSecondaryContainer : scheme.onSurfaceVariant }}
-            >
-              {filterEmpresa === 'all' ? 'Empresa' : getCompanyName(filterEmpresa).substring(0, 15)}
-            </Chip>
-          }
+        <Chip
+          icon="domain"
+          selected={filterEmpresa !== 'all'}
+          showSelectedOverlay
+          compact
+          onPress={() => {
+            Haptics.selectionAsync();
+            setEmpresaModalVisible(true);
+          }}
+          style={[styles.filterChip, { backgroundColor: filterEmpresa !== 'all' ? scheme.secondaryContainer : scheme.surfaceContainerHigh }]}
+          textStyle={{ fontSize: 12, color: filterEmpresa !== 'all' ? scheme.onSecondaryContainer : scheme.onSurfaceVariant }}
         >
-          <Menu.Item
-            title="Todas"
-            onPress={() => {
-              setFilterEmpresa('all');
-              setEmpresaMenuVisible(false);
-            }}
-          />
-          {companies.map((c) => (
-            <Menu.Item
-              key={c.id}
-              title={c.name}
-              onPress={() => {
-                setFilterEmpresa(c.id);
-                setEmpresaMenuVisible(false);
-              }}
-            />
-          ))}
-        </Menu>
-
-        {/* Filtro estado */}
-        <Menu
-          visible={estadoMenuVisible}
-          onDismiss={() => setEstadoMenuVisible(false)}
-          anchor={
-            <Chip
-              icon="account-check"
-              onPress={() => {
-                Haptics.selectionAsync();
-                setEstadoMenuVisible(true);
-              }}
-              selected={filterEstado !== 'activos'}
-              showSelectedOverlay
-              compact
-              style={[styles.filterChip, { backgroundColor: filterEstado !== 'activos' ? scheme.tertiaryContainer : scheme.surfaceContainerHigh }]}
-              textStyle={{ fontSize: 12, color: filterEstado !== 'activos' ? scheme.onTertiaryContainer : scheme.onSurfaceVariant }}
-            >
-              {estadoLabels[filterEstado]}
-            </Chip>
-          }
-        >
-          <Menu.Item title="Activos" onPress={() => { setFilterEstado('activos'); setEstadoMenuVisible(false); }} />
-          <Menu.Item title="Retirados" onPress={() => { setFilterEstado('retirados'); setEstadoMenuVisible(false); }} />
-          <Menu.Item title="Todos" onPress={() => { setFilterEstado('todos'); setEstadoMenuVisible(false); }} />
-        </Menu>
+          {filterEmpresa === 'all' ? 'Filtrar Empresa' : getCompanyName(filterEmpresa)}
+        </Chip>
 
         {/* Resultado count */}
         <PaperText
@@ -322,6 +404,102 @@ export default function EmpleadosScreen() {
         </PaperText>
       </View>
 
+      {/* Modal Filtro Empresa */}
+      <Modal
+        visible={empresaModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEmpresaModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setEmpresaModalVisible(false)}
+        >
+          <Pressable
+            style={[styles.modalContent, { backgroundColor: scheme.surfaceContainerHigh }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <PaperText variant="titleLarge" style={{ color: scheme.onSurface, fontWeight: '600' }}>
+                Filtrar por Empresa
+              </PaperText>
+              <IconButton
+                icon="close"
+                size={24}
+                onPress={() => setEmpresaModalVisible(false)}
+                iconColor={scheme.onSurfaceVariant}
+              />
+            </View>
+            <Divider style={{ backgroundColor: scheme.outlineVariant }} />
+
+            {/* Lista de empresas */}
+            <ScrollView style={styles.modalList}>
+              {/* Opción Todas */}
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setFilterEmpresa('all');
+                  setEmpresaModalVisible(false);
+                }}
+                android_ripple={{ color: scheme.primary + '1F' }}
+                style={[styles.modalItem, {
+                  backgroundColor: filterEmpresa === 'all' ? scheme.primaryContainer : 'transparent'
+                }]}
+              >
+                <MaterialCommunityIcons
+                  name={filterEmpresa === 'all' ? 'check-circle' : 'circle-outline'}
+                  size={24}
+                  color={filterEmpresa === 'all' ? scheme.primary : scheme.outline}
+                />
+                <PaperText
+                  variant="bodyLarge"
+                  style={{
+                    color: filterEmpresa === 'all' ? scheme.onPrimaryContainer : scheme.onSurface,
+                    fontWeight: filterEmpresa === 'all' ? '600' : '400',
+                    flex: 1,
+                  }}
+                >
+                  Todas las empresas
+                </PaperText>
+              </Pressable>
+
+              {/* Empresas */}
+              {companies.map((company) => (
+                <Pressable
+                  key={company.id}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setFilterEmpresa(company.id);
+                    setEmpresaModalVisible(false);
+                  }}
+                  android_ripple={{ color: scheme.primary + '1F' }}
+                  style={[styles.modalItem, {
+                    backgroundColor: filterEmpresa === company.id ? scheme.primaryContainer : 'transparent'
+                  }]}
+                >
+                  <MaterialCommunityIcons
+                    name={filterEmpresa === company.id ? 'check-circle' : 'circle-outline'}
+                    size={24}
+                    color={filterEmpresa === company.id ? scheme.primary : scheme.outline}
+                  />
+                  <PaperText
+                    variant="bodyLarge"
+                    style={{
+                      color: filterEmpresa === company.id ? scheme.onPrimaryContainer : scheme.onSurface,
+                      fontWeight: filterEmpresa === company.id ? '600' : '400',
+                      flex: 1,
+                    }}
+                  >
+                    {company.name}
+                  </PaperText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* List */}
       <FlatList
         data={filteredEmpleados}
@@ -329,19 +507,35 @@ export default function EmpleadosScreen() {
         renderItem={renderEmpleadoItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
-          <EmptyState
-            icon="account-search"
-            message={
-              searchQuery
-                ? `No se encontraron empleados para "${searchQuery}"`
-                : 'No hay empleados registrados con estos filtros'
-            }
-            iconColor={scheme.outline}
-          />
-        }
-      />
+            <View style={styles.emptyStateContainer}>
+              <View style={[styles.emptyStateCircle, { backgroundColor: scheme.surfaceContainerHigh }]}>
+                <MaterialCommunityIcons
+                  name={searchQuery || filterEmpresa !== 'all' ? 'account-search' : 'account-group'}
+                  size={64}
+                  color={scheme.primary}
+                />
+              </View>
+              <PaperText
+                variant="headlineSmall"
+                style={{ color: scheme.onSurface, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}
+              >
+                {searchQuery || filterEmpresa !== 'all' ? 'Sin resultados' : 'Directorio vacío'}
+              </PaperText>
+              <PaperText
+                variant="bodyLarge"
+                style={{ color: scheme.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 40 }}
+              >
+                {searchQuery
+                  ? `No se encontraron empleados para "${searchQuery}"`
+                  : filterEmpresa !== 'all'
+                  ? 'No hay empleados registrados en esta empresa'
+                  : 'No hay empleados registrados en el sistema'}
+              </PaperText>
+            </View>
+          }
+        />
     </SafeAreaView>
   );
 }
@@ -365,30 +559,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
   },
+  headerContainer: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerContent: {
+    paddingHorizontal: 4,
+  },
   statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 12,
   },
   statChip: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 20,
+    elevation: 0,
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   searchbar: {
     borderRadius: 24,
   },
   filtersRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 12,
     alignItems: 'center',
   },
   filterChip: {
@@ -398,17 +611,32 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
     flexGrow: 1,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    marginTop: 60,
+  },
+  emptyStateCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
   empleadoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderRadius: 24,
     borderWidth: 0.5,
-    gap: 12,
+    gap: 16,
   },
   infoContainer: {
     flex: 1,
@@ -425,5 +653,34 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 11,
     lineHeight: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: '70%',
+    elevation: 0,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+  modalList: {
+    paddingVertical: 8,
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 16,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -6,15 +6,16 @@ import {
   Image,
   Linking,
   Alert,
+  Animated,
 } from 'react-native';
 import {
-  Appbar,
   Text as PaperText,
   Surface,
   Avatar,
   Button,
   Divider,
   useTheme,
+  IconButton,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -46,6 +47,17 @@ export default function EmpresaDetailScreen() {
   const { empresaId } = route.params || {};
   const [empresa, setEmpresa] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Animación fade in
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, [empresa]);
 
   // Cargar datos de la empresa desde Firestore
   useEffect(() => {
@@ -136,10 +148,37 @@ export default function EmpresaDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empresa" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empresa
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Información Detallada
+            </PaperText>
+          </View>
+        </View>
         <LoadingState message="Cargando información de la empresa..." />
       </SafeAreaView>
     );
@@ -148,10 +187,37 @@ export default function EmpresaDetailScreen() {
   if (!empresa) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empresa" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empresa
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              No Encontrada
+            </PaperText>
+          </View>
+        </View>
         <View style={styles.errorContainer}>
           <PaperText>No se encontró la empresa</PaperText>
         </View>
@@ -163,38 +229,103 @@ export default function EmpresaDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header */}
-      <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={empresa.name || 'Empresa'} titleStyle={{ fontSize: 18 }} />
-      </Appbar.Header>
+      {/* Header Expresivo */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTop}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={scheme.onSurface}
+          />
+          <View style={styles.actionButtons}>
+            {empresa.phone && (
+              <IconButton
+                icon="phone"
+                mode="contained-tonal"
+                size={20}
+                onPress={() => handleCall(empresa.phone)}
+                iconColor={scheme.primary}
+                style={{
+                  backgroundColor: scheme.primaryContainer,
+                  marginLeft: 8,
+                }}
+              />
+            )}
+            {empresa.email && (
+              <IconButton
+                icon="email"
+                mode="contained-tonal"
+                size={20}
+                onPress={() => handleEmail(empresa.email)}
+                iconColor={scheme.primary}
+                style={{
+                  backgroundColor: scheme.primaryContainer,
+                  marginLeft: 8,
+                }}
+              />
+            )}
+          </View>
+        </View>
+        <View style={styles.headerContent}>
+          <PaperText
+            variant="displaySmall"
+            style={{
+              fontWeight: '400',
+              color: scheme.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4,
+            }}
+          >
+            {empresa.name || 'Empresa'}
+          </PaperText>
+          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            NIT: {empresa.nit || 'No registrado'}
+          </PaperText>
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Logo & Name Header */}
-        <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
-          {hasLogo ? (
-            <Image
-              source={{ uri: empresa.logoURL }}
-              style={[styles.headerLogo, { backgroundColor: scheme.surfaceContainer }]}
-              resizeMode="contain"
-            />
-          ) : (
-            <Avatar.Icon
-              size={72}
-              icon="domain"
-              style={{ backgroundColor: scheme.primaryContainer }}
-              color={scheme.onPrimaryContainer}
-            />
-          )}
-          <PaperText variant="headlineSmall" style={[styles.headerName, { color: scheme.onSurface }]}>
-            {empresa.name}
-          </PaperText>
-          <PaperText variant="bodyMedium" style={{ color: scheme.onSurfaceVariant }}>
-            NIT: {empresa.nit || 'No registrado'}
-          </PaperText>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
+            {hasLogo ? (
+              <Image
+                source={{ uri: empresa.logoURL }}
+                style={[styles.headerLogo, { backgroundColor: scheme.surfaceContainer }]}
+                resizeMode="contain"
+              />
+            ) : (
+              <Avatar.Icon
+                size={72}
+                icon="domain"
+                style={{ backgroundColor: scheme.primaryContainer }}
+                color={scheme.onPrimaryContainer}
+              />
+            )}
+            <PaperText
+              variant="headlineLarge"
+              style={[
+                styles.headerName,
+                {
+                  color: scheme.onSurface,
+                  fontWeight: '600',
+                  letterSpacing: -0.25,
+                },
+              ]}
+            >
+              {empresa.name}
+            </PaperText>
+            <PaperText variant="bodyLarge" style={{ color: scheme.onSurfaceVariant, fontWeight: '500' }}>
+              NIT: {empresa.nit || 'No registrado'}
+            </PaperText>
 
           {/* Acciones rápidas */}
           <View style={styles.quickActions}>
@@ -224,11 +355,11 @@ export default function EmpresaDetailScreen() {
             )}
           </View>
         </Surface>
+        </Animated.View>
 
         {/* Información General */}
         <View style={styles.section}>
           <OverlineText color={scheme.primary}>INFORMACIÓN GENERAL</OverlineText>
-          <DetailRow icon="email-outline" label="Email" value={empresa.email || 'No registrado'} iconColor={scheme.primary} />
           <DetailRow icon="phone" label="Teléfono" value={empresa.phone || 'No registrado'} iconColor={scheme.primary} />
           <DetailRow icon="map-marker" label="Dirección" value={empresa.address || 'No registrada'} iconColor={scheme.primary} />
           <DetailRow icon="city" label="Ciudad" value={empresa.city || 'No registrada'} iconColor={scheme.primary} />
@@ -328,13 +459,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerContainer: {
+    paddingTop: 8,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerContent: {
+    paddingHorizontal: 4,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 32,
   },
   headerCard: {
@@ -366,8 +515,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   section: {
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 12,
+    gap: 12,
   },
   divider: {
     marginVertical: 16,

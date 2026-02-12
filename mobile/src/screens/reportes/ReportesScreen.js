@@ -9,7 +9,8 @@ import {
   Platform,
   Modal,
   FlatList,
-  TouchableOpacity
+  TouchableOpacity,
+  TouchableWithoutFeedback
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
@@ -20,13 +21,15 @@ import {
   Avatar, 
   useTheme, 
   ActivityIndicator,
-  Button
+  Button,
+  IconButton,
+  Menu
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import materialTheme from '../../../material-theme.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import { collection, query, getDocs, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -40,6 +43,7 @@ import { es } from 'date-fns/locale';
 const { width } = Dimensions.get('window');
 
 export default function ReportesScreen() {
+  const navigation = useNavigation();
   const { userProfile, user, activeSession } = useAuth();
   const { can } = usePermissions();
   const theme = useTheme();
@@ -52,6 +56,7 @@ export default function ReportesScreen() {
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState('todos'); // UID o 'todos'
   const [empleados, setEmpleados] = useState([]); // Lista de empleados
   const [menuVisible, setMenuVisible] = useState(false);
+  const [periodoMenuVisible, setPeriodoMenuVisible] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -579,356 +584,360 @@ export default function ReportesScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
+      {/* Header Expresivo */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <IconButton
+            icon="chart-bar"
+            mode="contained-tonal"
+            size={20}
+            onPress={() => {
+              Haptics.selectionAsync();
+              onRefresh();
+            }}
+            iconColor={surfaceColors.primary}
+            style={{
+              backgroundColor: surfaceColors.primaryContainer,
+            }}
+          />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57, // Display Small
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
+          }}>
+            Estadísticas
+          </Text>
+          <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+            {puedeVerTodos ? 'Desempeño del equipo' : 'Tu desempeño laboral'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Filters Grid: Empleados + Período (Estilo AdminNovedades) */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16, gap: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {/* Filter Empleados - Solo si tiene permiso */}
+              {puedeVerTodos && (
+                <View style={{ flex: 1 }}>
+                  <Menu
+                    visible={menuVisible}
+                    onDismiss={() => setMenuVisible(false)}
+                    anchor={
+                      <TouchableWithoutFeedback
+                        onPress={() => {
+                          setMenuVisible(true);
+                          Haptics.selectionAsync();
+                        }}
+                      >
+                        <View
+                          style={{
+                            backgroundColor: surfaceColors.surfaceContainerHigh,
+                            borderRadius: 24,
+                            paddingVertical: 16,
+                            paddingHorizontal: 20,
+                            borderWidth: 1,
+                            borderColor: surfaceColors.outlineVariant,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View>
+                              <Text style={{ 
+                                fontSize: 11, 
+                                color: surfaceColors.onSurfaceVariant,
+                                fontFamily: 'Roboto-Flex',
+                                fontWeight: '600',
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                                marginBottom: 4
+                              }}>
+                                Empleado
+                              </Text>
+                              <Text style={{ 
+                                fontSize: 15, 
+                                color: surfaceColors.onSurface,
+                                fontFamily: 'Roboto-Flex',
+                                fontWeight: '500'
+                              }}>
+                                {empleadoSeleccionado === 'todos' 
+                                  ? 'Todos' 
+                                  : empleados.find(e => e.uid === empleadoSeleccionado)?.nombre?.split(' ')[0] || 'Sel.'}
+                              </Text>
+                            </View>
+                            <MaterialCommunityIcons 
+                              name="menu-down" 
+                              size={24} 
+                              color={surfaceColors.onSurfaceVariant} 
+                            />
+                          </View>
+                        </View>
+                      </TouchableWithoutFeedback>
+                    }
+                    contentStyle={{
+                      backgroundColor: surfaceColors.surfaceContainerHigh,
+                      borderRadius: 16,
+                    }}
+                  >
+                    <Menu.Item
+                      onPress={() => { 
+                        setEmpleadoSeleccionado('todos'); 
+                        setMenuVisible(false); 
+                      }}
+                      title="Todos los Empleados"
+                      leadingIcon="account-multiple"
+                      titleStyle={{
+                        color: empleadoSeleccionado === 'todos' ? surfaceColors.primary : surfaceColors.onSurface,
+                        fontWeight: empleadoSeleccionado === 'todos' ? '600' : '400'
+                      }}
+                    />
+                    {empleados.map((emp) => (
+                      <Menu.Item
+                        key={emp.uid}
+                        onPress={() => { 
+                          setEmpleadoSeleccionado(emp.uid); 
+                          setMenuVisible(false); 
+                        }}
+                        title={emp.nombre}
+                        leadingIcon="account"
+                        titleStyle={{
+                          color: empleadoSeleccionado === emp.uid ? surfaceColors.primary : surfaceColors.onSurface,
+                          fontWeight: empleadoSeleccionado === emp.uid ? '600' : '400'
+                        }}
+                      />
+                    ))}
+                  </Menu>
+                </View>
+              )}
+
+              {/* Filter Período */}
+              <View style={{ flex: 1 }}>
+                <Menu
+                  visible={periodoMenuVisible}
+                  onDismiss={() => setPeriodoMenuVisible(false)}
+                  anchor={
+                    <TouchableWithoutFeedback
+                      onPress={() => {
+                        setPeriodoMenuVisible(true);
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: surfaceColors.surfaceContainerHigh,
+                          borderRadius: 24,
+                          paddingVertical: 16,
+                          paddingHorizontal: 20,
+                          borderWidth: 1,
+                          borderColor: surfaceColors.outlineVariant,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View>
+                            <Text style={{ 
+                              fontSize: 11, 
+                              color: surfaceColors.onSurfaceVariant,
+                              fontFamily: 'Roboto-Flex',
+                              fontWeight: '600',
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                              marginBottom: 4
+                            }}>
+                              Período
+                            </Text>
+                            <Text style={{ 
+                              fontSize: 15, 
+                              color: surfaceColors.onSurface,
+                              fontFamily: 'Roboto-Flex',
+                              fontWeight: '500'
+                            }}>
+                              {[
+                                { value: 'day', label: 'Hoy' },
+                                { value: 'semana', label: 'Semana' },
+                                { value: 'mes', label: 'Este Mes' },
+                                { value: 'custom', label: 'Rango' },
+                              ].find(p => p.value === rangoSeleccionado)?.label || 'Hoy'}
+                            </Text>
+                          </View>
+                          <MaterialCommunityIcons 
+                            name="menu-down" 
+                            size={24} 
+                            color={surfaceColors.onSurfaceVariant} 
+                          />
+                        </View>
+                      </View>
+                    </TouchableWithoutFeedback>
+                  }
+                  contentStyle={{
+                    backgroundColor: surfaceColors.surfaceContainerHigh,
+                    borderRadius: 16,
+                  }}
+                >
+                  <Menu.Item
+                    onPress={() => { 
+                      setRangoSeleccionado('day'); 
+                      setPeriodoMenuVisible(false); 
+                    }}
+                    title="Hoy"
+                    leadingIcon="calendar-today"
+                    titleStyle={{
+                      color: rangoSeleccionado === 'day' ? surfaceColors.primary : surfaceColors.onSurface,
+                      fontWeight: rangoSeleccionado === 'day' ? '600' : '400'
+                    }}
+                  />
+                  <Menu.Item
+                    onPress={() => { 
+                      setRangoSeleccionado('semana'); 
+                      setPeriodoMenuVisible(false); 
+                    }}
+                    title="Esta Semana"
+                    leadingIcon="calendar-week"
+                    titleStyle={{
+                      color: rangoSeleccionado === 'semana' ? surfaceColors.primary : surfaceColors.onSurface,
+                      fontWeight: rangoSeleccionado === 'semana' ? '600' : '400'
+                    }}
+                  />
+                  <Menu.Item
+                    onPress={() => { 
+                      setRangoSeleccionado('mes'); 
+                      setPeriodoMenuVisible(false); 
+                    }}
+                    title="Este Mes"
+                    leadingIcon="calendar-month"
+                    titleStyle={{
+                      color: rangoSeleccionado === 'mes' ? surfaceColors.primary : surfaceColors.onSurface,
+                      fontWeight: rangoSeleccionado === 'mes' ? '600' : '400'
+                    }}
+                  />
+                  <Menu.Item
+                    onPress={() => { 
+                      setRangoSeleccionado('custom'); 
+                      setPeriodoMenuVisible(false); 
+                    }}
+                    title="Rango Personalizado"
+                    leadingIcon="calendar-range"
+                    titleStyle={{
+                      color: rangoSeleccionado === 'custom' ? surfaceColors.primary : surfaceColors.onSurface,
+                      fontWeight: rangoSeleccionado === 'custom' ? '600' : '400'
+                    }}
+                  />
+                </Menu>
+              </View>
+            </View>
+
+            {/* ✅ Date Pickers (Solo si custom) */}
+            {rangoSeleccionado === 'custom' && (
+              <View style={{ marginBottom: 16, marginTop: 16 }}>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                      Desde
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setShowStartDatePicker(true);
+                      }}
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainerHigh,
+                        borderRadius: 12,
+                        padding: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: 1,
+                        borderColor: surfaceColors.outline,
+                      }}
+                    >
+                      <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                        {format(startDate, 'dd/MM/yyyy')}
+                      </Text>
+                      <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+                    </Pressable>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
+                      Hasta
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setShowEndDatePicker(true);
+                      }}
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainerHigh,
+                        borderRadius: 12,
+                        padding: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: 1,
+                        borderColor: surfaceColors.outline,
+                      }}
+                    >
+                      <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
+                        {format(endDate, 'dd/MM/yyyy')}
+                      </Text>
+                      <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
+
+        {/* ✅ Botones Aplicar/Limpiar */}
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+          <Button
+            mode="contained"
+            onPress={cargarDatos}
+            loading={loading}
+            disabled={loading}
+            icon="filter-check"
+            style={{ flex: 1, borderRadius: 24 }}
+            contentStyle={{ paddingVertical: 10 }}
+            labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+          >
+            Aplicar Filtros
+          </Button>
+          <Button
+            mode="outlined"
+            onPress={limpiarFiltros}
+            disabled={loading}
+            icon="filter-remove"
+            style={{ flex: 1, borderRadius: 24, borderColor: surfaceColors.outlineVariant }}
+            contentStyle={{ paddingVertical: 10 }}
+            labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+            textColor={surfaceColors.onSurface}
+          >
+            Limpiar
+          </Button>
+        </View>
+      </View>
+
+      {/* ScrollView para contenido scrollable */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
         }
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5, fontFamily: 'Roboto-Flex', fontVariationSettings: "'wdth' 110" }}>
-              Estadísticas
-            </Text>
-            <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
-              {puedeVerTodos ? 'Desempeño del equipo' : 'Tu desempeño laboral'}
-            </Text>
-          </View>
-
-          {/* Filters (SegmentedButtons como en Novedades) */}
-          <View style={styles.filterContainer}>
-            {/* Dropdown de Empleados (solo con permiso reportes.todos) - Material You Expressive */}
-            {puedeVerTodos && (
-            <View style={{ marginBottom: 16 }}>
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setMenuVisible(true);
-                }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: pressed 
-                    ? surfaceColors.surfaceContainerHighest 
-                    : surfaceColors.surfaceContainerHigh,
-                  paddingVertical: 16,
-                  paddingHorizontal: 20,
-                  borderRadius: 24,
-                  borderWidth: 1,
-                  borderColor: surfaceColors.outline + '30',
-                  elevation: 0,
-                })}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    backgroundColor: surfaceColors.primary + '15',
-                    padding: 8,
-                    borderRadius: 16,
-                  }}>
-                    <MaterialCommunityIcons 
-                      name={empleadoSeleccionado === 'todos' ? "account-multiple" : "account"} 
-                      size={20} 
-                      color={surfaceColors.primary} 
-                    />
-                  </View>
-                  <View>
-                    <Text 
-                      variant="labelSmall" 
-                      style={{ 
-                        color: surfaceColors.onSurfaceVariant,
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
-                        marginBottom: 2
-                      }}
-                    >
-                      Filtrar por
-                    </Text>
-                    <Text 
-                      variant="bodyLarge" 
-                      style={{ 
-                        color: surfaceColors.onSurface,
-                        fontWeight: '500'
-                      }}
-                    >
-                      {empleadoSeleccionado === 'todos' 
-                        ? 'Todos los Empleados' 
-                        : empleados.find(e => e.uid === empleadoSeleccionado)?.nombre || 'Seleccionar'}
-                    </Text>
-                  </View>
-                </View>
-                <MaterialCommunityIcons 
-                  name={menuVisible ? "chevron-up" : "chevron-down"} 
-                  size={24} 
-                  color={surfaceColors.onSurfaceVariant} 
-                />
-              </Pressable>
-
-              {/* Modal Dropdown Personalizado */}
-              <Modal
-                visible={menuVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setMenuVisible(false)}
-              >
-                <Pressable 
-                  style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-                  onPress={() => setMenuVisible(false)}
-                >
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                    <Pressable 
-                      style={{
-                        backgroundColor: surfaceColors.surfaceContainerHighest,
-                        borderRadius: 24,
-                        width: '90%',
-                        maxWidth: 400,
-                        maxHeight: Dimensions.get('window').height * 0.6,
-                        padding: 8,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 8 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 16,
-                        elevation: 8,
-                      }}
-                      onPress={(e) => e.stopPropagation()}
-                    >
-                      <FlatList
-                        data={[{ uid: 'todos', nombre: 'Todos los Empleados' }, ...empleados]}
-                        keyExtractor={(item) => item.uid}
-                        showsVerticalScrollIndicator={true}
-                        ListHeaderComponent={
-                          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
-                            <Text variant="titleMedium" style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
-                              Filtrar por Empleado
-                            </Text>
-                          </View>
-                        }
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              setEmpleadoSeleccionado(item.uid);
-                              setMenuVisible(false);
-                            }}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 12,
-                              paddingVertical: 14,
-                              paddingHorizontal: 20,
-                              marginHorizontal: 8,
-                              marginVertical: 2,
-                              borderRadius: 16,
-                              backgroundColor: empleadoSeleccionado === item.uid 
-                                ? surfaceColors.primary + '15' 
-                                : 'transparent',
-                            }}
-                          >
-                            <MaterialCommunityIcons 
-                              name={item.uid === 'todos' ? "account-multiple" : "account"} 
-                              size={22} 
-                              color={empleadoSeleccionado === item.uid ? surfaceColors.primary : surfaceColors.onSurfaceVariant} 
-                            />
-                            <Text 
-                              variant="bodyLarge" 
-                              style={{ 
-                                color: empleadoSeleccionado === item.uid ? surfaceColors.primary : surfaceColors.onSurface,
-                                fontWeight: empleadoSeleccionado === item.uid ? '600' : '500',
-                                flex: 1
-                              }}
-                            >
-                              {item.nombre}
-                            </Text>
-                            {empleadoSeleccionado === item.uid && (
-                              <MaterialCommunityIcons 
-                                name="check" 
-                                size={22} 
-                                color={surfaceColors.primary} 
-                              />
-                            )}
-                          </TouchableOpacity>
-                        )}
-                      />
-                    </Pressable>
-                  </View>
-                </Pressable>
-              </Modal>
-            </View>
-          )}
-
-          {/* ✅ Filtros Rápidos en Grid 2x2 */}
-          <View style={{ marginBottom: 16 }}>
-            <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-              Período
-            </Text>
-            <View style={{ gap: 8 }}>
-              {/* Fila 1: Día | Semana */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {[
-                  { value: 'day', label: 'Hoy', icon: 'calendar-today' },
-                  { value: 'semana', label: 'Esta Semana', icon: 'calendar-week' },
-                ].map((option) => {
-                  const isSelected = rangoSeleccionado === option.value;
-                  return (
-                    <Button
-                      key={option.value}
-                      mode={isSelected ? 'contained' : 'outlined'}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setRangoSeleccionado(option.value);
-                      }}
-                      icon={option.icon}
-                      style={{
-                        flex: 1,
-                        borderRadius: 16,
-                        borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                      }}
-                      contentStyle={{ paddingVertical: 4 }}
-                      labelStyle={{
-                        fontSize: 14,
-                        fontWeight: isSelected ? '600' : '400',
-                      }}
-                    >
-                      {option.label}
-                    </Button>
-                  );
-                })
-              }
-              </View>
-
-              {/* Fila 2: Mes | Rango */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {[
-                  { value: 'mes', label: 'Este Mes', icon: 'calendar-month' },
-                  { value: 'custom', label: 'Rango', icon: 'calendar-range' },
-                ].map((option) => {
-                    const isSelected = rangoSeleccionado === option.value;
-                    return (
-                      <Button
-                        key={option.value}
-                        mode={isSelected ? 'contained' : 'outlined'}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setRangoSeleccionado(option.value);
-                        }}
-                        icon={option.icon}
-                        style={{
-                          flex: 1,
-                          borderRadius: 16,
-                          borderColor: isSelected ? 'transparent' : surfaceColors.outline,
-                        }}
-                        contentStyle={{ paddingVertical: 4 }}
-                        labelStyle={{
-                          fontSize: 14,
-                          fontWeight: isSelected ? '600' : '400',
-                        }}
-                      >
-                        {option.label}
-                      </Button>
-                    );
-                  })
-                }
-              </View>
-            </View>
-          </View>
-
-          {/* ✅ Date Pickers (Solo si custom) */}
-          {rangoSeleccionado === 'custom' && (
-            <View style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
-                    Desde
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setShowStartDatePicker(true);
-                    }}
-                    style={{
-                      backgroundColor: surfaceColors.surfaceContainerHigh,
-                      borderRadius: 12,
-                      padding: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      borderWidth: 1,
-                      borderColor: surfaceColors.outline,
-                    }}
-                  >
-                    <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
-                      {format(startDate, 'dd/MM/yyyy')}
-                    </Text>
-                    <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
-                  </Pressable>
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 8, textTransform: 'uppercase' }}>
-                    Hasta
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setShowEndDatePicker(true);
-                    }}
-                    style={{
-                      backgroundColor: surfaceColors.surfaceContainerHigh,
-                      borderRadius: 12,
-                      padding: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      borderWidth: 1,
-                      borderColor: surfaceColors.outline,
-                    }}
-                  >
-                    <Text style={{ color: surfaceColors.onSurface, fontWeight: '600' }}>
-                      {format(endDate, 'dd/MM/yyyy')}
-                    </Text>
-                    <MaterialCommunityIcons name="calendar" size={20} color={surfaceColors.primary} />
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* ✅ NUEVO: Botones Aplicar/Limpiar */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Button
-              mode="outlined"
-              onPress={limpiarFiltros}
-              disabled={loading}
-              icon="filter-off-outline"
-              style={{
-                flex: 1,
-                borderRadius: 16,
-                borderColor: surfaceColors.outline,
-              }}
-              contentStyle={{ paddingVertical: 6 }}
-              labelStyle={{ fontSize: 15, fontWeight: '600', color: surfaceColors.onSurfaceVariant }}
-            >
-              Limpiar
-            </Button>
-            <Button
-              mode="contained"
-              onPress={cargarDatos}
-              loading={loading}
-              disabled={loading}
-              icon="magnify"
-              style={{
-                flex: 1,
-                borderRadius: 16,
-                paddingVertical: 6,
-              }}
-              contentStyle={{ paddingVertical: 6 }}
-              labelStyle={{ fontSize: 15, fontWeight: '600', letterSpacing: 0.2 }}
-            >
-              {loading ? 'Analizando...' : 'Aplicar'}
-            </Button>
-          </View>
-        </View>
-
+      >
         {loading ? (
           <ActivityIndicator style={{ marginTop: 50 }} size="large" />
         ) : !hasSearched ? (

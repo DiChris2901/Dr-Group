@@ -19,7 +19,6 @@ import {
   Searchbar,
   Portal,
   Modal,
-  SegmentedButtons,
   IconButton,
   ActivityIndicator,
   Menu,
@@ -80,7 +79,7 @@ export default function AdminNovedadesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending'); // 'pending' | 'all'
+  // Removido filterStatus - mostrar todo y permitir filtrar por tipo/fecha solamente
   const [filterType, setFilterType] = useState('all'); // 'all' | 'llegada_tarde' | etc.
   const [filterDate, setFilterDate] = useState('last_30'); // 'today' | 'last_7' | 'last_30' | 'this_month' | 'last_month' | 'last_3_months' | 'all'
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
@@ -135,7 +134,6 @@ export default function AdminNovedadesScreen({ navigation }) {
 
   // ✅ Función para limpiar filtros y vaciar resultados
   const clearFilters = useCallback(() => {
-    setFilterStatus('pending');
     setFilterType('all');
     setFilterDate('last_30');
     setNovedades([]);
@@ -163,11 +161,6 @@ export default function AdminNovedadesScreen({ navigation }) {
       // ✅ Construir query dinámico correctamente
       // ORDEN CORRECTO: collection → where() clauses → orderBy() → limit()
       let queryConstraints = [collection(db, 'novedades')];
-      
-      // Filtrar por status si no es 'all'
-      if (filterStatus === 'pending') {
-        queryConstraints.push(where('status', '==', 'pending'));
-      }
       
       // Filtrar por tipo si no es 'all'
       if (filterType !== 'all') {
@@ -216,7 +209,7 @@ export default function AdminNovedadesScreen({ navigation }) {
         unsubscribeRef.current = null;
       }
     };
-  }, [filtersApplied, filterStatus, filterType, filterDate, getDateRange]) // ✅ Solo re-ejecutar cuando se apliquen filtros
+  }, [filtersApplied, filterType, filterDate, getDateRange]) // ✅ Solo re-ejecutar cuando se apliquen filtros
 );
 
   // Mantener onRefresh solo para el pull-to-refresh manual
@@ -234,10 +227,6 @@ export default function AdminNovedadesScreen({ navigation }) {
     try {
       // Construir query con el mismo orden que el inicial
       let queryConstraints = [collection(db, 'novedades')];
-      
-      if (filterStatus === 'pending') {
-        queryConstraints.push(where('status', '==', 'pending'));
-      }
       
       if (filterType !== 'all') {
         queryConstraints.push(where('type', '==', filterType));
@@ -267,7 +256,7 @@ export default function AdminNovedadesScreen({ navigation }) {
       console.error('Error loading more:', error);
     }
     setLoadingMore(false);
-  }, [hasMore, loadingMore, lastVisible, filtersApplied, filterStatus, filterType, filterDate, getDateRange]);
+  }, [hasMore, loadingMore, lastVisible, filtersApplied, filterType, filterDate, getDateRange]);
 
   const filterData = useCallback(() => {
     let filtered = novedades;
@@ -538,7 +527,7 @@ export default function AdminNovedadesScreen({ navigation }) {
               iconColor={surfaceColors.onSurface}
             />
             <IconButton
-              icon="refresh"
+              icon="inbox"
               mode="contained-tonal"
               size={20}
               onPress={onRefresh}
@@ -568,19 +557,6 @@ export default function AdminNovedadesScreen({ navigation }) {
 
         {/* Filters Container */}
         <View style={{ paddingHorizontal: 20, marginBottom: 16, gap: 16 }}>
-          {/* Filter Status - SegmentedButtons */}
-          <SegmentedButtons
-            value={filterStatus}
-            onValueChange={(value) => {
-              Haptics.selectionAsync();
-              setFilterStatus(value);
-            }}
-            buttons={[
-              { value: 'pending', label: 'Pendientes', icon: 'clock-outline' },
-              { value: 'all', label: 'Historial', icon: 'history' },
-            ]}
-          />
-
           {/* Filters Grid: Tipo + Fecha */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {/* Filter Type - Dropdown Menu */}

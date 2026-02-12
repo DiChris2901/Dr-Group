@@ -826,35 +826,61 @@ export default function CalendarioScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: surfaceColors.background }} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 24, paddingVertical: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
+      {/* Header Expresivo */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <IconButton
+            icon="calendar-today"
+            mode="contained-tonal"
+            size={20}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setSelectedDate(new Date());
+            }}
+            iconColor={surfaceColors.primary}
+            style={{
+              backgroundColor: surfaceColors.primaryContainer,
+            }}
+          />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ marginBottom: 20 }}>
           <Text style={{ 
             fontFamily: 'Roboto-Flex', 
-            fontSize: 32, 
+            fontSize: 57, // Display Small
+            lineHeight: 64,
             fontWeight: '400', 
-            color: surfaceColors.onSurface,
-            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
           }}>
             Calendario
           </Text>
-          <Text style={{ fontSize: 16, color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 8,
+            fontFamily: 'Roboto-Flex',
+            letterSpacing: 0.15
+          }}>
             Agenda y vencimientos
           </Text>
         </View>
-        <IconButton 
-          icon="calendar-today" 
-          iconColor={surfaceColors.primary}
-          size={28}
-          onPress={() => {
-            Haptics.selectionAsync();
-            setSelectedDate(new Date());
-          }} 
-        />
       </View>
 
       {/* View Selector - SegmentedButtons */}
-      <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
         <SegmentedButtons
           value={viewMode}
           onValueChange={(value) => {

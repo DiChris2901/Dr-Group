@@ -1,13 +1,13 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Linking,
   Alert,
+  Animated,
 } from 'react-native';
 import {
-  Appbar,
   Text as PaperText,
   Surface,
   Avatar,
@@ -15,6 +15,7 @@ import {
   Divider,
   Chip,
   useTheme,
+  IconButton,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -58,6 +59,17 @@ export default function EmpleadoDetailScreen() {
   const { empleadoId } = route.params || {};
   const [empleado, setEmpleado] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Animación fade in
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, [empleado]);
 
   // Cargar datos del empleado desde Firestore
   useEffect(() => {
@@ -217,10 +229,37 @@ export default function EmpleadoDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empleado" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empleado
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              Información Detallada
+            </PaperText>
+          </View>
+        </View>
         <LoadingState message="Cargando información del empleado..." />
       </SafeAreaView>
     );
@@ -229,10 +268,37 @@ export default function EmpleadoDetailScreen() {
   if (!empleado) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-        <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Empleado" />
-        </Appbar.Header>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              iconColor={scheme.onSurface}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <PaperText
+              variant="displaySmall"
+              style={{
+                fontWeight: '400',
+                color: scheme.onSurface,
+                letterSpacing: -0.5,
+                fontFamily: 'Roboto-Flex',
+                marginBottom: 4,
+              }}
+            >
+              Empleado
+            </PaperText>
+            <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+              No Encontrado
+            </PaperText>
+          </View>
+        </View>
         <View style={styles.errorContainer}>
           <PaperText>No se encontró el empleado</PaperText>
         </View>
@@ -246,45 +312,110 @@ export default function EmpleadoDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: scheme.surface }]}>
-      {/* Header */}
-      <Appbar.Header style={{ backgroundColor: scheme.surface }} elevated={false}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={fullName || 'Empleado'} titleStyle={{ fontSize: 16 }} />
-      </Appbar.Header>
+      {/* Header Expresivo */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTop}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={scheme.onSurface}
+          />
+          <View style={styles.actionButtons}>
+            {empleado.telefono && (
+              <IconButton
+                icon="phone"
+                mode="contained-tonal"
+                size={20}
+                onPress={() => handleCall(empleado.telefono)}
+                iconColor={scheme.primary}
+                style={{
+                  backgroundColor: scheme.primaryContainer,
+                  marginLeft: 8,
+                }}
+              />
+            )}
+            {empleado.email && (
+              <IconButton
+                icon="email"
+                mode="contained-tonal"
+                size={20}
+                onPress={() => handleEmail(empleado.email)}
+                iconColor={scheme.primary}
+                style={{
+                  backgroundColor: scheme.primaryContainer,
+                  marginLeft: 8,
+                }}
+              />
+            )}
+          </View>
+        </View>
+        <View style={styles.headerContent}>
+          <PaperText
+            variant="displaySmall"
+            style={{
+              fontWeight: '400',
+              color: scheme.onSurface,
+              letterSpacing: -0.5,
+              fontFamily: 'Roboto-Flex',
+              marginBottom: 4,
+            }}
+          >
+            {fullName || 'Empleado'}
+          </PaperText>
+          <PaperText variant="titleMedium" style={{ color: scheme.onSurfaceVariant }}>
+            {empleado.tipoDocumento || 'CC'}: {empleado.numeroDocumento || 'No registrado'}
+          </PaperText>
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Header */}
-        <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
-          <Avatar.Text
-            size={72}
-            label={initials}
-            style={{
-              backgroundColor: isRetirado ? scheme.errorContainer : scheme.primaryContainer,
-            }}
-            labelStyle={{
-              color: isRetirado ? scheme.onErrorContainer : scheme.onPrimaryContainer,
-              fontWeight: '700',
-              fontSize: 28,
-            }}
-          />
-          <PaperText variant="headlineSmall" style={[styles.headerName, { color: scheme.onSurface }]}>
-            {fullName}
-          </PaperText>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Surface style={[styles.headerCard, { backgroundColor: scheme.surfaceContainerLow }]} elevation={0}>
+            <Avatar.Text
+              size={72}
+              label={initials}
+              style={{
+                backgroundColor: isRetirado ? scheme.errorContainer : scheme.primaryContainer,
+              }}
+              labelStyle={{
+                color: isRetirado ? scheme.onErrorContainer : scheme.onPrimaryContainer,
+                fontWeight: '700',
+                fontSize: 28,
+              }}
+            />
+            <PaperText
+              variant="headlineLarge"
+              style={[
+                styles.headerName,
+                {
+                  color: scheme.onSurface,
+                  fontWeight: '600',
+                  letterSpacing: -0.25,
+                },
+              ]}
+            >
+              {fullName}
+            </PaperText>
 
-          {/* Status Badge */}
-          <Chip
-            icon={contractStatus.icon}
-            style={[styles.statusChip, { backgroundColor: contractStatus.color + '1A' }]}
-            textStyle={{ color: contractStatus.color, fontWeight: '600', fontSize: 12 }}
-          >
-            {contractStatus.label}
-          </Chip>
+            {/* Status Badge */}
+            <Chip
+              icon={contractStatus.icon}
+              style={[styles.statusChip, { backgroundColor: contractStatus.color + '1A' }]}
+              textStyle={{ color: contractStatus.color, fontWeight: '600', fontSize: 12 }}
+            >
+              {contractStatus.label}
+            </Chip>
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
             <Button
               mode="contained-tonal"
               icon="phone"
@@ -318,6 +449,7 @@ export default function EmpleadoDetailScreen() {
             </Button>
           </View>
         </Surface>
+        </Animated.View>
 
         {/* Datos Personales */}
         <View style={styles.section}>
@@ -503,20 +635,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerContent: {
+    paddingHorizontal: 4,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 32,
   },
   headerCard: {
     alignItems: 'center',
     padding: 24,
     borderRadius: 24,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   headerName: {
     fontWeight: '600',
@@ -541,8 +691,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   section: {
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 12,
+    gap: 12,
   },
   divider: {
     marginVertical: 16,
