@@ -246,7 +246,7 @@ export default function AdminDashboardScreen({ navigation }) {
           ]} 
           elevation={0}
         >
-          <Avatar.Icon size={40} icon={icon} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} color={color} />
+          <Avatar.Icon size={36} icon={icon} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} color={color} />
           <View>
             <Text variant="headlineMedium" style={{ fontWeight: 'bold', color: color }}>{value}</Text>
             <Text variant="labelMedium" style={{ color: color, opacity: 0.8 }}>{label}</Text>
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    padding: 12,
+    padding: 10,
     borderRadius: 24,
     alignItems: 'flex-start', // Align left for cleaner grid look
     justifyContent: 'center',
