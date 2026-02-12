@@ -9,8 +9,8 @@ import {
   Animated,
   Linking,
   Dimensions,
-  Pressable,
-  ScrollView // Added ScrollView import
+  TouchableWithoutFeedback,
+  Pressable
 } from 'react-native';
 import { 
   Text, 
@@ -19,13 +19,17 @@ import {
   Searchbar,
   Portal,
   Modal,
-  SegmentedButtons
+  SegmentedButtons,
+  IconButton,
+  ActivityIndicator,
+  Menu,
+  Button
 } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import materialTheme from '../../../material-theme.json';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { collection, query, orderBy, getDocs, updateDoc, doc, onSnapshot, where, Timestamp, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, updateDoc, doc, onSnapshot, where, Timestamp, limit, startAfter } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -77,34 +81,132 @@ export default function AdminNovedadesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('pending'); // 'pending' | 'all'
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'llegada_tarde' | etc.
+  const [filterDate, setFilterDate] = useState('last_30'); // 'today' | 'last_7' | 'last_30' | 'this_month' | 'last_month' | 'last_3_months' | 'all'
+  const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+  const [dateMenuVisible, setDateMenuVisible] = useState(false);
   const [selectedNovedad, setSelectedNovedad] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [filtersApplied, setFiltersApplied] = useState(false); // ✅ Control manual de ejecución
 
   // ✅ Ref para cleanup de listener
   const unsubscribeRef = useRef(null);
 
-  // ✅ Real-time listener con useFocusEffect para cleanup al perder foco
+  // ✅ Calcular rango de fechas según filtro
+  const getDateRange = useCallback((filter) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch(filter) {
+      case 'today':
+        return Timestamp.fromDate(today);
+      case 'last_7':
+        const last7 = new Date(today);
+        last7.setDate(last7.getDate() - 7);
+        return Timestamp.fromDate(last7);
+      case 'last_30':
+        const last30 = new Date(today);
+        last30.setDate(last30.getDate() - 30);
+        return Timestamp.fromDate(last30);
+      case 'this_month':
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return Timestamp.fromDate(thisMonth);
+      case 'last_month':
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return Timestamp.fromDate(lastMonth);
+      case 'last_3_months':
+        const last3Months = new Date(today);
+        last3Months.setMonth(last3Months.getMonth() - 3);
+        return Timestamp.fromDate(last3Months);
+      case 'all':
+      default:
+        return null;
+    }
+  }, []);
+
+  // ✅ Función para aplicar filtros manualmente
+  const applyFilters = useCallback(() => {
+    setFiltersApplied(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  // ✅ Función para limpiar filtros y vaciar resultados
+  const clearFilters = useCallback(() => {
+    setFilterStatus('pending');
+    setFilterType('all');
+    setFilterDate('last_30');
+    setNovedades([]);
+    setFilteredNovedades([]);
+    setFiltersApplied(false);
+    setLastVisible(null);
+    setHasMore(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  // ✅ Real-time listener con query optimizado por filtros (solo ejecuta si filtersApplied === true)
   useFocusEffect(
     useCallback(() => {
+      // ❌ No ejecutar si no se han aplicado filtros manualmente
+      if (!filtersApplied) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      const q = query(
-        collection(db, 'novedades'), 
-        orderBy('date', 'desc'),
-        limit(50) // ✅ Solo últimas 50 novedades
-      );
+      setNovedades([]);
+      setLastVisible(null);
+      setHasMore(true);
+      
+      // ✅ Construir query dinámico correctamente
+      // ORDEN CORRECTO: collection → where() clauses → orderBy() → limit()
+      let queryConstraints = [collection(db, 'novedades')];
+      
+      // Filtrar por status si no es 'all'
+      if (filterStatus === 'pending') {
+        queryConstraints.push(where('status', '==', 'pending'));
+      }
+      
+      // Filtrar por tipo si no es 'all'
+      if (filterType !== 'all') {
+        queryConstraints.push(where('type', '==', filterType));
+      }
+      
+      // Filtrar por fecha si no es 'all'
+      const dateStart = getDateRange(filterDate);
+      if (dateStart) {
+        queryConstraints.push(where('date', '>=', dateStart));
+      }
+      
+      // Siempre ordenar por fecha descendente
+      queryConstraints.push(orderBy('date', 'desc'));
+      queryConstraints.push(limit(20));
+      
+      const q = query(...queryConstraints);
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setNovedades(data);
-      // filterData se ejecutará automáticamente por el useEffect que depende de 'novedades'
-      setLoading(false);
-      setRefreshing(false);
-    }, (error) => {
-      console.error("Error escuchando novedades:", error);
-      Alert.alert('Error', 'No se pudieron cargar las novedades en tiempo real');
-      setLoading(false);
-      setRefreshing(false);
-    });
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNovedades(data);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === 20);
+        setLoading(false);
+        setRefreshing(false);
+      }, (error) => {
+        console.error('Error al cargar novedades:', error);
+        if (error.message?.includes('index')) {
+          Alert.alert(
+            'Índice Requerido', 
+            'Firestore necesita crear un índice compuesto. Verifica Firebase Console.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Error', 'No se pudieron cargar las novedades');
+        }
+        setLoading(false);
+        setRefreshing(false);
+      });
     
     unsubscribeRef.current = unsubscribe;
 
@@ -114,40 +216,75 @@ export default function AdminNovedadesScreen({ navigation }) {
         unsubscribeRef.current = null;
       }
     };
-  }, [])
+  }, [filtersApplied, filterStatus, filterType, filterDate, getDateRange]) // ✅ Solo re-ejecutar cuando se apliquen filtros
 );
 
-  // Mantener onRefresh solo para el pull-to-refresh manual si es necesario,
-  // aunque con onSnapshot ya no es estrictamente necesario, pero sirve para forzar reload si hay problemas de red.
+  // Mantener onRefresh solo para el pull-to-refresh manual
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     // El onSnapshot se encarga, pero simulamos un delay o podríamos reconectar
     setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
-  const filterData = useCallback((data, query, status) => {
-    let filtered = data;
+  // ✅ Cargar más novedades (paginación) - Solo si filtros aplicados
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore || !lastVisible || !filtersApplied) return;
     
-    // Filter by Status
-    if (status === 'pending') {
-      filtered = filtered.filter(item => item.status === 'pending');
+    setLoadingMore(true);
+    try {
+      // Construir query con el mismo orden que el inicial
+      let queryConstraints = [collection(db, 'novedades')];
+      
+      if (filterStatus === 'pending') {
+        queryConstraints.push(where('status', '==', 'pending'));
+      }
+      
+      if (filterType !== 'all') {
+        queryConstraints.push(where('type', '==', filterType));
+      }
+      
+      const dateStart = getDateRange(filterDate);
+      if (dateStart) {
+        queryConstraints.push(where('date', '>=', dateStart));
+      }
+      
+      queryConstraints.push(orderBy('date', 'desc'));
+      queryConstraints.push(startAfter(lastVisible));
+      queryConstraints.push(limit(20));
+      
+      const q = query(...queryConstraints);
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        setHasMore(false);
+      } else {
+        const newData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNovedades(prev => [...prev, ...newData]);
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === 20);
+      }
+    } catch (error) {
+      console.error('Error loading more:', error);
     }
+    setLoadingMore(false);
+  }, [hasMore, loadingMore, lastVisible, filtersApplied, filterStatus, filterType, filterDate, getDateRange]);
 
-    // Filter by Search
-    if (query) {
-      const lowerQuery = query.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.userName?.toLowerCase().includes(lowerQuery) ||
-        item.type?.toLowerCase().includes(lowerQuery)
+  const filterData = useCallback(() => {
+    let filtered = novedades;
+
+    // Solo filtrar por búsqueda (status y tipo ya están en query)
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(n =>
+        n.userName?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    setFilteredNovedades(filtered);
-  }, []);
+    return filtered;
+  }, [novedades, searchQuery]);
 
   useEffect(() => {
-    filterData(novedades, searchQuery, filterStatus);
-  }, [searchQuery, filterStatus, novedades, filterData]);
+    setFilteredNovedades(filterData());
+  }, [searchQuery, novedades, filterData]);
 
   const handleStatusChange = async (id, newStatus) => {
     try {
@@ -388,26 +525,50 @@ export default function AdminNovedadesScreen({ navigation }) {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
         
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={{ 
-            fontFamily: 'Roboto-Flex', 
-            fontSize: 36, // Display Small
-            lineHeight: 44,
-            fontWeight: '400', 
-            color: surfaceColors.onSurface, 
-            letterSpacing: -0.5,
-            fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
-          }}>
-            Novedades
-          </Text>
-          <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, fontSize: 16 }}>
-            Gestionar reportes de empleados
-          </Text>
+        {/* Header Expresivo */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation.goBack();
+              }}
+              iconColor={surfaceColors.onSurface}
+            />
+            <IconButton
+              icon="refresh"
+              mode="contained-tonal"
+              size={20}
+              onPress={onRefresh}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+              }}
+            />
+          </View>
+          <View style={styles.headerContent}>
+            <Text style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 57, // Display Small
+              lineHeight: 64,
+              fontWeight: '400', 
+              color: surfaceColors.onSurface, 
+              letterSpacing: -0.5,
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }] // Google Look
+            }}>
+              Novedades
+            </Text>
+            <Text variant="titleMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
+              Gestionar reportes de empleados
+            </Text>
+          </View>
         </View>
 
-        {/* Filter Chips - SegmentedButtons */}
-        <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+        {/* Filters Container */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 16, gap: 16 }}>
+          {/* Filter Status - SegmentedButtons */}
           <SegmentedButtons
             value={filterStatus}
             onValueChange={(value) => {
@@ -419,30 +580,352 @@ export default function AdminNovedadesScreen({ navigation }) {
               { value: 'all', label: 'Historial', icon: 'history' },
             ]}
           />
+
+          {/* Filters Grid: Tipo + Fecha */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {/* Filter Type - Dropdown Menu */}
+            <View style={{ flex: 1 }}>
+              <Menu
+                visible={typeMenuVisible}
+                onDismiss={() => setTypeMenuVisible(false)}
+                anchor={
+                  <TouchableWithoutFeedback
+                    onPress={() => {
+                      setTypeMenuVisible(true);
+                      Haptics.selectionAsync();
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainerHigh,
+                        borderRadius: 24,
+                        paddingVertical: 16,
+                        paddingHorizontal: 20,
+                        borderWidth: 1,
+                        borderColor: surfaceColors.outlineVariant,
+                      }}
+                    >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View>
+                        <Text style={{ 
+                          fontSize: 11, 
+                          color: surfaceColors.onSurfaceVariant,
+                          fontFamily: 'Roboto-Flex',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          marginBottom: 4
+                        }}>
+                          Tipo de Novedad
+                        </Text>
+                        <Text style={{ 
+                          fontSize: 15, 
+                          color: surfaceColors.onSurface,
+                          fontFamily: 'Roboto-Flex',
+                          fontWeight: '500'
+                        }}>
+                          {[
+                            { value: 'all', label: 'Todos' },
+                            { value: 'llegada_tarde', label: 'Llegada Tarde' },
+                            { value: 'olvido_salida', label: 'Olvido Salida' },
+                            { value: 'solicitud_reapertura', label: 'Reapertura' },
+                            { value: 'urgencia_medica', label: 'Urgencia Médica' },
+                            { value: 'calamidad', label: 'Calamidad' },
+                            { value: 'otro', label: 'Otro' },
+                          ].find(t => t.value === filterType)?.label || 'Todos'}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons 
+                        name="menu-down" 
+                        size={24} 
+                        color={surfaceColors.onSurfaceVariant} 
+                      />
+                    </View>
+                    </View>
+                  </TouchableWithoutFeedback>
+                }
+                contentStyle={{
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  borderRadius: 16,
+                }}
+              >
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('all'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Todos"
+              leadingIcon="filter-variant"
+              titleStyle={{ color: filterType === 'all' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('llegada_tarde'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Llegada Tarde"
+              leadingIcon="clock-alert"
+              titleStyle={{ color: filterType === 'llegada_tarde' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('olvido_salida'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Olvido Salida"
+              leadingIcon="logout"
+              titleStyle={{ color: filterType === 'olvido_salida' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('solicitud_reapertura'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Reapertura"
+              leadingIcon="lock-open"
+              titleStyle={{ color: filterType === 'solicitud_reapertura' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('urgencia_medica'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Urgencia Médica"
+              leadingIcon="hospital-box"
+              titleStyle={{ color: filterType === 'urgencia_medica' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('calamidad'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Calamidad"
+              leadingIcon="alert"
+              titleStyle={{ color: filterType === 'calamidad' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterType('otro'); 
+                setTypeMenuVisible(false); 
+              }}
+              title="Otro"
+              leadingIcon="dots-horizontal"
+              titleStyle={{ color: filterType === 'otro' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+              </Menu>
+            </View>
+
+            {/* Filter Date - Dropdown Menu */}
+            <View style={{ flex: 1 }}>
+              <Menu
+                visible={dateMenuVisible}
+                onDismiss={() => setDateMenuVisible(false)}
+                anchor={
+                  <TouchableWithoutFeedback
+                    onPress={() => {
+                      setDateMenuVisible(true);
+                      Haptics.selectionAsync();
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: surfaceColors.surfaceContainerHigh,
+                        borderRadius: 24,
+                        paddingVertical: 16,
+                        paddingHorizontal: 20,
+                        borderWidth: 1,
+                        borderColor: surfaceColors.outlineVariant,
+                      }}
+                    >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View>
+                        <Text style={{ 
+                          fontSize: 11, 
+                          color: surfaceColors.onSurfaceVariant,
+                          fontFamily: 'Roboto-Flex',
+                          fontWeight: '600',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          marginBottom: 4
+                        }}>
+                          Rango de Fecha
+                        </Text>
+                        <Text style={{ 
+                          fontSize: 15, 
+                          color: surfaceColors.onSurface,
+                          fontFamily: 'Roboto-Flex',
+                          fontWeight: '500'
+                        }}>
+                          {[
+                            { value: 'today', label: 'Hoy' },
+                            { value: 'last_7', label: 'Últimos 7 días' },
+                            { value: 'last_30', label: 'Últimos 30 días' },
+                            { value: 'this_month', label: 'Este mes' },
+                            { value: 'last_month', label: 'Mes anterior' },
+                            { value: 'last_3_months', label: 'Últimos 3 meses' },
+                            { value: 'all', label: 'Todo' },
+                          ].find(d => d.value === filterDate)?.label || 'Últimos 30 días'}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons 
+                        name="menu-down" 
+                        size={24} 
+                        color={surfaceColors.onSurfaceVariant} 
+                      />
+                    </View>
+                    </View>
+                  </TouchableWithoutFeedback>
+                }
+                contentStyle={{
+                  backgroundColor: surfaceColors.surfaceContainerHigh,
+                  borderRadius: 16,
+                }}
+              >
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('today'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Hoy"
+              leadingIcon="calendar-today"
+              titleStyle={{ color: filterDate === 'today' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('last_7'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Últimos 7 días"
+              leadingIcon="calendar-week"
+              titleStyle={{ color: filterDate === 'last_7' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('last_30'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Últimos 30 días"
+              leadingIcon="calendar-month"
+              titleStyle={{ color: filterDate === 'last_30' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('this_month'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Este mes"
+              leadingIcon="calendar"
+              titleStyle={{ color: filterDate === 'this_month' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('last_month'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Mes anterior"
+              leadingIcon="calendar-arrow-left"
+              titleStyle={{ color: filterDate === 'last_month' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('last_3_months'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Últimos 3 meses"
+              leadingIcon="calendar-multiple"
+              titleStyle={{ color: filterDate === 'last_3_months' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+            <Menu.Item
+              onPress={() => { 
+                setFilterDate('all'); 
+                setDateMenuVisible(false); 
+              }}
+              title="Todo"
+              leadingIcon="calendar-blank"
+              titleStyle={{ color: filterDate === 'all' ? surfaceColors.primary : surfaceColors.onSurface }}
+            />
+              </Menu>
+            </View>
+          </View>
+
+          {/* Searchbar */}
+          <Searchbar
+            placeholder="Buscar por nombre de empleado..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={{ 
+              backgroundColor: surfaceColors.surfaceContainerHigh, 
+              borderRadius: 28,
+              height: 56,
+            }}
+            inputStyle={{ 
+              minHeight: 0,
+              alignSelf: 'center',
+              fontFamily: 'Roboto-Flex',
+            }}
+            iconColor={surfaceColors.onSurfaceVariant}
+            placeholderTextColor={surfaceColors.onSurfaceVariant}
+            elevation={0}
+          />
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+            <Button
+              mode="contained"
+              onPress={applyFilters}
+              icon="filter-check"
+              style={{ flex: 1, borderRadius: 24 }}
+              contentStyle={{ paddingVertical: 10 }}
+              labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+            >
+              Aplicar Filtros
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={clearFilters}
+              icon="filter-remove"
+              style={{ flex: 1, borderRadius: 24, borderColor: surfaceColors.outlineVariant }}
+              contentStyle={{ paddingVertical: 10 }}
+              labelStyle={{ fontFamily: 'Roboto-Flex', fontWeight: '600', fontSize: 15 }}
+              textColor={surfaceColors.onSurface}
+            >
+              Limpiar
+            </Button>
+          </View>
         </View>
 
-        <Searchbar
-          placeholder="Buscar empleado..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={[
-            styles.searchBar, 
-            { 
-              backgroundColor: surfaceColors.surfaceContainerHigh, 
-              borderRadius: 100, // Full Pill
-              height: 56, // Standard M3 height
-            }
-          ]}
-          inputStyle={{ 
-            minHeight: 0, // Fix for some Android versions
-            alignSelf: 'center' 
-          }}
-          iconColor={surfaceColors.onSurfaceVariant}
-          placeholderTextColor={surfaceColors.onSurfaceVariant}
-          elevation={0}
-        />
-
-        {filteredNovedades.length === 0 && !loading ? (
+        {!filtersApplied && !loading ? (
+          <View style={styles.emptyState}>
+            <View style={{
+              width: 160,
+              height: 160,
+              borderRadius: 80,
+              backgroundColor: surfaceColors.surfaceContainerHigh,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 24
+            }}>
+              <MaterialCommunityIcons 
+                name="filter-outline" 
+                size={80} 
+                color={surfaceColors.primary} 
+              />
+            </View>
+            <Text style={{ 
+              fontFamily: 'Roboto-Flex', 
+              fontSize: 24, 
+              fontWeight: '400', 
+              color: surfaceColors.onSurface,
+              textAlign: 'center',
+              fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+            }}>
+              Configura los filtros
+            </Text>
+            <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+              Selecciona los criterios de búsqueda y presiona "Aplicar Filtros" para ver las novedades.
+            </Text>
+          </View>
+        ) : filteredNovedades.length === 0 && !loading ? (
           <View style={styles.emptyState}>
             <View style={{
               width: 160,
@@ -480,6 +963,15 @@ export default function AdminNovedadesScreen({ navigation }) {
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={() => (
+              loadingMore ? (
+                <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={surfaceColors.primary} />
+                </View>
+              ) : null
+            )}
           />
         )}
 
@@ -545,55 +1037,58 @@ export default function AdminNovedadesScreen({ navigation }) {
                   </Pressable>
                 )}
 
-                <View style={styles.modalActions}>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      handleStatusChange(selectedNovedad.id, 'rejected');
-                      setModalVisible(false);
-                    }}
-                    android_ripple={{ color: surfaceColors.onErrorContainer + '1F' }}
-                    style={({ pressed }) => [
-                      {
-                        flex: 1,
-                        marginRight: 8,
-                        padding: 16,
-                        borderRadius: 24,
-                        backgroundColor: surfaceColors.errorContainer,
-                        alignItems: 'center',
-                        transform: [{ scale: pressed ? 0.98 : 1 }]
-                      }
-                    ]}
-                  >
-                    <Text style={{ color: surfaceColors.onErrorContainer, fontWeight: '600', fontSize: 16 }}>
-                      Rechazar
-                    </Text>
-                  </Pressable>
-                  
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      handleStatusChange(selectedNovedad.id, 'approved');
-                      setModalVisible(false);
-                    }}
-                    android_ripple={{ color: surfaceColors.onPrimaryContainer + '1F' }}
-                    style={({ pressed }) => [
-                      {
-                        flex: 1,
-                        marginLeft: 8,
-                        padding: 16,
-                        borderRadius: 24,
-                        backgroundColor: surfaceColors.primaryContainer,
-                        alignItems: 'center',
-                        transform: [{ scale: pressed ? 0.98 : 1 }]
-                      }
-                    ]}
-                  >
-                    <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', fontSize: 16 }}>
-                      {selectedNovedad.type === 'solicitud_reapertura' ? 'Autorizar Reapertura' : 'Aprobar'}
-                    </Text>
-                  </Pressable>
-                </View>
+                {/* Botones de Acción - Solo si está pendiente */}
+                {selectedNovedad.status === 'pending' && (
+                  <View style={styles.modalActions}>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        handleStatusChange(selectedNovedad.id, 'rejected');
+                        setModalVisible(false);
+                      }}
+                      android_ripple={{ color: surfaceColors.onErrorContainer + '1F' }}
+                      style={({ pressed }) => [
+                        {
+                          flex: 1,
+                          marginRight: 8,
+                          padding: 16,
+                          borderRadius: 24,
+                          backgroundColor: surfaceColors.errorContainer,
+                          alignItems: 'center',
+                          transform: [{ scale: pressed ? 0.98 : 1 }]
+                        }
+                      ]}
+                    >
+                      <Text style={{ color: surfaceColors.onErrorContainer, fontWeight: '600', fontSize: 16 }}>
+                        Rechazar
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        handleStatusChange(selectedNovedad.id, 'approved');
+                        setModalVisible(false);
+                      }}
+                      android_ripple={{ color: surfaceColors.onPrimaryContainer + '1F' }}
+                      style={({ pressed }) => [
+                        {
+                          flex: 1,
+                          marginLeft: 8,
+                          padding: 16,
+                          borderRadius: 24,
+                          backgroundColor: surfaceColors.primaryContainer,
+                          alignItems: 'center',
+                          transform: [{ scale: pressed ? 0.98 : 1 }]
+                        }
+                      ]}
+                    >
+                      <Text style={{ color: surfaceColors.onPrimaryContainer, fontWeight: '600', fontSize: 16 }}>
+                        {selectedNovedad.type === 'solicitud_reapertura' ? 'Autorizar Reapertura' : 'Aprobar'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             )}
           </Modal>
@@ -608,19 +1103,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    padding: 24,
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 16,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  headerContent: {
+    paddingHorizontal: 4,
   },
   filterChips: {
     // Removed flex styles that caused stretching
   },
   searchBar: {
-    marginHorizontal: 24,
-    marginBottom: 24, // Increased spacing
+    marginBottom: 20, // Increased spacing
   },
   listContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
   cardHeader: {
