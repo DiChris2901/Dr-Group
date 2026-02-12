@@ -678,11 +678,12 @@ export default function CalendarioScreen({ navigation }) {
       }
     };
 
-    // Programar notificaciones al cargar eventos o cuando cambian
+    // Programar notificaciones solo cuando cambian eventos custom o preferencias
+    // NO al seleccionar días (evita reprogramación excesiva)
     if (allEventos.length > 0) {
       programarNotificaciones();
     }
-  }, [allEventos, userProfile, preferences]);
+  }, [customEvents, userProfile, preferences]);
 
   // Filter events
   useEffect(() => {
