@@ -592,13 +592,13 @@ export default function AdminDashboardScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 12 }}>
             {can(APP_PERMISSIONS.ADMIN_CREATE_ALERT) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-ring-outline" size={32} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
+                <IconButton icon="bell-ring-outline" size={24} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
                 <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
               </Surface>
             )}
             {can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-cog" size={32} iconColor={surfaceColors.primary} onPress={() => {
+                <IconButton icon="bell-cog" size={24} iconColor={surfaceColors.primary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('AdminNotificationControl');
                 }} />
@@ -607,7 +607,7 @@ export default function AdminDashboardScreen({ navigation }) {
             )}
             {can(APP_PERMISSIONS.ADMIN_SETTINGS) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="cog-outline" size={32} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminSettings')} />
+                <IconButton icon="cog-outline" size={24} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminSettings')} />
                 <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
               </Surface>
             )}
@@ -615,7 +615,7 @@ export default function AdminDashboardScreen({ navigation }) {
           {can(APP_PERMISSIONS.USUARIOS_GESTIONAR) && (
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="shield-account" size={32} iconColor={surfaceColors.primary} onPress={() => {
+                <IconButton icon="shield-account" size={24} iconColor={surfaceColors.primary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('Users');
                 }} />
@@ -632,7 +632,7 @@ export default function AdminDashboardScreen({ navigation }) {
             <View style={{ flexDirection: 'row', gap: 12 }}>
               {can(APP_PERMISSIONS.EMPRESAS_VER) && (
                 <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="domain" size={32} iconColor={surfaceColors.primary} onPress={() => {
+                  <IconButton icon="domain" size={24} iconColor={surfaceColors.primary} onPress={() => {
                     triggerHaptic('selection');
                     navigation.navigate('Empresas');
                   }} />
@@ -641,7 +641,7 @@ export default function AdminDashboardScreen({ navigation }) {
               )}
               {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
                 <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="account-group" size={32} iconColor={surfaceColors.secondary} onPress={() => {
+                  <IconButton icon="account-group" size={24} iconColor={surfaceColors.secondary} onPress={() => {
                     triggerHaptic('selection');
                     navigation.navigate('Empleados');
                   }} />
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
-    padding: 12, // Reduced padding
+    padding: 8, // Compact padding
     borderRadius: 24, // Consistent radius
     alignItems: 'center',
     // backgroundColor: '#f1f5f9', // Removed hardcoded color
