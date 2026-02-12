@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
-import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, Divider, SegmentedButtons, Button, Menu } from 'react-native-paper';
+import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, SegmentedButtons, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -10,6 +10,8 @@ import { OverlineText } from '../../components';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 
 export default function NotificationsScreen({ navigation }) {
   const theme = useTheme();
@@ -24,9 +26,28 @@ export default function NotificationsScreen({ navigation }) {
   const [limitCount, setLimitCount] = useState(20);
   const unsubscribeRef = useRef(null);
   
-  // Menu state
-  const [menuVisible, setMenuVisible] = useState(false);
+  // Action state
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      background: scheme.background,
+      outlineVariant: scheme.outlineVariant,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer
+    };
+  }, [theme.dark]);
 
   // ✅ Memoizar helpers para evitar recreaciones
   const getIcon = useCallback((type) => {
@@ -274,46 +295,48 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-          <Text variant="headlineSmall" style={{ fontWeight: '400', fontFamily: 'Roboto-Flex', marginLeft: 8 }}>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Expresivo */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <IconButton
+            icon="bell-outline"
+            mode="contained-tonal"
+            size={20}
+            iconColor={surfaceColors.primary}
+            style={{
+              backgroundColor: surfaceColors.primaryContainer,
+            }}
+          />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
             Notificaciones
           </Text>
         </View>
-        
-        {/* Menú de acciones */}
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <IconButton
-              icon="dots-vertical"
-              onPress={() => setMenuVisible(true)}
-              disabled={actionLoading}
-            />
-          }
-          anchorPosition="bottom"
-        >
-          <Menu.Item
-            leadingIcon="check-all"
-            onPress={markAllAsRead}
-            title="Marcar todas como leídas"
-            disabled={actionLoading || notifications.filter(n => !n.read).length === 0}
-          />
-          <Divider />
-          <Menu.Item
-            leadingIcon="delete-outline"
-            onPress={deleteAllNotifications}
-            title="Eliminar todas"
-            disabled={actionLoading || notifications.length === 0}
-            titleStyle={{ color: theme.colors.error }}
-          />
-        </Menu>
       </View>
 
-      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
         <SegmentedButtons
           value={filter}
           onValueChange={setFilter}
@@ -324,6 +347,65 @@ export default function NotificationsScreen({ navigation }) {
           ]}
           density="medium"
         />
+      </View>
+
+      {/* Botones de acción */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginBottom: 16, gap: 12 }}>
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            {
+              backgroundColor: surfaceColors.primaryContainer,
+              opacity: (actionLoading || notifications.filter(n => !n.read).length === 0) ? 0.5 : 1
+            }
+          ]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            markAllAsRead();
+          }}
+          disabled={actionLoading || notifications.filter(n => !n.read).length === 0}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons 
+            name="check-all" 
+            size={20} 
+            color={surfaceColors.onPrimaryContainer} 
+          />
+          <Text style={[
+            styles.actionButtonText, 
+            { color: surfaceColors.onPrimaryContainer }
+          ]}>
+            Marcar Todas
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            {
+              backgroundColor: surfaceColors.errorContainer,
+              opacity: (actionLoading || notifications.length === 0) ? 0.5 : 1
+            }
+          ]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            deleteAllNotifications();
+          }}
+          disabled={actionLoading || notifications.length === 0}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons 
+            name="delete-outline" 
+            size={20} 
+            color={surfaceColors.onErrorContainer} 
+          />
+          <Text style={[
+            styles.actionButtonText, 
+            { color: surfaceColors.onErrorContainer }
+          ]}>
+            Eliminar Todas
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading && notifications.length === 0 ? (
@@ -465,14 +547,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 16,
-    paddingRight: 8,
-    paddingVertical: 8,
-  },
   list: {
     padding: 20,
   },
@@ -480,6 +554,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 24,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   card: {
     flexDirection: 'row',

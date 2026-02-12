@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, Image, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, Surface, useTheme as usePaperTheme, IconButton, Avatar, Divider, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, reauthenticateWithCredential, updateProfile, EmailAuthProvider } from 'firebase/auth';
 import { db, storage, auth } from '../../services/firebase';
 import * as Haptics from 'expo-haptics';
+import materialTheme from '../../../material-theme.json';
 
 export default function EditProfileScreen({ navigation }) {
   const theme = usePaperTheme();
@@ -26,6 +27,27 @@ export default function EditProfileScreen({ navigation }) {
   const [photoURL, setPhotoURL] = useState(userProfile?.photoURL || null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      background: scheme.background,
+      outlineVariant: scheme.outlineVariant,
+      error: scheme.error,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer
+    };
+  }, [theme.dark]);
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -159,9 +181,9 @@ export default function EditProfileScreen({ navigation }) {
   // ✅ Validación de permiso (después de todos los hooks)
   if (!can(APP_PERMISSIONS.PERFIL)) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
         <View style={styles.deniedContainer}>
-          <MaterialCommunityIcons name="shield-lock" size={64} color={theme.colors.error} />
+          <MaterialCommunityIcons name="shield-lock" size={64} color={surfaceColors.error} />
           <Text variant="headlineSmall" style={{ marginTop: 16, fontWeight: '600' }}>🔒 Acceso Denegado</Text>
           <Text variant="bodyMedium" style={{ marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>No tienes permiso para editar perfil</Text>
           <Button mode="contained" onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>Volver</Button>
@@ -171,25 +193,45 @@ export default function EditProfileScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <IconButton 
-          icon="arrow-left" 
-          size={28} 
-          onPress={() => navigation.goBack()}
-          style={{ marginLeft: -8 }}
-        />
-        <Text 
-          style={{ 
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <IconButton
+            icon="account-edit-outline"
+            mode="contained-tonal"
+            size={20}
+            iconColor={surfaceColors.primary}
+            style={{
+              backgroundColor: surfaceColors.primaryContainer,
+            }}
+          />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
             fontFamily: 'Roboto-Flex', 
-            fontSize: 24, 
-            fontWeight: '400',
-            color: theme.colors.onSurface,
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
             fontVariationSettings: [{ axis: 'wdth', value: 110 }]
-          }}
-        >
-          Editar Perfil
-        </Text>
+          }}>
+            Editar Perfil
+          </Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView 
@@ -202,22 +244,22 @@ export default function EditProfileScreen({ navigation }) {
           <View style={styles.photoContainer}>
             <View style={styles.avatarWrapper}>
               {uploading ? (
-                <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
+                <ActivityIndicator size="large" color={surfaceColors.primary} style={styles.loader} />
               ) : (
                 <Avatar.Image 
                   size={120} 
                   source={{ uri: photoURL || 'https://ui-avatars.com/api/?name=' + (name || 'User') }} 
-                  style={{ backgroundColor: theme.colors.primaryContainer }}
+                  style={{ backgroundColor: surfaceColors.primaryContainer }}
                 />
               )}
               <TouchableOpacity 
-                style={[styles.editBadge, { backgroundColor: theme.colors.primary }]}
+                style={[styles.editBadge, { backgroundColor: surfaceColors.primary }]}
                 onPress={handlePickImage}
               >
                 <IconButton icon="camera" iconColor="white" size={20} />
               </TouchableOpacity>
             </View>
-            <Text variant="bodyMedium" style={{ color: theme.colors.secondary, marginTop: 12 }}>
+            <Text variant="bodyMedium" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 12 }}>
               Toca la cámara para cambiar tu foto
             </Text>
           </View>
@@ -225,15 +267,15 @@ export default function EditProfileScreen({ navigation }) {
           <Divider style={{ marginVertical: 24 }} />
 
           {/* Basic Info */}
-          <OverlineText color={getPrimaryColor()} style={{ marginBottom: 16 }}>INFORMACIÓN BÁSICA</OverlineText>
+          <OverlineText color={surfaceColors.primary} style={{ marginBottom: 16 }}>INFORMACIÓN BÁSICA</OverlineText>
           
           <TextInput
             label="Nombre Completo"
             value={name}
             onChangeText={setName}
             mode="outlined"
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineStyle={{ borderRadius: 12 }}
+            style={[styles.input, { backgroundColor: surfaceColors.surfaceContainerLow }]}
+            outlineStyle={{ borderRadius: 24 }}
           />
 
           <TextInput
@@ -242,8 +284,8 @@ export default function EditProfileScreen({ navigation }) {
             onChangeText={setPhone}
             mode="outlined"
             keyboardType="phone-pad"
-            style={[styles.input, { backgroundColor: theme.colors.surface }]}
-            outlineStyle={{ borderRadius: 12 }}
+            style={[styles.input, { backgroundColor: surfaceColors.surfaceContainerLow }]}
+            outlineStyle={{ borderRadius: 24 }}
           />
 
           <TextInput
@@ -251,8 +293,8 @@ export default function EditProfileScreen({ navigation }) {
             value={user.email}
             mode="outlined"
             disabled
-            style={[styles.input, { backgroundColor: theme.colors.surfaceVariant }]}
-            outlineStyle={{ borderRadius: 12 }}
+            style={[styles.input, { backgroundColor: surfaceColors.surfaceContainer }]}
+            outlineStyle={{ borderRadius: 24 }}
           />
 
           <Button 
@@ -271,14 +313,14 @@ export default function EditProfileScreen({ navigation }) {
           {/* Security Section */}
           <TouchableOpacity onPress={() => setShowPasswordSection(!showPasswordSection)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <OverlineText color={theme.colors.error}>SEGURIDAD</OverlineText>
+              <OverlineText color={surfaceColors.error}>SEGURIDAD</OverlineText>
               <IconButton icon={showPasswordSection ? "chevron-up" : "chevron-down"} size={20} />
             </View>
           </TouchableOpacity>
 
           {showPasswordSection && (
-            <Surface style={[styles.securityCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
-              <Text variant="bodyMedium" style={{ marginBottom: 16, color: theme.colors.onSurfaceVariant }}>
+            <Surface style={[styles.securityCard, { backgroundColor: surfaceColors.surfaceContainerLow, borderColor: surfaceColors.outlineVariant }]} elevation={0}>
+              <Text variant="bodyMedium" style={{ marginBottom: 16, color: surfaceColors.onSurfaceVariant }}>
                 Para cambiar tu contraseña, ingresa la actual y la nueva.
               </Text>
 
@@ -288,8 +330,8 @@ export default function EditProfileScreen({ navigation }) {
                 onChangeText={setCurrentPassword}
                 secureTextEntry
                 mode="outlined"
-                style={[styles.input, { backgroundColor: theme.colors.surface }]}
-                outlineStyle={{ borderRadius: 12 }}
+                style={[styles.input, { backgroundColor: surfaceColors.surfaceContainerLow }]}
+                outlineStyle={{ borderRadius: 24 }}
               />
 
               <TextInput
@@ -298,8 +340,8 @@ export default function EditProfileScreen({ navigation }) {
                 onChangeText={setNewPassword}
                 secureTextEntry
                 mode="outlined"
-                style={[styles.input, { backgroundColor: theme.colors.surface }]}
-                outlineStyle={{ borderRadius: 12 }}
+                style={[styles.input, { backgroundColor: surfaceColors.surfaceContainerLow }]}
+                outlineStyle={{ borderRadius: 24 }}
               />
 
               <TextInput
@@ -308,8 +350,8 @@ export default function EditProfileScreen({ navigation }) {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 mode="outlined"
-                style={[styles.input, { backgroundColor: theme.colors.surface }]}
-                outlineStyle={{ borderRadius: 12 }}
+                style={[styles.input, { backgroundColor: surfaceColors.surfaceContainerLow }]}
+                outlineStyle={{ borderRadius: 24 }}
               />
 
               <Button 
@@ -317,8 +359,8 @@ export default function EditProfileScreen({ navigation }) {
                 onPress={handleChangePassword} 
                 loading={loading}
                 disabled={loading}
-                textColor={theme.colors.error}
-                style={{ marginTop: 8, borderColor: theme.colors.error, borderRadius: 24 }}
+                textColor={surfaceColors.error}
+                style={{ marginTop: 8, borderColor: surfaceColors.error, borderRadius: 24 }}
               >
                 Actualizar Contraseña
               </Button>
@@ -343,12 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+
   content: {
     padding: 24,
     paddingTop: 8,

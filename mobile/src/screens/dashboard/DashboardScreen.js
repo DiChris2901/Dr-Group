@@ -35,6 +35,7 @@ import { useAppDistribution } from '../../hooks/useAppDistribution';
 import { usePermissions } from '../../hooks/usePermissions';
 import { APP_PERMISSIONS } from '../../constants/permissions';
 import designSystem from '../../../design-system.json';
+import materialTheme from '../../../material-theme.json';
 
 const { width } = Dimensions.get('window');
 
@@ -67,6 +68,32 @@ export default function DashboardScreen() {
   const [novedadesVisible, setNovedadesVisible] = useState(false);
   const [novedadInitialType, setNovedadInitialType] = useState(null);
   const [localLoading, setLocalLoading] = useState(false); // 🔒 Loading local adicional
+
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      background: scheme.background,
+      outlineVariant: scheme.outlineVariant,
+      error: scheme.error,
+      errorContainer: scheme.errorContainer,
+      onErrorContainer: scheme.onErrorContainer,
+      tertiary: scheme.tertiary,
+      tertiaryContainer: scheme.tertiaryContainer,
+      onTertiaryContainer: scheme.onTertiaryContainer,
+      warning: scheme.tertiary, // Warning usa tertiary
+      warningContainer: scheme.tertiaryContainer
+    };
+  }, [theme.dark]);
 
   // ✅ Memoizar función de formateo para evitar recrearla
   const formatMs = useCallback((ms) => {
@@ -204,20 +231,21 @@ export default function DashboardScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Header Material You Expressive */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, marginBottom: 12 }}>
           <View>
             <PaperText 
-              variant="headlineLarge"
               style={{ 
-                color: theme.colors.primary,
                 fontFamily: 'Roboto-Flex',
-                fontWeight: '500',
+                fontSize: 57,
+                lineHeight: 64,
+                fontWeight: '400',
+                color: surfaceColors.primary,
                 letterSpacing: -0.5,
                 fontVariationSettings: [{ axis: 'wdth', value: 110 }]
               }}
@@ -227,7 +255,7 @@ export default function DashboardScreen() {
             <PaperText 
               variant="bodyLarge"
               style={{ 
-                color: theme.colors.secondary,
+                color: surfaceColors.onSurfaceVariant,
                 marginTop: 4
               }}
             >
@@ -240,8 +268,8 @@ export default function DashboardScreen() {
         {hasPendingSync && (
           <Surface
             style={{
-              backgroundColor: theme.colors.warningContainer || '#FFF4E5',
-              borderRadius: designSystem.borderRadius.components.card.medium,
+              backgroundColor: surfaceColors.warningContainer,
+              borderRadius: 24,
               padding: 16,
               marginBottom: 16,
               marginHorizontal: 0,
@@ -249,20 +277,20 @@ export default function DashboardScreen() {
               alignItems: 'center',
               gap: 12,
               borderLeftWidth: 4,
-              borderLeftColor: theme.colors.warning || '#FF9800'
+              borderLeftColor: surfaceColors.warning
             }}
             elevation={0}
           >
             <MaterialCommunityIcons 
               name="cloud-sync-outline" 
               size={24} 
-              color={theme.colors.warning || '#FF9800'} 
+              color={surfaceColors.warning} 
             />
             <View style={{ flex: 1 }}>
               <PaperText 
                 variant="bodyMedium"
                 style={{ 
-                  color: theme.colors.onSurface,
+                  color: surfaceColors.onSurface,
                   fontWeight: '600'
                 }}
               >
@@ -271,7 +299,7 @@ export default function DashboardScreen() {
               <PaperText 
                 variant="bodySmall"
                 style={{ 
-                  color: theme.colors.onSurfaceVariant,
+                  color: surfaceColors.onSurfaceVariant,
                   marginTop: 2
                 }}
               >
@@ -282,7 +310,7 @@ export default function DashboardScreen() {
         )}
 
         {/* Action Buttons Row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, paddingHorizontal: 0 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16, paddingHorizontal: 0 }}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View>
               <IconButton 
@@ -336,9 +364,9 @@ export default function DashboardScreen() {
             <IconButton 
               icon="logout" 
               mode="outlined"
-              iconColor={theme.colors.error}
+              iconColor={surfaceColors.error}
               size={24}
-              style={{ borderColor: theme.colors.error }}
+              style={{ borderColor: surfaceColors.error }}
               onPress={() => {
                 triggerHaptic('warning');
                 Alert.alert(
@@ -358,7 +386,7 @@ export default function DashboardScreen() {
         {updateAvailable && (
           <Surface 
             style={[styles.updateBanner, { 
-              backgroundColor: updateAvailable.isCritical ? theme.colors.errorContainer : theme.colors.tertiaryContainer 
+              backgroundColor: updateAvailable.isCritical ? surfaceColors.errorContainer : surfaceColors.tertiaryContainer
             }]} 
             elevation={2}
           >
@@ -367,15 +395,15 @@ export default function DashboardScreen() {
                 size={40} 
                 icon={updateAvailable.isCritical ? "alert-circle" : "cloud-download"} 
                 style={{ 
-                  backgroundColor: updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary 
+                  backgroundColor: updateAvailable.isCritical ? surfaceColors.error : surfaceColors.tertiary
                 }} 
                 color="#FFFFFF"
               />
               <View style={styles.updateText}>
-                <PaperText variant="titleSmall" style={{ fontWeight: 'bold', color: theme.colors.onSurface }}>
+                <PaperText variant="titleSmall" style={{ fontWeight: 'bold', color: surfaceColors.onSurface }}>
                   {updateAvailable.isCritical ? '⚠️ Actualización Crítica' : '🎉 Nueva Versión'} {updateAvailable.version}
                 </PaperText>
-                <PaperText variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={2}>
+                <PaperText variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }} numberOfLines={2}>
                   {updateAvailable.releaseNotes}
                 </PaperText>
               </View>
@@ -384,7 +412,7 @@ export default function DashboardScreen() {
               mode="contained" 
               onPress={showUpdateDialog}
               style={{ marginTop: 8 }}
-              buttonColor={updateAvailable.isCritical ? theme.colors.error : theme.colors.tertiary}
+              buttonColor={updateAvailable.isCritical ? surfaceColors.error : surfaceColors.tertiary}
             >
               {updateAvailable.isCritical ? 'Actualizar Ahora' : 'Descargar'}
             </Button>
@@ -399,19 +427,19 @@ export default function DashboardScreen() {
             subLabel={activeSession?.estadoActual === 'trabajando' ? 'Tiempo Trabajado' : activeSession?.estadoActual?.toUpperCase() || 'INACTIVO'}
             status={activeSession?.estadoActual || 'idle'}
             color={
-              activeSession?.estadoActual === 'break' ? theme.colors.tertiary :
+              activeSession?.estadoActual === 'break' ? surfaceColors.tertiary :
               activeSession?.estadoActual === 'almuerzo' ? theme.colors.secondary :
-              theme.colors.primary
+              surfaceColors.primary
             }
           />
         </View>
 
         {/* Quick Stats Row */}
         <View style={styles.statsRow}>
-          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surfaceContainerLow }]} elevation={0}>
-            <Avatar.Icon size={40} icon="clock-start" style={{ backgroundColor: theme.colors.primaryContainer }} color={theme.colors.primary} />
+          <Surface style={[styles.statCard, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
+            <Avatar.Icon size={40} icon="clock-start" style={{ backgroundColor: surfaceColors.primaryContainer }} color={surfaceColors.primary} />
             <View style={styles.statText}>
-              <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Entrada</PaperText>
+              <PaperText variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant }}>Entrada</PaperText>
               <PaperText variant="titleMedium" style={{ fontWeight: 'bold' }}>
                 {activeSession?.entrada?.hora ? 
                   (activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora))
@@ -421,10 +449,10 @@ export default function DashboardScreen() {
             </View>
           </Surface>
 
-          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surfaceContainerLow }]} elevation={0}>
-            <Avatar.Icon size={40} icon="clock-end" style={{ backgroundColor: theme.colors.errorContainer }} color={theme.colors.error} />
+          <Surface style={[styles.statCard, { backgroundColor: surfaceColors.surfaceContainerLow }]} elevation={0}>
+            <Avatar.Icon size={40} icon="clock-end" style={{ backgroundColor: surfaceColors.errorContainer }} color={surfaceColors.error} />
             <View style={styles.statText}>
-              <PaperText variant="labelMedium" style={{ color: theme.colors.secondary }}>Salida</PaperText>
+              <PaperText variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant }}>Salida</PaperText>
               <PaperText variant="titleMedium" style={{ fontWeight: 'bold' }}>
                 {activeSession?.salida?.hora ? 
                   (activeSession.salida.hora.toDate ? activeSession.salida.hora.toDate() : new Date(activeSession.salida.hora))
@@ -463,7 +491,7 @@ export default function DashboardScreen() {
         {/* Directorio - Acceso rápido a Empresas y Empleados */}
         {(can(APP_PERMISSIONS.EMPRESAS_VER) || can(APP_PERMISSIONS.EMPLEADOS_VER)) && (
           <View style={{ marginTop: 16, gap: 8 }}>
-            <PaperText variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '600', paddingLeft: 4 }}>
+            <PaperText variant="labelLarge" style={{ color: surfaceColors.onSurfaceVariant, fontWeight: '600', paddingLeft: 4 }}>
               Directorio
             </PaperText>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -473,11 +501,11 @@ export default function DashboardScreen() {
                     triggerHaptic('selection');
                     navigation.navigate('Empresas');
                   }}
-                  android_ripple={{ color: theme.colors.primary + '1F' }}
+                  android_ripple={{ color: surfaceColors.primary + '1F' }}
                   style={({ pressed }) => [
                     styles.directoryCard,
                     {
-                      backgroundColor: theme.colors.surfaceContainerLow,
+                      backgroundColor: surfaceColors.surfaceContainerLow,
                       flex: 1,
                       transform: [{ scale: pressed ? 0.97 : 1 }],
                     },
@@ -486,10 +514,10 @@ export default function DashboardScreen() {
                   <Avatar.Icon
                     size={40}
                     icon="domain"
-                    style={{ backgroundColor: theme.colors.primaryContainer }}
-                    color={theme.colors.primary}
+                    style={{ backgroundColor: surfaceColors.primaryContainer }}
+                    color={surfaceColors.primary}
                   />
-                  <PaperText variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600', marginTop: 8 }}>
+                  <PaperText variant="titleSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600', marginTop: 8 }}>
                     Empresas
                   </PaperText>
                 </Pressable>
@@ -504,7 +532,7 @@ export default function DashboardScreen() {
                   style={({ pressed }) => [
                     styles.directoryCard,
                     {
-                      backgroundColor: theme.colors.surfaceContainerLow,
+                      backgroundColor: surfaceColors.surfaceContainerLow,
                       flex: 1,
                       transform: [{ scale: pressed ? 0.97 : 1 }],
                     },
@@ -516,7 +544,7 @@ export default function DashboardScreen() {
                     style={{ backgroundColor: theme.colors.secondaryContainer }}
                     color={theme.colors.secondary}
                   />
-                  <PaperText variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '600', marginTop: 8 }}>
+                  <PaperText variant="titleSmall" style={{ color: surfaceColors.onSurface, fontWeight: '600', marginTop: 8 }}>
                     Empleados
                   </PaperText>
                 </Pressable>
@@ -594,23 +622,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   scrollContent: {
-    padding: 24,
+    padding: 20,
     paddingBottom: 160, // ✅ Aumentado para evitar solapamiento con botón flotante
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 32,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+    marginBottom: 16,
   },
   chartContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 28,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
     gap: 16,
   },
   statCard: {

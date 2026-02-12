@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { Text, List, Switch, Avatar, Button, Divider, useTheme as usePaperTheme, Surface, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import materialTheme from '../../../material-theme.json';
 
 export default function SettingsScreen({ navigation }) {
   const theme = usePaperTheme();
@@ -21,6 +22,24 @@ export default function SettingsScreen({ navigation }) {
   
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Surface colors dinámicos
+  const surfaceColors = useMemo(() => {
+    const scheme = theme.dark ? materialTheme.schemes.dark : materialTheme.schemes.light;
+    return {
+      surfaceContainerLow: scheme.surfaceContainerLow,
+      surfaceContainer: scheme.surfaceContainer,
+      surfaceContainerHigh: scheme.surfaceContainerHigh,
+      onSurface: scheme.onSurface,
+      onSurfaceVariant: scheme.onSurfaceVariant,
+      primary: scheme.primary,
+      onPrimary: scheme.onPrimary,
+      primaryContainer: scheme.primaryContainer,
+      onPrimaryContainer: scheme.onPrimaryContainer,
+      background: scheme.background,
+      outlineVariant: scheme.outlineVariant
+    };
+  }, [theme.dark]);
 
   const handleSavePreferences = useCallback(async () => {
     setSaving(true);
@@ -106,25 +125,25 @@ export default function SettingsScreen({ navigation }) {
 
   const SettingItem = useCallback(({ title, description, icon, right, onPress, color }) => (
     <Surface 
-      style={[styles.settingItem, { backgroundColor: theme.colors.surface }]} 
+      style={[styles.settingItem, { backgroundColor: surfaceColors.surfaceContainerLow }]} 
       elevation={0}
     >
       <List.Item
         title={title}
         description={description}
         left={props => (
-          <View style={[styles.iconContainer, { backgroundColor: (color || theme.colors.primary) + '15' }]}>
-            <MaterialCommunityIcons name={icon} size={24} color={color || theme.colors.primary} />
+          <View style={[styles.iconContainer, { backgroundColor: (color || surfaceColors.primary) + '15' }]}>
+            <MaterialCommunityIcons name={icon} size={24} color={color || surfaceColors.primary} />
           </View>
         )}
         right={right}
         onPress={onPress}
         titleStyle={{ fontWeight: '600', fontFamily: 'Roboto-Flex' }}
-        descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+        descriptionStyle={{ color: surfaceColors.onSurfaceVariant }}
         style={{ paddingVertical: 8 }}
       />
     </Surface>
-  ), [theme.colors]);
+  ), [surfaceColors]);
 
   // ✅ Validación de permiso (después de todos los hooks)
   if (!can(APP_PERMISSIONS.SETTINGS)) {
@@ -141,26 +160,45 @@ export default function SettingsScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton 
-          icon="arrow-left" 
-          size={28} 
-          onPress={() => navigation.goBack()}
-          style={{ marginLeft: -8 }}
-        />
-        <Text 
-          style={{ 
+    <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]}>
+      {/* Header Material You Expressive */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <IconButton
+            icon="cog-outline"
+            mode="contained-tonal"
+            size={20}
+            iconColor={surfaceColors.primary}
+            style={{
+              backgroundColor: surfaceColors.primaryContainer,
+            }}
+          />
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
             fontFamily: 'Roboto-Flex', 
-            fontSize: 28, 
-            fontWeight: '400',
-            color: theme.colors.onSurface,
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
             fontVariationSettings: [{ axis: 'wdth', value: 110 }]
-          }}
-        >
-          Configuración
-        </Text>
+          }}>
+            Configuración
+          </Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -170,15 +208,15 @@ export default function SettingsScreen({ navigation }) {
           <Avatar.Image 
             size={80} 
             source={{ uri: userProfile?.photoURL || 'https://ui-avatars.com/api/?name=' + (userProfile?.displayName || 'User') }} 
-            style={{ backgroundColor: theme.colors.primaryContainer }}
+            style={{ backgroundColor: surfaceColors.primaryContainer }}
           />
           <View style={{ marginLeft: 16, flex: 1 }}>
             <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>{userProfile?.displayName || 'Usuario'}</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.secondary }}>{userProfile?.email}</Text>
             <Text variant="labelMedium" style={{ 
-              color: theme.colors.primary, 
+              color: surfaceColors.primary, 
               marginTop: 4, 
-              backgroundColor: theme.colors.primaryContainer, 
+              backgroundColor: surfaceColors.primaryContainer, 
               alignSelf: 'flex-start', 
               paddingHorizontal: 8, 
               paddingVertical: 2, 
@@ -200,7 +238,7 @@ export default function SettingsScreen({ navigation }) {
         <Divider style={{ marginVertical: 24 }} />
 
         {/* General Settings */}
-        <OverlineText color={theme.colors.primary} style={{ marginBottom: 12 }}>GENERAL</OverlineText>
+        <OverlineText color={surfaceColors.primary} style={{ marginBottom: 12 }}>GENERAL</OverlineText>
         
         <SettingItem
           title="Modo Oscuro"
@@ -213,7 +251,7 @@ export default function SettingsScreen({ navigation }) {
                 Haptics.selectionAsync();
                 toggleDarkMode();
               }} 
-              color={theme.colors.primary}
+              color={surfaceColors.primary}
             />
           )}
         />
@@ -228,7 +266,7 @@ export default function SettingsScreen({ navigation }) {
               onValueChange={() => {
                 toggleHaptics();
               }} 
-              color={theme.colors.primary}
+              color={surfaceColors.primary}
             />
           )}
         />
@@ -267,7 +305,7 @@ export default function SettingsScreen({ navigation }) {
             <MaterialCommunityIcons 
               name="chevron-right" 
               size={24} 
-              color={theme.colors.onSurfaceVariant} 
+              color={surfaceColors.onSurfaceVariant} 
             />
           )}
         />
@@ -281,7 +319,7 @@ export default function SettingsScreen({ navigation }) {
               value={biometricEnabled} 
               onValueChange={toggleBiometric} 
               disabled={!biometricSupported}
-              color={theme.colors.primary}
+              color={surfaceColors.primary}
             />
           )}
         />
@@ -302,12 +340,12 @@ export default function SettingsScreen({ navigation }) {
         <View style={{ height: 24 }} />
 
         {/* ✅ RBAC: Información de Permisos */}
-        <OverlineText color={theme.colors.primary} style={{ marginBottom: 12 }}>PERMISOS</OverlineText>
+        <OverlineText color={surfaceColors.primary} style={{ marginBottom: 12 }}>PERMISOS</OverlineText>
         
-        <Surface style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <Surface style={{ borderRadius: 24, padding: 16, marginBottom: 16, backgroundColor: surfaceColors.surfaceContainerLow }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>
+              <Text variant="labelMedium" style={{ color: surfaceColors.onSurfaceVariant, marginBottom: 4 }}>
                 Rol en la App
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -330,10 +368,10 @@ export default function SettingsScreen({ navigation }) {
               </View>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: theme.colors.primary }}>
+              <Text variant="headlineSmall" style={{ fontWeight: 'bold', color: surfaceColors.primary }}>
                 {permissionCount}/35
               </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              <Text variant="labelSmall" style={{ color: surfaceColors.onSurfaceVariant }}>
                 Permisos activos
               </Text>
             </View>
@@ -343,13 +381,13 @@ export default function SettingsScreen({ navigation }) {
         <Divider style={{ marginVertical: 24 }} />
 
         {/* Support & Info */}
-        <OverlineText color={theme.colors.primary} style={{ marginBottom: 12 }}>SOPORTE</OverlineText>
+        <OverlineText color={surfaceColors.primary} style={{ marginBottom: 12 }}>SOPORTE</OverlineText>
 
         <SettingItem
           title="Ayuda y Soporte"
           description="Contactar al equipo técnico"
           icon="help-circle-outline"
-          onPress={() => Linking.openURL('mailto:soporte@drgroup.com')}
+          onPress={() => Linking.openURL('mailto:daruedagu@gmail.com')}
           right={props => <List.Icon {...props} icon="chevron-right" />}
         />
 
@@ -392,12 +430,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+
   content: {
     padding: 24,
     paddingTop: 8,
@@ -408,7 +441,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   settingItem: {
-    borderRadius: 16,
+    borderRadius: 24,
     marginBottom: 12,
     overflow: 'hidden'
   },

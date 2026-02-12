@@ -8,7 +8,8 @@ import {
   Platform,
   FlatList,
   RefreshControl,
-  Pressable
+  Pressable,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -24,7 +25,9 @@ import {
   ActivityIndicator,
   Divider,
   Badge,
-  Chip
+  Chip,
+  IconButton,
+  Menu
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -47,6 +50,7 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
   // ✅ TODOS LOS HOOKS PRIMERO (Rules of Hooks)
   const [activeTab, setActiveTab] = useState('reportar'); // 'reportar' | 'historial'
   const [type, setType] = useState('llegada_tarde');
+  const [typeMenuVisible, setTypeMenuVisible] = useState(false); // Menu de tipo
   const [description, setDescription] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -501,23 +505,61 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: surfaceColors.background }]} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-            <View>
-              <Text variant="headlineLarge" style={{ fontWeight: '600', color: surfaceColors.onSurface, letterSpacing: -0.5 }}>
-                Novedades
-              </Text>
-              <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 4 }}>
-                {puedeGestionar ? 'Gestionar incidencias del equipo' : 'Reporta tus incidencias laborales'}
-              </Text>
-            </View>
-            {isModal && (
-              <IconButton icon="close" onPress={onClose} />
-            )}
+      {/* Header Expresivo */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 }}>
+        {/* Header Top - Navigation Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              isModal ? onClose() : navigation.goBack();
+            }}
+            iconColor={surfaceColors.onSurface}
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton
+              icon="alert-circle-outline"
+              mode="contained-tonal"
+              size={20}
+              iconColor={surfaceColors.primary}
+              style={{
+                backgroundColor: surfaceColors.primaryContainer,
+                marginRight: 8,
+              }}
+            />
           </View>
+        </View>
+        
+        {/* Header Content - Title */}
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ 
+            fontFamily: 'Roboto-Flex', 
+            fontSize: 57,
+            lineHeight: 64,
+            fontWeight: '400', 
+            color: surfaceColors.onSurface, 
+            letterSpacing: -0.5,
+            fontVariationSettings: [{ axis: 'wdth', value: 110 }]
+          }}>
+            Novedades
+          </Text>
+          <Text style={{ 
+            fontSize: 16,
+            color: surfaceColors.onSurfaceVariant, 
+            marginTop: 8,
+            fontFamily: 'Roboto-Flex',
+            fontWeight: '400',
+            lineHeight: 24
+          }}>
+            {puedeGestionar ? 'Gestionar incidencias del equipo' : 'Reporta tus incidencias laborales'}
+          </Text>
+        </View>
+      </View>
 
           {/* Tabs - Solo mostrar tab "Reportar" si tiene permiso */}
-          <View style={styles.tabContainer}>
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
             <SegmentedButtons
               value={activeTab}
               onValueChange={(value) => {
@@ -579,70 +621,102 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
             )}
 
             <Text variant="titleMedium" style={styles.sectionTitle}>Tipo de Novedad</Text>
-            <View style={styles.chipContainer}>
-              {tiposNovedad.map((t) => (
-                <Pressable
-                  key={t.id}
+            <Menu
+              visible={typeMenuVisible}
+              onDismiss={() => setTypeMenuVisible(false)}
+              anchor={
+                <TouchableWithoutFeedback
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setType(t.id);
-                    if (t.id === 'olvido_salida') {
-                      setAttachment(null);
-                      setExistingAttachment(null);
-                    }
+                    setTimeout(() => setTypeMenuVisible(true), 50);
                   }}
-                  android_ripple={{ color: surfaceColors.primary + '1F' }}
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: 'row', // Horizontal layout para aspecto "chip grande"
-                      alignItems: 'center',
-                      justifyContent: 'flex-start',
-                      paddingVertical: 12,
-                      paddingHorizontal: 12,
-                      borderRadius: 16, // Radio más cerrado para altura baja
-                      backgroundColor: type === t.id ? surfaceColors.primaryContainer : surfaceColors.surfaceContainerLow,
-                      borderWidth: type === t.id ? 0 : 1,
-                      borderColor: type === t.id ? 'transparent' : surfaceColors.outlineVariant,
-                      transform: [{ scale: pressed ? 0.98 : 1 }],
-                      width: '48%', // 2 columnas
-                      height: 64, // Altura muy reducida (angosta)
-                      marginBottom: 0
-                    }
-                  ]}
                 >
-                  <View style={{ 
-                    width: 32, 
-                    height: 32, 
-                    borderRadius: 16, 
-                    backgroundColor: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.surfaceContainerHigh,
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    marginRight: 10
-                  }}>
-                    <MaterialCommunityIcons 
-                      name={t.icon} 
-                      size={18} 
-                      color={type === t.id ? surfaceColors.primaryContainer : surfaceColors.onSurfaceVariant} 
-                    />
+                  <View
+                    style={{
+                      backgroundColor: surfaceColors.surfaceContainerHigh,
+                      borderRadius: 24,
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderWidth: 1,
+                      borderColor: surfaceColors.outlineVariant,
+                      marginBottom: 12
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <View style={{ 
+                          width: 40, 
+                          height: 40, 
+                          borderRadius: 20, 
+                          backgroundColor: surfaceColors.primaryContainer,
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          marginRight: 12
+                        }}>
+                          <MaterialCommunityIcons 
+                            name={tiposNovedad.find(t => t.id === type)?.icon || 'alert-circle-outline'} 
+                            size={20} 
+                            color={surfaceColors.onPrimaryContainer} 
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ 
+                            fontSize: 11, 
+                            color: surfaceColors.onSurfaceVariant,
+                            fontFamily: 'Roboto-Flex',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                            marginBottom: 4
+                          }}>
+                            Tipo de Novedad
+                          </Text>
+                          <Text style={{ 
+                            fontSize: 15, 
+                            color: surfaceColors.onSurface,
+                            fontFamily: 'Roboto-Flex',
+                            fontWeight: '500'
+                          }}>
+                            {tiposNovedad.find(t => t.id === type)?.label || 'Seleccionar'}
+                          </Text>
+                        </View>
+                      </View>
+                      <MaterialCommunityIcons 
+                        name={typeMenuVisible ? 'chevron-up' : 'chevron-down'} 
+                        size={24} 
+                        color={surfaceColors.onSurfaceVariant} 
+                      />
+                    </View>
                   </View>
-                  
-                  <Text style={{ 
-                    flex: 1,
-                    color: type === t.id ? surfaceColors.onPrimaryContainer : surfaceColors.onSurface,
-                    fontWeight: type === t.id ? '700' : '500',
-                    fontSize: 12,
-                    letterSpacing: 0.1,
-                    lineHeight: 16
-                  }} numberOfLines={2}>
-                    {t.label}
-                  </Text>
-
-                  {type === t.id && (
-                    <MaterialCommunityIcons name="check-circle" size={16} color={surfaceColors.onPrimaryContainer} style={{ marginLeft: 4 }} />
-                  )}
-                </Pressable>
+                </TouchableWithoutFeedback>
+              }
+              contentStyle={{
+                backgroundColor: surfaceColors.surfaceContainerHigh,
+                borderRadius: 16,
+              }}
+            >
+              {tiposNovedad.map((t) => (
+                <Menu.Item
+                  key={t.id}
+                  onPress={() => {
+                    setTypeMenuVisible(false);
+                    setTimeout(() => {
+                      setType(t.id);
+                      if (t.id === 'olvido_salida') {
+                        setAttachment(null);
+                        setExistingAttachment(null);
+                      }
+                    }, 100);
+                  }}
+                  title={t.label}
+                  leadingIcon={t.icon}
+                  titleStyle={{
+                    color: type === t.id ? surfaceColors.primary : surfaceColors.onSurface,
+                    fontWeight: type === t.id ? '600' : '400'
+                  }}
+                />
               ))}
-            </View>
+            </Menu>
 
             <Text variant="titleMedium" style={styles.sectionTitle}>Descripción</Text>
             <TextInput
@@ -838,17 +912,6 @@ export default function NovedadesScreen({ navigation, isModal = false, onClose }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    padding: 24,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  tabContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 16,
   },
   formContent: {
     padding: 24,
