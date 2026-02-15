@@ -13,7 +13,7 @@ export default defineConfig({
     // PWA temporalmente deshabilitado para debugging
   ],
   server: {
-    port: 5173,
+    port: 5174,
     host: '0.0.0.0', // Permite acceso desde cualquier IP en la red local
     open: true,
     hmr: {
