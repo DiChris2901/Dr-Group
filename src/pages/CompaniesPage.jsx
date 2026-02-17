@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -28,7 +28,9 @@ import {
   CircularProgress,
   Alert,
   Fab,
-  alpha
+  alpha,
+  InputAdornment,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -61,7 +63,10 @@ import {
   Schedule as ScheduleIcon,
   GetApp as DownloadIcon,
   InsertDriveFile as FileIcon,
-  FolderOpen as FolderOpenIcon
+  FolderOpen as FolderOpenIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -85,6 +90,7 @@ const CompaniesPage = () => {
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -368,6 +374,30 @@ const CompaniesPage = () => {
 
     return () => unsubscribe();
   }, [currentUser]);
+
+  // Filtrar empresas por búsqueda
+  const filteredCompanies = useMemo(() => {
+    if (!searchTerm.trim()) return companies;
+    const term = searchTerm.toLowerCase().trim();
+    return companies.filter(company => {
+      const searchableFields = [
+        company.name,
+        company.nit,
+        company.email,
+        company.legalRepresentative,
+        company.legalRepresentativeId,
+        company.city,
+        company.address,
+        company.contractNumber,
+        company.phone,
+        company.bankName,
+        company.bankAccount
+      ];
+      return searchableFields.some(field => 
+        field && String(field).toLowerCase().includes(term)
+      );
+    });
+  }, [companies, searchTerm]);
 
   // Manejar cambios en el formulario
   const handleFormChange = (field, value) => {
@@ -1099,6 +1129,79 @@ const CompaniesPage = () => {
         </Box>
       </Paper>
 
+      {/* Panel de Búsqueda */}
+      {companies.length > 0 && (
+        <Paper
+          sx={{
+            mb: 3,
+            p: 2,
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexWrap: 'wrap'
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Buscar por nombre, NIT, representante, email, ciudad, contrato..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <Tooltip title="Limpiar búsqueda">
+                      <IconButton size="small" onClick={() => setSearchTerm('')}>
+                        <ClearIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: `0 0 0 1px ${alpha(theme.palette.primary.main, 0.2)}`
+                  },
+                  '&.Mui-focused': {
+                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.15)}`
+                  }
+                }
+              }}
+            />
+          </Box>
+
+          {/* Indicador de resultados */}
+          {searchTerm.trim() && (
+            <Chip
+              icon={<FilterListIcon sx={{ fontSize: 16 }} />}
+              label={`${filteredCompanies.length} de ${companies.length}`}
+              size="small"
+              color={filteredCompanies.length > 0 ? 'primary' : 'default'}
+              variant="outlined"
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                borderRadius: 1,
+                height: 28
+              }}
+            />
+          )}
+        </Paper>
+      )}
+
       {/* Lista de empresas */}
       {companies.length === 0 ? (
         <motion.div
@@ -1129,9 +1232,37 @@ const CompaniesPage = () => {
             </CardContent>
           </Card>
         </motion.div>
+      ) : filteredCompanies.length === 0 && searchTerm.trim() ? (
+        <Paper
+          sx={{
+            textAlign: 'center',
+            py: 5,
+            px: 3,
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+        >
+          <SearchIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Sin resultados
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            No se encontraron empresas que coincidan con "{searchTerm}"
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => setSearchTerm('')}
+            startIcon={<ClearIcon />}
+            sx={{ textTransform: 'none', borderRadius: 1 }}
+          >
+            Limpiar búsqueda
+          </Button>
+        </Paper>
       ) : (
         <Grid container spacing={3}>
-          {companies.map((company, index) => (
+          {filteredCompanies.map((company, index) => (
             <Grid item xs={12} sm={6} md={4} key={company.id}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
