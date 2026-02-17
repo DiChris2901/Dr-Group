@@ -129,20 +129,16 @@ export const AuthProvider = ({ children }) => {
             // ✅ Incluir UID en el perfil para evitar errores
             setUserProfile({ ...userDoc.data(), uid: firebaseUser.uid });
 
-            // ✅ Registrar Push Token (Solo si hay internet)
+            // ✅ Registrar último login (Push Token gestionado por NotificationsContext)
             if (isConnected) {
-              NotificationService.registerForPushNotificationsAsync().then(async (token) => {
-                if (token) {
-                  await updateDoc(doc(db, 'users', firebaseUser.uid), {
-                    pushToken: token,
-                    lastLogin: Timestamp.now(),
-                    deviceInfo: {
-                      os: Platform.OS,
-                      version: Platform.Version
-                    }
-                  });
+              updateDoc(doc(db, 'users', firebaseUser.uid), {
+                lastLogin: Timestamp.now(),
+                deviceInfo: {
+                  os: Platform.OS,
+                  version: Platform.Version
                 }
-              }).catch(e => console.log('Error token push:', e));
+              }).catch(e => console.log('Error actualizando login:', e));
+              // Push token registration is handled by NotificationsContext
             }
           }
           
@@ -1261,11 +1257,9 @@ export const AuthProvider = ({ children }) => {
       const pending = await hayAccionesPendientes();
       setHasPendingSync(pending);
       
-      // ⚡ Notificaciones en background (no bloquean)
-      Promise.all([
-        NotificationService.clearStateNotification(),
-        NotificationService.cancelAllNotifications()
-      ]).catch(e => console.log('Error limpiando notificaciones:', e));
+      // ⚡ Limpiar notificaciones de sesión (no bloquea)
+      NotificationService.cancelSessionNotifications()
+        .catch(e => console.log('Error limpiando notificaciones:', e));
 
     } catch (error) {
       console.error('Error finalizando jornada:', error);

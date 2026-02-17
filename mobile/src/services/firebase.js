@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -30,5 +31,8 @@ const db = getFirestore(app);
 // Initialize Storage
 const storage = getStorage(app);
 
-export { auth, db, storage };
+// Initialize Cloud Functions
+const functions = getFunctions(app);
+
+export { auth, db, storage, functions };
 export default app;

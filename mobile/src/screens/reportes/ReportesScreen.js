@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -118,17 +118,25 @@ export default function ReportesScreen() {
     }, [limpiarFiltros])
   );
 
-  // ✅ NUEVO: Detectar cambios de permisos y limpiar datos
+  // ✅ Detectar cambios REALES de permisos (no el mount inicial)
+  const permissionsInitialized = useRef(false);
   useEffect(() => {
-    // Si los permisos cambian, limpiar resultados y caché
+    if (!permissionsInitialized.current) {
+      // Ignorar la primera ejecución (mount inicial / resolución de permisos)
+      permissionsInitialized.current = true;
+      return;
+    }
+    // Solo limpiar si los permisos cambian DESPUÉS de la inicialización
     if (hasSearched) {
       setStats({
-        totalDias: 0,
-        horasTrabajadas: 0,
+        totalHoras: 0,
         diasTrabajados: 0,
         promedioDiario: 0,
-        totalBreaks: 0,
-        totalAlmuerzos: 0
+        puntualidad: null,
+        onTimeCount: 0,
+        punctualityBaseCount: 0,
+        chartData: [0, 0, 0, 0, 0, 0, 0],
+        chartLabels: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
       });
       setHasSearched(false);
       // Limpiar caché relacionada con reportes

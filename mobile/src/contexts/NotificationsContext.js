@@ -114,6 +114,8 @@ export const NotificationsProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.uid) {
       setUnreadCount(0);
+      // ✅ Resetear badge al cerrar sesión
+      Notifications.setBadgeCountAsync(0).catch(() => {});
       return () => {}; // ✅ Cleanup vacío cuando no hay usuario
     }
 
@@ -131,6 +133,9 @@ export const NotificationsProvider = ({ children }) => {
       (snapshot) => {
       const count = snapshot.size;
       setUnreadCount(count);
+
+      // ✅ Sincronizar badge count del ícono de la app
+      Notifications.setBadgeCountAsync(count).catch(() => {});
 
       // Detectar nuevas notificaciones para emitir alerta local
       snapshot.docChanges().forEach((change) => {
@@ -156,7 +161,7 @@ export const NotificationsProvider = ({ children }) => {
             lastNotificationIdRef.current = newNotifId;
 
             // Cargar preferencias de presentación (sin await porque no está en async)
-            getDoc(doc(db, user.uid, 'settings', 'notificationBehavior'))
+            getDoc(doc(db, 'users', user.uid, 'settings', 'notificationBehavior'))
               .then((behaviorDoc) => {
                 const prefs = behaviorDoc.exists() ? behaviorDoc.data() : {};
                 const presentationStyle = prefs.presentationStyle || 'full';
@@ -171,14 +176,47 @@ export const NotificationsProvider = ({ children }) => {
                   finalBody = '';
                 }
                 
+                // ✅ Determinar canal y grupo según tipo de notificación
+                const notifType = newNotif.type || 'admin_alert';
+                const channelMap = {
+                  'calendar': 'attendance',
+                  'calendar_event': 'attendance',
+                  'attendance': 'attendance',
+                  'exit_reminder': 'attendance',
+                  'break_reminder': 'break',
+                  'lunch_reminder': 'break',
+                  'admin_alert': 'alerts',
+                  'novedad_approved': 'alerts',
+                  'novedad_rejected': 'alerts',
+                  'admin_new_novedad': 'alerts',
+                  'work_goal_reached': 'work-session',
+                  'long_break': 'break',
+                };
+                const groupMap = {
+                  'alerts': 'dr-group-alerts',
+                  'attendance': 'dr-group-attendance',
+                  'work-session': 'dr-group-work',
+                  'break': 'dr-group-break',
+                  'reminders': 'dr-group-reminders',
+                };
+                const resolvedChannel = channelMap[notifType] || 'alerts';
+                const groupKey = groupMap[resolvedChannel] || 'dr-group-general';
+
                 Notifications.scheduleNotificationAsync({
                   content: {
                     title: newNotif.title || 'Nueva Notificación',
                     body: finalBody,
-                    data: { url: '/notifications', id: newNotifId },
+                    data: { type: notifType, id: newNotifId, ...newNotif.data },
                     sound: soundEnabled,
                     vibrate: vibrationEnabled ? [0, 250, 250, 250] : [],
                     priority: Notifications.AndroidNotificationPriority.HIGH,
+                    channelId: resolvedChannel,
+                    // ✅ Notification grouping por tipo
+                    ...(Platform.OS === 'android' && {
+                      android: {
+                        groupId: groupKey,
+                      },
+                    }),
                   },
                   trigger: null,
                 });
@@ -189,10 +227,11 @@ export const NotificationsProvider = ({ children }) => {
                   content: {
                     title: newNotif.title || 'Nueva Notificación',
                     body: newNotif.message || 'Tienes una nueva alerta en Dr. Group',
-                    data: { url: '/notifications', id: newNotifId },
+                    data: { type: newNotif.type || 'admin_alert', id: newNotifId, ...newNotif.data },
                     sound: true,
                     vibrate: [0, 250, 250, 250],
                     priority: Notifications.AndroidNotificationPriority.HIGH,
+                    channelId: 'alerts',
                   },
                   trigger: null,
                 });
@@ -310,26 +349,70 @@ export const NotificationsProvider = ({ children }) => {
     }
   }, [user, userProfile, requestNotificationPermissions]);
 
-  // Configurar canales de notificación para Android
+  // Configurar canales de notificación para Android (diferenciados por tipo)
   const setupNotificationChannels = useCallback(async () => {
     try {
-      // Canal para jornada laboral (prioridad alta)
+      // Canal: Jornada Laboral (prioridad alta, vibración fuerte)
       await Notifications.setNotificationChannelAsync('work-session', {
         name: 'Jornada Laboral',
+        description: 'Notificaciones de inicio/fin de jornada y metas de trabajo',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#667eea',
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
       });
 
-      // Canal para recordatorios (prioridad media)
+      // Canal: Alertas Admin (prioridad máxima, vibración urgente)
+      await Notifications.setNotificationChannelAsync('alerts', {
+        name: 'Alertas',
+        description: 'Alertas de administradores y novedades',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 200, 500],
+        lightColor: '#f44336',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+
+      // Canal: Asistencia (prioridad alta, vibración moderada)
+      await Notifications.setNotificationChannelAsync('attendance', {
+        name: 'Asistencia',
+        description: 'Recordatorios de entrada, salida y registro de asistencia',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 300, 150, 300],
+        lightColor: '#4caf50',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+
+      // Canal: Break/Descanso (prioridad media, vibración suave)
+      await Notifications.setNotificationChannelAsync('break', {
+        name: 'Descansos',
+        description: 'Notificaciones de breaks y almuerzos',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 150, 100, 150],
+        lightColor: '#ff9800',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: false,
+      });
+
+      // Canal: Recordatorios (prioridad media)
       await Notifications.setNotificationChannelAsync('reminders', {
         name: 'Recordatorios',
+        description: 'Recordatorios de calendario y eventos programados',
         importance: Notifications.AndroidImportance.DEFAULT,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#ffa502',
         sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
       });
 
     } catch (error) {

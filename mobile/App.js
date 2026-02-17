@@ -8,7 +8,6 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { checkForAllUpdates } from './src/services/UpdateService';
-import NotificationService from './src/services/NotificationService';
 import UpdateBanner from './src/components/UpdateBanner';
 import materialTheme from './material-theme.json';
 
@@ -77,40 +76,55 @@ function AppContent() {
     }
   };
 
-  // ✅ Verificar TODAS las actualizaciones (OTA + APK) y solicitar permisos de notificaciones
+  // ✅ Verificar TODAS las actualizaciones (OTA + APK)
+  // Permisos de notificaciones gestionados por NotificationsContext
   useEffect(() => {
     checkForAllUpdates();
-    NotificationService.requestPermissions();
   }, []);
 
-  // ✅ PASO 3.6: Manejar tap en notificaciones
+  // ✅ Deep linking: Navegar a la pantalla correcta al tocar una notificación
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      console.log('🔔 Usuario tocó notificación:', data);
+      const data = response.notification.request.content.data || {};
 
-      // Navegar según el tipo de notificación
-      if (navigationRef.current) {
-        // Si es una notificación de estado (Jornada, Break, Almuerzo) -> Dashboard
-        if (['trabajando', 'break', 'almuerzo'].includes(data.estado)) {
-          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
-        }
-        // Si es meta cumplida -> Dashboard
-        else if (data.type === 'work_goal_reached') {
-          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
-        }
-        // Si es break largo -> Dashboard
-        else if (data.type === 'long_break') {
-          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
-        }
-        // Si es novedad -> Novedades
-        else if (data.type === 'novedad_approved' || data.type === 'novedad_rejected') {
-          navigationRef.current.navigate('Novedades');
-        }
-        // Default -> Dashboard
-        else {
-          navigationRef.current.navigate('Main', { screen: 'Dashboard' });
-        }
+      if (!navigationRef.current) return;
+      const nav = navigationRef.current;
+
+      // 1. Notificación persistente de estado → Dashboard
+      if (['trabajando', 'break', 'almuerzo'].includes(data.estado)) {
+        nav.navigate('Main', { screen: 'Dashboard' });
+      }
+      // 2. Meta de trabajo o break largo → Dashboard
+      else if (data.type === 'work_goal_reached' || data.type === 'long_break') {
+        nav.navigate('Main', { screen: 'Dashboard' });
+      }
+      // 3. Novedades (aprobada/rechazada) → Tab Novedades
+      else if (data.type === 'novedad_approved' || data.type === 'novedad_rejected') {
+        nav.navigate('Main', { screen: 'Novedades' });
+      }
+      // 4. Admin nueva novedad → Tab Novedades (admin ve AdminNovedades)
+      else if (data.type === 'admin_new_novedad') {
+        nav.navigate('Main', { screen: 'Novedades' });
+      }
+      // 5. Evento de calendario → Tab Calendario
+      else if (data.type === 'calendar' || data.type === 'calendar_event') {
+        nav.navigate('Main', { screen: 'Calendario' });
+      }
+      // 6. Alerta de admin → Pantalla de Notificaciones
+      else if (data.type === 'admin_alert') {
+        nav.navigate('Notifications');
+      }
+      // 7. Recordatorios de asistencia (salida, break, almuerzo) → Dashboard
+      else if (data.type === 'attendance') {
+        nav.navigate('Main', { screen: 'Dashboard' });
+      }
+      // 8. Recordatorio de inicio de jornada → Dashboard
+      else if (data.type === 'work_reminder') {
+        nav.navigate('Main', { screen: 'Dashboard' });
+      }
+      // Default → Notificaciones para ver detalle
+      else {
+        nav.navigate('Notifications');
       }
     });
 

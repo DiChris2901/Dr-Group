@@ -1,5 +1,6 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { sendPushToUser } = require('./pushService');
 
 const db = getFirestore();
 
@@ -60,20 +61,25 @@ exports.checkExitReminder = onSchedule({
           if (userSettings.exists) {
             const prefs = userSettings.data();
             if (prefs?.attendance?.enabled && prefs?.attendance?.exitReminder) {
+              const exitTitle = '🏠 Recordatorio de Salida';
+              const exitMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin registrar salida`;
+              const exitData = {
+                sessionUserId: session.uid,
+                horasTrabajadas: horasTrabajadas.toFixed(2),
+                fecha: formatDate(now)
+              };
               await db.collection('notifications').add({
-                userId: userDoc.id,
+                uid: userDoc.id,
                 type: 'attendance',
                 subType: 'exitReminder',
-                title: '🏠 Recordatorio de Salida',
-                message: `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin registrar salida`,
-                timestamp: Timestamp.now(),
+                title: exitTitle,
+                message: exitMessage,
+                createdAt: Timestamp.now(),
                 read: false,
-                data: {
-                  sessionUserId: session.uid,
-                  horasTrabajadas: horasTrabajadas.toFixed(2),
-                  fecha: formatDate(now)
-                }
+                data: exitData
               });
+              // ✅ Push notification real
+              await sendPushToUser(userDoc.id, { title: exitTitle, message: exitMessage, type: 'attendance', data: exitData });
               notificationsCreated++;
             }
           }
@@ -128,20 +134,25 @@ exports.checkBreakReminder = onSchedule({
           if (userSettings.exists) {
             const prefs = userSettings.data();
             if (prefs?.attendance?.enabled && prefs?.attendance?.breakReminder) {
+              const breakTitle = '☕ Recordatorio de Break';
+              const breakMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin descanso`;
+              const breakData = {
+                sessionUserId: session.uid,
+                horasTrabajadas: horasTrabajadas.toFixed(2),
+                fecha: formatDate(now)
+              };
               await db.collection('notifications').add({
-                userId: userDoc.id,
+                uid: userDoc.id,
                 type: 'attendance',
                 subType: 'breakReminder',
-                title: '☕ Recordatorio de Break',
-                message: `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin descanso`,
-                timestamp: Timestamp.now(),
+                title: breakTitle,
+                message: breakMessage,
+                createdAt: Timestamp.now(),
                 read: false,
-                data: {
-                  sessionUserId: session.uid,
-                  horasTrabajadas: horasTrabajadas.toFixed(2),
-                  fecha: formatDate(now)
-                }
+                data: breakData
               });
+              // ✅ Push notification real
+              await sendPushToUser(userDoc.id, { title: breakTitle, message: breakMessage, type: 'attendance', data: breakData });
               notificationsCreated++;
             }
           }
@@ -191,19 +202,24 @@ exports.checkLunchReminder = onSchedule({
           if (userSettings.exists) {
             const prefs = userSettings.data();
             if (prefs?.attendance?.enabled && prefs?.attendance?.lunchReminder) {
+              const lunchTitle = '🍽️ Hora de Almuerzo';
+              const lunchMessage = `${session.userName} aún no ha registrado su almuerzo`;
+              const lunchData = {
+                sessionUserId: session.uid,
+                fecha: formatDate(new Date())
+              };
               await db.collection('notifications').add({
-                userId: userDoc.id,
+                uid: userDoc.id,
                 type: 'attendance',
                 subType: 'lunchReminder',
-                title: '🍽️ Hora de Almuerzo',
-                message: `${session.userName} aún no ha registrado su almuerzo`,
-                timestamp: Timestamp.now(),
+                title: lunchTitle,
+                message: lunchMessage,
+                createdAt: Timestamp.now(),
                 read: false,
-                data: {
-                  sessionUserId: session.uid,
-                  fecha: formatDate(new Date())
-                }
+                data: lunchData
               });
+              // ✅ Push notification real
+              await sendPushToUser(userDoc.id, { title: lunchTitle, message: lunchMessage, type: 'attendance', data: lunchData });
               notificationsCreated++;
             }
           }
@@ -275,22 +291,27 @@ exports.checkCalendarEvents = onSchedule({
             const pad = (n) => String(n).padStart(2, '0');
             const dueDateStr = `${pad(dueDate.getDate())}/${pad(dueDate.getMonth() + 1)}/${dueDate.getFullYear()}`;
             
+            const calTitle = `📅 Recordatorio: ${commitment.name}`;
+            const calMessage = `Vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (${dueDateStr})${commitment.amount ? ` - $${commitment.amount.toLocaleString()}` : ''}`;
+            const calData = {
+              commitmentId: doc.id,
+              daysLeft: daysLeft,
+              dueDate: dueDateStr,
+              amount: commitment.amount || 0,
+              empresa: commitment.empresa || 'N/A'
+            };
             await db.collection('notifications').add({
-              userId: userDoc.id,
+              uid: userDoc.id,
               type: 'calendar',
               subType: eventType,
-              title: `📅 Recordatorio: ${commitment.name}`,
-              message: `Vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (${dueDateStr})${commitment.amount ? ` - $${commitment.amount.toLocaleString()}` : ''}`,
-              timestamp: Timestamp.now(),
+              title: calTitle,
+              message: calMessage,
+              createdAt: Timestamp.now(),
               read: false,
-              data: {
-                commitmentId: doc.id,
-                daysLeft: daysLeft,
-                dueDate: dueDateStr,
-                amount: commitment.amount || 0,
-                empresa: commitment.empresa || 'N/A'
-              }
+              data: calData
             });
+            // ✅ Push notification real
+            await sendPushToUser(userDoc.id, { title: calTitle, message: calMessage, type: 'calendar', data: calData });
             notificationsCreated++;
           }
         }
@@ -405,24 +426,29 @@ exports.checkCustomCalendarEvents = onSchedule({
                   ? 'Todo el día' 
                   : `${pad(eventDate.getHours())}:${pad(eventDate.getMinutes())}`;
 
+                const customTitle = `📅 ${calendarEvent.title}`;
+                const customMessage = `${timeMessage} - ${eventDateStr} ${eventTimeStr}`;
+                const customData = {
+                  calendarEventId: eventDoc.id,
+                  eventDate: eventDateStr,
+                  eventTime: eventTimeStr,
+                  notificationTime: notif.time,
+                  notificationUnit: notif.unit,
+                  priority: calendarEvent.priority || 'medium',
+                  description: calendarEvent.description || ''
+                };
                 await db.collection('notifications').add({
-                  userId: creatorId,
+                  uid: creatorId,
                   type: 'calendar',
                   subType: 'custom',
-                  title: `📅 ${calendarEvent.title}`,
-                  message: `${timeMessage} - ${eventDateStr} ${eventTimeStr}`,
-                  timestamp: Timestamp.now(),
+                  title: customTitle,
+                  message: customMessage,
+                  createdAt: Timestamp.now(),
                   read: false,
-                  data: {
-                    calendarEventId: eventDoc.id,
-                    eventDate: eventDateStr,
-                    eventTime: eventTimeStr,
-                    notificationTime: notif.time,
-                    notificationUnit: notif.unit,
-                    priority: calendarEvent.priority || 'medium',
-                    description: calendarEvent.description || ''
-                  }
+                  data: customData
                 });
+                // ✅ Push notification real
+                await sendPushToUser(creatorId, { title: customTitle, message: customMessage, type: 'calendar', data: customData });
                 
                 notificationsCreated++;
                 console.log(`✅ Notificación creada para ${calendarEvent.title} (${timeMessage})`);

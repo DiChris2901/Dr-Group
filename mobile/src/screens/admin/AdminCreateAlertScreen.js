@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { collection, addDoc, serverTimestamp, getDocs, query, where, orderBy, limit, getDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { db, storage, functions } from '../../services/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { OverlineText } from '../../components';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -507,6 +508,23 @@ export default function AdminCreateAlertScreen() {
       });
 
       await Promise.all(batchPromises);
+
+      // ✅ Enviar push notifications reales via Cloud Function
+      try {
+        const sendAlertPush = httpsCallable(functions, 'sendAlertPush');
+        await sendAlertPush({
+          userIds: targetUsers.map(u => u.id),
+          title: title.trim(),
+          message: message.trim(),
+          type: 'admin_alert',
+          priority,
+          extraData: { senderName, senderRole }
+        });
+        logger.info(`Push enviado a ${targetUsers.length} usuarios`);
+      } catch (pushError) {
+        // Push failure no debe bloquear el éxito de la alerta
+        logger.error('Error enviando push (alerta ya guardada en Firestore):', pushError);
+      }
 
       Alert.alert(
         '¡Enviado!', 

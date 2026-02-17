@@ -1768,3 +1768,45 @@ exports.checkBreakReminder = notificationSchedulers.checkBreakReminder;
 exports.checkLunchReminder = notificationSchedulers.checkLunchReminder;
 exports.checkCalendarEvents = notificationSchedulers.checkCalendarEvents;
 exports.checkCustomCalendarEvents = notificationSchedulers.checkCustomCalendarEvents;
+
+// ============================================
+// 🔔 ENVIAR PUSH NOTIFICATIONS (Callable desde la app)
+// ============================================
+const { sendPushToMultipleUsers } = require('./pushService');
+
+exports.sendAlertPush = onCall({
+  memory: '256MiB',
+  timeoutSeconds: 30
+}, async (request) => {
+  const { auth, data } = request;
+
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'Usuario no autenticado');
+  }
+
+  const { userIds, title, message, type, priority, extraData } = data;
+
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    throw new HttpsError('invalid-argument', 'Se requiere un array de userIds');
+  }
+
+  if (!title || !message) {
+    throw new HttpsError('invalid-argument', 'Se requieren title y message');
+  }
+
+  try {
+    const result = await sendPushToMultipleUsers(userIds, {
+      title,
+      message,
+      type: type || 'admin_alert',
+      priority: priority || 'default',
+      data: extraData || {},
+    });
+
+    console.log(`🔔 Push enviado: ${result.sent} exitosos, ${result.failed} fallidos`);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('❌ Error en sendAlertPush:', error);
+    throw new HttpsError('internal', 'Error enviando push notifications');
+  }
+});

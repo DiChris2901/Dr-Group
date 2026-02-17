@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
-import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, SegmentedButtons, Button } from 'react-native-paper';
+import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, SegmentedButtons, Button, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch, deleteDoc } from 'firebase/firestore';
@@ -88,7 +88,6 @@ export default function NotificationsScreen({ navigation }) {
     
     try {
       setActionLoading(true);
-      setMenuVisible(false);
       
       // Query para todas las notificaciones no leídas del usuario
       const q = query(
@@ -130,8 +129,6 @@ export default function NotificationsScreen({ navigation }) {
   // ✅ Eliminar todas las notificaciones
   const deleteAllNotifications = useCallback(async () => {
     if (actionLoading) return;
-    
-    setMenuVisible(false);
     
     Alert.alert(
       '¿Eliminar todas?',
@@ -408,16 +405,12 @@ export default function NotificationsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {loading && notifications.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      ) : (
-        <FlatList
+      {/* Lista de notificaciones */}
+      <FlatList
           data={notifications}
           renderItem={renderItem}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, notifications.length === 0 && { flex: 1 }]}
           ListFooterComponent={
             notifications.length >= limitCount ? (
               <Button 
@@ -431,15 +424,20 @@ export default function NotificationsScreen({ navigation }) {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <MaterialCommunityIcons name="bell-sleep-outline" size={64} color={theme.colors.outline} />
-              <Text variant="titleMedium" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>
-                No tienes notificaciones nuevas
-              </Text>
-            </View>
+            loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+              </View>
+            ) : (
+              <View style={styles.empty}>
+                <MaterialCommunityIcons name="bell-sleep-outline" size={64} color={theme.colors.outline} />
+                <Text variant="titleMedium" style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>
+                  No tienes notificaciones nuevas
+                </Text>
+              </View>
+            )
           }
         />
-      )}
 
       {/* Notification Detail Modal */}
       <Modal

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking, Modal, FlatList, Pressable } from 'react-native';
 import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -47,6 +47,7 @@ export default function AdminDashboardScreen({ navigation }) {
       errorContainer: scheme.errorContainer,
       outline: scheme.outline,
       outlineVariant: scheme.outlineVariant,
+      surfaceVariant: scheme.surfaceVariant,
     };
   }, [isDarkMode]);
 
@@ -57,22 +58,47 @@ export default function AdminDashboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [filter, setFilter] = useState('working'); // Default to 'working'
+  const [modalFilter, setModalFilter] = useState(null); // null = cerrado, 'working'|'break'|etc = abierto
   const [allEmployees, setAllEmployees] = useState([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // ✅ Controlar primera carga
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
 
-  const filteredEmployees = useMemo(() => {
-    if (filter === 'all') return allEmployees; // Show everyone (including finished)
-    if (filter === 'working') return allEmployees.filter(e => e.status === 'trabajando');
-    if (filter === 'break') return allEmployees.filter(e => e.status === 'break');
-    if (filter === 'lunch') return allEmployees.filter(e => e.status === 'almuerzo');
-    if (filter === 'finished') return allEmployees.filter(e => e.status === 'finalizado');
-    if (filter === 'absent') return allEmployees.filter(e => e.status === 'ausente');
+  const modalEmployees = useMemo(() => {
+    if (!modalFilter) return [];
+    if (modalFilter === 'all') return allEmployees;
+    if (modalFilter === 'working') return allEmployees.filter(e => e.status === 'trabajando');
+    if (modalFilter === 'break') return allEmployees.filter(e => e.status === 'break');
+    if (modalFilter === 'lunch') return allEmployees.filter(e => e.status === 'almuerzo');
+    if (modalFilter === 'finished') return allEmployees.filter(e => e.status === 'finalizado');
+    if (modalFilter === 'absent') return allEmployees.filter(e => e.status === 'ausente');
     return allEmployees;
-  }, [allEmployees, filter]);
+  }, [allEmployees, modalFilter]);
+
+  const modalTitle = useMemo(() => {
+    const titles = {
+      all: 'Todos los Empleados',
+      working: 'Personal Trabajando',
+      break: 'Personal en Break',
+      lunch: 'Personal en Almuerzo',
+      finished: 'Jornada Finalizada',
+      absent: 'Personal Ausente',
+    };
+    return titles[modalFilter] || '';
+  }, [modalFilter]);
+
+  const modalIcon = useMemo(() => {
+    const icons = {
+      all: 'account-group',
+      working: 'briefcase-clock',
+      break: 'coffee',
+      lunch: 'food',
+      finished: 'check-circle-outline',
+      absent: 'account-off',
+    };
+    return icons[modalFilter] || 'account-group';
+  }, [modalFilter]);
 
   const handleCall = useCallback((phone) => {
     if (!phone) return;
@@ -227,11 +253,13 @@ export default function AdminDashboardScreen({ navigation }) {
   }, [fetchData]);
 
   const KPICard = memo(({ icon, label, value, color, bgColor, filterType }) => {
-    const isSelected = filter === filterType;
     return (
       <TouchableOpacity 
         style={{ flex: 1 }} 
-        onPress={() => setFilter(isSelected ? 'working' : filterType)} // Toggle back to 'working' instead of 'all'
+        onPress={() => {
+          triggerHaptic('selection');
+          setModalFilter(filterType);
+        }}
         activeOpacity={0.7}
       >
         <Surface 
@@ -239,9 +267,6 @@ export default function AdminDashboardScreen({ navigation }) {
             styles.kpiCard, 
             { 
               backgroundColor: bgColor,
-              borderWidth: isSelected ? 2 : 0,
-              borderColor: color,
-              opacity: (isSelected) ? 1 : 0.5 // Dim non-selected cards
             }
           ]} 
           elevation={0}
@@ -421,10 +446,30 @@ export default function AdminDashboardScreen({ navigation }) {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* KPI Section - Grid 2 Rows (2 top, 3 bottom) */}
+        {/* KPI Section - 2 top + 4 bottom grid */}
         <View style={styles.kpiContainer}>
-          {/* Row 1: Critical States */}
+          {/* Row 1: Estados accionables (grandes) */}
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            <KPICard 
+              icon="briefcase-clock" 
+              value={stats.active} 
+              label="Activos" 
+              color={surfaceColors.primary} 
+              bgColor={surfaceColors.primaryContainer}
+              filterType="working"
+            />
+            <KPICard 
+              icon="account-off" 
+              value={stats.absent} 
+              label="Ausentes" 
+              color={surfaceColors.error} 
+              bgColor={surfaceColors.errorContainer}
+              filterType="absent"
+            />
+          </View>
+          
+          {/* Row 2: Contexto y estados transitorios (compactas) */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <KPICard 
               icon="account-group" 
               value={stats.totalEmployees} 
@@ -434,32 +479,20 @@ export default function AdminDashboardScreen({ navigation }) {
               filterType="all"
             />
             <KPICard 
-              icon="briefcase-clock" 
-              value={stats.active} 
-              label="Activos" 
-              color={surfaceColors.primary} 
-              bgColor={surfaceColors.primaryContainer}
-              filterType="working"
-            />
-          </View>
-          
-          {/* Row 2: Secondary States */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <KPICard 
               icon="coffee" 
-              value={stats.break + stats.lunch} 
-              label="Descanso" 
+              value={stats.break} 
+              label="Break" 
               color={surfaceColors.tertiary} 
               bgColor={surfaceColors.tertiaryContainer}
               filterType="break"
             />
             <KPICard 
-              icon="account-off" 
-              value={stats.absent} 
-              label="Ausentes" 
-              color={surfaceColors.error} 
-              bgColor={surfaceColors.errorContainer}
-              filterType="absent"
+              icon="food" 
+              value={stats.lunch} 
+              label="Almuerzo" 
+              color={surfaceColors.secondary} 
+              bgColor={surfaceColors.secondaryContainer}
+              filterType="lunch"
             />
             <KPICard 
               icon="check-circle-outline" 
@@ -472,187 +505,235 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Active Employees List */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <OverlineText color={getPrimaryColor()}>
-            {filter === 'all' ? 'TODOS LOS EMPLEADOS' : 
-             filter === 'working' ? 'PERSONAL TRABAJANDO' :
-             filter === 'break' ? 'PERSONAL EN BREAK' : 
-             filter === 'lunch' ? 'PERSONAL EN ALMUERZO' : 
-             filter === 'finished' ? 'JORNADA FINALIZADA' : 'PERSONAL AUSENTE'}
-          </OverlineText>
-          {filter !== 'working' && (
-            <TouchableOpacity onPress={() => setFilter('working')}>
-              <Text variant="labelSmall" style={{ color: theme.colors.primary }}>Ver activos</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {filteredEmployees.length > 0 ? (
-          filteredEmployees.map((employee) => (
-            <SobrioCard key={employee.id} style={{ marginBottom: 12, padding: 16 }} variant="secondary">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Avatar.Text 
-                  size={40} 
-                  label={employee.userData.displayName?.substring(0, 2).toUpperCase() || 'NN'} 
-                  style={{ backgroundColor: theme.colors.primaryContainer }}
-                  color={theme.colors.primary}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>
-                    {employee.userData.displayName || 'Usuario'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ 
-                      width: 8, 
-                      height: 8, 
-                      borderRadius: 4, 
-                      backgroundColor: 
-                        employee.status === 'trabajando' ? theme.colors.primary : 
-                        employee.status === 'break' ? theme.colors.tertiary : 
-                        employee.status === 'almuerzo' ? theme.colors.secondary :
-                        employee.status === 'finalizado' ? theme.colors.outline :
-                        employee.status === 'ausente' ? theme.colors.error : theme.colors.outline
-                    }} />
-                    <Text variant="bodySmall" style={{ color: theme.colors.secondary, textTransform: 'capitalize' }}>
-                      {employee.status} 
-                      {(() => {
-                        const attendance = employee.attendance;
-                        if (!attendance) return ' • Sin registro';
-                        
-                        let timeLabel = '';
-                        
-                        if (employee.status === 'break') {
-                          // Mostrar hora del último break
-                          const lastBreak = attendance.breaks?.[attendance.breaks.length - 1];
-                          if (lastBreak?.inicio) {
-                            const breakTime = lastBreak.inicio.toDate ? lastBreak.inicio.toDate() : new Date(lastBreak.inicio);
-                            timeLabel = ` • Desde ${breakTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                          }
-                        } else if (employee.status === 'almuerzo') {
-                          // Mostrar hora de inicio del almuerzo
-                          if (attendance.almuerzo?.inicio) {
-                            const lunchTime = attendance.almuerzo.inicio.toDate ? attendance.almuerzo.inicio.toDate() : new Date(attendance.almuerzo.inicio);
-                            timeLabel = ` • Desde ${lunchTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                          }
-                        } else if (employee.status === 'finalizado') {
-                          // Mostrar hora de salida
-                          if (attendance.salida?.hora) {
-                            const exitTime = attendance.salida.hora.toDate ? attendance.salida.hora.toDate() : new Date(attendance.salida.hora);
-                            timeLabel = ` • Finalizó ${exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                          }
-                        } else if (employee.status === 'trabajando') {
-                          // Mostrar hora de entrada
-                          if (attendance.entrada?.hora) {
-                            const entryTime = attendance.entrada.hora.toDate ? attendance.entrada.hora.toDate() : new Date(attendance.entrada.hora);
-                            timeLabel = ` • Desde ${entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                          }
-                        }
-                        
-                        return timeLabel || ' • Sin registro';
-                      })()}
-                    </Text>
-                  </View>
-                </View>
-                
-                {/* Contact Actions */}
-                <View style={{ flexDirection: 'row' }}>
-                  {employee.userData.phone && (
-                    <>
-                      <IconButton 
-                        icon="whatsapp" 
-                        size={20} 
-                        iconColor="#25D366" 
-                        onPress={() => handleWhatsApp(employee.userData.phone)}
-                      />
-                      <IconButton 
-                        icon="phone" 
-                        size={20} 
-                        iconColor={theme.colors.primary} 
-                        onPress={() => handleCall(employee.userData.phone)}
-                      />
-                    </>
-                  )}
-                </View>
-              </View>
-            </SobrioCard>
-          ))
-        ) : (
-          <Surface style={{ padding: 24, borderRadius: 24, alignItems: 'center', backgroundColor: surfaceColors.surfaceVariant }} elevation={0}>
-            <Avatar.Icon size={48} icon="account-search" style={{ backgroundColor: 'transparent' }} color={surfaceColors.secondary} />
-            <Text variant="bodyLarge" style={{ color: surfaceColors.secondary, marginTop: 8 }}>
-              No hay empleados en esta categoría
-            </Text>
-          </Surface>
-        )}
-
-        {/* Quick Actions */}
-        <View style={{ marginTop: 20 }}>
-          <OverlineText color={surfaceColors.primary}>ACCIONES RÁPIDAS</OverlineText>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+        {/* ═══════════════ GESTIÓN ═══════════════ */}
+        <View style={{ marginTop: 8 }}>
+          <OverlineText color={surfaceColors.primary}>GESTIÓN</OverlineText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {can(APP_PERMISSIONS.ADMIN_CREATE_ALERT) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-ring-outline" size={24} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminCreateAlert')} />
-                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Alertas</Text>
+                <IconButton icon="bell-ring-outline" size={24} iconColor={surfaceColors.primary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('AdminCreateAlert');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Alertas</Text>
               </Surface>
             )}
             {can(APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="bell-cog" size={24} iconColor={surfaceColors.primary} onPress={() => {
+                <IconButton icon="bell-cog" size={24} iconColor={surfaceColors.tertiary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('AdminNotificationControl');
                 }} />
-                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Notificaciones</Text>
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Notificaciones</Text>
               </Surface>
             )}
             {can(APP_PERMISSIONS.ADMIN_SETTINGS) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                <IconButton icon="cog-outline" size={24} iconColor={surfaceColors.primary} onPress={() => navigation.navigate('AdminSettings')} />
-                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Config. Laboral</Text>
+                <IconButton icon="cog-outline" size={24} iconColor={surfaceColors.secondary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('AdminSettings');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Config. Laboral</Text>
               </Surface>
             )}
-          </View>
-          {can(APP_PERMISSIONS.USUARIOS_GESTIONAR) && (
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            {can(APP_PERMISSIONS.USUARIOS_GESTIONAR) && (
               <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
                 <IconButton icon="shield-account" size={24} iconColor={surfaceColors.primary} onPress={() => {
                   triggerHaptic('selection');
                   navigation.navigate('Users');
                 }} />
-                <Text variant="labelMedium" style={{ textAlign: 'center' }}>Permisos</Text>
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Permisos</Text>
               </Surface>
-            </View>
-          )}
+            )}
+            {can(APP_PERMISSIONS.EMPRESAS_VER) && (
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="domain" size={24} iconColor={surfaceColors.primary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('Empresas');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Empresas</Text>
+              </Surface>
+            )}
+            {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="account-group" size={24} iconColor={surfaceColors.secondary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('Empleados');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Empleados</Text>
+              </Surface>
+            )}
+          </View>
         </View>
 
-        {/* Directorio - Empresas y Empleados */}
-        {(can(APP_PERMISSIONS.EMPRESAS_VER) || can(APP_PERMISSIONS.EMPLEADOS_VER)) && (
-          <View style={{ marginTop: 20 }}>
-            <OverlineText color={surfaceColors.primary}>DIRECTORIO</OverlineText>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              {can(APP_PERMISSIONS.EMPRESAS_VER) && (
-                <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="domain" size={24} iconColor={surfaceColors.primary} onPress={() => {
-                    triggerHaptic('selection');
-                    navigation.navigate('Empresas');
-                  }} />
-                  <Text variant="labelMedium" style={{ textAlign: 'center' }}>Empresas</Text>
-                </Surface>
-              )}
-              {can(APP_PERMISSIONS.EMPLEADOS_VER) && (
-                <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
-                  <IconButton icon="account-group" size={24} iconColor={surfaceColors.secondary} onPress={() => {
-                    triggerHaptic('selection');
-                    navigation.navigate('Empleados');
-                  }} />
-                  <Text variant="labelMedium" style={{ textAlign: 'center' }}>Empleados</Text>
-                </Surface>
-              )}
-            </View>
-          </View>
-        )}
-
       </ScrollView>
+
+      {/* ═══════════════ MODAL: Lista de empleados por estado ═══════════════ */}
+      <Modal
+        visible={modalFilter !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalFilter(null)}
+      >
+        <Pressable 
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} 
+          onPress={() => setModalFilter(null)}
+        >
+          <Pressable 
+            style={[
+              styles.modalContainer, 
+              { backgroundColor: surfaceColors.surfaceContainerLow }
+            ]}
+            onPress={() => {}} // Prevent close when tapping modal content
+          >
+            {/* Handle bar */}
+            <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: surfaceColors.outlineVariant }} />
+            </View>
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16, gap: 12 }}>
+              <Avatar.Icon 
+                size={44} 
+                icon={modalIcon} 
+                style={{ backgroundColor: surfaceColors.primaryContainer }} 
+                color={surfaceColors.onPrimaryContainer} 
+              />
+              <View style={{ flex: 1 }}>
+                <Text variant="titleLarge" style={{ fontWeight: '700', color: surfaceColors.onSurface }}>
+                  {modalTitle}
+                </Text>
+                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
+                  {modalEmployees.length} empleado{modalEmployees.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              <IconButton 
+                icon="close" 
+                size={24} 
+                iconColor={surfaceColors.onSurfaceVariant}
+                onPress={() => setModalFilter(null)} 
+              />
+            </View>
+
+            <Divider style={{ backgroundColor: surfaceColors.outlineVariant }} />
+
+            {/* Employee list */}
+            <FlatList
+              data={modalEmployees}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                  <Avatar.Icon 
+                    size={56} 
+                    icon="account-search" 
+                    style={{ backgroundColor: surfaceColors.surfaceContainerHigh }} 
+                    color={surfaceColors.onSurfaceVariant} 
+                  />
+                  <Text variant="bodyLarge" style={{ color: surfaceColors.onSurfaceVariant, marginTop: 12 }}>
+                    No hay empleados en esta categoría
+                  </Text>
+                </View>
+              }
+              renderItem={({ item: employee }) => (
+                <Surface 
+                  style={{ 
+                    marginBottom: 10, 
+                    padding: 16, 
+                    borderRadius: 20, 
+                    backgroundColor: surfaceColors.surfaceContainer 
+                  }} 
+                  elevation={0}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    {employee.userData.photoURL ? (
+                      <Avatar.Image 
+                        size={44} 
+                        source={{ uri: employee.userData.photoURL }} 
+                        style={{ backgroundColor: surfaceColors.surfaceContainerHighest }}
+                      />
+                    ) : (
+                      <Avatar.Text 
+                        size={44} 
+                        label={(employee.userData.name || employee.userData.displayName || 'NN').substring(0, 2).toUpperCase()} 
+                        style={{ backgroundColor: surfaceColors.primaryContainer }}
+                        color={surfaceColors.onPrimaryContainer}
+                      />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text variant="titleMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
+                        {employee.userData.name || employee.userData.displayName || 'Usuario'}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <View style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: 4, 
+                          backgroundColor: 
+                            employee.status === 'trabajando' ? surfaceColors.primary : 
+                            employee.status === 'break' ? surfaceColors.tertiary : 
+                            employee.status === 'almuerzo' ? surfaceColors.secondary :
+                            employee.status === 'finalizado' ? surfaceColors.outline :
+                            surfaceColors.error
+                        }} />
+                        <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, textTransform: 'capitalize' }}>
+                          {employee.status}
+                          {(() => {
+                            const attendance = employee.attendance;
+                            if (!attendance) return ' • Sin registro';
+                            
+                            if (employee.status === 'break') {
+                              const lastBreak = attendance.breaks?.[attendance.breaks.length - 1];
+                              if (lastBreak?.inicio) {
+                                const t = lastBreak.inicio.toDate ? lastBreak.inicio.toDate() : new Date(lastBreak.inicio);
+                                return ` • Desde ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                              }
+                            } else if (employee.status === 'almuerzo') {
+                              if (attendance.almuerzo?.inicio) {
+                                const t = attendance.almuerzo.inicio.toDate ? attendance.almuerzo.inicio.toDate() : new Date(attendance.almuerzo.inicio);
+                                return ` • Desde ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                              }
+                            } else if (employee.status === 'finalizado') {
+                              if (attendance.salida?.hora) {
+                                const t = attendance.salida.hora.toDate ? attendance.salida.hora.toDate() : new Date(attendance.salida.hora);
+                                return ` • Finalizó ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                              }
+                            } else if (employee.status === 'trabajando') {
+                              if (attendance.entrada?.hora) {
+                                const t = attendance.entrada.hora.toDate ? attendance.entrada.hora.toDate() : new Date(attendance.entrada.hora);
+                                return ` • Desde ${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                              }
+                            }
+                            return ' • Sin registro';
+                          })()}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    {/* Contact Actions */}
+                    {employee.userData.phone && (
+                      <View style={{ flexDirection: 'row' }}>
+                        <IconButton 
+                          icon="whatsapp" 
+                          size={20} 
+                          iconColor="#25D366" 
+                          onPress={() => handleWhatsApp(employee.userData.phone)}
+                        />
+                        <IconButton 
+                          icon="phone" 
+                          size={20} 
+                          iconColor={surfaceColors.primary} 
+                          onPress={() => handleCall(employee.userData.phone)}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </Surface>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -691,10 +772,21 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     flex: 1,
-    padding: 8, // Compact padding
-    borderRadius: 24, // Consistent radius
+    padding: 8,
+    borderRadius: 24,
     alignItems: 'center',
-    // backgroundColor: '#f1f5f9', // Removed hardcoded color
+    minWidth: '28%',
+    maxWidth: '32%',
+  },
+  modalContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '75%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
   },
   updateBanner: {
     padding: 16,

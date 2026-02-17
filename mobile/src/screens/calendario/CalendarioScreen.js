@@ -322,7 +322,8 @@ export default function CalendarioScreen({ navigation }) {
   // ✅ Refs para cleanup de listeners
   const unsubscribeCustomEventsRef = useRef(null);
   const unsubscribeCommitmentsRef = useRef(null);
-  const unsubscribeCompaniesRef = useRef(null); // ✅ Loading para cambio de vista
+  const unsubscribeCompaniesRef = useRef(null);
+  const isInitialMountRef = useRef(true); // ✅ Evitar programar notificaciones en primera carga
   
   // Data Sources
   const [customEvents, setCustomEvents] = useState([]);
@@ -431,6 +432,8 @@ export default function CalendarioScreen({ navigation }) {
           unsubscribeCustomEventsRef.current();
           unsubscribeCustomEventsRef.current = null;
         }
+        // ✅ Resetear flag al salir de la pantalla para evitar notificaciones al regresar
+        isInitialMountRef.current = true;
       };
     }, [])
   );
@@ -614,6 +617,12 @@ export default function CalendarioScreen({ navigation }) {
 
   // ✅ NUEVO: Programar notificaciones de calendario para eventos próximos (Solo ADMIN con preferencias)
   useEffect(() => {
+    // ✅ Skip en primera carga (mount inicial o re-entrada a la pantalla)
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     if (!userProfile || (userProfile.role !== 'ADMIN' && userProfile.role !== 'SUPER_ADMIN')) {
       return;
     }
@@ -678,11 +687,13 @@ export default function CalendarioScreen({ navigation }) {
       }
     };
 
-    // Programar notificaciones solo cuando cambian eventos custom o preferencias
-    // NO al seleccionar días (evita reprogramación excesiva)
+    // ✅ FIX: Deshabilitado temporalmente para migración a Cloud Functions
+    // El sistema anterior causaba duplicidad de notificaciones al navegar
+    /*
     if (allEventos.length > 0) {
       programarNotificaciones();
     }
+    */
   }, [customEvents, userProfile, preferences]);
 
   // Filter events
