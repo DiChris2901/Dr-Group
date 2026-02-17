@@ -92,8 +92,8 @@ android {
         applicationId 'com.drgroup.asistencia'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 29
-        versionName "3.7.1"
+        versionCode 31
+        versionName "3.8.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -180,3 +180,4 @@ dependencies {
         implementation jscFlavor
     }
 }
+
