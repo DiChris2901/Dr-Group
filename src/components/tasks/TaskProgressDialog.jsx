@@ -55,7 +55,7 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { useProgressLogs } from '../../hooks/useProgressLogs';
 import { useDelegatedTasks } from '../../hooks/useDelegatedTasks';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
@@ -73,7 +73,7 @@ import ExcelJS from 'exceljs';
  */
 const TaskProgressDialog = ({ open, onClose, task }) => {
   const theme = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { logs, loading: logsLoading, createLog, updateLog, deleteLog, uploadFiles } = useProgressLogs(task?.id, 'delegated_tasks');
   const { approveTask } = useDelegatedTasks();
   
@@ -96,6 +96,38 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [approvalAction, setApprovalAction] = useState(null); // 'approve' | 'reject'
   const [approvalComment, setApprovalComment] = useState('');
+  const [resolvedNames, setResolvedNames] = useState({});
+
+  // Resolver nombres reales de usuarios desde Firestore para los logs
+  useEffect(() => {
+    if (!logs || logs.length === 0) return;
+    const uniqueUids = [...new Set(logs.map(log => log.creadoPor).filter(Boolean))];
+    // Solo buscar UIDs que no tengamos resueltos aún
+    const uidsToResolve = uniqueUids.filter(uid => !resolvedNames[uid]);
+    if (uidsToResolve.length === 0) return;
+
+    const resolveNames = async () => {
+      const newNames = { ...resolvedNames };
+      for (const uid of uidsToResolve) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            newNames[uid] = userData.name || userData.displayName || userData.email || 'Usuario';
+          }
+        } catch (err) {
+          // Si falla, se usará el nombre cacheado del log
+        }
+      }
+      setResolvedNames(newNames);
+    };
+    resolveNames();
+  }, [logs]);
+
+  // Helper para obtener el nombre resuelto de un log
+  const getResolvedName = (log) => {
+    return resolvedNames[log.creadoPor] || log.creadorNombre || 'Usuario';
+  };
 
   // Estados disponibles con porcentajes automáticos
   const ESTADOS = [
@@ -444,7 +476,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         estado,
         comentario: comentario.trim(),
         creadoPor: currentUser.uid,
-        creadorNombre: currentUser.displayName || currentUser.email,
+        creadorNombre: userProfile?.name || userProfile?.displayName || currentUser.displayName || currentUser.email,
         archivos: archivosSubidos
       };
 
@@ -1496,7 +1528,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                       </Typography>
 
                       <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
-                        {log.creadorNombre || 'Usuario'}
+                        {getResolvedName(log)}
                       </Typography>
 
                       {/* Preview del comentario (2 líneas máximo) */}
@@ -1650,7 +1682,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
             {/* Usuario y Estado */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap', mt: 2 }}>
               <Typography variant="body1" fontWeight={600} color="text.primary">
-                {selectedLog.creadorNombre || 'Usuario'}
+                {getResolvedName(selectedLog)}
               </Typography>
               {(() => {
                 const estadoInfo = ESTADOS.find(e => e.value === selectedLog.estado);
@@ -1770,7 +1802,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        {archivo.tipo === 'application/pdf' && (
+                        {(archivo.tipo === 'application/pdf' || archivo.nombre?.toLowerCase().endsWith('.pdf')) && (
                           <Tooltip title="Ver documento" arrow placement="top">
                             <IconButton
                               size="small"
@@ -1788,7 +1820,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        {archivo.tipo === 'application/zip' && (
+                        {(archivo.tipo?.includes('zip') || archivo.nombre?.toLowerCase().endsWith('.zip')) && (
                           <Tooltip title="Ver archivos en ZIP" arrow placement="top">
                             <IconButton
                               size="small"

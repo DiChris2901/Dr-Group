@@ -958,7 +958,7 @@ const TasksPage = () => {
                                     fontSize: '0.7rem'
                                   }}
                                 >
-                                  {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
+                                  {task.asignadoA.nombre?.charAt(0) || task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
                                 </Avatar>
                                 <Typography 
                                   variant="caption" 
@@ -968,7 +968,7 @@ const TasksPage = () => {
                                     color: 'text.secondary'
                                   }}
                                 >
-                                  {task.asignadoA.displayName || task.asignadoA.email}
+                                  {task.asignadoA.nombre || task.asignadoA.displayName || task.asignadoA.email}
                                 </Typography>
                               </Box>
                             )}
@@ -1279,7 +1279,7 @@ const TasksPage = () => {
                               src={task.asignadoA.photoURL}
                               sx={{ width: 22, height: 22, fontSize: '0.7rem' }}
                             >
-                              {task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
+                              {task.asignadoA.nombre?.charAt(0) || task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
                             </Avatar>
                             <Typography 
                               variant="caption" 
@@ -1292,7 +1292,7 @@ const TasksPage = () => {
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              {task.asignadoA.displayName || task.asignadoA.email}
+                              {task.asignadoA.nombre || task.asignadoA.displayName || task.asignadoA.email}
                             </Typography>
                           </Box>
                         )}
@@ -1367,9 +1367,9 @@ const TasksPage = () => {
             <TrendingUpIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>
-            {selectedTask?.creadoPor?.uid === currentUser?.uid && selectedTask?.asignadoA?.uid !== currentUser?.uid
-              ? 'Ver Progreso'
-              : 'Actualizar Progreso'
+            {selectedTask?.asignadoA?.uid === currentUser?.uid
+              ? 'Actualizar Progreso'
+              : 'Registro de Progreso'
             }
           </ListItemText>
         </MenuItem>

@@ -19,6 +19,15 @@ export default defineConfig({
     hmr: {
       overlay: false // Desactiva overlay de errores que puede ralentizar
     },
+    proxy: {
+      // Proxy para Firebase Storage - evita CORS en desarrollo
+      '/__storage': {
+        target: 'https://firebasestorage.googleapis.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/__storage/, ''),
+        secure: true
+      }
+    },
     watch: {
       // Optimizar file watching
       usePolling: false,

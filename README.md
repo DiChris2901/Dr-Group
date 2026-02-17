@@ -537,7 +537,7 @@ Proyecto privado para **DR Group**. Todos los derechos reservados.
 ## 📞 Contacto y Soporte
 
 **Proyecto:** DR Group Dashboard  
-**Versión:** 3.11.0 (Febrero 2026)  
+**Versión:** 3.11.1 (Febrero 2026)  
 **Desarrollador:** Diego Rueda  
 **Empresa:** DR Group  
 

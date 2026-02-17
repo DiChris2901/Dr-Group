@@ -31,6 +31,14 @@ import {
 } from '@mui/icons-material';
 import JSZip from 'jszip';
 
+// Helper: En desarrollo, usa proxy de Vite para evitar CORS con Firebase Storage
+const getProxiedUrl = (url) => {
+  if (import.meta.env.DEV && url?.includes('firebasestorage.googleapis.com')) {
+    return url.replace('https://firebasestorage.googleapis.com', '/__storage');
+  }
+  return url;
+};
+
 // Componente para visor de PDFs (reutilizar el existente si está disponible)
 const PDFViewerSimple = ({ url, onClose }) => {
   const theme = useTheme();
@@ -92,8 +100,9 @@ const ZipFileViewer = ({ open, onClose, zipUrl, zipFileName }) => {
     setError(null);
     
     try {
-      // Descargar el ZIP
-      const response = await fetch(zipUrl);
+      // Descargar el ZIP (usa proxy en dev para evitar CORS)
+      const response = await fetch(getProxiedUrl(zipUrl));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const zipBlob = await response.blob();
       
       // Cargar con JSZip
