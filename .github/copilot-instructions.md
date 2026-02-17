@@ -1552,14 +1552,50 @@ Build > Generate Signed Bundle/APK > APK > Release
 
 #### **🚫 NUNCA:**
 - Compilar sin ejecutar el script de versionado primero
-- Asumir el tipo de versión, SIEMPRE preguntar al usuario
+- Asumir el tipo de versión, SIEMPRE preguntar al usuario (el script sugerirá automáticamente)
 - Olvidar sincronizar app.json con build.gradle
 
 #### **✅ SIEMPRE:**
 - Ejecutar `.\increment-version.ps1` cuando se mencione "compilar"
-- Preguntar explícitamente: "¿Qué tipo de actualización es? (1=PATCH, 2=MINOR, 3=MAJOR)"
+- El script analizará commits recientes y **sugerirá automáticamente** el tipo de versión
 - Confirmar versión actualizada antes de continuar
 - Recordar que el versionCode se incrementa automáticamente en el build
+
+---
+
+### **📊 CRITERIOS DE VERSIONADO SEMÁNTICO (OBLIGATORIO CONOCER)**
+
+**Formato:** `MAJOR.MINOR.PATCH` (ej: 3.8.0)
+
+#### **🔢 Cuándo usar cada tipo:**
+
+| Tipo | Incremento | Cuándo usar | Ejemplos |
+|------|------------|-------------|----------|
+| **PATCH** | X.X.1 | Correcciones de bugs sin cambiar funcionalidad | - Fix: Cálculo de horas trabajadas incorrecto<br>- Fix: App crashing al abrir perfil<br>- Fix: Formato de fecha incorrecto<br>- Corrección de typos o textos |
+| **MINOR** | X.1.0 | Nuevas funcionalidades compatibles | - Feat: Nueva pantalla de reportes<br>- Feat: Filtros en asistencias<br>- Feat: Exportar a Excel<br>- Mejoras significativas de UX/UI |
+| **MAJOR** | 1.0.0 | Cambios incompatibles o arquitectónicos | - Reescritura completa de módulo<br>- Cambios en estructura de Firestore<br>- Nueva plataforma (móvil → desktop)<br>- Eliminación de funcionalidades |
+
+#### **🎯 PROTOCOLO DE SUGERENCIA AUTOMÁTICA:**
+
+El script `increment-version.ps1` analizará los últimos commits y sugerirá:
+- **PATCH** si detecta: `fix:`, `bugfix:`, `hotfix:`, corrección
+- **MINOR** si detecta: `feat:`, `feature:`, nueva funcionalidad
+- **MAJOR** si detecta: `BREAKING CHANGE:`, `major:`, reescritura
+
+**Ejemplo de análisis:**
+```
+Últimos commits:
+- feat: KPI cards con modal expandible real-time
+- feat: Diseño sobrio en modal
+→ SUGERIDO: MINOR (nuevas funcionalidades)
+
+Últimos commits:
+- fix: Corrección formato tardanza
+- fix: Bug en cálculo de horas
+→ SUGERIDO: PATCH (correcciones de bugs)
+```
+
+**⚠️ IMPORTANTE:** La sugerencia es automática pero el usuario siempre confirma. Copilot debe explicar por qué sugiere ese tipo.
 
 ---
 

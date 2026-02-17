@@ -40,5 +40,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# Excepcion: scripts de versionado deben estar en git
+!android/app/increment-version.ps1
 
 serviceAccountKey.json
