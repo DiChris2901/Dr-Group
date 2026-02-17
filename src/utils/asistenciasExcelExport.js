@@ -129,9 +129,18 @@ export const exportarAsistenciasExcel = async (data) => {
     const totalRegistros = mapped.length;
     const empleadosUnicos = [...new Set(mapped.map(r => r.email))].length;
     const fechasUnicas = [...new Set(mapped.map(r => r.fecha))].length;
+    // ✅ Parsear HH:MM:SS correctamente a horas decimales
+    const parseHorasToDecimal = (val) => {
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string' && val.includes(':')) {
+        const parts = val.split(':').map(Number);
+        return (parts[0] || 0) + (parts[1] || 0) / 60 + (parts[2] || 0) / 3600;
+      }
+      return parseFloat(val) || 0;
+    };
     const totalHorasTrabajadas = mapped.reduce((sum, r) => {
-      const horas = parseFloat(r.horasTrabajadas) || 0;
-      return sum + horas;
+      return sum + parseHorasToDecimal(r.horasTrabajadas);
     }, 0);
 
     const wb = new ExcelJS.Workbook();

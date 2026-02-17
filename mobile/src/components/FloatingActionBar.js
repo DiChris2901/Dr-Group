@@ -1,3 +1,4 @@
+import React, { useState, useRef } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Icon, Surface, Text, useTheme as usePaperTheme } from 'react-native-paper';
 import { useTheme as useAppTheme } from '../contexts/ThemeContext';
@@ -14,10 +15,29 @@ export default function FloatingActionBar({
 }) {
   const theme = usePaperTheme();
   const { triggerHaptic } = useAppTheme();
+  const [actionLoading, setActionLoading] = useState(false); // 🔒 Loading local para acciones
+  const actionLockRef = useRef(false); // 🔒 Mutex rápido
 
   const handlePress = (action, type = 'light') => {
     triggerHaptic(type);
     action && action();
+  };
+
+  // 🔒 Wrapper seguro para acciones con protección anti doble-tap
+  const safeAction = async (action, type = 'light') => {
+    if (actionLockRef.current || actionLoading) return;
+    actionLockRef.current = true;
+    setActionLoading(true);
+    try {
+      triggerHaptic(type);
+      await action?.();
+    } catch (e) {
+      // Error manejado en AuthContext
+    } finally {
+      setActionLoading(false);
+      // Mantener lock breve para evitar rebotes
+      setTimeout(() => { actionLockRef.current = false; }, 500);
+    }
   };
 
   if (status === 'off' || status === 'finalizado' || !status) {
@@ -60,13 +80,17 @@ export default function FloatingActionBar({
     return (
       <View style={styles.container}>
         <TouchableOpacity 
-          style={[styles.largeButton, { backgroundColor: theme.colors.tertiary }]}
-          onPress={() => handlePress(onPressResume, 'medium')}
-          activeOpacity={0.9}
+          style={[styles.largeButton, { 
+            backgroundColor: actionLoading ? theme.colors.surfaceDisabled : theme.colors.tertiary,
+            opacity: actionLoading ? 0.6 : 1
+          }]}
+          onPress={() => safeAction(onPressResume, 'medium')}
+          activeOpacity={actionLoading ? 1 : 0.9}
+          disabled={actionLoading}
         >
-          <Icon source="play" size={24} color={theme.colors.onTertiary} />
-          <Text variant="titleMedium" style={{ color: theme.colors.onTertiary, fontWeight: 'bold', marginLeft: 8 }}>
-            {isLunch ? 'Volver del Almuerzo' : 'Volver del Break'}
+          <Icon source={actionLoading ? "loading" : "play"} size={24} color={actionLoading ? theme.colors.onSurfaceVariant : theme.colors.onTertiary} />
+          <Text variant="titleMedium" style={{ color: actionLoading ? theme.colors.onSurfaceVariant : theme.colors.onTertiary, fontWeight: 'bold', marginLeft: 8 }}>
+            {actionLoading ? 'Procesando...' : isLunch ? 'Volver del Almuerzo' : 'Volver del Break'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -80,9 +104,12 @@ export default function FloatingActionBar({
         
         {/* Break Button */}
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: theme.colors.secondaryContainer }]}
-          onPress={() => handlePress(onPressBreak, 'light')}
-          disabled={breaksCount >= 2}
+          style={[styles.actionButton, { 
+            backgroundColor: theme.colors.secondaryContainer,
+            opacity: (breaksCount >= 2 || actionLoading) ? 0.5 : 1
+          }]}
+          onPress={() => safeAction(onPressBreak, 'light')}
+          disabled={breaksCount >= 2 || actionLoading}
         >
           <Icon 
             source={breaksCount >= 2 ? "coffee-off" : "coffee"} 
@@ -103,8 +130,12 @@ export default function FloatingActionBar({
 
         {/* Lunch Button */}
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: theme.colors.tertiaryContainer }]}
-          onPress={() => handlePress(onPressLunch, 'light')}
+          style={[styles.actionButton, { 
+            backgroundColor: theme.colors.tertiaryContainer,
+            opacity: actionLoading ? 0.5 : 1
+          }]}
+          onPress={() => safeAction(onPressLunch, 'light')}
+          disabled={actionLoading}
         >
           <Icon source="food" size={24} color={theme.colors.onTertiaryContainer} />
           <Text variant="labelSmall" style={{ color: theme.colors.onTertiaryContainer, marginTop: 4, fontWeight: 'bold' }}>
@@ -114,8 +145,12 @@ export default function FloatingActionBar({
 
         {/* End Button */}
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: theme.colors.errorContainer }]}
-          onPress={() => handlePress(onPressEnd, 'medium')}
+          style={[styles.actionButton, { 
+            backgroundColor: theme.colors.errorContainer,
+            opacity: actionLoading ? 0.5 : 1
+          }]}
+          onPress={() => safeAction(onPressEnd, 'medium')}
+          disabled={actionLoading}
         >
           <Icon source="home-export-outline" size={24} color={theme.colors.onErrorContainer} />
           <Text variant="labelSmall" style={{ color: theme.colors.onErrorContainer, marginTop: 4, fontWeight: 'bold' }}>

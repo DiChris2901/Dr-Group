@@ -797,11 +797,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 🔒 Mutex para prevenir doble-tap en acciones
+  const actionInProgressRef = useRef(false);
+
   const registrarBreak = async () => {
     if (!activeSession) return;
     
+    // 🔒 Prevenir doble-tap
+    if (actionInProgressRef.current) {
+      console.log('⚠️ Acción en progreso, ignorando tap duplicado');
+      return;
+    }
+    actionInProgressRef.current = true;
+
     // ✅ Validar máximo 2 breaks
     if (activeSession.breaks && activeSession.breaks.length >= 2) {
+      actionInProgressRef.current = false;
       throw new Error('Has alcanzado el límite máximo de 2 breaks por día.');
     }
 
@@ -869,11 +880,20 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error registrando break:', error);
       throw error;
+    } finally {
+      actionInProgressRef.current = false; // 🔒 Liberar mutex
     }
   };
 
   const finalizarBreak = async () => {
     if (!activeSession || activeSession.breaks.length === 0) return;
+
+    // 🔒 Prevenir doble-tap
+    if (actionInProgressRef.current) {
+      console.log('⚠️ Acción en progreso, ignorando tap duplicado');
+      return;
+    }
+    actionInProgressRef.current = true;
 
     try {
       const breakActual = activeSession.breaks[activeSession.breaks.length - 1];
@@ -938,14 +958,24 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error finalizando break:', error);
       throw error;
+    } finally {
+      actionInProgressRef.current = false; // 🔒 Liberar mutex
     }
   };
 
   const registrarAlmuerzo = async () => {
     if (!activeSession) return;
 
+    // 🔒 Prevenir doble-tap
+    if (actionInProgressRef.current) {
+      console.log('⚠️ Acción en progreso, ignorando tap duplicado');
+      return;
+    }
+    actionInProgressRef.current = true;
+
     // ✅ Validar máximo 1 almuerzo
     if (activeSession.almuerzo) {
+      actionInProgressRef.current = false;
       throw new Error('Ya has registrado tu hora de almuerzo hoy.');
     }
 
@@ -1011,11 +1041,20 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error registrando almuerzo:', error);
       throw error;
+    } finally {
+      actionInProgressRef.current = false; // 🔒 Liberar mutex
     }
   };
 
   const finalizarAlmuerzo = async () => {
     if (!activeSession || !activeSession.almuerzo) return;
+
+    // 🔒 Prevenir doble-tap
+    if (actionInProgressRef.current) {
+      console.log('⚠️ Acción en progreso, ignorando tap duplicado');
+      return;
+    }
+    actionInProgressRef.current = true;
 
     try {
       const now = new Date();
@@ -1078,11 +1117,20 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error finalizando almuerzo:', error);
       throw error;
+    } finally {
+      actionInProgressRef.current = false; // 🔒 Liberar mutex
     }
   };
 
   const finalizarJornada = async () => {
     if (!activeSession) return;
+
+    // 🔒 Prevenir doble-tap
+    if (actionInProgressRef.current) {
+      console.log('⚠️ Acción en progreso, ignorando tap duplicado');
+      return;
+    }
+    actionInProgressRef.current = true;
 
     try {
       const now = new Date();
@@ -1264,6 +1312,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error finalizando jornada:', error);
       throw error;
+    } finally {
+      actionInProgressRef.current = false; // 🔒 Liberar mutex
     }
   };
 

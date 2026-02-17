@@ -57,13 +57,12 @@ export default function AdminDashboardScreen({ navigation }) {
   const { can } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [menuVisible, setMenuVisible] = useState(false);
   const [modalFilter, setModalFilter] = useState(null); // null = cerrado, 'working'|'break'|etc = abierto
+  const [modalColor, setModalColor] = useState(null); // Color del KPI que abrió el modal
+  const [modalBgColor, setModalBgColor] = useState(null); // BgColor del KPI
+  const [expandedEmployee, setExpandedEmployee] = useState(null); // ID del empleado expandido en modal
   const [allEmployees, setAllEmployees] = useState([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // ✅ Controlar primera carga
-
-  const openMenu = () => setMenuVisible(true);
-  const closeMenu = () => setMenuVisible(false);
 
   const modalEmployees = useMemo(() => {
     if (!modalFilter) return [];
@@ -121,7 +120,6 @@ export default function AdminDashboardScreen({ navigation }) {
     finished: 0,
     absent: 0
   });
-  const [activeEmployees, setActiveEmployees] = useState([]);
   const unsubscribeRef = useRef(null);
 
   const fetchData = useCallback(async () => {
@@ -191,13 +189,7 @@ export default function AdminDashboardScreen({ navigation }) {
             };
         });
 
-        // Sort: Active -> Break -> Absent -> Finished
-        processedList.sort((a, b) => {
-            const priority = { 'trabajando': 1, 'break': 2, 'almuerzo': 2, 'ausente': 3, 'finalizado': 4 };
-            return (priority[a.status] || 99) - (priority[b.status] || 99);
-        });
-
-        // Sort in-place para evitar crear nueva referencia
+        // Sort: Trabajando -> Break -> Almuerzo -> Finalizado -> Ausente
         processedList.sort((a, b) => {
           const order = { trabajando: 1, break: 2, almuerzo: 3, finalizado: 4, ausente: 5 };
           return (order[a.status] || 99) - (order[b.status] || 99);
@@ -259,6 +251,9 @@ export default function AdminDashboardScreen({ navigation }) {
         onPress={() => {
           triggerHaptic('selection');
           setModalFilter(filterType);
+          setModalColor(color);
+          setModalBgColor(bgColor);
+          setExpandedEmployee(null);
         }}
         activeOpacity={0.7}
       >
@@ -306,7 +301,7 @@ export default function AdminDashboardScreen({ navigation }) {
                 fontVariationSettings: [{ axis: 'wdth', value: 110 }] 
               }}
             >
-              Hola, {userProfile?.displayName?.split(' ')[0] || 'Admin'}
+              Hola, {(userProfile?.name || userProfile?.displayName || 'Admin').split(' ')[0]}
             </Text>
             <Text 
               variant="bodyLarge" 
@@ -591,16 +586,16 @@ export default function AdminDashboardScreen({ navigation }) {
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: surfaceColors.outlineVariant }} />
             </View>
 
-            {/* Header */}
+            {/* Header - Color dinámico según KPI */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16, gap: 12 }}>
               <Avatar.Icon 
                 size={44} 
                 icon={modalIcon} 
-                style={{ backgroundColor: surfaceColors.primaryContainer }} 
-                color={surfaceColors.onPrimaryContainer} 
+                style={{ backgroundColor: modalBgColor || surfaceColors.primaryContainer }} 
+                color={modalColor || surfaceColors.onPrimaryContainer} 
               />
               <View style={{ flex: 1 }}>
-                <Text variant="titleLarge" style={{ fontWeight: '700', color: surfaceColors.onSurface }}>
+                <Text variant="titleLarge" style={{ fontWeight: '700', color: modalColor || surfaceColors.onSurface }}>
                   {modalTitle}
                 </Text>
                 <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant }}>
@@ -636,6 +631,12 @@ export default function AdminDashboardScreen({ navigation }) {
                 </View>
               }
               renderItem={({ item: employee }) => (
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    setExpandedEmployee(expandedEmployee === employee.id ? null : employee.id);
+                  }}
+                >
                 <Surface 
                   style={{ 
                     marginBottom: 10, 
@@ -664,6 +665,12 @@ export default function AdminDashboardScreen({ navigation }) {
                       <Text variant="titleMedium" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
                         {employee.userData.name || employee.userData.displayName || 'Usuario'}
                       </Text>
+                      {/* Cargo / Departamento */}
+                      {(employee.userData.position || employee.userData.department) && (
+                        <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, opacity: 0.7, marginTop: 1 }}>
+                          {[employee.userData.position, employee.userData.department].filter(Boolean).join(' • ')}
+                        </Text>
+                      )}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <View style={{ 
                           width: 8, 
@@ -710,25 +717,268 @@ export default function AdminDashboardScreen({ navigation }) {
                       </View>
                     </View>
                     
-                    {/* Contact Actions */}
-                    {employee.userData.phone && (
-                      <View style={{ flexDirection: 'row' }}>
-                        <IconButton 
-                          icon="whatsapp" 
-                          size={20} 
-                          iconColor="#25D366" 
-                          onPress={() => handleWhatsApp(employee.userData.phone)}
-                        />
-                        <IconButton 
-                          icon="phone" 
-                          size={20} 
-                          iconColor={surfaceColors.primary} 
-                          onPress={() => handleCall(employee.userData.phone)}
-                        />
-                      </View>
-                    )}
+                    {/* Contact Actions + Expand indicator */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      {employee.userData.phone && (
+                        <>
+                          <IconButton 
+                            icon="whatsapp" 
+                            size={20} 
+                            iconColor="#25D366" 
+                            onPress={(e) => { e.stopPropagation?.(); handleWhatsApp(employee.userData.phone); }}
+                          />
+                          <IconButton 
+                            icon="phone" 
+                            size={20} 
+                            iconColor={surfaceColors.primary} 
+                            onPress={(e) => { e.stopPropagation?.(); handleCall(employee.userData.phone); }}
+                          />
+                        </>
+                      )}
+                      <MaterialCommunityIcons 
+                        name={expandedEmployee === employee.id ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color={surfaceColors.onSurfaceVariant} 
+                      />
+                    </View>
                   </View>
+
+                  {/* ═══ Expandible: Detalle de sesión ═══ */}
+                  {expandedEmployee === employee.id && employee.attendance && (
+                    <View style={{ 
+                      marginTop: 12, 
+                      paddingTop: 12, 
+                      borderTopWidth: 1, 
+                      borderTopColor: surfaceColors.outlineVariant,
+                      gap: 8
+                    }}>
+                      {/* Entrada */}
+                      {employee.attendance.entrada?.hora && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <MaterialCommunityIcons name="login" size={16} color={surfaceColors.primary} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, flex: 1 }}>Entrada</Text>
+                          <Text variant="bodySmall" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
+                            {(() => {
+                              const t = employee.attendance.entrada.hora.toDate ? employee.attendance.entrada.hora.toDate() : new Date(employee.attendance.entrada.hora);
+                              return t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })()}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Breaks */}
+                      {employee.attendance.breaks?.length > 0 && employee.attendance.breaks.map((b, i) => (
+                        <View key={`break-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <MaterialCommunityIcons name="coffee" size={16} color={surfaceColors.tertiary} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, flex: 1 }}>
+                            Break {employee.attendance.breaks.length > 1 ? `#${i + 1}` : ''}
+                          </Text>
+                          <Text variant="bodySmall" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
+                            {(() => {
+                              const inicio = b.inicio?.toDate ? b.inicio.toDate() : new Date(b.inicio);
+                              const inicioStr = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              if (b.fin) {
+                                const fin = b.fin.toDate ? b.fin.toDate() : new Date(b.fin);
+                                const finStr = fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const durMs = fin - inicio;
+                                const mins = Math.floor(durMs / 60000);
+                                return `${inicioStr} - ${finStr} (${mins}min)`;
+                              }
+                              return `${inicioStr} - En curso...`;
+                            })()}
+                          </Text>
+                        </View>
+                      ))}
+
+                      {/* Almuerzo */}
+                      {employee.attendance.almuerzo?.inicio && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <MaterialCommunityIcons name="food" size={16} color={surfaceColors.secondary} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, flex: 1 }}>Almuerzo</Text>
+                          <Text variant="bodySmall" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
+                            {(() => {
+                              const inicio = employee.attendance.almuerzo.inicio.toDate ? employee.attendance.almuerzo.inicio.toDate() : new Date(employee.attendance.almuerzo.inicio);
+                              const inicioStr = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              if (employee.attendance.almuerzo.fin) {
+                                const fin = employee.attendance.almuerzo.fin.toDate ? employee.attendance.almuerzo.fin.toDate() : new Date(employee.attendance.almuerzo.fin);
+                                const finStr = fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const durMs = fin - inicio;
+                                const mins = Math.floor(durMs / 60000);
+                                return `${inicioStr} - ${finStr} (${mins}min)`;
+                              }
+                              return `${inicioStr} - En curso...`;
+                            })()}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Salida */}
+                      {employee.attendance.salida?.hora && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <MaterialCommunityIcons name="logout" size={16} color={surfaceColors.error} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, flex: 1 }}>Salida</Text>
+                          <Text variant="bodySmall" style={{ fontWeight: '600', color: surfaceColors.onSurface }}>
+                            {(() => {
+                              const t = employee.attendance.salida.hora.toDate ? employee.attendance.salida.hora.toDate() : new Date(employee.attendance.salida.hora);
+                              return t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            })()}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Tiempo trabajado total */}
+                      {employee.attendance.entrada?.hora && (
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          alignItems: 'center', 
+                          gap: 10, 
+                          marginTop: 4,
+                          paddingTop: 8,
+                          borderTopWidth: 1,
+                          borderTopColor: surfaceColors.outlineVariant
+                        }}>
+                          <MaterialCommunityIcons name="clock-check-outline" size={16} color={surfaceColors.primary} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, flex: 1, fontWeight: '600' }}>Tiempo trabajado</Text>
+                          <Text variant="bodySmall" style={{ fontWeight: '700', color: surfaceColors.primary }}>
+                            {(() => {
+                              const entrada = employee.attendance.entrada.hora.toDate ? employee.attendance.entrada.hora.toDate() : new Date(employee.attendance.entrada.hora);
+                              const fin = employee.attendance.salida?.hora
+                                ? (employee.attendance.salida.hora.toDate ? employee.attendance.salida.hora.toDate() : new Date(employee.attendance.salida.hora))
+                                : new Date();
+                              let totalMs = fin - entrada;
+                              
+                              // Restar breaks finalizados
+                              if (employee.attendance.breaks) {
+                                employee.attendance.breaks.forEach(b => {
+                                  if (b.inicio && b.fin) {
+                                    const bInicio = b.inicio.toDate ? b.inicio.toDate() : new Date(b.inicio);
+                                    const bFin = b.fin.toDate ? b.fin.toDate() : new Date(b.fin);
+                                    totalMs -= (bFin - bInicio);
+                                  }
+                                });
+                              }
+                              // Restar almuerzo finalizado
+                              if (employee.attendance.almuerzo?.inicio && employee.attendance.almuerzo?.fin) {
+                                const aInicio = employee.attendance.almuerzo.inicio.toDate ? employee.attendance.almuerzo.inicio.toDate() : new Date(employee.attendance.almuerzo.inicio);
+                                const aFin = employee.attendance.almuerzo.fin.toDate ? employee.attendance.almuerzo.fin.toDate() : new Date(employee.attendance.almuerzo.fin);
+                                totalMs -= (aFin - aInicio);
+                              }
+
+                              if (totalMs < 0) totalMs = 0;
+                              const hours = Math.floor(totalMs / 3600000);
+                              const mins = Math.floor((totalMs % 3600000) / 60000);
+                              return `${hours}h ${mins}m`;
+                            })()}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Dispositivo de entrada */}
+                      {employee.attendance.entrada?.dispositivo && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 }}>
+                          <MaterialCommunityIcons name="cellphone" size={16} color={surfaceColors.onSurfaceVariant} />
+                          <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, opacity: 0.7 }}>
+                            {typeof employee.attendance.entrada.dispositivo === 'string' 
+                              ? employee.attendance.entrada.dispositivo 
+                              : `${employee.attendance.entrada.dispositivo.brand || ''} ${employee.attendance.entrada.dispositivo.modelName || ''}`.trim() || 'Dispositivo desconocido'
+                            }
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Ubicaciones: Entrada y Salida */}
+                      {(employee.attendance.entrada?.ubicacion?.lat || employee.attendance.salida?.ubicacion?.lat) && (
+                        <View style={{ 
+                          flexDirection: 'row', 
+                          gap: 8, 
+                          marginTop: 6,
+                          paddingTop: 8,
+                          borderTopWidth: 1,
+                          borderTopColor: surfaceColors.outlineVariant
+                        }}>
+                          {/* Ubicación de Entrada */}
+                          {employee.attendance.entrada?.ubicacion?.lat && (
+                            <Pressable
+                              onPress={() => {
+                                const { lat, lon } = employee.attendance.entrada.ubicacion;
+                                Linking.openURL(`https://www.google.com/maps?q=${lat},${lon}`);
+                              }}
+                              style={{ 
+                                flex: 1, 
+                                flexDirection: 'row', 
+                                alignItems: 'center', 
+                                gap: 6,
+                                backgroundColor: surfaceColors.surfaceContainerHigh,
+                                paddingVertical: 8,
+                                paddingHorizontal: 10,
+                                borderRadius: 12
+                              }}
+                            >
+                              <MaterialCommunityIcons name="map-marker" size={16} color={surfaceColors.primary} />
+                              <View style={{ flex: 1 }}>
+                                <Text variant="labelSmall" style={{ color: surfaceColors.primary, fontWeight: '600' }}>
+                                  Entrada
+                                </Text>
+                                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, fontSize: 10 }}>
+                                  {employee.attendance.entrada.ubicacion.tipo || 'Ver mapa'}
+                                </Text>
+                              </View>
+                              <MaterialCommunityIcons name="open-in-new" size={12} color={surfaceColors.onSurfaceVariant} />
+                            </Pressable>
+                          )}
+
+                          {/* Ubicación de Salida */}
+                          {employee.attendance.salida?.ubicacion?.lat && (
+                            <Pressable
+                              onPress={() => {
+                                const { lat, lon } = employee.attendance.salida.ubicacion;
+                                Linking.openURL(`https://www.google.com/maps?q=${lat},${lon}`);
+                              }}
+                              style={{ 
+                                flex: 1, 
+                                flexDirection: 'row', 
+                                alignItems: 'center', 
+                                gap: 6,
+                                backgroundColor: surfaceColors.surfaceContainerHigh,
+                                paddingVertical: 8,
+                                paddingHorizontal: 10,
+                                borderRadius: 12
+                              }}
+                            >
+                              <MaterialCommunityIcons name="map-marker-check" size={16} color={surfaceColors.error} />
+                              <View style={{ flex: 1 }}>
+                                <Text variant="labelSmall" style={{ color: surfaceColors.error, fontWeight: '600' }}>
+                                  Salida
+                                </Text>
+                                <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, fontSize: 10 }}>
+                                  {employee.attendance.salida.ubicacion.tipo || 'Ver mapa'}
+                                </Text>
+                              </View>
+                              <MaterialCommunityIcons name="open-in-new" size={12} color={surfaceColors.onSurfaceVariant} />
+                            </Pressable>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Sin registro - expandido */}
+                  {expandedEmployee === employee.id && !employee.attendance && (
+                    <View style={{ 
+                      marginTop: 12, 
+                      paddingTop: 12, 
+                      borderTopWidth: 1, 
+                      borderTopColor: surfaceColors.outlineVariant,
+                      alignItems: 'center',
+                      paddingVertical: 8
+                    }}>
+                      <Text variant="bodySmall" style={{ color: surfaceColors.onSurfaceVariant, fontStyle: 'italic' }}>
+                        No ha registrado entrada hoy
+                      </Text>
+                    </View>
+                  )}
                 </Surface>
+                </Pressable>
               )}
             />
           </Pressable>
