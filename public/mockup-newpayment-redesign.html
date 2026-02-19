@@ -1,0 +1,409 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mockup  Nuevo Pago  DR Group</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #eef0f6; color: #1a1a2e; min-height: 100vh; }
+
+    .demo-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: #1a1a2e; color: #fff;
+      display: flex; align-items: center; gap: 14px; padding: 9px 20px;
+      font-size: 12.5px; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+    .demo-bar span { opacity: .55; }
+    .demo-btn { padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .2s; }
+    .demo-btn.on  { background: #667eea; color: #fff; }
+    .demo-btn.off { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }
+    .arrow { opacity: .4; }
+    body { padding-top: 46px; }
+
+    .overlay { position: fixed; inset: 0; z-index: 800; background: rgba(20,20,40,.5); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px); transition: opacity .25s; }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .modal { background: #fff; border-radius: 20px; width: 500px; max-width: 94vw; box-shadow: 0 20px 60px rgba(0,0,0,.2); border: 1px solid rgba(102,126,234,.18); overflow: hidden; transition: transform .25s; }
+    .overlay.hidden .modal { transform: translateY(-16px); }
+
+    .modal-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 22px; display: flex; align-items: center; gap: 14px; }
+    .mh-icon { width: 46px; height: 46px; border-radius: 12px; background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; font-size: 21px; }
+    .modal-header h2 { font-size: 17px; font-weight: 700; color: #fff; }
+    .modal-header p  { font-size: 13px; color: rgba(255,255,255,.85); margin-top: 2px; }
+
+    .modal-body { padding: 22px 22px 4px; }
+    .search-wrap { border: 1.5px solid #dde1ec; border-radius: 10px; display: flex; align-items: center; gap: 9px; padding: 11px 13px; background: #f7f8fc; }
+    .search-wrap:focus-within { border-color: #667eea; background: #fff; }
+    .search-wrap input { border: none; outline: none; flex: 1; font-size: 13.5px; background: transparent; color: #1a1a2e; }
+
+    .results { margin-top: 10px; max-height: 290px; overflow-y: auto; }
+    .ri { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 10px; cursor: pointer; border: 1.5px solid transparent; margin-bottom: 4px; transition: all .15s; }
+    .ri:hover    { background: rgba(102,126,234,.07); }
+    .ri.selected { background: rgba(102,126,234,.09); border-color: rgba(102,126,234,.45); }
+    .ri-avatar { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 700; }
+    .ri-body { flex: 1; min-width: 0; }
+    .ri-company { font-size: 13.5px; font-weight: 600; color: #1a1a2e; }
+    .ri-concept { font-size: 12px; color: #777; margin-top: 1px; }
+    .ri-due     { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .ri-right   { text-align: right; flex-shrink: 0; }
+
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .tag-primary { background: rgba(102,126,234,.12); color: #667eea; border: 1px solid rgba(102,126,234,.25); }
+    .tag-overdue { background: rgba(239,68,68,.1);   color: #ef4444; border: 1px solid rgba(239,68,68,.25); }
+    .tag-partial { background: rgba(245,158,11,.1);  color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
+    .tag-success { background: rgba(34,197,94,.1);   color: #16a34a; border: 1px solid rgba(34,197,94,.25); }
+
+    .alert-info { margin: 14px 0 6px; padding: 11px 13px; border-radius: 10px; background: rgba(102,126,234,.07); border: 1px solid rgba(102,126,234,.2); font-size: 12.5px; color: #666; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+
+    .modal-footer { padding: 18px 22px; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-cancel  { padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1.5px solid #dde1ea; background: transparent; color: #888; cursor: pointer; transition: all .2s; }
+    .btn-cancel:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.05); }
+    .btn-confirm { padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; color: #fff; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 14px rgba(102,126,234,.4); transition: all .2s; }
+    .btn-confirm:hover { transform: translateY(-1px); }
+
+    /* PAGE */
+    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px 90px; transition: filter .25s, opacity .25s; }
+    .page.dimmed { filter: blur(1px); opacity: .35; pointer-events: none; }
+
+    .page-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 14px; padding: 26px 28px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; box-shadow: 0 8px 30px rgba(102,126,234,.28); }
+    .ph-left  { display: flex; align-items: center; gap: 16px; }
+    .ph-icon  { width: 50px; height: 50px; border-radius: 13px; background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35); display: flex; align-items: center; justify-content: center; font-size: 23px; }
+    .page-header h1 { font-size: 21px; font-weight: 700; color: #fff; }
+    .page-header p  { font-size: 13px; color: rgba(255,255,255,.82); margin-top: 2px; }
+    .ph-btns { display: flex; gap: 8px; }
+    .ghost-btn { padding: 7px 15px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1.5px solid rgba(255,255,255,.3); color: #fff; background: rgba(255,255,255,.1); cursor: pointer; transition: all .2s; }
+    .ghost-btn:hover { background: rgba(255,255,255,.2); }
+
+    /* Section card */
+    .card { background: #fff; border-radius: 14px; padding: 20px 22px; border: 1.5px solid #e8eaf2; box-shadow: 0 2px 8px rgba(0,0,0,.04); margin-bottom: 16px; transition: border-color .2s; }
+    .card:hover { border-color: rgba(102,126,234,.35); }
+    .card-head  { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .card-icon  { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 3px 10px rgba(102,126,234,.35); }
+    .card-title { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+    .card-sub   { font-size: 12px; color: #999; margin-top: 1px; }
+
+    /* Locked field */
+    .field-locked { border: 1.5px solid #dde1ec; border-radius: 10px; padding: 11px 14px; display: flex; align-items: center; gap: 10px; background: rgba(34,197,94,.04); font-size: 14px; color: #1a1a2e; font-weight: 500; }
+    .chip-locked { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; background: rgba(34,197,94,.08); color: #16a34a; border: 1px solid rgba(34,197,94,.3); margin-top: 8px; }
+    .btn-change-comp { font-size: 12.5px; font-weight: 600; color: #f59e0b; background: none; border: none; cursor: pointer; margin-top: 8px; margin-left: 4px; padding: 0; display: inline-flex; align-items: center; gap: 4px; }
+
+    /* Fields */
+    .fg { display: grid; gap: 14px; }
+    .fg.c2 { grid-template-columns: 1fr 1fr; }
+    .fg.c3 { grid-template-columns: 1fr 1fr 1fr; }
+    .field label { display: block; font-size: 11.5px; font-weight: 600; color: #777; margin-bottom: 5px; }
+    .field input, .field select, .field textarea { width: 100%; border: 1.5px solid #dde1ec; border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .2s; appearance: none; }
+    .field input:focus, .field select:focus { border-color: #667eea; }
+    .fi-wrap { position: relative; }
+    .fi-wrap input, .fi-wrap select { padding-left: 36px; }
+    .fi { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 15px; opacity: .4; pointer-events: none; }
+    .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    /* Method chips */
+    .mc-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .mc { padding: 7px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; border: 1.5px solid #dde1ec; color: #777; background: #fff; transition: all .18s; font-weight: 500; }
+    .mc:hover { border-color: #667eea; color: #667eea; background: rgba(102,126,234,.06); }
+    .mc.on    { border-color: #667eea; color: #667eea; background: rgba(102,126,234,.1); font-weight: 600; }
+
+    /* Upload */
+    .upload-zone { border: 2px dashed #cdd1df; border-radius: 12px; padding: 26px; text-align: center; cursor: pointer; transition: all .2s; }
+    .upload-zone:hover { border-color: #667eea; background: rgba(102,126,234,.04); }
+    .upload-link { color: #667eea; font-weight: 600; }
+
+    /* Partial toggle */
+    .partial-toggle { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #f7f8fc; border-radius: 10px; border: 1.5px solid #dde1ec; margin-top: 16px; }
+    .partial-toggle label { font-size: 13.5px; font-weight: 500; color: #555; cursor: pointer; }
+
+    /* Bottom bar */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 700; background: rgba(255,255,255,.97); backdrop-filter: blur(8px); border-top: 1.5px solid #e8eaf2; padding: 14px 28px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; box-shadow: 0 -4px 20px rgba(0,0,0,.06); }
+    .bottom-bar.hidden { display: none; }
+    .btn-bar-cancel { padding: 10px 22px; border-radius: 24px; font-size: 14px; font-weight: 600; border: 1.5px solid #dde1ea; background: #fff; color: #666; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+    .btn-bar-cancel:hover { border-color: #ef4444; color: #ef4444; }
+    .btn-bar-save { padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; color: #fff; background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4e 100%); box-shadow: 0 4px 16px rgba(0,0,0,.25); display: flex; align-items: center; gap: 7px; transition: all .2s; }
+    .btn-bar-save.ready { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 4px 16px rgba(102,126,234,.4); }
+    .btn-bar-save:hover { transform: translateY(-1px); }
+
+    textarea { resize: none; height: 68px; font-family: inherit; }
+  </style>
+</head>
+<body>
+
+<!-- DEMO BAR -->
+<div class="demo-bar">
+  <span>DR Group  Mockup  Nuevo Pago</span>
+  <button class="demo-btn on"  id="b1" onclick="go(1)"> Modal de seleccion</button>
+  <span class="arrow"></span>
+  <button class="demo-btn off" id="b2" onclick="go(2)"> Formulario del pago</button>
+</div>
+
+<!--  MODAL  -->
+<div class="overlay" id="ov">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="mh-icon"></div>
+      <div>
+        <h2>Selecciona un Compromiso</h2>
+        <p>Elige el compromiso que vas a pagar</p>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="search-wrap">
+        <span style="font-size:16px;opacity:.45;"></span>
+        <input type="text" placeholder="Buscar por empresa, concepto, beneficiario..." autofocus />
+      </div>
+      <div class="results">
+        <div class="ri selected" onclick="pick(this)">
+          <div class="ri-avatar">K</div>
+          <div class="ri-body">
+            <div class="ri-company">King Bar</div>
+            <div class="ri-concept">Arriendo local comercial</div>
+            <div class="ri-due"> Vence: 28 Feb 2026</div>
+          </div>
+          <div class="ri-right"><span class="tag tag-overdue">$4.500.000  Vencido</span></div>
+        </div>
+        <div class="ri" onclick="pick(this)">
+          <div class="ri-avatar" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">C</div>
+          <div class="ri-body">
+            <div class="ri-company">Coljuegos</div>
+            <div class="ri-concept">Derechos de explotacion  Feb</div>
+            <div class="ri-due"> Vence: 31 Mar 2026</div>
+          </div>
+          <div class="ri-right"><span class="tag tag-partial">$8.200.000  Parcial</span></div>
+        </div>
+        <div class="ri" onclick="pick(this)">
+          <div class="ri-avatar" style="background:linear-gradient(135deg,#10b981,#059669)">P</div>
+          <div class="ri-body">
+            <div class="ri-company">Play King</div>
+            <div class="ri-concept">Nomina Marzo 2026</div>
+            <div class="ri-due"> Vence: 05 Mar 2026</div>
+          </div>
+          <div class="ri-right"><span class="tag tag-primary">$12.350.000</span></div>
+        </div>
+        <div class="ri" onclick="pick(this)">
+          <div class="ri-avatar" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">G</div>
+          <div class="ri-body">
+            <div class="ri-company">Golden Horse</div>
+            <div class="ri-concept">Servicios publicos  Feb</div>
+            <div class="ri-due"> Vence: 15 Mar 2026</div>
+          </div>
+          <div class="ri-right"><span class="tag tag-primary">$890.000</span></div>
+        </div>
+      </div>
+      <div class="alert-info">
+        &nbsp; Una vez seleccionado, el compromiso quedara bloqueado para este registro de pago.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel">Cancelar</button>
+      <button class="btn-confirm" onclick="go(2)">Continuar </button>
+    </div>
+  </div>
+</div>
+
+<!--  PAGE  -->
+<div class="page dimmed" id="pg">
+
+  <div class="page-header">
+    <div class="ph-left">
+      <div class="ph-icon"></div>
+      <div>
+        <p style="font-size:11px;font-weight:600;color:rgba(255,255,255,.7);letter-spacing:1px;text-transform:uppercase;">FINANZAS  NUEVO PAGO</p>
+        <h1>Registrar Pago de Compromiso</h1>
+        <p>Selecciona un compromiso pendiente y registra el pago</p>
+      </div>
+    </div>
+    <div class="ph-btns">
+      <button class="ghost-btn"></button>
+      <button class="ghost-btn"> Regresar</button>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1: Compromiso bloqueado (= "Información de la Empresa") -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon"></div>
+      <div>
+        <div class="card-title">Informacion del Compromiso</div>
+        <div class="card-sub">Compromiso al que se aplicara el pago</div>
+      </div>
+    </div>
+
+    <div style="position:relative;">
+      <div class="field-locked">
+        <span style="font-size:16px;color:#16a34a;"></span>
+        <span style="flex:1;">King Bar  Arriendo local comercial</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+        <span class="chip-locked"> Compromiso bloqueado</span>
+        <button class="btn-change-comp" onclick="go(1)"> Cambiar compromiso</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: Detalles del Pago (= "Detalles del Compromiso") -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon"></div>
+      <div>
+        <div class="card-title">Detalles del Pago</div>
+        <div class="card-sub">Fecha, metodo, cuenta de origen y montos</div>
+      </div>
+    </div>
+
+    <div class="fg c2" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Fecha de pago *</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="date" value="2026-02-18" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Referencia / Comprobante</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="text" placeholder="Ej: TRN-20260218-001" />
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11.5px;font-weight:600;color:#777;margin-bottom:6px;">Metodo de pago *</div>
+      <div class="mc-wrap">
+        <div class="mc on"> Transferencia bancaria</div>
+        <div class="mc"> Efectivo</div>
+        <div class="mc"> Tarjeta debito</div>
+        <div class="mc"> PSE</div>
+        <div class="mc"> Nequi / Daviplata</div>
+        <div class="mc"> Cheque</div>
+      </div>
+    </div>
+
+    <div class="fg c2" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Cuenta de origen *</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <select>
+            <option> Seleccionar cuenta </option>
+            <option selected>1234-5678  Bancolombia (King Bar)</option>
+            <option>0987-6543  Davivienda (Diego Rueda)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Banco</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="text" value="Bancolombia" />
+        </div>
+      </div>
+    </div>
+
+    <div class="fg c3" style="margin-bottom:0;">
+      <div class="field">
+        <label>Total a pagar *</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="text" value="4.500.000" style="color:#667eea;font-weight:600;" />
+        </div>
+        <div class="hint">Saldo pendiente del compromiso</div>
+      </div>
+      <div class="field">
+        <label>Intereses (si aplica)</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="text" placeholder="$ 0" />
+        </div>
+      </div>
+      <div class="field">
+        <label>4x1000 (referencia)</label>
+        <div class="fi-wrap">
+          <span class="fi"></span>
+          <input type="text" value=" 18.000" style="color:#aaa;" readonly />
+        </div>
+      </div>
+    </div>
+
+    <div class="partial-toggle">
+      <input type="checkbox" id="parcial" style="width:16px;height:16px;cursor:pointer;" />
+      <label for="parcial"> Este es un pago parcial</label>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3: Comprobante (= "Facturas") -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon"></div>
+      <div>
+        <div class="card-title">Comprobante de Pago</div>
+        <div class="card-sub">PDF o imagen del soporte de la transaccion</div>
+      </div>
+    </div>
+    <div class="upload-zone">
+      <div style="font-size:28px;margin-bottom:8px;"></div>
+      <div style="font-size:13px;color:#777;font-weight:500;">
+        Arrastra el comprobante aqui o <span class="upload-link">selecciona un archivo</span>
+      </div>
+      <div style="font-size:11.5px;color:#aaa;margin-top:5px;">PDF, JPG, PNG  Max. 10MB  Se comprimira automaticamente</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4: Comentarios -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon"></div>
+      <div>
+        <div class="card-title">Comentarios</div>
+        <div class="card-sub">Observaciones opcionales</div>
+      </div>
+    </div>
+    <div class="field">
+      <textarea placeholder="Ej: Pago correspondiente al mes de febrero de 2026..."></textarea>
+    </div>
+  </div>
+
+  <div style="height:70px"></div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar hidden" id="bbar">
+  <button class="btn-bar-cancel"> Cancelar</button>
+  <button class="btn-bar-save" id="save-btn"> Faltan 2 campos</button>
+</div>
+
+<script>
+  function go(step) {
+    const ov = document.getElementById("ov");
+    const pg = document.getElementById("pg");
+    const b1 = document.getElementById("b1");
+    const b2 = document.getElementById("b2");
+    const bb = document.getElementById("bbar");
+    if (step === 1) {
+      ov.classList.remove("hidden");
+      pg.classList.add("dimmed");
+      bb.classList.add("hidden");
+      b1.className = "demo-btn on";
+      b2.className = "demo-btn off";
+    } else {
+      ov.classList.add("hidden");
+      pg.classList.remove("dimmed");
+      bb.classList.remove("hidden");
+      b1.className = "demo-btn off";
+      b2.className = "demo-btn on";
+    }
+  }
+  function pick(el) {
+    document.querySelectorAll(".ri").forEach(r => r.classList.remove("selected"));
+    el.classList.add("selected");
+  }
+  document.querySelectorAll(".mc").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".mc").forEach(c => c.classList.remove("on"));
+      chip.classList.add("on");
+    });
+  });
+</script>
+</body>
+</html>
