@@ -2,6 +2,43 @@
 
 # DR Group Dashboard - Instrucciones para Copilot
 
+---
+
+## 🔌 MCP SERVERS CONFIGURADOS
+
+Este proyecto tiene **dos servidores MCP activos** que permiten a Copilot acceder directamente a Firebase y Supabase desde el chat.
+
+### Configuración local (NO está en git — contiene token)
+El archivo real con credenciales está en `.vscode/mcp.json` (ignorado por `.gitignore`).
+El archivo de ejemplo sin token está en `.vscode/mcp.json.example`.
+
+### Para configurar en una máquina nueva:
+1. Copiar `.vscode/mcp.json.example` → `.vscode/mcp.json`
+2. Reemplazar `TU_TOKEN_AQUI` con el Personal Access Token de Supabase (generarlo en https://supabase.com/dashboard/account/tokens)
+3. Recargar VS Code: `Ctrl+Shift+P` → **Developer: Reload Window**
+
+### 1. 🔥 Firebase MCP
+- **Proyecto activo:** `dr-group-cd21b`
+- **Usuario:** `daruedagu@gmail.com`
+- **Servicios:** `auth`, `firestore`, `storage`, `functions`
+- **Autenticación:** Firebase CLI global (`firebase login` — ya autenticado)
+- **Capacidades:** Consultar/escribir Firestore, leer Auth, logs de Functions, validar Security Rules
+
+### 2. 🟢 Supabase MCP
+- **Proyecto:** `Dr-Group` (ID: `qkbziogeveimkninbfyk` — región us-east-1)
+- **Organización:** `Dr-Group` (ID: `dqtbjoouqoipxtogolbh`)
+- **Autenticación:** Personal Access Token en header (OAuth no funcionó — usar token)
+- **Capacidades:** Ejecutar SQL, gestionar tablas PostgreSQL, Edge Functions, logs, tipos TypeScript
+- **⚠️ IMPORTANTE:** El token va SOLO en `.vscode/mcp.json` local. NUNCA en el repo.
+
+### 🎯 Estado de migración Firebase → Supabase
+- **EN PROGRESO:** Migración completa de Firebase a Supabase (objetivo: reemplazar 100%)
+- Supabase ya tiene: `commitments` (374 filas), `asistencias` (121), `salas` (100) + 32 tablas creadas
+- Firebase actual: 35 colecciones con datos de producción
+- **Meta final:** Supabase reemplaza Auth + Firestore + Storage + Cloud Functions
+
+---
+
 ## 🎯 PROMPT DE COMPORTAMIENTO AVANZADO
 
 Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15+ años de experiencia. Tu metodología es meticulosa, sistemática y a prueba de errores.

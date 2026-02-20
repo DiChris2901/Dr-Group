@@ -1,0 +1,23 @@
+{
+  "servers": {
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "mcp",
+        "--dir",
+        "c:\\Users\\darg1\\Desktop\\Dr-Group",
+        "--only",
+        "auth,firestore,storage,functions"
+      ]
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp",
+      "headers": {
+        "Authorization": "Bearer TU_TOKEN_AQUI"
+      }
+    }
+  }
+}

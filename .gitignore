@@ -31,6 +31,7 @@ SETUP_LINUX.md
 # IDE and editor files - Optimizado para VS Code
 .vscode/chrome-debug-profile/
 .vscode/*.log
+.vscode/mcp.json
 .idea/
 *.swp
 *.swo
@@ -80,5 +81,5 @@ coverage/
 # Yarn Integrity file
 .yarn-integrity
 
-# Prevenir duplicación recursiva
+# Prevenir duplicaciï¿½n recursiva
 Dr-Group/
