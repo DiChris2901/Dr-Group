@@ -33,7 +33,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider
+  Divider,
+  Avatar
 } from '@mui/material';
 import {
   Warning,
@@ -412,10 +413,13 @@ const MaquinasEnCeroStats = ({
       align={align}
       sx={{
         fontWeight: 600,
-        fontSize: 12,
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        color: 'text.secondary',
         cursor: 'pointer',
         userSelect: 'none',
-        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.12) }
+        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
       }}
       onClick={() => handleSort(campo)}
     >
@@ -959,27 +963,28 @@ const MaquinasEnCeroStats = ({
         </Grid>
       </Grid>
 
-      {/* Severity breakdown */}
-      <Alert
-        severity={kpis.criticas > 0 ? 'error' : kpis.alertas > 0 ? 'warning' : 'info'}
-        sx={{ mb: 3, borderRadius: 1 }}
-        icon={kpis.criticas > 0 ? <ErrorIcon /> : kpis.alertas > 0 ? <Warning /> : <Info />}
-      >
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Typography variant="body2" fontWeight={500}>
-            Distribución:
-          </Typography>
-          <MuiTooltip title="Más de 90 días en cero. Requiere acción urgente: retiro, reubicación o mantenimiento mayor." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-            <Chip size="small" label={`${kpis.criticas} Críticas (>90d)`} color="error" variant={kpis.criticas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
-          </MuiTooltip>
-          <MuiTooltip title="Entre 30 y 90 días en cero. Monitorear: puede necesitar mantenimiento o reubicación." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-            <Chip size="small" label={`${kpis.alertas} Alertas (30-90d)`} color="warning" variant={kpis.alertas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
-          </MuiTooltip>
-          <MuiTooltip title="Menos de 30 días en cero. Podría ser temporal (mantenimiento, baja estacional). Seguimiento normal." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-            <Chip size="small" label={`${kpis.recientes} Recientes (<30d)`} color="info" variant={kpis.recientes > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
-          </MuiTooltip>
-        </Box>
-      </Alert>
+      {/* Severity breakdown - neutral bar */}
+      <Box sx={{
+        mb: 3, px: 2, py: 1.5, borderRadius: 1,
+        border: `1px solid ${theme.palette.divider}`,
+        display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap',
+        backgroundColor: theme.palette.mode === 'dark'
+          ? alpha(theme.palette.grey[900], 0.6)
+          : alpha(theme.palette.grey[50], 0.8)
+      }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+          Distribución
+        </Typography>
+        <MuiTooltip title="Más de 90 días en cero. Requiere acción urgente: retiro, reubicación o mantenimiento mayor." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.criticas} Críticas (>90d)`} color="error" variant={kpis.criticas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        </MuiTooltip>
+        <MuiTooltip title="Entre 30 y 90 días en cero. Monitorear: puede necesitar mantenimiento o reubicación." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.alertas} Alertas (30-90d)`} color="warning" variant={kpis.alertas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        </MuiTooltip>
+        <MuiTooltip title="Menos de 30 días en cero. Podría ser temporal (mantenimiento, baja estacional). Seguimiento normal." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.recientes} Recientes (<30d)`} color="info" variant={kpis.recientes > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        </MuiTooltip>
+      </Box>
 
       {/* FILTROS Y BÚSQUEDA */}
       <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -1081,20 +1086,20 @@ const MaquinasEnCeroStats = ({
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderBottom: `1px solid ${theme.palette.divider}` }}>
-                        <TableCell sx={{ fontWeight: 600, fontSize: 12, width: 32 }} />
-                        <TableCell sx={{ fontWeight: 600, fontSize: 12, width: 40 }}>#</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', width: 32 }} />
+                        <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', width: 40 }}>#</TableCell>
                         <SortableHeader campo="serial" label="Serial" />
-                        <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>NUC</TableCell>
-                        <TableCell sx={{ fontWeight: 600, fontSize: 12 }}>Tipo</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>NUC</TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>Tipo</TableCell>
                         <SortableHeader campo="sala" label="Sala" />
                         <SortableHeader campo="mesesEnCero" label="Meses en Cero" align="right" />
-                        <SortableHeader campo="mesesConsecutivos" label="Meses Consec." align="right" />
-                        <SortableHeader campo="diasCalendario" label="Días Calendario" align="right" />
+                        <SortableHeader campo="mesesConsecutivos" label="Consec." align="right" />
+                        <SortableHeader campo="diasCalendario" label="Días" align="right" />
                         <MuiTooltip title="Severidad según días en cero: Crítico (>90d), Alerta (30-90d), Reciente (<30d)" arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
-                          <TableCell align="center" sx={{ fontWeight: 600, fontSize: 12, cursor: 'help' }}>Nivel</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', cursor: 'help' }}>Nivel</TableCell>
                         </MuiTooltip>
                         <MuiTooltip title="'En Cero' = sin ingresos en el último periodo. 'Recuperada' = volvió a generar ingresos." arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
-                          <TableCell align="center" sx={{ fontWeight: 600, fontSize: 12, cursor: 'help' }}>Estado</TableCell>
+                          <TableCell align="center" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', cursor: 'help' }}>Estado</TableCell>
                         </MuiTooltip>
                       </TableRow>
                     </TableHead>
@@ -1185,12 +1190,12 @@ const MaquinasEnCeroStats = ({
                                           return null;
                                         })()}
 
-                                        <Grid container spacing={2}>
+                                        <Grid container spacing={2} alignItems="stretch">
                                           {/* Fecha inicio en cero */}
-                                          <Grid item xs={12} sm={3}>
+                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
                                             <Box sx={{
-                                              display: 'flex', alignItems: 'center', gap: 1,
-                                              p: 1.5, borderRadius: 1,
+                                              display: 'flex', alignItems: 'flex-start', gap: 1,
+                                              p: 1.5, borderRadius: 1, width: '100%',
                                               backgroundColor: alpha(theme.palette.error.main, 0.06),
                                               border: `1px solid ${alpha(theme.palette.error.main, 0.4)}`
                                             }}>
@@ -1213,10 +1218,10 @@ const MaquinasEnCeroStats = ({
                                           </Grid>
 
                                           {/* Última producción / Período en cero */}
-                                          <Grid item xs={12} sm={3}>
+                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
                                             <Box sx={{
-                                              display: 'flex', alignItems: 'center', gap: 1,
-                                              p: 1.5, borderRadius: 1,
+                                              display: 'flex', alignItems: 'flex-start', gap: 1,
+                                              p: 1.5, borderRadius: 1, width: '100%',
                                               backgroundColor: alpha(theme.palette.warning.main, 0.06),
                                               border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`
                                             }}>
@@ -1241,10 +1246,10 @@ const MaquinasEnCeroStats = ({
                                           </Grid>
 
                                           {/* Estado actual / Recuperación */}
-                                          <Grid item xs={12} sm={3}>
+                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
                                             <Box sx={{
-                                              display: 'flex', alignItems: 'center', gap: 1,
-                                              p: 1.5, borderRadius: 1,
+                                              display: 'flex', alignItems: 'flex-start', gap: 1,
+                                              p: 1.5, borderRadius: 1, width: '100%',
                                               backgroundColor: m.esActualmenteEnCero
                                                 ? alpha(theme.palette.error.main, 0.06)
                                                 : alpha(theme.palette.success.main, 0.06),
@@ -1283,10 +1288,10 @@ const MaquinasEnCeroStats = ({
                                           </Grid>
 
                                           {/* Duración / Días exactos */}
-                                          <Grid item xs={12} sm={3}>
+                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
                                             <Box sx={{
-                                              display: 'flex', alignItems: 'center', gap: 1,
-                                              p: 1.5, borderRadius: 1,
+                                              display: 'flex', alignItems: 'flex-start', gap: 1,
+                                              p: 1.5, borderRadius: 1, width: '100%',
                                               backgroundColor: alpha(theme.palette.info.main, 0.06),
                                               border: `1px solid ${alpha(theme.palette.info.main, 0.4)}`
                                             }}>
@@ -1556,7 +1561,7 @@ const InfoBar = ({ data, theme, onUpload, onRecalcular, migrando, onBackfill, ba
             <MuiTooltip title="Extraer fechas exactas de inicio en cero desde los archivos históricos de liquidaciones">
               <Button
                 size="small"
-                variant="contained"
+                variant="outlined"
                 color="warning"
                 startIcon={backfillRunning ? <CircularProgress size={16} color="inherit" /> : <DateRange />}
                 onClick={onBackfill}
