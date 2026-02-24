@@ -206,10 +206,11 @@ Luego: `Ctrl+Shift+P` → **Developer: Reload Window**
 
 ### ⚠️ ADVERTENCIAS CRÍTICAS (ambos OS)
 
-> **VS Code NO carga `.zshrc` / `.bashrc` / perfil de PowerShell al lanzar MCPs.** El `mcp.json` DEBE usar la ruta **absoluta** de npx:
-> - **macOS:** `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
-> - **Windows:** `C:\Users\TU_USUARIO\AppData\Roaming\nvm\VERSION\npx.cmd`
-> Si se usa solo `"npx"`, los MCPs fallarán con `command not found: npx`.
+> **VS Code NO carga `.zshrc` / `.bashrc` / perfil de PowerShell al lanzar MCPs.** El `mcp.json` DEBE usar la ruta **absoluta** de npx Y agregar `env.PATH`:
+> - **macOS:** `command` = `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
+> - **Windows:** `command` = `C:\Users\TU_USUARIO\AppData\Roaming\nvm\VERSION\npx.cmd`
+> - **Todos los servidores** deben tener `"env": { "PATH": "/ruta/nvm/node/bin:/usr/local/bin:/usr/bin:/bin" }`
+> Sin el `env.PATH`, `npx` falla con `env: node: No such file or directory` (exit 127) porque su shebang `#!/usr/bin/env node` no encuentra `node`.
 
 > **`mcp.json` está en `.gitignore`** — contiene tokens privados. NUNCA hacer commit. El template sin tokens es `.vscode/mcp.json.example` (este sí está en git).
 

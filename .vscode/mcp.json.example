@@ -42,7 +42,10 @@
         "/RUTA_ABSOLUTA_MAC",
         "--only",
         "auth,firestore,storage,functions"
-      ]
+      ],
+      "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     },
     "github": {
       "_info": "Accede a PRs, issues, commits y blame del repo DiChris2901/Dr-Group. El PAT va SOLO aquí, NUNCA en el repo.",
@@ -51,6 +54,7 @@
       "command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "GITHUB_PERSONAL_ACCESS_TOKEN": "TU_PAT_AQUI"
       }
     },
@@ -63,28 +67,40 @@
         "-y",
         "@modelcontextprotocol/server-filesystem",
         "/RUTA_ABSOLUTA_MAC"
-      ]
+      ],
+      "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     },
     "sequential-thinking": {
       "_info": "Razonamiento estructurado paso a paso. No requiere rutas adicionales.",
       "_mac_command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
       "_win_command": "RUTA_NPX_WINDOWS",
       "command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     },
     "playwright": {
       "_info": "QA visual de https://dr-group-dashboard.web.app post-deploy.",
       "_mac_command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
       "_win_command": "RUTA_NPX_WINDOWS",
       "command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "args": ["-y", "@playwright/mcp@latest"],
+      "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     },
     "excel": {
       "_info": "Leer y analizar archivos .xlsx locales del proyecto.",
       "_mac_command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
       "_win_command": "RUTA_NPX_WINDOWS",
       "command": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin/npx",
-      "args": ["-y", "@negokaz/excel-mcp-server"]
+      "args": ["-y", "@negokaz/excel-mcp-server"],
+      "env": {
+        "PATH": "/RUTA_HOME_MAC/.nvm/versions/node/VERSION_NODE/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+      }
     }
   }
 }
