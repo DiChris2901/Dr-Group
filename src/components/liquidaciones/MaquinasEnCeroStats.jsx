@@ -432,12 +432,12 @@ const MaquinasEnCeroStats = ({
       const { campo, dir } = ordenamiento;
       let va, vb;
       switch (campo) {
-        case 'diasCalendario': va = a.diasCalendario; vb = b.diasCalendario; break;
-        case 'mesesConsecutivos': va = a.mesesConsecutivos; vb = b.mesesConsecutivos; break;
-        case 'mesesEnCero': va = a.mesesEnCero; vb = b.mesesEnCero; break;
+        case 'diasCalendario': va = a.esActualmenteEnCero ? a.diasCalendario : 0; vb = b.esActualmenteEnCero ? b.diasCalendario : 0; break;
+        case 'mesesConsecutivos': va = a.esActualmenteEnCero ? a.mesesConsecutivos : 0; vb = b.esActualmenteEnCero ? b.mesesConsecutivos : 0; break;
+        case 'mesesEnCero': va = a.esActualmenteEnCero ? a.mesesEnCero : 0; vb = b.esActualmenteEnCero ? b.mesesEnCero : 0; break;
         case 'sala': return dir === 'asc' ? a.sala.localeCompare(b.sala) : b.sala.localeCompare(a.sala);
         case 'serial': return dir === 'asc' ? (a.serial || '').localeCompare(b.serial || '') : (b.serial || '').localeCompare(a.serial || '');
-        default: va = a.diasCalendario; vb = b.diasCalendario;
+        default: va = a.esActualmenteEnCero ? a.diasCalendario : 0; vb = b.esActualmenteEnCero ? b.diasCalendario : 0;
       }
       return dir === 'asc' ? va - vb : vb - va;
     });
