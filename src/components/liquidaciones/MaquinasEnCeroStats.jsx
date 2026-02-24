@@ -1298,10 +1298,22 @@ const MaquinasEnCeroStats = ({
                                                 <Box>
                                                   <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Última producción</Typography>
                                                   <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
-                                                    {m.ultimoEpisodio?.ultimaFechaConProduccion
-                                                      ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                                                      : formatPeriodoLabel(m.ultimoCero)}
+                                                    {(() => {
+                                                      if (m.ultimoEpisodio?.ultimaFechaConProduccion) {
+                                                        return new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                      }
+                                                      // Aproximar: mes anterior al primer periodo en cero
+                                                      const primerCeroDate = periodoToDate(m.ultimoEpisodio?.periodoOrigen || m.primerCero);
+                                                      if (primerCeroDate) {
+                                                        const prevMonth = new Date(primerCeroDate.getFullYear(), primerCeroDate.getMonth() - 1, 1);
+                                                        return prevMonth.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+                                                      }
+                                                      return 'Sin datos';
+                                                    })()}
                                                   </Typography>
+                                                  {!m.ultimoEpisodio?.ultimaFechaConProduccion && (periodoToDate(m.ultimoEpisodio?.periodoOrigen || m.primerCero)) && (
+                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. mes anterior al primer cero</Typography>
+                                                  )}
                                                   {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
                                                     <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}</Typography>
                                                   )}
