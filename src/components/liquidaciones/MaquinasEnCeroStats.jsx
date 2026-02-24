@@ -127,8 +127,6 @@ const MaquinasEnCeroStats = ({
   // ===== ESTADOS DE UPLOAD HOUNDOC =====
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
-  const [uploadPeriodoMes, setUploadPeriodoMes] = useState('');
-  const [uploadPeriodoAnio, setUploadPeriodoAnio] = useState(new Date().getFullYear().toString());
   const [uploadPreview, setUploadPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -255,12 +253,20 @@ const MaquinasEnCeroStats = ({
   };
 
   const handleConfirmUpload = async () => {
-    if (!uploadFile || !uploadPreview || !uploadPeriodoMes || !uploadPeriodoAnio) {
-      addNotification?.('Selecciona un archivo y especifica el periodo', 'warning');
+    if (!uploadFile || !uploadPreview) {
+      addNotification?.('Selecciona un archivo válido', 'warning');
       return;
     }
 
-    const periodoStr = `${uploadPeriodoMes}_${uploadPeriodoAnio}`;
+    if (!uploadPreview.periodoDetectado) {
+      addNotification?.(
+        'No se pudo detectar el periodo del archivo. Verifica que contenga una columna de fecha o un título con el periodo.',
+        'warning'
+      );
+      return;
+    }
+
+    const periodoStr = uploadPreview.periodoDetectado.periodoStr;
 
     setUploading(true);
     try {
@@ -294,7 +300,6 @@ const MaquinasEnCeroStats = ({
       setUploadModalOpen(false);
       setUploadFile(null);
       setUploadPreview(null);
-      setUploadPeriodoMes('');
     } catch (err) {
       console.error('Error actualizando con Houndoc:', err);
       addNotification?.('Error al actualizar datos: ' + err.message, 'error');
@@ -794,42 +799,10 @@ const MaquinasEnCeroStats = ({
         </Box>
       </DialogTitle>
       <DialogContent sx={{ p: 3, pt: 4 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Sube un archivo Excel/CSV descargado de Houndoc con la misma estructura de las liquidaciones.
-          Se procesará y actualizará el análisis de máquinas en cero.
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Sube el archivo de liquidaciones descargado de Houndoc. El periodo se detecta automáticamente
+          de la última fecha registrada en el archivo.
         </Typography>
-
-        {/* Period selector */}
-        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-          Periodo del archivo:
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={7}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Mes</InputLabel>
-              <Select
-                value={uploadPeriodoMes}
-                label="Mes"
-                onChange={(e) => setUploadPeriodoMes(e.target.value)}
-              >
-                {MESES.map(m => (
-                  <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={5}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Año"
-              type="number"
-              value={uploadPeriodoAnio}
-              onChange={(e) => setUploadPeriodoAnio(e.target.value)}
-              inputProps={{ min: 2020, max: 2040 }}
-            />
-          </Grid>
-        </Grid>
 
         {/* File picker */}
         <Button
@@ -849,6 +822,36 @@ const MaquinasEnCeroStats = ({
           style={{ display: 'none' }}
           onChange={handleFileSelect}
         />
+
+        {/* Periodo auto-detectado */}
+        {uploadPreview?.periodoDetectado && (
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 1.5, mb: 2,
+            p: 1.5, borderRadius: 1,
+            backgroundColor: alpha(theme.palette.success.main, 0.08),
+            border: `1px solid ${alpha(theme.palette.success.main, 0.35)}`
+          }}>
+            <DateRange sx={{ fontSize: 20, color: theme.palette.success.main }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 10 }}>
+                Periodo detectado automáticamente
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
+                {uploadPreview.periodoDetectado.label}
+              </Typography>
+              {uploadPreview.periodoDetectado.fechaISO && (
+                <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 10 }}>
+                  Última fecha en el archivo: {new Date(uploadPreview.periodoDetectado.fechaISO + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+        {uploadPreview && !uploadPreview.periodoDetectado && (
+          <Alert severity="warning" sx={{ mb: 2, borderRadius: 1 }}>
+            No se detectó fecha en el archivo. Verifica que tenga columna &quot;Fecha&quot; o un título con el periodo.
+          </Alert>
+        )}
 
         {/* Preview */}
         {uploadPreview && (
@@ -887,7 +890,7 @@ const MaquinasEnCeroStats = ({
           <Button
             variant="contained"
             onClick={handleConfirmUpload}
-            disabled={!uploadFile || !uploadPreview || !uploadPeriodoMes || !uploadPeriodoAnio || uploading}
+            disabled={!uploadFile || !uploadPreview || !uploadPreview?.periodoDetectado || uploading}
             startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <Save />}
             sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
           >

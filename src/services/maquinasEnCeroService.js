@@ -769,8 +769,28 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
     throw new Error('El archivo no contiene datos suficientes');
   }
 
+  // ===== DETECCIÓN DE PERIODO EN FILAS DE TÍTULO (pre-header) =====
+  // Antes de buscar la cabecera, escanear las primeras filas buscando menciones
+  // de mes/año en texto (ej: "Periodo: Enero 2026", "enero_2026", "31/01/2026", etc.)
+  const MESES_ES = [
+    'enero','febrero','marzo','abril','mayo','junio',
+    'julio','agosto','septiembre','octubre','noviembre','diciembre'
+  ];
+  let periodoDesdeTexto = null;
+  for (let fila = 0; fila < Math.min(10, data.length); fila++) {
+    const row = data[fila];
+    if (!row) continue;
+    const rowStr = row.map(c => String(c || '').toLowerCase().trim()).join(' ');
+    const mesEncontrado = MESES_ES.find(m => rowStr.includes(m));
+    const añoMatch = rowStr.match(/\b(202\d|203\d)\b/);
+    if (mesEncontrado && añoMatch) {
+      periodoDesdeTexto = `${mesEncontrado}_${añoMatch[0]}`;
+      break;
+    }
+  }
+
   // Detect header row
-  const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion'];
+  const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion', 'fecha'];
   let headerRow = -1;
 
   for (let fila = 0; fila < Math.min(15, data.length); fila++) {
@@ -819,6 +839,8 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
     else if (h.includes('produccion') || h.includes('ingresos') || h.includes('valor') || h.includes('monto')) {
       if (!columnMap.baseLiquidacion) columnMap.baseLiquidacion = index;
     }
+    // Columna de fecha (para auto-detectar el periodo)
+    else if (h.includes('fecha')) { if (!columnMap.fecha) columnMap.fecha = index; }
   });
 
   if (columnMap.nuc === undefined) {
@@ -828,6 +850,7 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
   // Process rows
   const rows = data.slice(headerRow + 1);
   const machinesByKey = new Map();
+  let ultimaFechaMs = null;  // Para auto-detectar el periodo
 
   rows.forEach(row => {
     if (!row || !Array.isArray(row)) return;
@@ -842,6 +865,22 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
     if (columnMap.baseLiquidacion !== undefined) {
       const raw = row[columnMap.baseLiquidacion];
       produccion = Number(raw) || 0;
+    }
+
+    // Extraer fecha para detectar el periodo del archivo
+    if (columnMap.fecha !== undefined && row[columnMap.fecha] != null && row[columnMap.fecha] !== '') {
+      const raw = row[columnMap.fecha];
+      let fechaMs = null;
+      if (typeof raw === 'number') {
+        // Excel serial date → JS timestamp (ms)
+        fechaMs = (raw - 25569) * 86400 * 1000;
+      } else {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) fechaMs = d.getTime();
+      }
+      if (fechaMs !== null && (ultimaFechaMs === null || fechaMs > ultimaFechaMs)) {
+        ultimaFechaMs = fechaMs;
+      }
     }
 
     const key = serial ? `${serial}__${establecimiento}` : `${nuc}__${establecimiento}`;
@@ -886,8 +925,39 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
   const totalMaquinas = machines.length;
   const enCero = machines.filter(m => m.esEnCero).length;
 
+  // ===== CONSTRUIR PERIODO AUTO-DETECTADO =====
+  // Prioridad: 1) última fecha de columna 'fecha', 2) texto en título, 3) null
+  let ultimaFecha = null;
+  let periodoDetectado = null;
+
+  if (ultimaFechaMs !== null) {
+    ultimaFecha = new Date(ultimaFechaMs);
+    const mes = MESES_ES[ultimaFecha.getUTCMonth()];
+    const anio = ultimaFecha.getUTCFullYear().toString();
+    periodoDetectado = {
+      periodoStr: `${mes}_${anio}`,
+      mes,
+      anio,
+      label: `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`,
+      fuente: 'fechaColumna',
+      fechaISO: ultimaFecha.toISOString().slice(0, 10)
+    };
+  } else if (periodoDesdeTexto) {
+    const [mes, anio] = periodoDesdeTexto.split('_');
+    periodoDetectado = {
+      periodoStr: periodoDesdeTexto,
+      mes,
+      anio,
+      label: `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`,
+      fuente: 'textoTitulo',
+      fechaISO: null
+    };
+  }
+
   return {
     machines,
+    ultimaFecha,
+    periodoDetectado,
     summary: {
       totalMaquinas,
       enCero,
