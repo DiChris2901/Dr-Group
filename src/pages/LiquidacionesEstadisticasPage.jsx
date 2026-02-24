@@ -1172,12 +1172,14 @@ const LiquidacionesEstadisticasPage = () => {
               alignItems: 'center',
               gap: 1
             }}>
-              Estadísticas de Liquidaciones
+              {contentTab === 1 ? 'Máquinas en Cero' : 'Estadísticas de Liquidaciones'}
             </Typography>
             <Typography variant="body1" sx={{
               color: 'rgba(255, 255, 255, 0.9)'
             }}>
-              Análisis comparativo por últimos 3, 6 o 12 meses
+              {contentTab === 1
+                ? 'Seguimiento de máquinas sin liquidación por sala y período'
+                : 'Análisis comparativo por últimos 3, 6 o 12 meses'}
             </Typography>
           </Box>
         </Paper>
