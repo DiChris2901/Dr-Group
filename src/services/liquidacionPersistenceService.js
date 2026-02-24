@@ -581,6 +581,28 @@ class LiquidacionPersistenceService {
       
       try {
         const salaIds = await this.saveLiquidacionesPorSala(liquidacionData, userId, liquidacionId, liquidacionDoc);
+
+        // 🆕 Actualizar pre-cómputo de máquinas en cero (no bloqueante)
+        try {
+          const { updateConNuevoPeriodo, normalizeEmpresa } = await import('./maquinasEnCeroService');
+          const empresaNorm = normalizeEmpresa(liquidacionDoc.empresa?.nombre || empresa);
+          const empresaNombre = liquidacionDoc.empresa?.nombre || empresa;
+
+          // Leer los docs recién guardados de liquidaciones_por_sala para esta empresa
+          const liqPorSalaQuery = query(
+            collection(db, 'liquidaciones_por_sala'),
+            where('liquidacionId', '==', liquidacionId)
+          );
+          const liqPorSalaSnap = await getDocs(liqPorSalaQuery);
+          const newDocs = liqPorSalaSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+          if (newDocs.length > 0) {
+            await updateConNuevoPeriodo(empresaNorm, empresaNombre, newDocs, 'liquidacion');
+          }
+        } catch (maqErr) {
+          // No interrumpir flujo principal si falla la actualización de máquinas en cero
+          console.warn('⚠️ No se pudo actualizar máquinas en cero:', maqErr.message);
+        }
       } catch (error) {
         console.error('❌ ERROR CRÍTICO guardando liquidaciones por sala:');
         console.error('Error completo:', error);

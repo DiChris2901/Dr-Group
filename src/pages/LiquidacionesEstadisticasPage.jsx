@@ -44,7 +44,8 @@ import {
   Visibility as VisibilityIcon,
   Error as ErrorIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  DoNotDisturbOn
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import {
@@ -69,6 +70,7 @@ import { exportarDetalleSalaExcel } from '../utils/salaDetalleExcelExport';
 import { useNotifications } from '../context/NotificationsContext';
 import SalaDetallePorMesModal from '../components/modals/SalaDetallePorMesModal';
 import MaquinaDetallePorMesModal from '../components/modals/MaquinaDetallePorMesModal';
+import MaquinasEnCeroStats from '../components/liquidaciones/MaquinasEnCeroStats';
 
 // ===== PÁGINA DE ESTADÍSTICAS DE LIQUIDACIONES =====
 // Comparativas por rangos de meses (3, 6 y 12 meses)
@@ -82,6 +84,7 @@ const LiquidacionesEstadisticasPage = () => {
 
   // ===== ESTADOS =====
   const [loading, setLoading] = useState(true);
+  const [contentTab, setContentTab] = useState(0); // 0: Estadísticas, 1: Máquinas en Cero
   const [empresas, setEmpresas] = useState([]);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState('todas');
   const [salaSeleccionada, setSalaSeleccionada] = useState('todas');
@@ -1180,6 +1183,40 @@ const LiquidacionesEstadisticasPage = () => {
         </Paper>
       </motion.div>
 
+      {/* TABS DE CONTENIDO */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+      >
+        <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <Tabs
+            value={contentTab}
+            onChange={(e, newValue) => setContentTab(newValue)}
+            variant="fullWidth"
+            sx={{
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                py: 1.5
+              },
+              '& .Mui-selected': {
+                color: contentTab === 1 ? theme.palette.error.main : theme.palette.primary.main
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: contentTab === 1 ? theme.palette.error.main : theme.palette.primary.main,
+                height: 3,
+                borderRadius: '3px 3px 0 0'
+              }
+            }}
+          >
+            <Tab label="📊 Estadísticas Generales" icon={<Assessment />} iconPosition="start" />
+            <Tab label="🔴 Máquinas en Cero" icon={<DoNotDisturbOn />} iconPosition="start" />
+          </Tabs>
+        </Card>
+      </motion.div>
+
       {/* FILTROS */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -1228,7 +1265,8 @@ const LiquidacionesEstadisticasPage = () => {
         </Card>
       </motion.div>
 
-      {/* TABS DE PERÍODO */}
+      {/* TABS DE PERÍODO - Solo visible para Estadísticas Generales */}
+      {contentTab === 0 && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1254,7 +1292,11 @@ const LiquidacionesEstadisticasPage = () => {
           </Tabs>
         </Card>
       </motion.div>
+      )}
 
+      {/* ===== CONTENIDO TAB: ESTADÍSTICAS GENERALES ===== */}
+      {contentTab === 0 && (
+      <>
       {/* ALERTAS */}
       {alertas.length > 0 && (
         <motion.div
@@ -1964,9 +2006,11 @@ const LiquidacionesEstadisticasPage = () => {
           </Card>
         </motion.div>
       )}
+      </>
+      )}
 
       {/* EMPTY STATE */}
-      {!datosEstadisticos && !loading && (
+      {contentTab === 0 && !datosEstadisticos && !loading && (
         <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 4, textAlign: 'center' }}>
           <Assessment sx={{ fontSize: 80, color: theme.palette.text.disabled, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
@@ -1976,6 +2020,14 @@ const LiquidacionesEstadisticasPage = () => {
             Intenta seleccionar otra empresa o período
           </Typography>
         </Card>
+      )}
+
+      {/* TAB: MÁQUINAS EN CERO */}
+      {contentTab === 1 && (
+        <MaquinasEnCeroStats
+          empresaSeleccionada={empresaSeleccionada}
+          addNotification={addNotification}
+        />
       )}
 
       {/* MODAL: DETALLE POR MES DE LA SALA */}
