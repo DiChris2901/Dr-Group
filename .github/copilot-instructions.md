@@ -6,51 +6,179 @@
 
 ## 🔌 MCP SERVERS CONFIGURADOS
 
-Este proyecto tiene **6 servidores MCP activos** que permiten a Copilot acceder directamente a servicios externos, el sistema de archivos y herramientas de razonamiento desde el chat.
+Este proyecto usa **6 servidores MCP** que permiten a Copilot acceder a Firebase, GitHub, el sistema de archivos, razonamiento estructurado, testing visual y archivos Excel directamente desde el chat.
+
+### 📋 INVENTARIO OFICIAL DE MCPs
+
+| # | Nombre | Paquete npm | Versión | Propósito |
+|---|--------|-------------|---------|-----------|
+| 1 | 🔥 **firebase** | `firebase-tools` (global CLI) | `15.7.0+` | Firestore, Auth, Storage, Functions del proyecto `dr-group-cd21b` |
+| 2 | 🐙 **github** | `@modelcontextprotocol/server-github` | `2025.4.8+` | PRs, issues, commits, blame, historial del repo |
+| 3 | 📁 **filesystem** | `@modelcontextprotocol/server-filesystem` | `2026.1.14+` | Acceso completo al workspace con mayor contexto |
+| 4 | 🧠 **sequential-thinking** | `@modelcontextprotocol/server-sequential-thinking` | `2025.12.18+` | Razonamiento paso a paso para arquitecturas complejas |
+| 5 | 🎭 **playwright** | `@playwright/mcp` | `0.0.68+` | QA visual de `https://dr-group-dashboard.web.app`, testing automatizado |
+| 6 | 📊 **excel** | `@negokaz/excel-mcp-server` | `0.12.0+` | Leer/analizar archivos `.xlsx` locales del proyecto |
+
+---
+
+### 🚨 PROTOCOLO DE DETECCIÓN AL INICIO DE SESIÓN
+
+**AL COMENZAR CADA SESIÓN, Copilot DEBE verificar si los MCPs están activos.**
+
+Si el usuario reporta errores de MCP o si los servidores no responden, ejecutar diagnóstico:
+
+```bash
+# 1. Verificar Node y npx disponibles
+node --version && npx --version
+
+# 2. Verificar Firebase CLI y auth
+firebase --version && firebase login:list
+
+# 3. Verificar que mcp.json existe y tiene ruta absoluta de npx
+cat .vscode/mcp.json | grep command
+
+# 4. Verificar versión de Node en NVM (para la ruta absoluta correcta)
+ls ~/.nvm/versions/node/
+```
+
+Si alguno falla → ejecutar el **Protocolo de Instalación Completa** de abajo.
+
+---
+
+### 🛠️ PROTOCOLO DE INSTALACIÓN COMPLETA (Máquina nueva o entorno roto)
+
+Ejecutar en orden. Comandos para **macOS (bash/zsh)**:
+
+#### PASO 1 — NVM + Node.js (NO requiere permisos admin)
+```bash
+# Instalar NVM
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Crear ~/.zshrc con Homebrew + NVM
+cat > ~/.zshrc << 'EOF'
+# Homebrew
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# NVM - Node Version Manager
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+EOF
+
+# Cargar NVM en sesión actual e instalar Node LTS
+export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh"
+nvm install --lts && nvm use --lts && nvm alias default node
+
+# Verificar → debe mostrar v24.x.x
+node --version && npm --version
+```
+
+#### PASO 2 — Homebrew (requiere contraseña admin — abrir Terminal.app nativo)
+```bash
+# Ejecutar en Terminal.app (NO en VS Code — requiere prompts interactivos)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# → Ingresar contraseña de Mac cuando la pida
+# → Presionar ENTER cuando lo solicite
+```
+
+#### PASO 3 — Firebase CLI
+```bash
+export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh"
+npm install -g firebase-tools
+firebase login            # Abre navegador → seleccionar daruedagu@gmail.com
+firebase use dr-group-cd21b
+firebase --version        # debe mostrar 15.x.x
+```
+
+#### PASO 4 — Git + GitHub auth (PAT en keychain macOS)
+```bash
+git config --global user.name "Diego Rueda"
+git config --global user.email "daruedagu@gmail.com"
+git config --global credential.helper osxkeychain
+
+# Guardar PAT en keychain (reemplazar TU_PAT con el token real de GitHub)
+printf "protocol=https\nhost=github.com\nusername=DiChris2901\npassword=TU_PAT\n" | git credential approve
+
+# Verificar: debe hacer fetch sin pedir contraseña
+cd /ruta/al/proyecto && git fetch origin
+```
+
+#### PASO 5 — Crear mcp.json local
+```bash
+# 1. Obtener ruta absoluta de npx (con NVM activo)
+export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh" && which npx
+# → Resultado: /Users/tunombre/.nvm/versions/node/v24.14.0/bin/npx
+
+# 2. Copiar ejemplo y editar
+cp .vscode/mcp.json.example .vscode/mcp.json
+# Editar .vscode/mcp.json y reemplazar los 4 placeholders:
+# RUTA_HOME        → tu home real             (ej: /Users/diegor)
+# VERSION_NODE     → tu versión de Node       (ej: v24.14.0)
+# RUTA_ABSOLUTA    → ruta completa al proyecto (ej: /Users/diegor/Desktop/Dr-Group)
+# TU_PAT_AQUI      → Personal Access Token de GitHub
+```
+
+#### PASO 6 — Dependencias del proyecto
+```bash
+# Dashboard web
+npm install
+
+# App móvil
+cd mobile && npm install && cd ..
+```
+
+#### PASO 7 — Verificación final y reload
+```bash
+export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh"
+node --version && firebase --version && git --version
+```
+Luego en VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
+
+---
+
+### ⚠️ ADVERTENCIAS CRÍTICAS
+
+> **VS Code NO carga `.zshrc` al lanzar MCPs** — `npx` del PATH del shell no es visible. El `mcp.json` DEBE usar la ruta **absoluta** de npx:
+> `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
+> Si se usa solo `"npx"`, los MCPs fallarán con `command not found: npx`.
+
+> **`mcp.json` está en `.gitignore`** — contiene tokens privados. NUNCA hacer commit. El template sin tokens es `.vscode/mcp.json.example` (este sí está en git).
+
+> **GitHub PAT** va SOLO en `.vscode/mcp.json` local. NUNCA en el repo ni en copilot-instructions.
+
+---
 
 ### Configuración local (NO está en git — contiene tokens)
-El archivo real con credenciales está en `.vscode/mcp.json` (ignorado por `.gitignore`).
-El archivo de ejemplo sin tokens está en `.vscode/mcp.json.example`.
+- Archivo real: `.vscode/mcp.json` → ignorado por `.gitignore`, contiene tokens
+- Archivo template: `.vscode/mcp.json.example` → en git, sin tokens, úsalo como base
 
-### Para configurar en una máquina nueva:
-1. Copiar `.vscode/mcp.json.example` → `.vscode/mcp.json`
-2. Reemplazar `/RUTA_HOME` con tu home directory (ej: `/Users/tunombre`)
-3. Reemplazar `VERSION_NODE` con la versión de Node instalada via NVM (ej: `v24.14.0`) — verificar con `ls ~/.nvm/versions/node/`
-4. Reemplazar `/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group` con la ruta real del proyecto
-5. Reemplazar `TU_PAT_AQUI` con el Personal Access Token de GitHub (generarlo en https://github.com/settings/tokens)
-6. Recargar VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
+### Descripción individual de cada MCP
 
-> ⚠️ **IMPORTANTE — PATH de npx:** VS Code no carga `.zshrc` al lanzar MCPs, por lo que `npx` del PATH del shell NO es visible. Se debe usar la ruta absoluta: `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
-
-### 1. 🔥 Firebase MCP
+#### 1. 🔥 Firebase MCP
 - **Proyecto activo:** `dr-group-cd21b`
 - **Usuario:** `daruedagu@gmail.com`
 - **Servicios:** `auth`, `firestore`, `storage`, `functions`
-- **Autenticación:** Firebase CLI global (`firebase login` — ya autenticado)
+- **Autenticación:** Firebase CLI global (`firebase login` — debe estar autenticado)
 - **Capacidades:** Consultar/escribir Firestore, leer Auth, logs de Functions, validar Security Rules
 
-### 2. 🐙 GitHub MCP
-- **Paquete:** `@modelcontextprotocol/server-github`
+#### 2. 🐙 GitHub MCP
+- **Repo:** `DiChris2901/Dr-Group`
 - **Autenticación:** Personal Access Token (PAT) en variable de entorno `GITHUB_PERSONAL_ACCESS_TOKEN`
-- **⚠️ IMPORTANTE:** El PAT va SOLO en `.vscode/mcp.json` local. NUNCA en el repo.
 - **Capacidades:** Ver PRs, issues, historial de commits, blame de archivos, crear issues, revisar código
 
-### 3. 📁 Filesystem MCP
-- **Paquete:** `@modelcontextprotocol/server-filesystem`
+#### 3. 📁 Filesystem MCP
 - **Raíz:** Workspace completo del proyecto
-- **Capacidades:** Leer/escribir archivos con mayor contexto, operaciones sobre múltiples archivos
+- **Capacidades:** Leer/escribir archivos con mayor contexto que las herramientas estándar de VS Code
 
-### 4. 🧠 Sequential Thinking MCP
-- **Paquete:** `@modelcontextprotocol/server-sequential-thinking`
-- **Capacidades:** Razonamiento estructurado paso a paso antes de implementar arquitecturas complejas
+#### 4. 🧠 Sequential Thinking MCP
+- **Capacidades:** Razonamiento estructurado paso a paso antes de implementar arquitecturas complejas, migraciones o refactorizaciones grandes
 
-### 5. 🎭 Playwright MCP
-- **Paquete:** `@playwright/mcp@latest`
-- **Capacidades:** QA visual del dashboard en `https://dr-group-dashboard.web.app`, verificar deploys, testing automatizado
+#### 5. 🎭 Playwright MCP
+- **URL objetivo:** `https://dr-group-dashboard.web.app`
+- **Capacidades:** QA visual post-deploy, verificar que el dashboard funciona, testing automatizado de flujos críticos
 
-### 6. 📊 Excel MCP
-- **Paquete:** `@negokaz/excel-mcp-server`
-- **Capacidades:** Leer y analizar archivos `.xlsx` locales del proyecto (reportes, exportaciones)
+#### 6. 📊 Excel MCP
+- **Capacidades:** Leer y analizar archivos `.xlsx` locales del proyecto (reportes exportados, datos de prueba)
 
 ---
 

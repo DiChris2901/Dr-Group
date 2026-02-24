@@ -1,18 +1,37 @@
 {
+  "_LEEME": [
+    "INSTRUCCIONES DE USO:",
+    "1. Copiar este archivo → .vscode/mcp.json  (el .json real está en .gitignore)",
+    "2. Eliminar esta clave '_LEEME' del archivo copiado",
+    "3. Obtener la ruta absoluta de npx (con NVM activo): which npx",
+    "   Resultado esperado: /Users/tunombre/.nvm/versions/node/v24.14.0/bin/npx",
+    "4. Reemplazar los 4 placeholders en TODAS las entradas 'command':",
+    "   RUTA_HOME        → tu home real            (ej: /Users/diegor)",
+    "   VERSION_NODE     → tu versión de Node      (ej: v24.14.0) — ver con: ls ~/.nvm/versions/node/",
+    "   RUTA_ABSOLUTA    → ruta completa al proyecto (ej: /Users/diegor/Desktop/Dr-Group)",
+    "   TU_PAT_AQUI      → Personal Access Token de GitHub (https://github.com/settings/tokens)",
+    "5. Cmd+Shift+P → Developer: Reload Window",
+    "",
+    "ADVERTENCIA CRÍTICA: VS Code NO carga .zshrc al lanzar MCPs.",
+    "Usar SIEMPRE la ruta absoluta de npx — nunca solo 'npx'.",
+    "Error típico si se usa 'npx': The command 'npx' needed to run X was not found."
+  ],
   "servers": {
     "firebase": {
+      "_info": "Accede a Firestore, Auth, Storage y Functions del proyecto dr-group-cd21b. Requiere: firebase login con daruedagu@gmail.com",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": [
         "-y",
         "firebase-tools@latest",
         "mcp",
         "--dir",
-        "/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group",
+        "/RUTA_ABSOLUTA",
         "--only",
         "auth,firestore,storage,functions"
       ]
     },
     "github": {
+      "_info": "Accede a PRs, issues, commits y blame del repo DiChris2901/Dr-Group. El PAT va SOLO aquí, NUNCA en el repo.",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
@@ -20,22 +39,26 @@
       }
     },
     "filesystem": {
+      "_info": "Acceso completo al workspace del proyecto para leer/escribir archivos con mayor contexto.",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group"
+        "/RUTA_ABSOLUTA"
       ]
     },
     "sequential-thinking": {
+      "_info": "Razonamiento estructurado paso a paso para arquitecturas complejas y migraciones.",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "playwright": {
+      "_info": "QA visual y testing automatizado de https://dr-group-dashboard.web.app post-deploy.",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@playwright/mcp@latest"]
     },
     "excel": {
+      "_info": "Leer y analizar archivos .xlsx locales del proyecto (reportes exportados, datos de prueba).",
       "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@negokaz/excel-mcp-server"]
     }
