@@ -80,7 +80,9 @@ import {
   updateConHoundoc,
   parseHoundocFile,
   normalizeEmpresa,
-  formatPeriodoLabel
+  formatPeriodoLabel,
+  backfillFechasExactas,
+  actualizarEpisodiosDesdeHoundoc
 } from '../../services/maquinasEnCeroService';
 
 // ===== COMPONENTE: MÁQUINAS EN CERO — ANÁLISIS ESTADÍSTICO =====
@@ -114,6 +116,8 @@ const MaquinasEnCeroStats = ({
   const [error, setError] = useState(null);
   const [migrando, setMigrando] = useState(false);
   const [migracionProgress, setMigracionProgress] = useState('');
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState('');
 
   // ===== ESTADOS DE UPLOAD HOUNDOC =====
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -189,6 +193,41 @@ const MaquinasEnCeroStats = ({
     }
   };
 
+  // ===== BACKFILL FECHAS EXACTAS =====
+  const handleBackfill = async () => {
+    if (!empresaSeleccionada || empresaSeleccionada === 'todas') return;
+
+    setBackfillRunning(true);
+    setBackfillProgress('Iniciando extracción de fechas exactas...');
+    try {
+      const empresaNorm = normalizeEmpresa(empresaSeleccionada);
+      const resultado = await backfillFechasExactas(
+        empresaNorm,
+        empresaSeleccionada,
+        XLSX,
+        (progress) => { setBackfillProgress(progress.message); }
+      );
+
+      if (resultado?.success) {
+        // Recargar datos con episodios actualizados
+        const datosActualizados = await getMaquinasEnCero(empresaNorm);
+        setData(datosActualizados);
+        addNotification?.(
+          `Fechas exactas: ${resultado.conFechaExacta} máquinas con fecha exacta de ${resultado.totalMaquinas} total (${resultado.archivosProcessados} archivos procesados)`,
+          'success'
+        );
+      } else {
+        addNotification?.(`Backfill: ${resultado?.message || 'Error desconocido'}`, 'warning');
+      }
+    } catch (err) {
+      console.error('Error en backfill:', err);
+      addNotification?.('Error en backfill: ' + err.message, 'error');
+    } finally {
+      setBackfillRunning(false);
+      setBackfillProgress('');
+    }
+  };
+
   // ===== UPLOAD HOUNDOC =====
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -228,8 +267,19 @@ const MaquinasEnCeroStats = ({
         periodoStr
       );
 
+      // 🆕 Actualizar fechas exactas de episodios desde el archivo Houndoc
+      try {
+        const buffer = await uploadFile.arrayBuffer();
+        await actualizarEpisodiosDesdeHoundoc(empresaNorm, buffer, XLSX);
+      } catch (episodioErr) {
+        console.warn('⚠️ No se pudieron actualizar episodios desde Houndoc:', episodioErr.message);
+      }
+
       if (resultado?.success || resultado?.data) {
-        setData(resultado.data);
+        // Recargar datos actualizados (incluyendo episodios)
+        const empresaNormReload = normalizeEmpresa(empresaSeleccionada);
+        const datosActualizados = await getMaquinasEnCero(empresaNormReload);
+        setData(datosActualizados || resultado.data);
         addNotification?.(
           `Datos actualizados con Houndoc (${formatPeriodoLabel(periodoStr)}). ${uploadPreview.summary.enCero} máquinas en cero.`,
           'success'
@@ -249,8 +299,37 @@ const MaquinasEnCeroStats = ({
   };
 
   // ===== DATOS DERIVADOS =====
-  const maquinas = data?.maquinas || [];
+  // Enriquecer máquinas: cuando existe ultimoEpisodio, sus datos tienen prioridad
+  // sobre los campos calculados a nivel de periodo (diasCalendario, esActualmenteEnCero)
+  const maquinas = useMemo(() => {
+    return (data?.maquinas || []).map(m => {
+      const ep = m.ultimoEpisodio;
+      if (!ep) return m; // Sin episodio → datos originales
+
+      // Un episodio con fechaFin === null/undefined significa que la máquina SIGUE en cero
+      const sigueEnCero = !ep.fechaFin;
+
+      return {
+        ...m,
+        // Sobreescribir con datos más precisos del episodio
+        diasCalendario: ep.diasInactividad ?? m.diasCalendario,
+        esActualmenteEnCero: sigueEnCero,
+        // Recalcular nivel basado en días reales del episodio
+        nivel: sigueEnCero
+          ? (ep.diasInactividad >= 180 ? 'critico' : ep.diasInactividad >= 60 ? 'alerta' : 'reciente')
+          : m.nivel,
+      };
+    });
+  }, [data?.maquinas]);
   const kpis = data?.kpis || null;
+  // Derivar peorMaquina desde las máquinas enriquecidas (con episodio si existe)
+  const peorMaquinaReal = useMemo(() => {
+    if (maquinas.length === 0) return null;
+    return maquinas.reduce((peor, m) => {
+      if (!peor || m.diasCalendario > peor.diasCalendario) return m;
+      return peor;
+    }, null);
+  }, [maquinas]);
   const salasResumen = data?.resumenPorSala || [];
   const tendencia = data?.tendencia || [];
 
@@ -596,7 +675,7 @@ const MaquinasEnCeroStats = ({
             size="large"
             startIcon={<Refresh />}
             onClick={handleMigrar}
-            sx={{ borderRadius: 1, px: 4 }}
+            sx={{ borderRadius: 1, px: 4, textTransform: 'none', fontWeight: 600 }}
           >
             Generar Datos Iniciales
           </Button>
@@ -612,15 +691,40 @@ const MaquinasEnCeroStats = ({
       onClose={() => { if (!uploading) setUploadModalOpen(false); }}
       maxWidth="sm"
       fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          background: theme.palette.background.paper,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0,0,0,0.3)'
+            : '0 4px 20px rgba(0,0,0,0.08)',
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+        }
+      }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
-        <UploadFile sx={{ color: theme.palette.primary.main }} />
-        <Typography variant="h6" fontWeight={600}>
-          Actualizar con Archivo Houndoc
-        </Typography>
+      <DialogTitle sx={{
+        pb: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+        borderBottom: `1px solid ${theme.palette.divider}`
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+            <UploadFile />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+              Actualizar con Houndoc
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Sube un archivo Excel/CSV de liquidaciones
+            </Typography>
+          </Box>
+        </Box>
       </DialogTitle>
-      <Divider />
-      <DialogContent sx={{ pt: 2 }}>
+      <DialogContent sx={{ p: 3, pt: 4 }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Sube un archivo Excel/CSV descargado de Houndoc con la misma estructura de las liquidaciones.
           Se procesará y actualizará el análisis de máquinas en cero.
@@ -698,22 +802,29 @@ const MaquinasEnCeroStats = ({
           </Alert>
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button
-          onClick={() => { setUploadModalOpen(false); setUploadFile(null); setUploadPreview(null); }}
-          disabled={uploading}
-        >
-          Cancelar
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleConfirmUpload}
-          disabled={!uploadFile || !uploadPreview || !uploadPeriodoMes || !uploadPeriodoAnio || uploading}
-          startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
-          sx={{ borderRadius: 1 }}
-        >
-          {uploading ? 'Procesando...' : 'Actualizar Datos'}
-        </Button>
+      <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+        <Typography variant="caption" color="text.secondary">
+          Datos actualizados en tiempo real
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            onClick={() => { setUploadModalOpen(false); setUploadFile(null); setUploadPreview(null); }}
+            disabled={uploading}
+            variant="outlined"
+            sx={{ borderRadius: 1, fontWeight: 500, textTransform: 'none', px: 3 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmUpload}
+            disabled={!uploadFile || !uploadPreview || !uploadPeriodoMes || !uploadPeriodoAnio || uploading}
+            startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
+            sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+          >
+            {uploading ? 'Procesando...' : 'Actualizar Datos'}
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );
@@ -722,7 +833,7 @@ const MaquinasEnCeroStats = ({
   if (!kpis || maquinas.length === 0) {
     return (
       <Box>
-        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} />
+        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
         <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 4, textAlign: 'center' }}>
           <CheckCircle sx={{ fontSize: 80, color: theme.palette.success.main, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
@@ -741,7 +852,7 @@ const MaquinasEnCeroStats = ({
   return (
     <Box>
       {/* Info bar + action buttons */}
-      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} />
+      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
 
       {/* KPIs */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -781,7 +892,7 @@ const MaquinasEnCeroStats = ({
         {/* Días Promedio */}
         <Grid item xs={12} sm={6} md={3}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
-            <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
+            <Card sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
               <CardContent>
                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                   Días Promedio en Cero
@@ -803,7 +914,7 @@ const MaquinasEnCeroStats = ({
         {/* % de la Flota */}
         <Grid item xs={12} sm={6} md={3}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }}>
-            <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
+            <Card sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
               <CardContent>
                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                   % Flota en Cero
@@ -824,21 +935,21 @@ const MaquinasEnCeroStats = ({
         {/* Peor Máquina */}
         <Grid item xs={12} sm={6} md={3}>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }}>
-            <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
+            <Card sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minHeight: 160 }}>
               <CardContent>
                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.8 }}>
                   Mayor Tiempo en Cero
                 </Typography>
-                {kpis.peorMaquina && (
+                {peorMaquinaReal && (
                   <>
                     <Typography variant="h5" fontWeight={700} sx={{ mt: 1, mb: 0.5 }}>
-                      {kpis.peorMaquina.diasCalendario}d
+                      {peorMaquinaReal.diasCalendario}d
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      {kpis.peorMaquina.serial !== 'N/A' ? kpis.peorMaquina.serial : kpis.peorMaquina.nuc}
+                      {peorMaquinaReal.serial !== 'N/A' ? peorMaquinaReal.serial : peorMaquinaReal.nuc}
                     </Typography>
                     <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
-                      {kpis.peorMaquina.sala}
+                      {peorMaquinaReal.sala}
                     </Typography>
                   </>
                 )}
@@ -871,7 +982,7 @@ const MaquinasEnCeroStats = ({
       </Alert>
 
       {/* FILTROS Y BÚSQUEDA */}
-      <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={3}>
@@ -935,7 +1046,7 @@ const MaquinasEnCeroStats = ({
                 variant="contained"
                 startIcon={<FileDownload />}
                 fullWidth
-                sx={{ height: 40, borderRadius: 1, fontSize: 13 }}
+                sx={{ height: 40, borderRadius: 1, fontSize: 13, textTransform: 'none', fontWeight: 600 }}
                 onClick={handleExportarExcel}
               >
                 Exportar
@@ -947,7 +1058,7 @@ const MaquinasEnCeroStats = ({
 
       {/* TABLA PRINCIPAL */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.4 }}>
-        <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+        <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6" fontWeight={600}>
@@ -969,7 +1080,7 @@ const MaquinasEnCeroStats = ({
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ backgroundColor: alpha(theme.palette.error.main, 0.08) }}>
+                      <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderBottom: `1px solid ${theme.palette.divider}` }}>
                         <TableCell sx={{ fontWeight: 600, fontSize: 12, width: 32 }} />
                         <TableCell sx={{ fontWeight: 600, fontSize: 12, width: 40 }}>#</TableCell>
                         <SortableHeader campo="serial" label="Serial" />
@@ -1000,7 +1111,7 @@ const MaquinasEnCeroStats = ({
                                 sx={{
                                   backgroundColor: isExpanded
                                     ? alpha(theme.palette.primary.main, 0.06)
-                                    : idx % 2 === 0 ? alpha(theme.palette.error.main, 0.02) : 'transparent',
+                                    : idx % 2 === 0 ? alpha(theme.palette.grey[500], 0.04) : 'transparent',
                                   '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
                                   cursor: 'pointer',
                                   transition: 'background-color 0.15s ease'
@@ -1059,6 +1170,21 @@ const MaquinasEnCeroStats = ({
                                   <TableCell colSpan={11} sx={{ py: 0, borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
                                     <Collapse in={isExpanded} timeout={250}>
                                       <Box sx={{ py: 2, px: 2 }}>
+                                        {/* Alerta de normativa si >= 30 días */}
+                                        {m.esActualmenteEnCero && (() => {
+                                          const ep = m.ultimoEpisodio;
+                                          const diasReales = ep?.diasInactividad || m.diasCalendario;
+                                          if (diasReales >= 30) {
+                                            return (
+                                              <Alert severity="error" sx={{ mb: 2, fontSize: 12 }}>
+                                                <strong>⚠️ Riesgo de sanción:</strong> Esta máquina lleva {diasReales} días consecutivos sin producción.
+                                                La normativa sanciona a partir de 30 días inactivos.
+                                              </Alert>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+
                                         <Grid container spacing={2}>
                                           {/* Fecha inicio en cero */}
                                           <Grid item xs={12} sm={3}>
@@ -1066,7 +1192,7 @@ const MaquinasEnCeroStats = ({
                                               display: 'flex', alignItems: 'center', gap: 1,
                                               p: 1.5, borderRadius: 1,
                                               backgroundColor: alpha(theme.palette.error.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`
+                                              border: `1px solid ${alpha(theme.palette.error.main, 0.4)}`
                                             }}>
                                               <Stop sx={{ fontSize: 20, color: theme.palette.error.main }} />
                                               <Box>
@@ -1074,28 +1200,42 @@ const MaquinasEnCeroStats = ({
                                                   En cero desde
                                                 </Typography>
                                                 <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
-                                                  {formatPeriodoLabel(m.primerCero)}
+                                                  {m.ultimoEpisodio?.fechaInicioCero
+                                                    ? new Date(m.ultimoEpisodio.fechaInicioCero + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                    : formatPeriodoLabel(m.primerCero)
+                                                  }
                                                 </Typography>
+                                                {m.ultimoEpisodio?.fuenteFecha === 'exacta' && (
+                                                  <Chip size="small" label="Fecha exacta" sx={{ mt: 0.5, height: 16, fontSize: 9, fontWeight: 600, bgcolor: alpha(theme.palette.success.main, 0.12), color: theme.palette.success.main }} />
+                                                )}
                                               </Box>
                                             </Box>
                                           </Grid>
 
-                                          {/* Último periodo en cero */}
+                                          {/* Última producción / Período en cero */}
                                           <Grid item xs={12} sm={3}>
                                             <Box sx={{
                                               display: 'flex', alignItems: 'center', gap: 1,
                                               p: 1.5, borderRadius: 1,
                                               backgroundColor: alpha(theme.palette.warning.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`
+                                              border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`
                                             }}>
                                               <DateRange sx={{ fontSize: 20, color: theme.palette.warning.main }} />
                                               <Box>
                                                 <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  Último periodo en cero
+                                                  {m.ultimoEpisodio?.ultimaFechaConProduccion ? 'Última producción' : 'Último periodo en cero'}
                                                 </Typography>
                                                 <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
-                                                  {formatPeriodoLabel(m.ultimoCero)}
+                                                  {m.ultimoEpisodio?.ultimaFechaConProduccion
+                                                    ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                    : formatPeriodoLabel(m.ultimoCero)
+                                                  }
                                                 </Typography>
+                                                {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
+                                                    ${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}
+                                                  </Typography>
+                                                )}
                                               </Box>
                                             </Box>
                                           </Grid>
@@ -1109,7 +1249,7 @@ const MaquinasEnCeroStats = ({
                                                 ? alpha(theme.palette.error.main, 0.06)
                                                 : alpha(theme.palette.success.main, 0.06),
                                               border: `1px solid ${alpha(
-                                                m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.success.main, 0.15
+                                                m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.success.main, 0.4
                                               )}`
                                             }}>
                                               {m.esActualmenteEnCero
@@ -1125,9 +1265,11 @@ const MaquinasEnCeroStats = ({
                                                   color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.success.main
                                                 }}>
                                                   {m.esActualmenteEnCero
-                                                    ? `Sigue en cero (${m.diasCalendario} días)`
+                                                    ? `Sigue en cero (${m.ultimoEpisodio?.diasInactividad || m.diasCalendario} días)`
                                                     : (() => {
-                                                        // El periodo de recuperación es el primero después del último cero
+                                                        if (m.ultimoEpisodio?.fechaFin) {
+                                                          return new Date(m.ultimoEpisodio.fechaFin + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                        }
                                                         const idxUltimoCero = (m.periodosTotales || []).indexOf(m.ultimoCero);
                                                         const periodoRecuperacion = idxUltimoCero >= 0 && idxUltimoCero < (m.periodosTotales || []).length - 1
                                                           ? m.periodosTotales[idxUltimoCero + 1]
@@ -1140,21 +1282,29 @@ const MaquinasEnCeroStats = ({
                                             </Box>
                                           </Grid>
 
-                                          {/* Duración total */}
+                                          {/* Duración / Días exactos */}
                                           <Grid item xs={12} sm={3}>
                                             <Box sx={{
                                               display: 'flex', alignItems: 'center', gap: 1,
                                               p: 1.5, borderRadius: 1,
                                               backgroundColor: alpha(theme.palette.info.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`
+                                              border: `1px solid ${alpha(theme.palette.info.main, 0.4)}`
                                             }}>
                                               <CalendarMonth sx={{ fontSize: 20, color: theme.palette.info.main }} />
                                               <Box>
                                                 <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  Duración en cero
+                                                  Días inactiva
                                                 </Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.info.main }}>
-                                                  {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} ({m.diasCalendario} días)
+                                                <Typography variant="body2" sx={{
+                                                  fontWeight: 700, fontSize: 15,
+                                                  color: (m.ultimoEpisodio?.diasInactividad || m.diasCalendario) >= 30
+                                                    ? theme.palette.error.main
+                                                    : theme.palette.info.main
+                                                }}>
+                                                  {m.ultimoEpisodio?.diasInactividad || m.diasCalendario} días
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
+                                                  {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero
                                                 </Typography>
                                               </Box>
                                             </Box>
@@ -1222,7 +1372,7 @@ const MaquinasEnCeroStats = ({
       {/* RESUMEN POR SALA */}
       {salasResumen.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.5 }}>
-          <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
                 Resumen por Sala
@@ -1243,7 +1393,7 @@ const MaquinasEnCeroStats = ({
                             sala.criticas > 0 ? theme.palette.error.main
                               : sala.alertas > 0 ? theme.palette.warning.main
                                 : theme.palette.info.main,
-                            0.3
+                            0.6
                           ),
                           transition: 'all 0.2s ease',
                           '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
@@ -1310,7 +1460,7 @@ const MaquinasEnCeroStats = ({
       {/* GRÁFICO DE TENDENCIA */}
       {tendencia.length > 1 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.6 }}>
-          <Card sx={{ borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 2 }}>
+          <Card sx={{ borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 2 }}>
             <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
               Tendencia de Máquinas en Cero por Período
             </Typography>
@@ -1364,35 +1514,78 @@ const MaquinasEnCeroStats = ({
 };
 
 // ===== InfoBar sub-component =====
-const InfoBar = ({ data, theme, onUpload, onRecalcular, migrando }) => {
+const InfoBar = ({ data, theme, onUpload, onRecalcular, migrando, onBackfill, backfillRunning, backfillProgress }) => {
   const updatedAt = data?.ultimaActualizacion
     ? new Date(data.ultimaActualizacion.seconds * 1000).toLocaleString('es-CO')
     : 'N/A';
 
+  const tieneEpisodios = (data?.maquinas || []).some(m => m.ultimoEpisodio);
+
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-      <Box>
-        <Typography variant="caption" color="text.disabled">
-          Última actualización: {updatedAt}
-          {' | '}
-          Fuente: {data?.fuenteUltimaActualizacion || '—'}
-          {' | '}
-          {(data?.periodosRegistrados || []).length} periodos
-          {data?.periodoMasReciente ? ` • ${formatPeriodoLabel(data.periodoMasReciente)} más reciente` : ''}
-        </Typography>
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <Box>
+          <Typography variant="caption" color="text.disabled">
+            Última actualización: {updatedAt}
+            {' | '}
+            Fuente: {data?.fuenteUltimaActualizacion || '—'}
+            {' | '}
+            {(data?.periodosRegistrados || []).length} periodos
+            {data?.periodoMasReciente ? ` • ${formatPeriodoLabel(data.periodoMasReciente)} más reciente` : ''}
+            {tieneEpisodios && (
+              <Chip
+                size="small"
+                label="Fechas exactas ✓"
+                sx={{ ml: 1, height: 18, fontSize: 10, fontWeight: 600,
+                  bgcolor: alpha(theme.palette.success.main, 0.12),
+                  color: theme.palette.success.main
+                }}
+              />
+            )}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <MuiTooltip title="Actualizar con archivo Houndoc">
+            <Button size="small" variant="outlined" startIcon={<CloudUpload />} onClick={onUpload}
+              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+            >
+              Houndoc
+            </Button>
+          </MuiTooltip>
+          {!tieneEpisodios && (
+            <MuiTooltip title="Extraer fechas exactas de inicio en cero desde los archivos históricos de liquidaciones">
+              <Button
+                size="small"
+                variant="contained"
+                color="warning"
+                startIcon={backfillRunning ? <CircularProgress size={16} color="inherit" /> : <DateRange />}
+                onClick={onBackfill}
+                disabled={backfillRunning || migrando}
+                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+              >
+                {backfillRunning ? 'Procesando...' : 'Extraer fechas exactas'}
+              </Button>
+            </MuiTooltip>
+          )}
+          <MuiTooltip title="Recalcular desde todas las liquidaciones">
+            <Button size="small" variant="outlined" startIcon={<Refresh />} onClick={onRecalcular} disabled={migrando}
+              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+            >
+              {migrando ? 'Recalculando...' : 'Recalcular'}
+            </Button>
+          </MuiTooltip>
+        </Box>
       </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <MuiTooltip title="Actualizar con archivo Houndoc">
-          <Button size="small" variant="outlined" startIcon={<CloudUpload />} onClick={onUpload}>
-            Houndoc
-          </Button>
-        </MuiTooltip>
-        <MuiTooltip title="Recalcular desde todas las liquidaciones">
-          <Button size="small" variant="outlined" startIcon={<Refresh />} onClick={onRecalcular} disabled={migrando}>
-            {migrando ? 'Recalculando...' : 'Recalcular'}
-          </Button>
-        </MuiTooltip>
-      </Box>
+      {backfillRunning && backfillProgress && (
+        <Box sx={{ mt: 1, p: 1.5, borderRadius: 1, bgcolor: alpha(theme.palette.warning.main, 0.06), border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CircularProgress size={14} color="warning" />
+            <Typography variant="caption" sx={{ fontWeight: 500, color: theme.palette.warning.main }}>
+              {backfillProgress}
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 };

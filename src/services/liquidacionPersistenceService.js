@@ -584,7 +584,7 @@ class LiquidacionPersistenceService {
 
         // 🆕 Actualizar pre-cómputo de máquinas en cero (no bloqueante)
         try {
-          const { updateConNuevoPeriodo, normalizeEmpresa } = await import('./maquinasEnCeroService');
+          const { updateConNuevoPeriodo, normalizeEmpresa, actualizarEpisodiosDesdeLiquidacion } = await import('./maquinasEnCeroService');
           const empresaNorm = normalizeEmpresa(liquidacionDoc.empresa?.nombre || empresa);
           const empresaNombre = liquidacionDoc.empresa?.nombre || empresa;
 
@@ -598,6 +598,11 @@ class LiquidacionPersistenceService {
 
           if (newDocs.length > 0) {
             await updateConNuevoPeriodo(empresaNorm, empresaNombre, newDocs, 'liquidacion');
+          }
+
+          // 🆕 Actualizar fechas exactas de episodios (usa filas diarias originales)
+          if (Array.isArray(originalData) && originalData.length > 0) {
+            await actualizarEpisodiosDesdeLiquidacion(empresaNorm, originalData);
           }
         } catch (maqErr) {
           // No interrumpir flujo principal si falla la actualización de máquinas en cero
