@@ -1201,7 +1201,9 @@ const MaquinasEnCeroStats = ({
                                 <TableCell sx={{ fontSize: 12 }}>{m.nuc}</TableCell>
                                 <TableCell sx={{ fontSize: 12 }}>{m.tipoApuesta}</TableCell>
                                 <TableCell sx={{ fontSize: 12, color: theme.palette.primary.main, fontWeight: 500 }}>{m.sala}</TableCell>
-                                <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>{m.mesesEnCero}</TableCell>
+                                <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>
+                                  {m.esActualmenteEnCero ? m.mesesEnCero : <Typography sx={{ fontSize: 14, color: 'text.disabled', fontWeight: 400 }}>—</Typography>}
+                                </TableCell>
                                 <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.warning.main }}>
                                   {m.mesesConsecutivos}
                                 </TableCell>
