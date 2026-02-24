@@ -63,12 +63,22 @@ import useActivityLogs from '../hooks/useActivityLogs';
 import useLiquidacionExport from '../hooks/useLiquidacionExport';
 import useCompanies from '../hooks/useCompanies';
 import * as XLSX from 'xlsx';
+import {
+  LOG_COLORS_BY_TYPE,
+  formatCurrencyCompact,
+  formatCurrencyCOP,
+  parseFechaToDate,
+  formatearFechaSinTimezone,
+  calcularDiasMes,
+  determinarNovedad,
+  convertirFechaAPeriodo
+} from './liquidaciones/liquidacionesHelpers';
+import VirtualTable, { TabPanel } from '../components/common/VirtualTable';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ExportarPorSalaModal from '../components/modals/ExportarPorSalaModal';
 import ReporteDiarioModal from '../components/modals/ReporteDiarioModal';
 import ConfirmarGuardadoModal from '../components/modals/ConfirmarGuardadoModal';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import { FixedSizeList as VirtualList } from 'react-window';
 import {
   Bar,
   BarChart as ReBarChart,
@@ -84,200 +94,6 @@ import {
   YAxis
 } from 'recharts';
 
-const LOG_COLORS_BY_TYPE = {
-  info: 'info',
-  success: 'success',
-  warning: 'warning',
-  error: 'error'
-};
-
-function formatCurrencyCompact(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '$ 0';
-  // Compact formatting (e.g., 402.3 M)
-  const abs = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  if (abs >= 1_000_000_000) return `${sign}$ ${(abs / 1_000_000_000).toFixed(1)} B`;
-  if (abs >= 1_000_000) return `${sign}$ ${(abs / 1_000_000).toFixed(1)} M`;
-  if (abs >= 1_000) return `${sign}$ ${(abs / 1_000).toFixed(1)} K`;
-  return `${sign}$ ${Math.round(abs).toLocaleString('es-CO')}`;
-}
-
-function formatCurrencyCOP(value) {
-  const n = Number(value) || 0;
-  return n.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-}
-
-function useMeasure() {
-  const ref = useRef(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const update = () => {
-      const rect = element.getBoundingClientRect();
-      setSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
-    };
-
-    update();
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', update);
-      return () => window.removeEventListener('resize', update);
-    }
-
-    const ro = new ResizeObserver(() => update());
-    ro.observe(element);
-    return () => ro.disconnect();
-  }, []);
-
-  return [ref, size];
-}
-
-function VirtualTable({
-  rows,
-  columns,
-  height = 520,
-  rowHeight = 44,
-  headerHeight = 44,
-  emptyLabel = 'Sin datos para mostrar.'
-}) {
-  const safeRows = Array.isArray(rows) ? rows : [];
-  const [wrapRef, size] = useMeasure();
-
-  const totalMinWidth = columns.reduce((sum, col) => sum + (col.width || 140), 0);
-  const width = Math.max(size.width || 0, Math.min(totalMinWidth, size.width || totalMinWidth));
-
-  return (
-    <Box
-      ref={wrapRef}
-      sx={{
-        width: '100%',
-        borderRadius: 2,
-        border: (t) => `1px solid ${alpha(t.palette.divider, 0.2)}`,
-        overflow: 'hidden',
-        bgcolor: 'background.paper'
-      }}
-    >
-      <Box
-        sx={{
-          height: headerHeight,
-          display: 'flex',
-          alignItems: 'center',
-          bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
-          borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.2)}`
-        }}
-      >
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: columns.map((c) => `${c.width || 140}px`).join(' '),
-            width: totalMinWidth,
-            px: 1.5,
-            columnGap: 0,
-            alignItems: 'center'
-          }}
-        >
-          {columns.map((col) => (
-            <Typography
-              key={col.key}
-              variant="caption"
-              sx={{
-                fontWeight: 600,
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-                letterSpacing: 0.6,
-                pr: 1,
-                textAlign: col.align || 'left',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis'
-              }}
-              title={col.label}
-            >
-              {col.label}
-            </Typography>
-          ))}
-        </Box>
-      </Box>
-
-      {safeRows.length === 0 ? (
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {emptyLabel}
-          </Typography>
-        </Box>
-      ) : size.width > 0 ? (
-        <Box sx={{ overflowX: 'auto' }}>
-          <VirtualList
-            height={height}
-            width={Math.max(width, 0)}
-            itemCount={safeRows.length}
-            itemSize={rowHeight}
-          >
-            {({ index, style }) => {
-              const row = safeRows[index];
-              return (
-                <Box
-                  style={style}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}`,
-                    bgcolor: index % 2 === 0 ? 'transparent' : (t) => alpha(t.palette.action.hover, 0.08)
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: columns.map((c) => `${c.width || 140}px`).join(' '),
-                      width: totalMinWidth,
-                      px: 1.5,
-                      alignItems: 'center'
-                    }}
-                  >
-                    {columns.map((col) => {
-                      const rawValue = typeof col.value === 'function' ? col.value(row) : row?.[col.key];
-                      const displayValue = col.format ? col.format(rawValue, row) : rawValue;
-                      const cellText = displayValue === null || displayValue === undefined || displayValue === '' ? '—' : String(displayValue);
-                      return (
-                        <Typography
-                          key={col.key}
-                          variant="body2"
-                          sx={{
-                            pr: 1,
-                            textAlign: col.align || 'left',
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis'
-                          }}
-                          title={cellText}
-                        >
-                          {cellText}
-                        </Typography>
-                      );
-                    })}
-                  </Box>
-                </Box>
-              );
-            }}
-          </VirtualList>
-        </Box>
-      ) : (
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Preparando tabla…
-          </Typography>
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function TabPanel({ value, index, children }) {
-  if (value !== index) return null;
-  return <Box sx={{ pt: 2 }}>{children}</Box>;
-}
 
 export default function LiquidacionesPage() {
   const theme = useTheme();
@@ -371,18 +187,6 @@ export default function LiquidacionesPage() {
       novedades: { value: conNovedades, percentage: pct(conNovedades) }
     };
   }, [consolidatedData, reporteBySala]);
-
-  const parseFechaToDate = useCallback((value) => {
-    if (value === null || value === undefined || value === '') return null;
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      // Excel serial date (1900 system)
-      const d = new Date((value - 25569) * 86400 * 1000);
-      return Number.isNaN(d.getTime()) ? null : d;
-    }
-    const parsed = new Date(String(value));
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, []);
 
   const chartProduccionPorEstablecimiento = useMemo(() => {
     const reporte = Array.isArray(reporteBySala) ? reporteBySala : [];
@@ -785,68 +589,6 @@ export default function LiquidacionesPage() {
     },
     [addLog]
   );
-
-  const formatearFechaSinTimezone = useCallback((fecha) => {
-    try {
-      if (!fecha || isNaN(fecha.getTime())) return '';
-      const dia = String(fecha.getUTCDate()).padStart(2, '0');
-      const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
-      const año = fecha.getUTCFullYear();
-      return `${dia}/${mes}/${año}`;
-    } catch {
-      return '';
-    }
-  }, []);
-
-  const calcularDiasMes = useCallback((fecha) => {
-    try {
-      if (!fecha) return 31;
-      const fechaObj = new Date(fecha);
-      if (isNaN(fechaObj.getTime())) return 31;
-      const year = fechaObj.getFullYear();
-      const month = fechaObj.getMonth();
-      return new Date(year, month + 1, 0).getDate();
-    } catch {
-      return 31;
-    }
-  }, []);
-
-  const determinarNovedad = useCallback((diasTransmitidos, diasMes) => {
-    try {
-      const dias = parseInt(diasTransmitidos);
-      const totalDias = parseInt(diasMes);
-      if (dias === totalDias) return 'Sin cambios';
-      if (dias < totalDias) return 'Retiro / Adición';
-      return 'Retiro / Adición';
-    } catch {
-      return 'Sin cambios';
-    }
-  }, []);
-
-  const convertirFechaAPeriodo = useCallback((fecha) => {
-    try {
-      if (!fecha) return '';
-      const fechaObj = new Date(fecha);
-      if (isNaN(fechaObj.getTime())) return '';
-      const meses = [
-        'Enero',
-        'Febrero',
-        'Marzo',
-        'Abril',
-        'Mayo',
-        'Junio',
-        'Julio',
-        'Agosto',
-        'Septiembre',
-        'Octubre',
-        'Noviembre',
-        'Diciembre'
-      ];
-      return `${meses[fechaObj.getMonth()]} ${fechaObj.getFullYear()}`;
-    } catch {
-      return '';
-    }
-  }, []);
 
   const consolidarDatos = useCallback(
     (data, empresaValue) => {

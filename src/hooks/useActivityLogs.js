@@ -233,11 +233,13 @@ const useActivityLogs = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - dateRange);
 
-      // Consulta simple sin filtros compuestos
+      // Server-side: filtrar por rango de fechas directamente en Firestore
       const q = query(
         collection(db, 'activity_logs'),
+        where('timestamp', '>=', Timestamp.fromDate(startDate)),
+        where('timestamp', '<=', Timestamp.fromDate(endDate)),
         orderBy('timestamp', 'desc'),
-        limit(1000) // Obtener últimas 1000 actividades
+        limit(500)
       );
 
       const snapshot = await getDocs(q);
@@ -246,14 +248,10 @@ const useActivityLogs = () => {
       snapshot.forEach((doc) => {
         const data = doc.data();
         const timestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
-        
-        // Filtrar por rango de fechas en el cliente
-        if (timestamp >= startDate && timestamp <= endDate) {
-          logs.push({
-            ...data,
-            timestamp
-          });
-        }
+        logs.push({
+          ...data,
+          timestamp
+        });
       });
 
       // Calcular estadísticas
@@ -272,8 +270,8 @@ const useActivityLogs = () => {
         stats.entityTypes[log.entityType] = (stats.entityTypes[log.entityType] || 0) + 1;
         
         // Actividad diaria
-        const dateKey = log.timestamp?.toDate ? 
-          log.timestamp.toDate().toISOString().split('T')[0] : 
+        const dateKey = log.timestamp instanceof Date ? 
+          log.timestamp.toISOString().split('T')[0] : 
           new Date(log.timestamp).toISOString().split('T')[0];
         stats.dailyActivity[dateKey] = (stats.dailyActivity[dateKey] || 0) + 1;
         

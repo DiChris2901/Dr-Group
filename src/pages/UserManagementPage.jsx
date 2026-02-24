@@ -112,6 +112,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
 import { useEmailNotifications } from '../hooks/useEmailNotifications';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { getRoleChipColor } from './companies/companyHelpers';
 
 const UserManagementPage = () => {
   const theme = useTheme();
@@ -1011,15 +1012,7 @@ const UserManagementPage = () => {
     }
   };
 
-  const getRoleChipColor = (role) => {
-    switch (role) {
-      case 'ADMIN': return 'error';
-      case 'MANAGER': return 'warning';
-      case 'EMPLOYEE': return 'primary';
-      case 'VIEWER': return 'default';
-      default: return 'default';
-    }
-  };
+  // getRoleChipColor imported from companyHelpers
 
   if (loading && users.length === 0) {
     return (

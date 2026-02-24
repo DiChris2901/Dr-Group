@@ -21,7 +21,8 @@ import {
   alpha,
   CircularProgress
 } from '@mui/material';
-import { useCommitments, useCompanies } from '../../hooks/useFirestore';
+import { useCommitments } from '../../hooks/useFirestore';
+import useCompanies from '../../hooks/useCompanies';
 import { useSettings } from '../../context/SettingsContext';
 import {
   DateRange,

@@ -1,6 +1,6 @@
 // 🚨 Hook para el centro de alertas
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where, updateDoc, doc, limit, writeBatch } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,11 +24,12 @@ export const useAlertsCenter = () => {
       return;
     }
 
-    // Monitorear todas las alertas
+    // Monitorear alertas recientes (máx 50 para optimizar reads)
     const unsubscribeAlerts = onSnapshot(
       query(
         collection(db, 'alerts'),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(50)
       ),
       (snapshot) => {
         const alerts = [];
@@ -131,18 +132,20 @@ export const useAlertsCenter = () => {
     }
   };
 
-  // Función para marcar todas como leídas
+  // Función para marcar todas como leídas (batch write — 1 transacción en vez de N)
   const markAllAsRead = async () => {
     try {
       const unreadAlerts = alertsData.alerts.filter(alert => !alert.read);
-      const promises = unreadAlerts.map(alert => 
-        updateDoc(doc(db, 'alerts', alert.id), {
+      if (unreadAlerts.length === 0) return;
+      const batch = writeBatch(db);
+      unreadAlerts.forEach(alert => {
+        batch.update(doc(db, 'alerts', alert.id), {
           read: true,
           readAt: new Date(),
           readBy: currentUser.uid
-        })
-      );
-      await Promise.all(promises);
+        });
+      });
+      await batch.commit();
     } catch (error) {
       console.error('Error marking all alerts as read:', error);
     }

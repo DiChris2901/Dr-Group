@@ -9,7 +9,8 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  doc 
+  doc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -142,36 +143,6 @@ export const useCommitments = (filters = {}) => {
   };
 };
 
-// Hook para manejar empresas
-export const useCompanies = () => {
-  const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const q = query(collection(db, 'companies'), orderBy('name'));
-    
-    const unsubscribe = onSnapshot(q,
-      (snapshot) => {
-        const companiesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setCompanies(companiesData);
-        setLoading(false);
-      },
-      (err) => {
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-
-    return unsubscribe;
-  }, []);
-
-  return { companies, loading, error };
-};
-
 // Hook para notificaciones y alertas
 export const useNotifications = (userId) => {
   const [notifications, setNotifications] = useState([]);
@@ -183,7 +154,8 @@ export const useNotifications = (userId) => {
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -211,10 +183,12 @@ export const useNotifications = (userId) => {
   const markAllAsRead = async () => {
     try {
       const unreadNotifications = notifications.filter(n => !n.read);
-      const promises = unreadNotifications.map(notification =>
-        updateDoc(doc(db, 'notifications', notification.id), { read: true })
-      );
-      await Promise.all(promises);
+      if (unreadNotifications.length === 0) return;
+      const batch = writeBatch(db);
+      unreadNotifications.forEach(notification => {
+        batch.update(doc(db, 'notifications', notification.id), { read: true });
+      });
+      await batch.commit();
     } catch (error) {
       console.error('Error marcando todas las notificaciones como leídas:', error);
     }
@@ -361,27 +335,33 @@ export const useFirestore = (collectionName, options = {}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Estabilizar options para evitar re-subscribe en cada render
+  const optionsKey = JSON.stringify(options);
+
   useEffect(() => {
     if (!collectionName) {
       setLoading(false);
       return;
     }
 
+    // Parsear options desde la key estable
+    const opts = JSON.parse(optionsKey);
+
     let q = collection(db, collectionName);
     
     // Aplicar filtros si existen
-    if (options.where) {
-      q = query(q, where(options.where.field, options.where.operator, options.where.value));
+    if (opts.where) {
+      q = query(q, where(opts.where.field, opts.where.operator, opts.where.value));
     }
     
     // Aplicar ordenamiento si existe
-    if (options.orderBy) {
-      q = query(q, orderBy(options.orderBy.field, options.orderBy.direction || 'asc'));
+    if (opts.orderBy) {
+      q = query(q, orderBy(opts.orderBy.field, opts.orderBy.direction || 'asc'));
     }
     
     // Aplicar límite si existe
-    if (options.limit) {
-      q = query(q, limit(options.limit));
+    if (opts.limit) {
+      q = query(q, limit(opts.limit));
     }
 
     const unsubscribe = onSnapshot(q, 
@@ -401,7 +381,7 @@ export const useFirestore = (collectionName, options = {}) => {
     );
 
     return () => unsubscribe();
-  }, [collectionName, JSON.stringify(options)]);
+  }, [collectionName, optionsKey]);
 
   return {
     data,

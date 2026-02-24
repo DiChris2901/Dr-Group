@@ -76,6 +76,20 @@ import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
 import { drGroupCompressor } from '../utils/pdfCompressor';
 // 📄 IMPORTAR SISTEMA DE COMBINACIÓN
 import { combineFilesToPDF } from '../utils/pdfCombiner';
+import {
+  createLocalDate,
+  getDefaultRecurringCount,
+  formatNitId,
+  isColjuegosCommitment as isColjuegosCheck,
+  formatNumberWithCommas,
+  parseFormattedNumber,
+  createAmountChangeHandler,
+  calculateTotal as calcTotalHelper,
+  getMissingFields as getMissingFieldsHelper,
+  formatCurrency,
+  periodicityOptions,
+  MONTHS
+} from './commitments/commitmentHelpers';
 
 const NewCommitmentPage = () => {
   const { currentUser, userProfile } = useAuth();
@@ -87,19 +101,6 @@ const NewCommitmentPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Helper para crear fecha local sin problemas de zona horaria
-  const createLocalDate = (dateString) => {
-    if (!dateString) return new Date();
-    
-    // Si es una fecha en formato YYYY-MM-DD del input
-    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = dateString.split('-').map(Number);
-      return new Date(year, month - 1, day); // month - 1 porque Date usa base 0 para meses
-    }
-    
-    return new Date(dateString);
-  };
-  
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -119,84 +120,8 @@ const NewCommitmentPage = () => {
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
 
-  // 🔄 Calcular número de compromisos sugerido según periodicidad (limitado al año en curso)
-  const getDefaultRecurringCount = (periodicity, baseDate = null) => {
-    const currentDate = baseDate || new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // 0-11
-    
-    // Calcular meses restantes en el año (incluyendo el mes actual)
-    const remainingMonths = 12 - currentMonth;
-    
-    const periodicityMonths = {
-      'monthly': 1,       // Cada mes
-      'bimonthly': 2,     // Cada 2 meses  
-      'quarterly': 3,     // Cada 3 meses
-      'fourmonthly': 4,   // Cada 4 meses
-      'biannual': 6,      // Cada 6 meses
-      'annual': 12        // Cada 12 meses
-    };
-    
-    const intervalMonths = periodicityMonths[periodicity] || 1;
-    
-    // Calcular cuántos compromisos caben en los meses restantes
-    const maxPossible = Math.ceil(remainingMonths / intervalMonths);
-    
-    // Para periodicidad anual, siempre es 1 si estamos en el año
-    if (periodicity === 'annual') return 1;
-    
-    return Math.max(1, maxPossible); // Mínimo 1 compromiso
-  };
-
-  // 🆔 Formatear NIT/Identificación automáticamente
-  const formatNitId = (value) => {
-    if (!value) return '';
-    
-    // Permitir números, guiones y espacios (los espacios se convertirán en guiones)
-    let cleanValue = value.replace(/[^\d\s-]/g, '');
-    
-    // Convertir espacios en guiones (para casos como "900505060 5")
-    cleanValue = cleanValue.replace(/\s+/g, '-');
-    
-    // Si está vacío después de limpiar, retornar vacío
-    if (!cleanValue) return '';
-    
-    // Detectar si es NIT (contiene guión o más de 8 dígitos)
-    const hasHyphen = cleanValue.includes('-');
-    const parts = cleanValue.split('-');
-    const mainPart = parts[0] || '';
-    const verificationPart = parts[1] || '';
-    
-    // Si es muy corto y no tiene guión, retornar con puntos básicos
-    if (mainPart.length < 4 && !hasHyphen) {
-      return cleanValue;
-    }
-    
-    // Formatear la parte principal con puntos
-    const formattedMain = mainPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    
-    if (hasHyphen) {
-      // Es NIT con dígito de verificación
-      if (verificationPart) {
-        // Limitar dígito de verificación a 1 carácter
-        const limitedVerification = verificationPart.substring(0, 1);
-        return `${formattedMain}-${limitedVerification}`;
-      } else {
-        // Usuario escribió guión pero no dígito, mantener guión
-        return `${formattedMain}-`;
-      }
-    } else {
-      // Para números sin guión, solo formatear con puntos
-      // NO asumir automáticamente que es NIT por longitud
-      return formattedMain;
-    }
-  };
-
-  // 🎮 Detectar si es compromiso de Coljuegos
-  const isColjuegosCommitment = () => {
-    return formData.beneficiary && 
-           formData.beneficiary.toLowerCase().includes('coljuegos');
-  };
+  // 🎮 Detectar si es compromiso de Coljuegos (wrapper over imported pure function)
+  const isColjuegosCommitment = () => isColjuegosCheck(formData.beneficiary);
 
   // Formulario para nuevo compromiso
   const [formData, setFormData] = useState({
@@ -270,161 +195,17 @@ const NewCommitmentPage = () => {
   const [pendingPDFFile, setPendingPDFFile] = useState(null);
   const [compressionEnabled, setCompressionEnabled] = useState(true);
 
-  // 💰 Funciones para formateo de moneda colombiana (CON DECIMALES)
-  const formatNumberWithCommas = (value) => {
-    if (!value && value !== 0) return '';
-    
-    // Convertir a string y limpiar, pero preservar decimales
-    const strValue = value.toString();
-    
-    // Permitir solo números y un punto decimal
-    const cleanValue = strValue.replace(/[^\d.]/g, '');
-    
-    // Asegurar que solo haya un punto decimal
-    const parts = cleanValue.split('.');
-    if (parts.length > 2) {
-      // Si hay más de un punto, conservar solo el primero
-      return parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    if (!cleanValue) return '';
-    
-    // Si hay decimales
-    if (parts.length === 2) {
-      const integerPart = parts[0];
-      const decimalPart = parts[1];
-      
-      // Formatear la parte entera con puntos como separadores de miles
-      const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-      
-      // Retornar con la parte decimal (máximo 2 decimales)
-      return formattedInteger + ',' + decimalPart.substring(0, 2);
-    } else {
-      // Solo parte entera
-      return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    }
-  };
+  // 💰 Amount change handlers (factory pattern from commitmentHelpers)
+  const handleAmountChange = createAmountChangeHandler('baseAmount', parseFormattedNumber, setFormData);
+  const handleIvaChange = createAmountChangeHandler('iva', parseFormattedNumber, setFormData);
+  const handleRetefuenteChange = createAmountChangeHandler('retefuente', parseFormattedNumber, setFormData);
+  const handleIcaChange = createAmountChangeHandler('ica', parseFormattedNumber, setFormData);
+  const handleDiscountChange = createAmountChangeHandler('discount', parseFormattedNumber, setFormData);
+  const handleDerechosChange = createAmountChangeHandler('derechosExplotacion', parseFormattedNumber, setFormData);
+  const handleGastosChange = createAmountChangeHandler('gastosAdministracion', parseFormattedNumber, setFormData);
 
-  const parseFormattedNumber = (value) => {
-    if (!value && value !== 0) return '';
-    
-    // Convertir puntos de miles a nada y comas decimales a puntos
-    return value.toString()
-      .replace(/\./g, '') // Remover separadores de miles
-      .replace(/,/g, '.'); // Convertir coma decimal a punto
-  };
-
-  const handleAmountChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        baseAmount: cleanValue // Guardamos el valor sin formato para cálculos
-      }));
-    }
-  };
-
-  const handleIvaChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        iva: cleanValue
-      }));
-    }
-  };
-
-  const handleRetefuenteChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        retefuente: cleanValue
-      }));
-    }
-  };
-
-  const handleIcaChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        ica: cleanValue
-      }));
-    }
-  };
-
-  const handleDiscountChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        discount: cleanValue
-      }));
-    }
-  };
-
-  // 🎮 Manejadores específicos para Coljuegos
-  const handleDerechosChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        derechosExplotacion: cleanValue
-      }));
-    }
-  };
-
-  const handleGastosChange = (e) => {
-    const inputValue = e.target.value;
-    const cleanValue = parseFormattedNumber(inputValue);
-    
-    // Validar que sea un número válido (entero o decimal)
-    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-      setFormData(prev => ({
-        ...prev,
-        gastosAdministracion: cleanValue
-      }));
-    }
-  };  // 🧮 Calcular automáticamente el total
-  const calculateTotal = () => {
-    // 🎮 Caso especial: Coljuegos
-    if (isColjuegosCommitment()) {
-      const derechos = parseFloat(formData.derechosExplotacion) || 0;
-      const gastos = parseFloat(formData.gastosAdministracion) || 0;
-      return derechos + gastos; // Suma directa sin impuestos
-    }
-    
-    // 📊 Caso general: Otras empresas
-    const base = parseFloat(formData.baseAmount) || 0;
-    if (!formData.hasTaxes) return base;
-    
-    const iva = parseFloat(formData.iva) || 0;
-    const retefuente = parseFloat(formData.retefuente) || 0;
-    const ica = parseFloat(formData.ica) || 0;
-    const discount = parseFloat(formData.discount) || 0;
-    
-    // Total = Valor base + IVA - Retefuente - ICA - Descuento
-    return base + iva - retefuente - ica - discount;
-  };
+  // 🧮 Calcular automáticamente el total
+  const calculateTotal = () => calcTotalHelper(formData, isColjuegosCommitment());
 
   // Actualizar total automáticamente cuando cambien los valores
   React.useEffect(() => {
@@ -1211,35 +992,7 @@ const NewCommitmentPage = () => {
   };
 
   // 🔍 FUNCIÓN PARA IDENTIFICAR CAMPOS FALTANTES
-  const getMissingFields = () => {
-    const missingFields = [];
-
-    if (!formData.companyId) missingFields.push('Empresa');
-    if (!formData.month) missingFields.push('Mes');
-    if (!formData.periodicity) missingFields.push('Periodicidad');
-    if (!formData.beneficiary?.trim()) missingFields.push('Beneficiario');
-    if (!formData.concept?.trim()) missingFields.push('Concepto');
-    
-    // Validación de montos según tipo de compromiso
-    if (isColjuegosCommitment()) {
-      if (!parseFloat(parseFormattedNumber(formData.derechosExplotacion))) {
-        missingFields.push('Derechos de Explotación');
-      }
-      // ✅ Gastos de administración puede ser $0 - solo validar que el campo no esté vacío
-      if (formData.gastosAdministracion === '' || formData.gastosAdministracion === null || formData.gastosAdministracion === undefined) {
-        missingFields.push('Gastos de Administración');
-      }
-    } else {
-      if (!parseFloat(parseFormattedNumber(formData.baseAmount))) {
-        missingFields.push('Valor Base');
-      }
-    }
-
-    if (!formData.paymentMethod) missingFields.push('Método de Pago');
-    if (!formData.dueDate) missingFields.push('Fecha de Vencimiento');
-
-    return missingFields;
-  };
+  const getMissingFields = () => getMissingFieldsHelper(formData, isColjuegosCommitment());
 
   // 🚨 MOSTRAR ALERTA DE CAMPOS FALTANTES
   const showMissingFieldsAlert = () => {
@@ -1718,47 +1471,16 @@ const NewCommitmentPage = () => {
     }
   };
 
-  // Opciones para los selects
-  const periodicityOptions = [
-    { value: 'unique', label: 'Pago único' },
-    { value: 'monthly', label: 'Mensual' },
-    { value: 'bimonthly', label: 'Bimestral' },
-    { value: 'quarterly', label: 'Trimestral' },
-    { value: 'fourmonthly', label: 'Cuatrimestral' },
-    { value: 'biannual', label: 'Semestral' },
-    { value: 'annual', label: 'Anual' }
-  ];
+  // Opciones para los selects (imported from commitmentHelpers)
 
   const paymentMethods = getPaymentMethodOptions();
 
-  const months = [
-    { value: 1, label: 'Enero' },
-    { value: 2, label: 'Febrero' },
-    { value: 3, label: 'Marzo' },
-    { value: 4, label: 'Abril' },
-    { value: 5, label: 'Mayo' },
-    { value: 6, label: 'Junio' },
-    { value: 7, label: 'Julio' },
-    { value: 8, label: 'Agosto' },
-    { value: 9, label: 'Septiembre' },
-    { value: 10, label: 'Octubre' },
-    { value: 11, label: 'Noviembre' },
-    { value: 12, label: 'Diciembre' }
-  ];
+  const months = MONTHS;
 
   const years = [];
   for (let i = new Date().getFullYear() - 2; i <= new Date().getFullYear() + 5; i++) {
     years.push({ value: i, label: i.toString() });
   }
-
-  const formatCurrency = (value) => {
-    if (!value) return '';
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(value);
-  };
 
   if (loadingCompanies) {
     return (

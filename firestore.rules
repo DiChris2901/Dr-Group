@@ -228,10 +228,157 @@ service cloud.firestore {
           resource.data.usuario.uid == request.auth.uid;
       }
     }
-    
-    // Regla por defecto para cualquier otra colección: Solo usuarios autenticados
-    match /{document=**} {
+
+    // ========================================
+    // 🔐 COLECCIONES EXPLÍCITAS (antes en catch-all)
+    // ========================================
+
+    // Sesiones activas: Tracking de sesiones de usuario
+    match /activeSessions/{sessionId} {
       allow read, write: if request.auth != null;
+    }
+
+    // Activity logs (nombre alternativo): Inmutables
+    match /activityLogs/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Alertas del sistema
+    match /alerts/{alertId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Configuración de alertas: Solo el propietario
+    match /alertsConfig/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Asistencias: Registro de jornada laboral (app móvil)
+    match /asistencias/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Eventos de calendario
+    match /calendar_events/{eventId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Empleados
+    match /empleados/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Ingresos (nombre legacy)
+    match /income/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Ingresos
+    match /incomes/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Liquidaciones
+    match /liquidaciones/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Liquidaciones por sala (snake_case)
+    match /liquidaciones_por_sala/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Liquidaciones por sala (camelCase legacy)
+    match /liquidacionesPorSala/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Historial de login: Inmutable (solo crear)
+    match /loginHistory/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Notas
+    match /notes/{noteId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Novedades (app móvil)
+    match /novedades/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Usuarios pendientes de autorización: Solo admins
+    match /pending_auth_users/{docId} {
+      allow read, write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPER_ADMIN'];
+    }
+
+    // Métricas de rendimiento del sistema
+    match /performanceMetrics/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Cuentas personales/bancarias
+    match /personal_accounts/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Proveedores
+    match /providers/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Solicitudes (RRHH)
+    match /solicitudes/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Logs del sistema: Inmutables
+    match /systemLogs/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    // Tareas (sistema simple de tareas)
+    match /tasks/{taskId} {
+      allow read, write: if request.auth != null;
+      
+      // Subcollection: Logs de progreso
+      match /progressLogs/{logId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Configuración de usuario: Solo el propietario
+    match /userSettings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      
+      // Subcollection: Taskbar favorites
+      match /{subcollection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // ========================================
+    // 🚫 DENY-ALL: Cualquier colección no listada
+    // ========================================
+
+    // Estadísticas pre-calculadas del sistema (escriben solo Cloud Functions via Admin SDK)
+    match /system_stats/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Solo Cloud Functions (Admin SDK bypassa rules)
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

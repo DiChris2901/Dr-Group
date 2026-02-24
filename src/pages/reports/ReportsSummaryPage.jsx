@@ -43,7 +43,8 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
-import { useCommitments, useCompanies } from '../../hooks/useFirestore';
+import { useCommitments } from '../../hooks/useFirestore';
+import useCompanies from '../../hooks/useCompanies';
 import { useSettings } from '../../context/SettingsContext';
 
 const ReportsSummaryPage = () => {

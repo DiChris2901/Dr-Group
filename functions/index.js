@@ -1524,7 +1524,7 @@ const sendTelegramMessageWithPriority = async (chatId, text, priority = 'normal'
 // 🎯 SISTEMA DE CONTADORES OPTIMIZADO - REDUCCIÓN DE 20,000 → 1 READ
 // ===================================================================
 
-const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted, onDocumentWritten } = require('firebase-functions/v2/firestore');
 
 /**
  * Helper: Recalcular estadísticas completas del dashboard
@@ -1758,6 +1758,214 @@ exports.forceRecalculateStats = onCall(async (request) => {
     console.error('❌ Error en recálculo manual:', error);
     throw new HttpsError('internal', `Error: ${error.message}`);
   }
+});
+
+// ===================================================================
+// 📊 PRE-COMPUTED STATS: INGRESOS
+// ===================================================================
+
+async function recalculateIngresosStats() {
+  const db = getFirestore();
+  console.log('📊 Recalculando estadísticas de ingresos...');
+
+  try {
+    const snapshot = await db.collection('incomes').get();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const stats = {
+      totalCount: 0,
+      totalAmount: 0,
+      currentMonthCount: 0,
+      currentMonthAmount: 0,
+      byPaymentMethod: {},
+      lastUpdated: FieldValue.serverTimestamp(),
+      calculatedAt: new Date().toISOString()
+    };
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const amount = parseFloat(data.amount) || 0;
+      stats.totalCount++;
+      stats.totalAmount += amount;
+
+      // Método de pago
+      const method = data.paymentMethod || 'otro';
+      if (!stats.byPaymentMethod[method]) {
+        stats.byPaymentMethod[method] = { count: 0, amount: 0 };
+      }
+      stats.byPaymentMethod[method].count++;
+      stats.byPaymentMethod[method].amount += amount;
+
+      // Ingreso del mes actual
+      let incomeDate = null;
+      if (data.date?.toDate) incomeDate = data.date.toDate();
+      else if (data.createdAt?.toDate) incomeDate = data.createdAt.toDate();
+      else if (data.date) incomeDate = new Date(data.date);
+
+      if (incomeDate &&
+          incomeDate.getMonth() === currentMonth &&
+          incomeDate.getFullYear() === currentYear) {
+        stats.currentMonthCount++;
+        stats.currentMonthAmount += amount;
+      }
+    });
+
+    await db.collection('system_stats').doc('ingresos').set(stats, { merge: true });
+    console.log('✅ Stats ingresos actualizadas:', { total: stats.totalCount, monto: stats.totalAmount });
+    return stats;
+  } catch (error) {
+    console.error('❌ Error recalculando stats ingresos:', error);
+    throw error;
+  }
+}
+
+exports.onIncomeCreated = onDocumentCreated('incomes/{docId}', async () => {
+  await recalculateIngresosStats();
+});
+exports.onIncomeUpdated = onDocumentUpdated('incomes/{docId}', async () => {
+  await recalculateIngresosStats();
+});
+exports.onIncomeDeleted = onDocumentDeleted('incomes/{docId}', async () => {
+  await recalculateIngresosStats();
+});
+
+// ===================================================================
+// 📊 PRE-COMPUTED STATS: LIQUIDACIONES POR SALA
+// ===================================================================
+
+async function recalculateLiquidacionesStats() {
+  const db = getFirestore();
+  console.log('📊 Recalculando estadísticas de liquidaciones...');
+
+  try {
+    const snapshot = await db.collection('liquidaciones_por_sala').get();
+
+    const stats = {
+      totalCount: 0,
+      pendientes: 0,
+      facturadas: 0,
+      pagadas: 0,
+      vencidas: 0,
+      montoTotal: 0,
+      montoPendiente: 0,
+      montoCobrado: 0,
+      lastUpdated: FieldValue.serverTimestamp(),
+      calculatedAt: new Date().toISOString()
+    };
+
+    const now = new Date();
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      stats.totalCount++;
+
+      const impuestos = parseFloat(data.metricas?.totalImpuestos) || 0;
+      stats.montoTotal += impuestos;
+
+      const estado = (data.estado || 'pendiente').toLowerCase();
+      if (estado === 'pagada' || estado === 'pagado') {
+        stats.pagadas++;
+        stats.montoCobrado += impuestos;
+      } else if (estado === 'facturada' || estado === 'facturado') {
+        stats.facturadas++;
+        stats.montoPendiente += impuestos;
+      } else {
+        stats.pendientes++;
+        stats.montoPendiente += impuestos;
+      }
+
+      // Vencidas
+      let fechaVencimiento = null;
+      if (data.fechaVencimiento?.toDate) fechaVencimiento = data.fechaVencimiento.toDate();
+      else if (data.fechaVencimiento) fechaVencimiento = new Date(data.fechaVencimiento);
+      if (fechaVencimiento && fechaVencimiento < now && estado !== 'pagada' && estado !== 'pagado') {
+        stats.vencidas++;
+      }
+    });
+
+    await db.collection('system_stats').doc('liquidaciones').set(stats, { merge: true });
+    console.log('✅ Stats liquidaciones actualizadas:', { total: stats.totalCount, pendientes: stats.pendientes });
+    return stats;
+  } catch (error) {
+    console.error('❌ Error recalculando stats liquidaciones:', error);
+    throw error;
+  }
+}
+
+exports.onLiquidacionPorSalaCreated = onDocumentCreated('liquidaciones_por_sala/{docId}', async () => {
+  await recalculateLiquidacionesStats();
+});
+exports.onLiquidacionPorSalaUpdated = onDocumentUpdated('liquidaciones_por_sala/{docId}', async () => {
+  await recalculateLiquidacionesStats();
+});
+exports.onLiquidacionPorSalaDeleted = onDocumentDeleted('liquidaciones_por_sala/{docId}', async () => {
+  await recalculateLiquidacionesStats();
+});
+
+// ===================================================================
+// 📊 PRE-COMPUTED STATS: ASISTENCIAS (resumen del día)
+// ===================================================================
+
+async function recalculateAsistenciasStats() {
+  const db = getFirestore();
+  const today = new Date();
+  const fechaHoy = today.toISOString().split('T')[0]; // YYYY-MM-DD
+  console.log('📊 Recalculando estadísticas de asistencias para:', fechaHoy);
+
+  try {
+    const snapshot = await db.collection('asistencias')
+      .where('fecha', '==', fechaHoy)
+      .get();
+
+    const usersSnapshot = await db.collection('users')
+      .where('isActive', '!=', false)
+      .get();
+    const totalEmployees = usersSnapshot.size;
+
+    const stats = {
+      fecha: fechaHoy,
+      totalEmployees,
+      presentes: 0,
+      trabajando: 0,
+      enBreak: 0,
+      enAlmuerzo: 0,
+      finalizados: 0,
+      ausentes: 0,
+      lastUpdated: FieldValue.serverTimestamp(),
+      calculatedAt: new Date().toISOString()
+    };
+
+    const presentUids = new Set();
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const estado = (data.estadoActual || '').toLowerCase();
+      presentUids.add(data.uid);
+
+      if (estado === 'trabajando') stats.trabajando++;
+      else if (estado === 'break') stats.enBreak++;
+      else if (estado === 'almuerzo') stats.enAlmuerzo++;
+      else if (estado === 'finalizado') stats.finalizados++;
+    });
+
+    stats.presentes = presentUids.size;
+    stats.ausentes = Math.max(0, totalEmployees - presentUids.size);
+
+    await db.collection('system_stats').doc('asistencias').set(stats, { merge: true });
+    console.log('✅ Stats asistencias actualizadas:', {
+      presentes: stats.presentes, ausentes: stats.ausentes, trabajando: stats.trabajando
+    });
+    return stats;
+  } catch (error) {
+    console.error('❌ Error recalculando stats asistencias:', error);
+    throw error;
+  }
+}
+
+exports.onAsistenciaWritten = onDocumentWritten('asistencias/{docId}', async () => {
+  await recalculateAsistenciasStats();
 });
 
 // ============================================

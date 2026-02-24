@@ -52,7 +52,8 @@ import { motion } from 'framer-motion';
 import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
 import { isValid } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
-import { useCommitments, useCompanies, usePayments } from '../../hooks/useFirestore';
+import { useCommitments, usePayments } from '../../hooks/useFirestore';
+import useCompanies from '../../hooks/useCompanies';
 import { useSettings } from '../../context/SettingsContext';
 
 const ReportsCompanyPage = () => {

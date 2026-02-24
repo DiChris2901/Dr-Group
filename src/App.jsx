@@ -1,5 +1,6 @@
-import { Box } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
+import { lazy, Suspense } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 // Context Providers
@@ -9,7 +10,7 @@ import SettingsProvider from './context/SettingsContext';
 import { CustomThemeProvider } from './context/ThemeContext';
 import ToastProvider from './context/ToastContext';
 
-// Components
+// Components (estáticos — se usan en la carga inicial)
 import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import LoginForm from './components/auth/LoginForm';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -17,66 +18,42 @@ import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
 
-// Pages
+// Pages estáticas (primera pantalla o críticas)
 import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
 import AdminSetupPage from './pages/AdminSetupPage';
-import ClientesPage from './pages/ClientesPage';
-import CommitmentsPage from './pages/CommitmentsPage';
-import CompaniesPage from './pages/CompaniesPage';
-import DataPage from './pages/DataPage';
-import EmpleadosPage from './pages/EmpleadosPage';
-import NewCommitmentPage from './pages/NewCommitmentPage';
-import NewPaymentPage from './pages/NewPaymentPage';
-import PaymentsPage from './pages/PaymentsPage';
-import ProfilePage from './pages/ProfilePage';
-import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
-import ReportsConceptPage from './pages/reports/ReportsConceptPage';
-import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
-import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
-import UserManagementPage from './pages/UserManagementPage';
-
-// Módulo de Ingresos
-import BankAccountsPage from './pages/BankAccountsPage';
-import IncomeHistoryPage from './pages/IncomeHistoryPage';
-import IncomePage from './pages/IncomePage';
-
-// Nuevos módulos profesionales
-import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
-
-// Módulo de Auditoría
-import ActivityLogsPage from './pages/ActivityLogsPage';
-
-// Administración - Limpieza de Storage
-import OrphanFilesPage from './pages/OrphanFilesPage';
-
-// Módulo de Liquidaciones
-import LiquidacionesEstadisticasPage from './pages/LiquidacionesEstadisticasPage';
-import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
-import LiquidacionesPage from './pages/LiquidacionesPage';
-import LiquidacionesPageV1 from './pages/LiquidacionesPageV1';
-import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
-
-// Módulo de Facturación
-import FacturacionPage from './pages/FacturacionPage';
-
-// Módulo de Salas
-import SalasPage from './pages/SalasPage';
-
-// Centro de Alertas
-import AlertsCenterPage from './pages/AlertsCenterPage';
-
-// Módulo de Asistencias
-import AsistenciasPage from './pages/AsistenciasPage';
-
-// Módulo de Recursos Humanos
-import RecursosHumanosPage from './pages/RecursosHumanosPage';
-import SolicitudesPage from './pages/SolicitudesPage';
-
-// Módulo de Tareas Delegadas
-import TasksPage from './pages/TasksPage';
-
-// Página de acceso denegado
 import UnauthorizedPage from './pages/UnauthorizedPage';
+
+// Pages lazy-loaded (code splitting — se cargan bajo demanda)
+const ClientesPage = lazy(() => import('./pages/ClientesPage'));
+const CommitmentsPage = lazy(() => import('./pages/CommitmentsPage'));
+const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
+const EmpleadosPage = lazy(() => import('./pages/EmpleadosPage'));
+const NewCommitmentPage = lazy(() => import('./pages/NewCommitmentPage'));
+const NewPaymentPage = lazy(() => import('./pages/NewPaymentPage'));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const ReportsCompanyPage = lazy(() => import('./pages/reports/ReportsCompanyPage'));
+const ReportsConceptPage = lazy(() => import('./pages/reports/ReportsConceptPage'));
+const ReportsPeriodPage = lazy(() => import('./pages/reports/ReportsPeriodPage'));
+const ReportsSummaryPage = lazy(() => import('./pages/reports/ReportsSummaryPage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const BankAccountsPage = lazy(() => import('./pages/BankAccountsPage'));
+const IncomeHistoryPage = lazy(() => import('./pages/IncomeHistoryPage'));
+const IncomePage = lazy(() => import('./pages/IncomePage'));
+const ExecutiveDashboardPage = lazy(() => import('./pages/ExecutiveDashboardPage'));
+const ActivityLogsPage = lazy(() => import('./pages/ActivityLogsPage'));
+const OrphanFilesPage = lazy(() => import('./pages/OrphanFilesPage'));
+const LiquidacionesEstadisticasPage = lazy(() => import('./pages/LiquidacionesEstadisticasPage'));
+const LiquidacionesHistorialPage = lazy(() => import('./pages/LiquidacionesHistorialPage'));
+const LiquidacionesPage = lazy(() => import('./pages/LiquidacionesPage'));
+const LiquidacionesPorSalaPage = lazy(() => import('./pages/LiquidacionesPorSalaPage'));
+const FacturacionPage = lazy(() => import('./pages/FacturacionPage'));
+const SalasPage = lazy(() => import('./pages/SalasPage'));
+const AlertsCenterPage = lazy(() => import('./pages/AlertsCenterPage'));
+const AsistenciasPage = lazy(() => import('./pages/AsistenciasPage'));
+const RecursosHumanosPage = lazy(() => import('./pages/RecursosHumanosPage'));
+const SolicitudesPage = lazy(() => import('./pages/SolicitudesPage'));
+const TasksPage = lazy(() => import('./pages/TasksPage'));
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -86,6 +63,11 @@ const DashboardLayout = () => {
   const { currentUser, userProfile } = useAuth();
 
   return (
+    <Suspense fallback={
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    }>
     <Routes>
       <Route 
         path="/" 
@@ -103,14 +85,7 @@ const DashboardLayout = () => {
           </MainLayout>
         }
       />
-      <Route 
-        path="/data" 
-        element={
-          <MainLayout title="Centro de Análisis de Datos" breadcrumbs={['DATA']}>
-            <DataPage />
-          </MainLayout>
-        }
-      />
+
       {/* ===== RUTAS PROTEGIDAS - COMPROMISOS ===== */}
       <Route 
         path="/commitments" 
@@ -218,16 +193,7 @@ const DashboardLayout = () => {
           </ProtectedRoute>
         }
       />
-      <Route 
-        path="/liquidaciones-v1" 
-        element={
-          <ProtectedRoute requiredPermission="liquidaciones">
-            <MainLayout title="Liquidaciones V1 (Versión Antigua)" breadcrumbs={['Liquidaciones', 'V1']}>
-              <LiquidacionesPageV1 />
-            </MainLayout>
-          </ProtectedRoute>
-        }
-      />
+
       <Route 
         path="/liquidaciones/historico" 
         element={
@@ -455,6 +421,7 @@ const DashboardLayout = () => {
       {/* ===== PÁGINA DE ACCESO DENEGADO ===== */}
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
     </Routes>
+    </Suspense>
   );
 };
 
