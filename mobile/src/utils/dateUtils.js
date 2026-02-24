@@ -1,6 +1,14 @@
 import { addDays, getDay, parseISO } from 'date-fns';
 
 /**
+ * Retorna la fecha de hoy en formato 'YYYY-MM-DD' (zona local).
+ * Centraliza el patrón repetido en AuthContext y otros módulos.
+ */
+export const getTodayStr = (date = new Date()) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+/**
  * Función para verificar si un día es hábil (no fin de semana ni festivo)
  */
 export const esHabil = (fecha, holidays = []) => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { getTodayStr } from '../../utils/dateUtils';
 import {
   View,
   StyleSheet,
@@ -290,7 +291,7 @@ export default function AdminNovedadesScreen({ navigation }) {
       if (newStatus === 'approved' && item?.type === 'solicitud_reapertura') {
         try {
             const dateObj = item.date.toDate();
-            const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            const dateStr = getTodayStr(dateObj);
             
             // Buscar el documento de asistencia correcto (ID autogenerado)
             const qAsistencia = query(

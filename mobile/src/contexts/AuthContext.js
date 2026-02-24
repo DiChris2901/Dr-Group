@@ -13,6 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/NotificationService';
 import { logger } from '../utils/logger';
 import { notifyAdminsWorkEvent } from '../utils/notificationHelpers';
+import { getTodayStr } from '../utils/dateUtils';
+import { checkTodaySessionInCache, saveTodaySessionInCache } from '../utils/sessionCache';
 import {
   generateId,
   obtenerColaPendiente,
@@ -59,34 +61,8 @@ export const AuthProvider = ({ children }) => {
     checkPending();
   }, [activeSession]);
 
-  // 🔒 CAPA 1: Verificar si ya se creó registro hoy (Cache Local)
-  const checkTodaySessionInCache = async (uid, todayStr) => {
-    try {
-      const cacheKey = `session_${uid}_${todayStr}`;
-      const cached = await AsyncStorage.getItem(cacheKey);
-      if (cached) {
-        const sessionData = JSON.parse(cached);
-        console.log('✅ CAPA 1 - Registro encontrado en caché local:', sessionData.sessionId);
-        return sessionData;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error verificando caché local:', error);
-      return null;
-    }
-  };
-
-  // 🔒 CAPA 1: Guardar registro en cache local
-  const saveTodaySessionInCache = async (uid, todayStr, sessionId) => {
-    try {
-      const cacheKey = `session_${uid}_${todayStr}`;
-      const data = { sessionId, timestamp: Date.now() };
-      await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
-      console.log('💾 Registro guardado en caché local:', cacheKey);
-    } catch (error) {
-      console.error('Error guardando en caché:', error);
-    }
-  };
+  // 🔒 CAPA 1: checkTodaySessionInCache y saveTodaySessionInCache
+  // → Extraídos a utils/sessionCache.js
 
     // ✅ ACTUALIZADO: Usa el nuevo sistema de offlineSync.js
   const syncPendingActions = async () => {
@@ -173,7 +149,7 @@ export const AuthProvider = ({ children }) => {
         if (savedSession) {
           const parsed = JSON.parse(savedSession);
           const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const todayStr = getTodayStr(now);
           
           // Verificar que sea del día actual
           if (parsed.fecha === todayStr && parsed.estadoActual !== 'finalizado') {
@@ -196,7 +172,7 @@ export const AuthProvider = ({ children }) => {
 
     // ✅ PASO 2: Listener de Firestore (override si hay diferencias)
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = getTodayStr(now);
 
     const q = query(
       collection(db, 'asistencias'),
@@ -252,7 +228,7 @@ export const AuthProvider = ({ children }) => {
         const docData = snapshot.docs[0].data();
         // Solo si NO es de hoy (porque la de hoy ya la hubiera detectado el listener)
         const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const todayStr = getTodayStr(now);
         if (docData.fecha !== todayStr) {
            setActiveSession({ ...docData, id: snapshot.docs[0].id });
         }
@@ -330,7 +306,7 @@ export const AuthProvider = ({ children }) => {
 
       // ⚡ OPTIMIZACIÓN: Ejecutar validaciones en PARALELO
       const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const todayStr = getTodayStr(now);
       
       // � CAPA 1: Verificar caché local PRIMERO (más rápido y funciona offline)
       const cachedSession = await checkTodaySessionInCache(user.uid, todayStr);
@@ -602,7 +578,7 @@ export const AuthProvider = ({ children }) => {
       // 4. Registrar entrada en asistencias
       // ✅ Usar fecha LOCAL del dispositivo (lo que el usuario ve)
       // Nota: 'now' ya fue declarado al inicio de la función para validaciones
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       
       // 🔒 CAPA 3: Generar ID único de sesión (timestamp + uid)
       const sessionUniqueId = `${user.uid}_${today}_${Date.now()}`;
@@ -818,7 +794,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       const accionId = generateId();
       
       // 1️⃣ Guardar en cola offline
@@ -900,7 +876,7 @@ export const AuthProvider = ({ children }) => {
       if (breakActual.fin) return; // Ya está finalizado
 
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       const accionId = generateId();
       
       // 1️⃣ Guardar en cola offline
@@ -981,7 +957,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       const accionId = generateId();
       
       // 1️⃣ Guardar en cola offline
@@ -1058,7 +1034,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       const accionId = generateId();
       
       // 1️⃣ Guardar en cola offline
@@ -1134,7 +1110,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = getTodayStr(now);
       const accionId = generateId();
       
       // 1️⃣ Guardar en cola offline PRIMERO
@@ -1317,33 +1293,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ✅ PASO 1.1: Sistema de permisos basado en roles
-  const hasPermission = (permission) => {
-    if (!userProfile) return false;
-    
-    // SUPER_ADMIN tiene todos los permisos
-    if (userProfile.role === 'SUPER_ADMIN') return true;
-    
-    // ADMIN tiene permisos específicos
-    if (userProfile.role === 'ADMIN') {
-      const adminPermissions = [
-        'asistencias.ver_todos',
-        'reportes.generar',
-        'usuarios.ver',
-        'chat'
-      ];
-      return adminPermissions.includes(permission);
-    }
-    
-    // USER solo tiene permisos básicos
-    if (userProfile.role === 'USER') {
-      const userPermissions = ['chat', 'asistencia.propia'];
-      return userPermissions.includes(permission);
-    }
-    
-    return false;
-  };
-
   const value = {
     user,
     userProfile,
@@ -1357,7 +1306,6 @@ export const AuthProvider = ({ children }) => {
     registrarAlmuerzo,
     finalizarAlmuerzo,
     finalizarJornada,
-    hasPermission,
     isConnected, // 🔒 Estado de conexión
     isStartingSession, // 🔒 Estado de procesamiento del inicio
     hasPendingSync, // ✅ Estado de sincronización pendiente

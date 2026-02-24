@@ -811,9 +811,9 @@ Get-ChildItem -Recurse "src" -Include *.js,*.jsx | Select-String "console\.(log|
 | Fase 1: Limpieza & Quick Wins | 7 | 7 | ✅ Completada |
 | Fase 2: Optimización Firebase | 3 | 3 | ✅ Completada |
 | Fase 3: Refactoring God Components | 5 | 5 | ✅ Completada |
-| Fase 4: Optimización Mobile | 3 | 0 | ⬜ No iniciada |
-| Fase 5: Arquitectura Avanzada | 4 | 0 | ⬜ No iniciada |
-| **TOTAL** | **22** | **15** | |
+| Fase 4: Optimización Mobile | 3 | 3 | ✅ Completada |
+| Fase 5: Arquitectura Avanzada | 4 | 3 | ✅ Completada (T5.2 diferida) |
+| **TOTAL** | **22** | **21** | |
 
 ### Checklist Rápido por Tarea
 
@@ -834,13 +834,13 @@ Get-ChildItem -Recurse "src" -Include *.js,*.jsx | Select-String "console\.(log|
 | 3.3 | Descomponer UserManagementPage (2,577→2,569L) + getRoleChipColor→companyHelpers | ✅ | Mantenibilidad |
 | 3.4 | Descomponer NewCommitmentPage (3,810→3,532L) + commitmentHelpers + factory pattern | ✅ | Mantenibilidad |
 | 3.5 | Descomponer CompaniesPage (3,397→3,345L) + companyHelpers | ✅ | Mantenibilidad |
-| 4.1 | Splitear AuthContext mobile (1,287L) | ⬜ | Mantenibilidad |
-| 4.2 | Eliminar hasPermission legacy mobile | ⬜ | Limpieza |
-| 4.3 | Error Boundaries mobile | ⬜ | Estabilidad |
-| 5.1 | CompaniesContext global | ⬜ | -3 listeners |
-| 5.2 | Paginación real Commitments | ⬜ | Escalabilidad |
-| 5.3 | Error Boundaries web | ⬜ | Estabilidad |
-| 5.4 | Limpieza console.logs (1,636) | ⬜ | Seguridad + limpieza |
+| 4.1 | Extraer utils de AuthContext mobile (getTodayStr, sessionCache) + reducir ~52L | ✅ | Mantenibilidad + DRY |
+| 4.2 | Eliminar hasPermission legacy mobile (0 consumidores) | ✅ | -28L código muerto |
+| 4.3 | Error Boundaries mobile (ErrorBoundary.js + AppNavigator wrap) | ✅ | Estabilidad |
+| 5.1 | CompaniesContext global (1 listener shared vs 5 independientes) | ✅ | -4 listeners Firestore |
+| 5.2 | Paginación real Commitments | ⏸️ Diferida | Riesgo alto, ROI bajo actual |
+| 5.3 | Error Boundaries web (ErrorBoundary.jsx + App.jsx wrap) | ✅ | Estabilidad |
+| 5.4 | Strip console.log/warn en producción (esbuild pure, 1,110 statements) | ✅ | Bundle limpio + seguridad |
 
 ---
 

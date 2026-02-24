@@ -5,6 +5,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
+import { CompaniesProvider } from './context/CompaniesContext';
 import { NotificationsProvider } from './context/NotificationsContext';
 import SettingsProvider from './context/SettingsContext';
 import { CustomThemeProvider } from './context/ThemeContext';
@@ -15,6 +16,7 @@ import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import LoginForm from './components/auth/LoginForm';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
 
@@ -63,6 +65,7 @@ const DashboardLayout = () => {
   const { currentUser, userProfile } = useAuth();
 
   return (
+    <ErrorBoundary>
     <Suspense fallback={
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <CircularProgress />
@@ -422,6 +425,7 @@ const DashboardLayout = () => {
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
     </Routes>
     </Suspense>
+    </ErrorBoundary>
   );
 };
 
@@ -467,11 +471,13 @@ function App() {
       <CustomThemeProvider>
         <CssBaseline />
         <AuthProvider>
+          <CompaniesProvider>
           <NotificationsProvider>
             <ToastProvider>
               <AppContent />
             </ToastProvider>
           </NotificationsProvider>
+          </CompaniesProvider>
         </AuthProvider>
       </CustomThemeProvider>
     </SettingsProvider>

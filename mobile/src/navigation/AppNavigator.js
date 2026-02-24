@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissionChangeNotifier } from '../hooks/usePermissionChangeNotifier';
 import { ActivityIndicator, View } from 'react-native';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -50,9 +51,10 @@ function AppNavigator({ navigation }, ref) {
 
   return (
     <>
-      <NavigationContainer ref={ref}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {user ? (
+      <ErrorBoundary>
+        <NavigationContainer ref={ref}>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {user ? (
             <>
               {/* ✅ TODOS: Acceso con Bottom Tab Navigator (Tabs dinámicos por rol) */}
               <Stack.Screen name="Main" component={BottomTabNavigator} />
@@ -80,6 +82,7 @@ function AppNavigator({ navigation }, ref) {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    </ErrorBoundary>
     
     {/* ✅ Renderizar diálogo de permisos fuera del NavigationContainer */}
     {renderDialog()}

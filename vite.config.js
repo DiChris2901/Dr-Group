@@ -105,6 +105,10 @@ export default defineConfig({
   esbuild: {
     // Optimizaciones de esbuild
     target: 'esnext',
-    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
+    // ✅ Marcar console.log/warn como "pure" → eliminados durante build (minificación)
+    // console.error se PRESERVA para debugging en producción
+    // En dev, console.log/warn siguen funcionando normalmente
+    pure: ['console.log', 'console.warn'],
   }
 })
