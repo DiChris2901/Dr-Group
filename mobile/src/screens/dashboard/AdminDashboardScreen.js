@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Linking, Modal, FlatList, Pressable } from 'react-native';
 import { Text, Surface, Avatar, IconButton, useTheme as usePaperTheme, ActivityIndicator, Menu, Divider, Badge, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';

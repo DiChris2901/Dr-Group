@@ -1,8 +1,7 @@
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     Alert,
-    Dimensions,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -34,10 +33,7 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useAppDistribution } from '../../hooks/useAppDistribution';
 import { usePermissions } from '../../hooks/usePermissions';
 import { APP_PERMISSIONS } from '../../constants/permissions';
-import designSystem from '../../../design-system.json';
 import materialTheme from '../../../material-theme.json';
-
-const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();

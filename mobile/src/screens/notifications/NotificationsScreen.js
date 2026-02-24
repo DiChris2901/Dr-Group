@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, SegmentedButtons, Button, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { OverlineText } from '../../components';

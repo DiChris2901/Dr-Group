@@ -4,7 +4,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp, query, where, getDocs, onSnapshot, getDocsFromServer } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, Timestamp, query, where, getDocs, onSnapshot, getDocsFromServer } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import * as Location from 'expo-location';
 import { Platform, Alert } from 'react-native';

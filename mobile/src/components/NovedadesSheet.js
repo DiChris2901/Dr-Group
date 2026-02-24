@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Pressable, Keyboard, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Pressable, Keyboard } from 'react-native';
 import { Text, TextInput, useTheme, ActivityIndicator } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
