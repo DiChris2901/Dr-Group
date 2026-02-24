@@ -1340,10 +1340,22 @@ const MaquinasEnCeroStats = ({
                                                 <Stop sx={{ fontSize: 20, color: theme.palette.warning.main }} />
                                                 <Box>
                                                   <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Estuvo en cero desde</Typography>
-                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
-                                                    {formatPeriodoLabel(m.ultimoEpisodio?.periodoOrigen || m.primerCero)}
-                                                  </Typography>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>{m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero</Typography>
+                                                  {(() => {
+                                                    const periodoOrigen = m.ultimoEpisodio?.periodoOrigen || m.primerCero;
+                                                    const fechaInicio = periodoOrigen ? periodoToDate(periodoOrigen) : null;
+                                                    return fechaInicio ? (
+                                                      <>
+                                                        <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
+                                                          {fechaInicio.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
+                                                          {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero
+                                                        </Typography>
+                                                      </>
+                                                    ) : (
+                                                      <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>Sin datos</Typography>
+                                                    );
+                                                  })()}
                                                 </Box>
                                               </Box>
                                             </Grid>
