@@ -1,7 +1,7 @@
 {
   "servers": {
     "firebase": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": [
         "-y",
         "firebase-tools@latest",
@@ -13,14 +13,14 @@
       ]
     },
     "github": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "TU_PAT_AQUI"
       }
     },
     "filesystem": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
@@ -28,15 +28,15 @@
       ]
     },
     "sequential-thinking": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "playwright": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@playwright/mcp@latest"]
     },
     "excel": {
-      "command": "npx",
+      "command": "/RUTA_HOME/.nvm/versions/node/VERSION_NODE/bin/npx",
       "args": ["-y", "@negokaz/excel-mcp-server"]
     }
   }

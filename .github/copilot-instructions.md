@@ -14,9 +14,13 @@ El archivo de ejemplo sin tokens está en `.vscode/mcp.json.example`.
 
 ### Para configurar en una máquina nueva:
 1. Copiar `.vscode/mcp.json.example` → `.vscode/mcp.json`
-2. Reemplazar `/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group` con la ruta real del proyecto
-3. Reemplazar `TU_PAT_AQUI` con el Personal Access Token de GitHub (generarlo en https://github.com/settings/tokens)
-4. Recargar VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
+2. Reemplazar `/RUTA_HOME` con tu home directory (ej: `/Users/tunombre`)
+3. Reemplazar `VERSION_NODE` con la versión de Node instalada via NVM (ej: `v24.14.0`) — verificar con `ls ~/.nvm/versions/node/`
+4. Reemplazar `/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group` con la ruta real del proyecto
+5. Reemplazar `TU_PAT_AQUI` con el Personal Access Token de GitHub (generarlo en https://github.com/settings/tokens)
+6. Recargar VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
+
+> ⚠️ **IMPORTANTE — PATH de npx:** VS Code no carga `.zshrc` al lanzar MCPs, por lo que `npx` del PATH del shell NO es visible. Se debe usar la ruta absoluta: `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
 
 ### 1. 🔥 Firebase MCP
 - **Proyecto activo:** `dr-group-cd21b`

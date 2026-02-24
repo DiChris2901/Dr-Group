@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "dr-group-cd21b"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }
