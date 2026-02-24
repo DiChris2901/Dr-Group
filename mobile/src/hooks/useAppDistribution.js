@@ -1,14 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Constants from 'expo-constants';
 import { Alert, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_DISMISSED_VERSION = '@dismissed_update_version';
+const STORAGE_FIRST_NOTIFIED_PREFIX = '@first_update_notified_at_';
+const FORCE_AFTER_DAYS = 7;
+const FORCE_MINOR_GAP = 2;
+
+/**
+ * Calcula cuántas versiones MINOR/MAJOR de diferencia hay.
+ * - Si el MAJOR sube → siempre forzado.
+ * - Si el MINOR sube ≥ FORCE_MINOR_GAP → forzado.
+ */
+const getVersionGap = (latest, current) => {
+  const l = latest.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  if (l[0] > c[0]) return (l[0] - c[0]) * 100; // diferencia de MAJOR
+  return Math.max(0, l[1] - c[1]); // diferencia de MINOR
+};
 
 /**
  * Hook para verificar actualizaciones disponibles en Firebase App Distribution
- * Consulta la última versión disponible y notifica al usuario si hay una actualización
+ * Consulta la última versión disponible y notifica al usuario si hay una actualización.
+ * El usuario puede descartar el banner UNA VEZ por versión, salvo que hayan pasado
+ * FORCE_AFTER_DAYS días o la versión lleve FORCE_MINOR_GAP+ versiones de ventaja.
  */
 export const useAppDistribution = () => {
   const [updateAvailable, setUpdateAvailable] = useState(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     checkForUpdate();
@@ -50,13 +71,35 @@ export const useAppDistribution = () => {
       const comparison = compareVersions(latestVersion, currentVersion);
       
       if (latestVersion !== currentVersion && comparison > 0) {
-        const updateData = {
+        const versionGap = getVersionGap(latestVersion, currentVersion);
+        const storageKey = `${STORAGE_FIRST_NOTIFIED_PREFIX}${latestVersion}`;
+
+        // Registrar la primera vez que se notifica esta versión
+        const firstNotifiedRaw = await AsyncStorage.getItem(storageKey);
+        if (!firstNotifiedRaw) {
+          await AsyncStorage.setItem(storageKey, new Date().toISOString());
+        }
+        const firstNotifiedAt = firstNotifiedRaw ? new Date(firstNotifiedRaw) : new Date();
+        const daysSinceFirst = Math.floor((Date.now() - firstNotifiedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Determinar si el usuario puede descartarlo
+        const canDismiss = !isCritical && versionGap < FORCE_MINOR_GAP && daysSinceFirst < FORCE_AFTER_DAYS;
+
+        // Ver si el usuario ya lo descartó para esta versión (solo aplica si canDismiss)
+        const dismissedVersion = await AsyncStorage.getItem(STORAGE_DISMISSED_VERSION);
+        if (canDismiss && dismissedVersion === latestVersion) {
+          setIsDismissed(true);
+        }
+
+        setUpdateAvailable({
           version: latestVersion,
           downloadUrl: 'https://appdistribution.firebase.google.com/testerapps/1:526970184316:android:4e55364c1a1794daf41ff9',
-          releaseNotes: releaseNotes,
-          isCritical: isCritical
-        };
-        setUpdateAvailable(updateData);
+          releaseNotes,
+          isCritical,
+          canDismiss,
+          versionGap,
+          daysSinceFirst,
+        });
       }
     } catch (error) {
       console.error('❌ [UPDATE CHECK] Error:', error);
@@ -85,6 +128,18 @@ export const useAppDistribution = () => {
     }
   };
 
+  /** Descarta el banner para esta versión (solo si canDismiss). */
+  const dismissUpdate = useCallback(async () => {
+    if (!updateAvailable?.canDismiss) return;
+    try {
+      await AsyncStorage.setItem(STORAGE_DISMISSED_VERSION, updateAvailable.version);
+      setIsDismissed(true);
+    } catch (e) {
+      // Si AsyncStorage falla, igual ocultamos el banner en esta sesión
+      setIsDismissed(true);
+    }
+  }, [updateAvailable]);
+
   const showUpdateDialog = () => {
     if (!updateAvailable) return;
 
@@ -104,11 +159,16 @@ export const useAppDistribution = () => {
     Alert.alert(title, message, buttons, { cancelable: !updateAvailable.isCritical });
   };
 
+  // El banner es visible si hay actualización Y no fue descartada
+  const bannerVisible = !!updateAvailable && !isDismissed;
+
   return {
     updateAvailable,
+    bannerVisible,
     isChecking,
     checkForUpdate,
     downloadUpdate,
+    dismissUpdate,
     showUpdateDialog
   };
 };

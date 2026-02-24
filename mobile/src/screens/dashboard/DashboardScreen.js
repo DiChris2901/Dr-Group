@@ -44,7 +44,7 @@ export default function DashboardScreen() {
   const theme = usePaperTheme();
   const { isDarkMode, toggleDarkMode, triggerHaptic } = useTheme();
   const { unreadCount } = useNotifications();
-  const { updateAvailable, showUpdateDialog } = useAppDistribution();
+  const { updateAvailable, bannerVisible, showUpdateDialog, dismissUpdate } = useAppDistribution();
   const { can } = usePermissions();
   
   const { 
@@ -400,7 +400,7 @@ export default function DashboardScreen() {
         </ScrollView>
 
         {/* Update Banner */}
-        {updateAvailable && (
+        {bannerVisible && updateAvailable && (
           <Surface 
             style={[styles.updateBanner, { 
               backgroundColor: updateAvailable.isCritical ? surfaceColors.errorContainer : surfaceColors.tertiaryContainer
@@ -424,6 +424,15 @@ export default function DashboardScreen() {
                   {updateAvailable.releaseNotes}
                 </PaperText>
               </View>
+              {updateAvailable.canDismiss && (
+                <IconButton
+                  icon="close"
+                  size={18}
+                  iconColor={surfaceColors.onSurfaceVariant}
+                  onPress={dismissUpdate}
+                  style={{ margin: 0 }}
+                />
+              )}
             </View>
             <Button 
               mode="contained" 

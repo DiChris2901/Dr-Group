@@ -53,7 +53,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const { user, userProfile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
-  const { updateAvailable, showUpdateDialog } = useAppDistribution();
+  const { updateAvailable, bannerVisible, showUpdateDialog, dismissUpdate } = useAppDistribution();
   const { can } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -399,7 +399,7 @@ export default function AdminDashboardScreen({ navigation }) {
       </ScrollView>
 
       {/* Update Banner */}
-      {updateAvailable && (
+      {bannerVisible && updateAvailable && (
         <Surface 
           style={[styles.updateBanner, { 
             backgroundColor: updateAvailable.isCritical ? theme.colors.errorContainer : theme.colors.tertiaryContainer,
@@ -425,6 +425,15 @@ export default function AdminDashboardScreen({ navigation }) {
                 {updateAvailable.releaseNotes}
               </Text>
             </View>
+            {updateAvailable.canDismiss && (
+              <IconButton
+                icon="close"
+                size={18}
+                iconColor={theme.colors.onSurfaceVariant}
+                onPress={dismissUpdate}
+                style={{ margin: 0 }}
+              />
+            )}
           </View>
           <Button 
             mode="contained" 
