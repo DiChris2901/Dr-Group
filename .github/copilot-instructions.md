@@ -38,16 +38,23 @@ firebase --version && firebase login:list
 cat .vscode/mcp.json | grep command
 
 # 4. Verificar versión de Node en NVM (para la ruta absoluta correcta)
-ls ~/.nvm/versions/node/
+ls ~/.nvm/versions/node/          # macOS/Linux
+ls $env:APPDATA\nvm              # Windows PowerShell
 ```
 
-Si alguno falla → ejecutar el **Protocolo de Instalación Completa** de abajo.
+Si alguno falla → ejecutar el **Protocolo de Instalación Completa** según el OS.
 
 ---
 
 ### 🛠️ PROTOCOLO DE INSTALACIÓN COMPLETA (Máquina nueva o entorno roto)
 
-Ejecutar en orden. Comandos para **macOS (bash/zsh)**:
+> ⚡ **DETECTAR OS PRIMERO** antes de ejecutar cualquier comando:
+> - **macOS** → usar sección macOS (bash/zsh, Terminal.app)
+> - **Windows** → usar sección Windows (PowerShell, nvm-windows)
+
+---
+
+## 🍎 INSTALACIÓN macOS (bash/zsh)
 
 #### PASO 1 — NVM + Node.js (NO requiere permisos admin)
 ```bash
@@ -96,14 +103,14 @@ git config --global user.name "Diego Rueda"
 git config --global user.email "daruedagu@gmail.com"
 git config --global credential.helper osxkeychain
 
-# Guardar PAT en keychain (reemplazar TU_PAT con el token real de GitHub)
+# Guardar PAT en keychain macOS (reemplazar TU_PAT con el token real)
 printf "protocol=https\nhost=github.com\nusername=DiChris2901\npassword=TU_PAT\n" | git credential approve
 
 # Verificar: debe hacer fetch sin pedir contraseña
 cd /ruta/al/proyecto && git fetch origin
 ```
 
-#### PASO 5 — Crear mcp.json local
+#### PASO 5 — Crear mcp.json local (macOS)
 ```bash
 # 1. Obtener ruta absoluta de npx (con NVM activo)
 export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh" && which npx
@@ -111,20 +118,17 @@ export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh" && which npx
 
 # 2. Copiar ejemplo y editar
 cp .vscode/mcp.json.example .vscode/mcp.json
-# Editar .vscode/mcp.json y reemplazar los 4 placeholders:
-# RUTA_HOME        → tu home real             (ej: /Users/diegor)
+# Editar .vscode/mcp.json — sección "macOS" — y reemplazar:
+# RUTA_HOME_MAC    → tu home real             (ej: /Users/diegor)
 # VERSION_NODE     → tu versión de Node       (ej: v24.14.0)
-# RUTA_ABSOLUTA    → ruta completa al proyecto (ej: /Users/diegor/Desktop/Dr-Group)
+# RUTA_ABSOLUTA_MAC → ruta completa al proyecto (ej: /Users/diegor/Desktop/Dr-Group)
 # TU_PAT_AQUI      → Personal Access Token de GitHub
 ```
 
 #### PASO 6 — Dependencias del proyecto
 ```bash
-# Dashboard web
-npm install
-
-# App móvil
-cd mobile && npm install && cd ..
+npm install                        # Dashboard web
+cd mobile && npm install && cd ..  # App móvil
 ```
 
 #### PASO 7 — Verificación final y reload
@@ -132,25 +136,94 @@ cd mobile && npm install && cd ..
 export NVM_DIR="$HOME/.nvm" && \. "$NVM_DIR/nvm.sh"
 node --version && firebase --version && git --version
 ```
-Luego en VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
+Luego: `Cmd+Shift+P` → **Developer: Reload Window**
 
 ---
 
-### ⚠️ ADVERTENCIAS CRÍTICAS
+## 🪟 INSTALACIÓN WINDOWS (PowerShell)
 
-> **VS Code NO carga `.zshrc` al lanzar MCPs** — `npx` del PATH del shell no es visible. El `mcp.json` DEBE usar la ruta **absoluta** de npx:
-> `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
+#### PASO 1 — nvm-windows + Node.js
+```powershell
+# Descargar e instalar nvm-windows desde:
+# https://github.com/coreybutler/nvm-windows/releases
+# → Descargar nvm-setup.exe → ejecutar como Administrador
+
+# Después de instalar, abrir PowerShell como Administrador:
+nvm install lts
+nvm use lts
+
+# Verificar → debe mostrar v24.x.x
+node --version
+npm --version
+```
+
+#### PASO 2 — Firebase CLI
+```powershell
+npm install -g firebase-tools
+firebase login            # Abre navegador → seleccionar daruedagu@gmail.com
+firebase use dr-group-cd21b
+firebase --version        # debe mostrar 15.x.x
+```
+
+#### PASO 3 — Git + GitHub auth (Git Credential Manager — ya incluido con Git for Windows)
+```powershell
+git config --global user.name "Diego Rueda"
+git config --global user.email "daruedagu@gmail.com"
+git config --global credential.helper manager   # Git Credential Manager (Windows)
+
+# Verificar: en el primer git fetch abrirá ventana del navegador para autenticar con GitHub
+cd C:\ruta\al\proyecto && git fetch origin
+# → Iniciará sesión en GitHub automáticamente via navegador
+```
+
+#### PASO 4 — Crear mcp.json local (Windows)
+```powershell
+# 1. Obtener ruta absoluta de npx
+where.exe npx
+# → Resultado ejemplo: C:\Users\tunombre\AppData\Roaming\nvm\v24.14.0\npx.cmd
+
+# 2. Copiar ejemplo y editar
+Copy-Item .vscode\mcp.json.example .vscode\mcp.json
+# Editar .vscode/mcp.json — sección "Windows" — y reemplazar:
+# RUTA_NPX_WINDOWS  → ruta completa de npx.cmd  (ej: C:\Users\darg1\AppData\Roaming\nvm\v24.14.0\npx.cmd)
+# RUTA_ABSOLUTA_WIN → ruta completa al proyecto  (ej: C:\Users\darg1\Desktop\Dr-Group)
+# TU_PAT_AQUI       → Personal Access Token de GitHub
+```
+
+#### PASO 5 — Dependencias del proyecto
+```powershell
+npm install                                # Dashboard web
+Set-Location mobile; npm install; Set-Location ..  # App móvil
+```
+
+#### PASO 6 — Verificación final y reload
+```powershell
+node --version; firebase --version; git --version
+```
+Luego: `Ctrl+Shift+P` → **Developer: Reload Window**
+
+---
+
+### ⚠️ ADVERTENCIAS CRÍTICAS (ambos OS)
+
+> **VS Code NO carga `.zshrc` / `.bashrc` / perfil de PowerShell al lanzar MCPs.** El `mcp.json` DEBE usar la ruta **absoluta** de npx:
+> - **macOS:** `/Users/TU_USUARIO/.nvm/versions/node/VERSION/bin/npx`
+> - **Windows:** `C:\Users\TU_USUARIO\AppData\Roaming\nvm\VERSION\npx.cmd`
 > Si se usa solo `"npx"`, los MCPs fallarán con `command not found: npx`.
 
 > **`mcp.json` está en `.gitignore`** — contiene tokens privados. NUNCA hacer commit. El template sin tokens es `.vscode/mcp.json.example` (este sí está en git).
 
 > **GitHub PAT** va SOLO en `.vscode/mcp.json` local. NUNCA en el repo ni en copilot-instructions.
 
+> **Git Credential Manager difiere por OS:**
+> - macOS → `credential.helper osxkeychain`
+> - Windows → `credential.helper manager`
+
 ---
 
 ### Configuración local (NO está en git — contiene tokens)
-- Archivo real: `.vscode/mcp.json` → ignorado por `.gitignore`, contiene tokens
-- Archivo template: `.vscode/mcp.json.example` → en git, sin tokens, úsalo como base
+- Archivo real: `.vscode/mcp.json` → ignorado por `.gitignore`, **uno distinto por máquina**
+- Archivo template: `.vscode/mcp.json.example` → en git, sin tokens, con secciones macOS y Windows
 
 ### Descripción individual de cada MCP
 
