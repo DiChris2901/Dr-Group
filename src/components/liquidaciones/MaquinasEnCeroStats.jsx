@@ -59,7 +59,8 @@ import {
   Schedule,
   DateRange,
   PlayArrow,
-  Stop
+  Stop,
+  Save
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import {
@@ -83,7 +84,10 @@ import {
   normalizeEmpresa,
   formatPeriodoLabel,
   backfillFechasExactas,
-  actualizarEpisodiosDesdeHoundoc
+  actualizarEpisodiosDesdeHoundoc,
+  periodoToDate,
+  periodoEndDate,
+  periodoScore
 } from '../../services/maquinasEnCeroService';
 
 // ===== COMPONENTE: MÁQUINAS EN CERO — ANÁLISIS ESTADÍSTICO =====
@@ -300,25 +304,74 @@ const MaquinasEnCeroStats = ({
   };
 
   // ===== DATOS DERIVADOS =====
-  // Enriquecer máquinas: cuando existe ultimoEpisodio, sus datos tienen prioridad
-  // sobre los campos calculados a nivel de periodo (diasCalendario, esActualmenteEnCero)
+  // Enriquecer máquinas: recalcular episodio en cliente desde los datos de periodos
+  // que ya existen en cada máquina. Esto corrige cualquier dato de episodio 
+  // almacenado en Firestore con el algoritmo anterior.
   const maquinas = useMemo(() => {
-    return (data?.maquinas || []).map(m => {
-      const ep = m.ultimoEpisodio;
-      if (!ep) return m; // Sin episodio → datos originales
+    const hoy = new Date();
 
-      // Un episodio con fechaFin === null/undefined significa que la máquina SIGUE en cero
-      const sigueEnCero = !ep.fechaFin;
+    return (data?.maquinas || []).map(m => {
+      // --- Calcular última racha consecutiva de periodos en cero ---
+      const enCeroSet = new Set(m.periodosEnCero || []);
+      const sorted = [...(m.periodosTotales || [])].sort((a, b) => periodoScore(a) - periodoScore(b));
+      const idx = m.ultimoCero ? sorted.lastIndexOf(m.ultimoCero) : -1;
+
+      // Sin datos suficientes → devolver original
+      if (idx < 0 || !m.ultimoCero) return m;
+
+      const streak = [m.ultimoCero];
+      for (let i = idx - 1; i >= 0; i--) {
+        if (enCeroSet.has(sorted[i])) streak.unshift(sorted[i]);
+        else break;
+      }
+
+      const streakStartDate = periodoToDate(streak[0]);
+      const streakEndDate = periodoEndDate(streak[streak.length - 1]);
+      const sigueEnCero = m.esActualmenteEnCero;
+
+      // --- Calcular días y fechas correctas ---
+      const ep = m.ultimoEpisodio || {};
+      let diasCalc, fechaInicio, fechaFin;
+
+      if (sigueEnCero) {
+        // Aún en cero: si tiene fecha exacta de última producción, usar esa
+        if (ep.ultimaFechaConProduccion && ep.fuenteFecha === 'exacta') {
+          const nextDay = new Date(ep.ultimaFechaConProduccion + 'T12:00:00');
+          nextDay.setDate(nextDay.getDate() + 1);
+          fechaInicio = nextDay.toISOString().split('T')[0];
+          diasCalc = Math.max(0, Math.round((hoy - nextDay) / 86400000));
+        } else {
+          fechaInicio = streakStartDate ? streakStartDate.toISOString().split('T')[0] : null;
+          diasCalc = streakStartDate ? Math.max(0, Math.round((hoy - streakStartDate) / 86400000)) : (m.diasCalendario || 0);
+        }
+        fechaFin = null;
+      } else {
+        // Recuperada: duración real de la racha
+        fechaInicio = streakStartDate ? streakStartDate.toISOString().split('T')[0] : null;
+        fechaFin = streakEndDate ? streakEndDate.toISOString().split('T')[0] : null;
+        diasCalc = (streakStartDate && streakEndDate)
+          ? Math.max(0, Math.round((streakEndDate - streakStartDate) / 86400000))
+          : 0;
+      }
+
+      const nuevoNivel = diasCalc >= 180 ? 'critico' : diasCalc >= 60 ? 'alerta' : 'reciente';
+
+      // Construir episodio corregido: preservar datos exactos de Houndoc,
+      // pero sobreescribir fechas/días con cálculo correcto de racha
+      const episodioCorregido = {
+        ...ep,
+        fechaInicioCero: fechaInicio,
+        fechaFin: fechaFin,
+        diasInactividad: diasCalc,
+        periodoOrigen: streak[0],
+      };
 
       return {
         ...m,
-        // Sobreescribir con datos más precisos del episodio
-        diasCalendario: ep.diasInactividad ?? m.diasCalendario,
+        diasCalendario: diasCalc,
         esActualmenteEnCero: sigueEnCero,
-        // Recalcular nivel basado en días reales del episodio
-        nivel: sigueEnCero
-          ? (ep.diasInactividad >= 180 ? 'critico' : ep.diasInactividad >= 60 ? 'alerta' : 'reciente')
-          : m.nivel,
+        nivel: nuevoNivel,
+        ultimoEpisodio: episodioCorregido,
       };
     });
   }, [data?.maquinas]);
@@ -823,10 +876,10 @@ const MaquinasEnCeroStats = ({
             variant="contained"
             onClick={handleConfirmUpload}
             disabled={!uploadFile || !uploadPreview || !uploadPeriodoMes || !uploadPeriodoAnio || uploading}
-            startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
+            startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <Save />}
             sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
           >
-            {uploading ? 'Procesando...' : 'Actualizar Datos'}
+            {uploading ? 'Procesando...' : 'Guardar'}
           </Button>
         </Box>
       </DialogActions>
@@ -837,7 +890,7 @@ const MaquinasEnCeroStats = ({
   if (!kpis || maquinas.length === 0) {
     return (
       <Box>
-        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
+        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
         <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 4, textAlign: 'center' }}>
           <CheckCircle sx={{ fontSize: 80, color: theme.palette.success.main, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
@@ -856,7 +909,7 @@ const MaquinasEnCeroStats = ({
   return (
     <Box>
       {/* Info bar + action buttons */}
-      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onRecalcular={handleMigrar} migrando={migrando} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
+      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
 
       {/* KPIs */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -1196,15 +1249,15 @@ const MaquinasEnCeroStats = ({
                                             <Box sx={{
                                               display: 'flex', alignItems: 'flex-start', gap: 1,
                                               p: 1.5, borderRadius: 1, width: '100%',
-                                              backgroundColor: alpha(theme.palette.error.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.error.main, 0.4)}`
+                                              backgroundColor: alpha(m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main, 0.06),
+                                              border: `1px solid ${alpha(m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main, 0.4)}`
                                             }}>
-                                              <Stop sx={{ fontSize: 20, color: theme.palette.error.main }} />
+                                              <Stop sx={{ fontSize: 20, color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main }} />
                                               <Box>
                                                 <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
                                                   En cero desde
                                                 </Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main }}>
                                                   {m.ultimoEpisodio?.fechaInicioCero
                                                     ? new Date(m.ultimoEpisodio.fechaInicioCero + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
                                                     : formatPeriodoLabel(m.primerCero)
@@ -1272,14 +1325,18 @@ const MaquinasEnCeroStats = ({
                                                   {m.esActualmenteEnCero
                                                     ? `Sigue en cero (${m.ultimoEpisodio?.diasInactividad || m.diasCalendario} días)`
                                                     : (() => {
-                                                        if (m.ultimoEpisodio?.fechaFin) {
-                                                          return new Date(m.ultimoEpisodio.fechaFin + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-                                                        }
-                                                        const idxUltimoCero = (m.periodosTotales || []).indexOf(m.ultimoCero);
-                                                        const periodoRecuperacion = idxUltimoCero >= 0 && idxUltimoCero < (m.periodosTotales || []).length - 1
-                                                          ? m.periodosTotales[idxUltimoCero + 1]
+                                                        // Mostrar el periodo de recuperación (mes después del último cero)
+                                                        const sorted = [...(m.periodosTotales || [])].sort();
+                                                        const idxUltimoCero = sorted.indexOf(m.ultimoCero);
+                                                        const periodoRecuperacion = idxUltimoCero >= 0 && idxUltimoCero < sorted.length - 1
+                                                          ? sorted[idxUltimoCero + 1]
                                                           : null;
-                                                        return periodoRecuperacion ? formatPeriodoLabel(periodoRecuperacion) : 'Periodo siguiente';
+                                                        if (periodoRecuperacion) return formatPeriodoLabel(periodoRecuperacion);
+                                                        // Fallback: si tiene fecha de última producción, mostrar mes/año
+                                                        if (m.ultimoEpisodio?.ultimaFechaConProduccion) {
+                                                          return new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', year: 'numeric' });
+                                                        }
+                                                        return 'Periodo siguiente';
                                                       })()
                                                   }
                                                 </Typography>
@@ -1298,7 +1355,7 @@ const MaquinasEnCeroStats = ({
                                               <CalendarMonth sx={{ fontSize: 20, color: theme.palette.info.main }} />
                                               <Box>
                                                 <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  Días inactiva
+                                                  {m.esActualmenteEnCero ? 'Días inactiva' : 'Duración del episodio'}
                                                 </Typography>
                                                 <Typography variant="body2" sx={{
                                                   fontWeight: 700, fontSize: 15,
@@ -1519,7 +1576,7 @@ const MaquinasEnCeroStats = ({
 };
 
 // ===== InfoBar sub-component =====
-const InfoBar = ({ data, theme, onUpload, onRecalcular, migrando, onBackfill, backfillRunning, backfillProgress }) => {
+const InfoBar = ({ data, theme, onUpload, onBackfill, backfillRunning, backfillProgress }) => {
   const updatedAt = data?.ultimaActualizacion
     ? new Date(data.ultimaActualizacion.seconds * 1000).toLocaleString('es-CO')
     : 'N/A';
@@ -1565,20 +1622,13 @@ const InfoBar = ({ data, theme, onUpload, onRecalcular, migrando, onBackfill, ba
                 color="warning"
                 startIcon={backfillRunning ? <CircularProgress size={16} color="inherit" /> : <DateRange />}
                 onClick={onBackfill}
-                disabled={backfillRunning || migrando}
+                disabled={backfillRunning}
                 sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
               >
                 {backfillRunning ? 'Procesando...' : 'Extraer fechas exactas'}
               </Button>
             </MuiTooltip>
           )}
-          <MuiTooltip title="Recalcular desde todas las liquidaciones">
-            <Button size="small" variant="outlined" startIcon={<Refresh />} onClick={onRecalcular} disabled={migrando}
-              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
-            >
-              {migrando ? 'Recalculando...' : 'Recalcular'}
-            </Button>
-          </MuiTooltip>
         </Box>
       </Box>
       {backfillRunning && backfillProgress && (

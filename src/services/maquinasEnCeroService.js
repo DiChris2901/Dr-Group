@@ -489,9 +489,45 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
     const yaExiste = periodosExistentes.includes(nuevoPeriodo);
 
     if (yaExiste) {
-      // Si el periodo ya existe, necesitamos hacer un recálculo completo
-      // porque no podemos "restar" el periodo viejo del análisis incremental
-      return migrarEmpresa(empresaNorm, empresaNombre);
+      // Si el periodo ya existe, hacer recálculo completo PERO preservando episodios
+      // Guardamos los episodios existentes antes del recálculo
+      const episodiosExistentes = new Map();
+      (existing.maquinas || []).forEach(m => {
+        if (m.ultimoEpisodio) {
+          episodiosExistentes.set(m.key, m.ultimoEpisodio);
+        }
+      });
+      const backfillCompletado = existing.backfillCompletado || false;
+      const ultimaActualizacionFechas = existing.ultimaActualizacionFechas || null;
+
+      const resultado = await migrarEmpresa(empresaNorm, empresaNombre);
+
+      // Re-aplicar episodios si existían
+      if (resultado?.success && episodiosExistentes.size > 0) {
+        const docRef = doc(db, COLLECTION_NAME, empresaNorm);
+        const freshDoc = await getDoc(docRef);
+        if (freshDoc.exists()) {
+          const freshData = freshDoc.data();
+          const maquinasConEpisodios = (freshData.maquinas || []).map(m => {
+            const ep = episodiosExistentes.get(m.key);
+            if (ep) return { ...m, ultimoEpisodio: ep };
+            return m;
+          });
+          await setDoc(docRef, {
+            ...freshData,
+            maquinas: maquinasConEpisodios,
+            ...(backfillCompletado ? { backfillCompletado: true } : {}),
+            ...(ultimaActualizacionFechas ? { ultimaActualizacionFechas } : {})
+          });
+          // Update the returned data with episodes
+          if (resultado.data) {
+            resultado.data.maquinas = maquinasConEpisodios;
+            resultado.data.backfillCompletado = backfillCompletado;
+          }
+        }
+      }
+
+      return resultado;
     }
 
     // 3. Merge incremental: agregar datos del nuevo periodo al análisis existente
@@ -502,9 +538,9 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
     const machineMap = new Map();
     const totalMaquinasPorPeriodo = new Map();
 
-    // Restore existing machines
+    // Restore existing machines (preserving ultimoEpisodio if exists)
     (existing.maquinas || []).forEach(m => {
-      machineMap.set(m.key, {
+      const restored = {
         nuc: m.nuc,
         serial: m.serial,
         sala: m.sala,
@@ -512,7 +548,11 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
         periodosEnCero: [...(m.periodosEnCero || [])],
         periodosTotales: [...(m.periodosTotales || [])],
         produccionUltimoPeriodo: m.produccionUltimoPeriodo || 0
-      });
+      };
+      if (m.ultimoEpisodio) {
+        restored.ultimoEpisodio = m.ultimoEpisodio;
+      }
+      machineMap.set(m.key, restored);
     });
 
     // Restore fleet counts from trend data
@@ -598,7 +638,7 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
       else if (diasCalendario > 30) nivel = 'alerta';
       else nivel = 'reciente';
 
-      maquinasEnCero.push({
+      const entry = {
         key, nuc: record.nuc, serial: record.serial, sala: record.sala,
         tipoApuesta: record.tipoApuesta,
         periodosEnCero: zeroPeriodosSorted,
@@ -608,7 +648,12 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
         diasCalendario, diasEntrePrimeroYUltimoCero,
         esActualmenteEnCero, nivel,
         produccionUltimoPeriodo: record.produccionUltimoPeriodo
-      });
+      };
+      // Preserve episode data if it exists
+      if (record.ultimoEpisodio) {
+        entry.ultimoEpisodio = record.ultimoEpisodio;
+      }
+      maquinasEnCero.push(entry);
     });
 
     maquinasEnCero.sort((a, b) => b.diasCalendario - a.diasCalendario);
@@ -685,6 +730,14 @@ export const updateConNuevoPeriodo = async (empresaNorm, empresaNombre, newLiqPo
       resumenPorSala,
       tendencia
     };
+
+    // Preserve backfill metadata if it existed
+    if (existing.backfillCompletado) {
+      resultado.backfillCompletado = true;
+    }
+    if (existing.ultimaActualizacionFechas) {
+      resultado.ultimaActualizacionFechas = existing.ultimaActualizacionFechas;
+    }
 
     // Save
     await saveMaquinasEnCero(empresaNorm, resultado, fuente);
@@ -1095,65 +1148,128 @@ export const construirEpisodios = (machineProductionData, existingDoc) => {
   const episodios = new Map();
   const hoy = new Date();
 
+  /**
+   * Helper: Encuentra la última racha consecutiva de periodos en cero.
+   * Ej: periodosEnCero=[Nov24, Ago25, Sep25, Dic25], periodosTotales incluye Oct25, Nov25
+   *     → última racha = [Dic25] (solo 1 mes, porque Nov25 tuvo producción)
+   */
+  const getLastZeroStreak = (maq) => {
+    const enCeroSet = new Set(maq.periodosEnCero || []);
+    const sorted = [...(maq.periodosTotales || [])].sort((a, b) => periodoScore(a) - periodoScore(b));
+    const idx = sorted.lastIndexOf(maq.ultimoCero);
+    if (idx < 0) return [maq.ultimoCero];
+
+    const streak = [maq.ultimoCero];
+    for (let i = idx - 1; i >= 0; i--) {
+      if (enCeroSet.has(sorted[i])) {
+        streak.unshift(sorted[i]);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
   existingDoc.maquinas.forEach(maq => {
     const prodData = machineProductionData.get(maq.key);
+    const lastStreak = getLastZeroStreak(maq);
+    const streakStartDate = periodoToDate(lastStreak[0]);
+    const streakEndDate = periodoEndDate(lastStreak[lastStreak.length - 1]);
 
     if (!prodData) {
-      // Sin datos diarios → fallback a nivel de periodo
-      const inicioDate = periodoToDate(maq.primerCero);
-      const finDate = !maq.esActualmenteEnCero ? periodoEndDate(maq.ultimoCero) : null;
-      
-      episodios.set(maq.key, {
-        fechaInicioCero: inicioDate ? inicioDate.toISOString().split('T')[0] : null,
-        ultimaFechaConProduccion: null,
-        produccionAntesDeCero: 0,
-        fechaFin: finDate ? finDate.toISOString().split('T')[0] : null,
-        diasInactividad: maq.esActualmenteEnCero && inicioDate
-          ? Math.max(0, Math.round((hoy - inicioDate) / 86400000))
-          : maq.diasEntrePrimeroYUltimoCero || 0,
-        periodoOrigen: maq.primerCero,
-        fuenteFecha: 'periodo'
-      });
+      // Sin datos diarios → aproximación a nivel de periodo usando la última racha
+      if (maq.esActualmenteEnCero) {
+        // Sigue en cero: desde inicio de la racha actual hasta hoy
+        episodios.set(maq.key, {
+          fechaInicioCero: streakStartDate ? streakStartDate.toISOString().split('T')[0] : null,
+          ultimaFechaConProduccion: null,
+          produccionAntesDeCero: 0,
+          fechaFin: null,
+          diasInactividad: streakStartDate
+            ? Math.max(0, Math.round((hoy - streakStartDate) / 86400000))
+            : 0,
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'periodo'
+        });
+      } else {
+        // Recuperada: duración de la última racha en cero
+        episodios.set(maq.key, {
+          fechaInicioCero: streakStartDate ? streakStartDate.toISOString().split('T')[0] : null,
+          ultimaFechaConProduccion: null,
+          produccionAntesDeCero: 0,
+          fechaFin: streakEndDate ? streakEndDate.toISOString().split('T')[0] : null,
+          diasInactividad: streakStartDate && streakEndDate
+            ? Math.max(0, Math.round((streakEndDate - streakStartDate) / 86400000))
+            : 0,
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'periodo'
+        });
+      }
       return;
     }
 
     if (prodData.lastProductiveDay) {
-      // ✅ Máquina produjo en algún momento → tenemos fecha exacta de transición
-      const nextDay = new Date(prodData.lastProductiveDay);
-      nextDay.setDate(nextDay.getDate() + 1);
+      if (maq.esActualmenteEnCero) {
+        // ✅ Sigue en cero: fecha exacta = día después de la última producción
+        const nextDay = new Date(prodData.lastProductiveDay);
+        nextDay.setDate(nextDay.getDate() + 1);
 
-      const fechaInicio = nextDay.toISOString().split('T')[0];
-      const diasInactividad = maq.esActualmenteEnCero
-        ? Math.max(0, Math.round((hoy - nextDay) / 86400000))
-        : maq.diasEntrePrimeroYUltimoCero || 0;
-
-      episodios.set(maq.key, {
-        fechaInicioCero: fechaInicio,
-        ultimaFechaConProduccion: prodData.lastProductiveDay.toISOString().split('T')[0],
-        produccionAntesDeCero: prodData.lastProductiveAmount,
-        fechaFin: maq.esActualmenteEnCero ? null : (periodoEndDate(maq.ultimoCero)?.toISOString().split('T')[0] || null),
-        diasInactividad,
-        periodoOrigen: maq.primerCero,
-        fuenteFecha: 'exacta'
-      });
+        episodios.set(maq.key, {
+          fechaInicioCero: nextDay.toISOString().split('T')[0],
+          ultimaFechaConProduccion: prodData.lastProductiveDay.toISOString().split('T')[0],
+          produccionAntesDeCero: prodData.lastProductiveAmount,
+          fechaFin: null,
+          diasInactividad: Math.max(0, Math.round((hoy - nextDay) / 86400000)),
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'exacta'
+        });
+      } else {
+        // ✅ Recuperada: la última producción es DESPUÉS del último periodo en cero.
+        // Usar la última racha para fechas del episodio, pero guardar info de producción actual.
+        episodios.set(maq.key, {
+          fechaInicioCero: streakStartDate ? streakStartDate.toISOString().split('T')[0] : null,
+          ultimaFechaConProduccion: prodData.lastProductiveDay.toISOString().split('T')[0],
+          produccionAntesDeCero: prodData.lastProductiveAmount,
+          fechaFin: streakEndDate ? streakEndDate.toISOString().split('T')[0] : null,
+          diasInactividad: streakStartDate && streakEndDate
+            ? Math.max(0, Math.round((streakEndDate - streakStartDate) / 86400000))
+            : 0,
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'exacta'
+        });
+      }
     } else {
       // Máquina NUNCA produjo en datos conocidos → en cero desde el inicio
       const firstDate = prodData.firstKnownDate || periodoToDate(maq.primerCero);
-      const fechaInicio = firstDate ? firstDate.toISOString().split('T')[0] : null;
-      const inicioDate = firstDate || periodoToDate(maq.primerCero);
-      const diasInactividad = maq.esActualmenteEnCero && inicioDate
-        ? Math.max(0, Math.round((hoy - inicioDate) / 86400000))
-        : maq.diasCalendario || 0;
 
-      episodios.set(maq.key, {
-        fechaInicioCero: fechaInicio,
-        ultimaFechaConProduccion: null,
-        produccionAntesDeCero: 0,
-        fechaFin: maq.esActualmenteEnCero ? null : (periodoEndDate(maq.ultimoCero)?.toISOString().split('T')[0] || null),
-        diasInactividad,
-        periodoOrigen: maq.primerCero,
-        fuenteFecha: 'desde_inicio_datos'
-      });
+      if (maq.esActualmenteEnCero) {
+        // Nunca produjo, sigue en cero: desde el primer dato conocido hasta hoy
+        const inicio = firstDate && streakStartDate && firstDate < streakStartDate
+          ? firstDate : (streakStartDate || firstDate);
+
+        episodios.set(maq.key, {
+          fechaInicioCero: inicio ? inicio.toISOString().split('T')[0] : null,
+          ultimaFechaConProduccion: null,
+          produccionAntesDeCero: 0,
+          fechaFin: null,
+          diasInactividad: inicio ? Math.max(0, Math.round((hoy - inicio) / 86400000)) : 0,
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'desde_inicio_datos'
+        });
+      } else {
+        // Nunca produjo, ya no aparece en datos recientes
+        episodios.set(maq.key, {
+          fechaInicioCero: streakStartDate ? streakStartDate.toISOString().split('T')[0] : null,
+          ultimaFechaConProduccion: null,
+          produccionAntesDeCero: 0,
+          fechaFin: streakEndDate ? streakEndDate.toISOString().split('T')[0] : null,
+          diasInactividad: streakStartDate && streakEndDate
+            ? Math.max(0, Math.round((streakEndDate - streakStartDate) / 86400000))
+            : 0,
+          periodoOrigen: lastStreak[0],
+          fuenteFecha: 'desde_inicio_datos'
+        });
+      }
     }
   });
 
