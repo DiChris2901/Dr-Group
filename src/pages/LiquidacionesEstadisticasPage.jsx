@@ -1226,7 +1226,7 @@ const LiquidacionesEstadisticasPage = () => {
         <Card sx={{ mb: 3, borderRadius: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={contentTab === 0 ? 4 : 12}>
                 <FormControl fullWidth>
                   <InputLabel>Empresa</InputLabel>
                   <Select
@@ -1247,19 +1247,21 @@ const LiquidacionesEstadisticasPage = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              {/* NOTA: Filtro por sala oculto - los datos están consolidados por empresa/mes */}
-              <Grid item xs={12} sm={8}>
-                <Button
-                  variant="contained"
-                  startIcon={<FileDownload />}
-                  fullWidth
-                  sx={{ height: 56, borderRadius: 1 }}
-                  disabled={!datosEstadisticos}
-                  onClick={handleExportarExcel}
-                >
-                  Exportar Excel
-                </Button>
-              </Grid>
+              {/* Exportar Excel solo visible en tab Estadísticas Generales */}
+              {contentTab === 0 && (
+                <Grid item xs={12} sm={8}>
+                  <Button
+                    variant="contained"
+                    startIcon={<FileDownload />}
+                    fullWidth
+                    sx={{ height: 56, borderRadius: 1 }}
+                    disabled={!datosEstadisticos}
+                    onClick={handleExportarExcel}
+                  >
+                    Exportar Excel
+                  </Button>
+                </Grid>
+              )}
             </Grid>
           </CardContent>
         </Card>

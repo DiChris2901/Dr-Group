@@ -60,7 +60,9 @@ import {
   DateRange,
   PlayArrow,
   Stop,
-  Save
+  Save,
+  SwapHoriz,
+  BlockOutlined
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import {
@@ -75,6 +77,8 @@ import {
 } from 'recharts';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
+import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 import {
   getMaquinasEnCero,
@@ -142,6 +146,14 @@ const MaquinasEnCeroStats = ({
   const [expandedRow, setExpandedRow] = useState(null); // key de la máquina expandida
   const [ordenamiento, setOrdenamiento] = useState({ campo: 'diasCalendario', dir: 'desc' });
 
+  // ===== ESTADOS DE ALIASES Y SALAS RETIRADAS =====
+  const [firestoreSalas, setFirestoreSalas] = useState(new Map());
+  const [salaAliases, setSalaAliases] = useState({});
+  const [mostrarRetiradas, setMostrarRetiradas] = useState(false);
+  const [aliasModalOpen, setAliasModalOpen] = useState(false);
+  const [nuevoAlias, setNuevoAlias] = useState({ viejo: '', nuevo: '' });
+  const [savingAlias, setSavingAlias] = useState(false);
+
   // ===== CARGAR DATOS PRE-COMPUTADOS =====
   useEffect(() => {
     if (empresaSeleccionada === 'todas' || !empresaSeleccionada) {
@@ -166,6 +178,34 @@ const MaquinasEnCeroStats = ({
     };
 
     cargarDatos();
+  }, [empresaSeleccionada]);
+
+  // ===== CARGAR SALAS DE FIRESTORE (para detectar retiradas) =====
+  useEffect(() => {
+    const loadSalas = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'salas'));
+        const map = new Map();
+        snap.forEach(d => {
+          const s = d.data();
+          if (s.name) map.set(normalizeEmpresa(s.name), { status: s.status || 'active', name: s.name });
+        });
+        setFirestoreSalas(map);
+      } catch (_) { /* no-critical */ }
+    };
+    loadSalas();
+  }, []);
+
+  // ===== CARGAR ALIASES DE SALA POR EMPRESA =====
+  useEffect(() => {
+    if (!empresaSeleccionada || empresaSeleccionada === 'todas') { setSalaAliases({}); return; }
+    const loadAliases = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'sala_aliases', normalizeEmpresa(empresaSeleccionada)));
+        setSalaAliases(snap.exists() ? (snap.data().aliases || {}) : {});
+      } catch (_) { setSalaAliases({}); }
+    };
+    loadAliases();
   }, [empresaSeleccionada]);
 
   // ===== MIGRACIÓN INICIAL =====
@@ -321,8 +361,8 @@ const MaquinasEnCeroStats = ({
       const sorted = [...(m.periodosTotales || [])].sort((a, b) => periodoScore(a) - periodoScore(b));
       const idx = m.ultimoCero ? sorted.lastIndexOf(m.ultimoCero) : -1;
 
-      // Sin datos suficientes → devolver original
-      if (idx < 0 || !m.ultimoCero) return m;
+      // Sin datos suficientes → devolver original con alias aplicado
+      if (idx < 0 || !m.ultimoCero) return { ...m, sala: salaAliases[normalizeEmpresa(m.sala)] || m.sala };
 
       const streak = [m.ultimoCero];
       for (let i = idx - 1; i >= 0; i--) {
@@ -385,23 +425,96 @@ const MaquinasEnCeroStats = ({
 
       return {
         ...m,
+        sala: salaAliases[normalizeEmpresa(m.sala)] || m.sala,
         diasCalendario: diasCalc,
+        mesesConsecutivos: streak.length,
         esActualmenteEnCero: sigueEnCero,
         nivel: nuevoNivel,
         ultimoEpisodio: episodioCorregido,
       };
     });
-  }, [data?.maquinas]);
-  const kpis = data?.kpis || null;
-  // Derivar peorMaquina desde las máquinas enriquecidas (con episodio si existe)
-  const peorMaquinaReal = useMemo(() => {
+  }, [data?.maquinas, salaAliases]);
+  // ===== KPIs y Resumen por Sala recalculados en tiempo real desde maquinas enriquecidas =====
+  const kpis = useMemo(() => {
     if (maquinas.length === 0) return null;
-    return maquinas.reduce((peor, m) => {
+    const activas = maquinas.filter(m => m.esActualmenteEnCero);
+    const criticas = activas.filter(m => m.nivel === 'critico').length;
+    const alertas  = activas.filter(m => m.nivel === 'alerta').length;
+    const recientes = activas.filter(m => m.nivel === 'reciente').length;
+    const diasPromedio = activas.length > 0
+      ? Math.round(activas.reduce((s, m) => s + (m.diasCalendario || 0), 0) / activas.length)
+      : 0;
+    // totalFlota y trendCambioPct no son derivables desde maquinas — se mantienen del snapshot
+    const totalFlota = data?.kpis?.totalFlota || 0;
+    const trendCambioPct = data?.kpis?.trendCambioPct || 0;
+    const porcentajeEnCero = totalFlota > 0
+      ? Math.round((activas.length / totalFlota) * 100 * 10) / 10
+      : (data?.kpis?.porcentajeEnCero || 0);
+    return {
+      totalEnCero: maquinas.length,
+      activasEnCero: activas.length,
+      criticas,
+      alertas,
+      recientes,
+      diasPromedio,
+      totalFlota,
+      porcentajeEnCero,
+      trendCambioPct,
+    };
+  }, [maquinas, data?.kpis]);
+
+  // Derivar peorMaquina desde las máquinas enriquecidas — solo activas (esActualmenteEnCero)
+  // Filtrar recuperadas: su episodio ya terminó, no refleja la situación actual
+  const peorMaquinaReal = useMemo(() => {
+    const activas = maquinas.filter(m => m.esActualmenteEnCero);
+    if (activas.length === 0) return null;
+    return activas.reduce((peor, m) => {
       if (!peor || m.diasCalendario > peor.diasCalendario) return m;
       return peor;
     }, null);
   }, [maquinas]);
-  const salasResumen = data?.resumenPorSala || [];
+
+  // Resumen por sala con detección de salas retiradas (Firestore status=retired o auto-detectadas)
+  const salasResumen = useMemo(() => {
+    if (maquinas.length === 0) return [];
+    const periodos = [...(data?.periodosRegistrados || [])].sort((a, b) => periodoScore(a) - periodoScore(b));
+    const last2 = new Set(periodos.slice(-2));
+    const salasMap = new Map();
+    maquinas.forEach(m => {
+      if (!salasMap.has(m.sala)) {
+        const snapshotSala = (data?.resumenPorSala || []).find(s => s.sala === m.sala);
+        salasMap.set(m.sala, { sala: m.sala, total: 0, criticas: 0, alertas: 0, recientes: 0, activas: 0, totalFlota: snapshotSala?.totalFlota || 0, ultimoPeriodo: null });
+      }
+      const s = salasMap.get(m.sala);
+      s.total++;
+      if (m.esActualmenteEnCero) {
+        s.activas++;
+        if (m.nivel === 'critico') s.criticas++;
+        else if (m.nivel === 'alerta') s.alertas++;
+        else s.recientes++;
+      }
+      const mPeriodos = m.periodosTotales || [];
+      if (mPeriodos.length > 0) {
+        const maxP = mPeriodos.reduce((mx, p) => periodoScore(p) > periodoScore(mx) ? p : mx, mPeriodos[0]);
+        if (!s.ultimoPeriodo || periodoScore(maxP) > periodoScore(s.ultimoPeriodo)) s.ultimoPeriodo = maxP;
+      }
+    });
+    return Array.from(salasMap.values()).map(s => {
+      const fsSala = firestoreSalas.get(normalizeEmpresa(s.sala));
+      let retirada = false, retiradaSource = null;
+      if (fsSala?.status === 'retired') {
+        retirada = true; retiradaSource = 'firestore';
+      } else if (!fsSala) {
+        const enRecientes = s.ultimoPeriodo && last2.has(s.ultimoPeriodo);
+        if (!enRecientes && s.activas === 0) { retirada = true; retiradaSource = 'auto'; }
+      }
+      return { ...s, retirada, retiradaSource };
+    }).sort((a, b) => {
+      if (a.retirada !== b.retirada) return a.retirada ? 1 : -1;
+      return b.total - a.total;
+    });
+  }, [maquinas, data?.resumenPorSala, data?.periodosRegistrados, firestoreSalas]);
+
   const tendencia = data?.tendencia || [];
 
   // ===== FILTRADO Y ORDENAMIENTO =====
@@ -434,7 +547,6 @@ const MaquinasEnCeroStats = ({
       switch (campo) {
         case 'diasCalendario': va = a.esActualmenteEnCero ? a.diasCalendario : 0; vb = b.esActualmenteEnCero ? b.diasCalendario : 0; break;
         case 'mesesConsecutivos': va = a.esActualmenteEnCero ? a.mesesConsecutivos : 0; vb = b.esActualmenteEnCero ? b.mesesConsecutivos : 0; break;
-        case 'mesesEnCero': va = a.esActualmenteEnCero ? a.mesesEnCero : 0; vb = b.esActualmenteEnCero ? b.mesesEnCero : 0; break;
         case 'sala': return dir === 'asc' ? a.sala.localeCompare(b.sala) : b.sala.localeCompare(a.sala);
         case 'serial': return dir === 'asc' ? (a.serial || '').localeCompare(b.serial || '') : (b.serial || '').localeCompare(a.serial || '');
         default: va = a.esActualmenteEnCero ? a.diasCalendario : 0; vb = b.esActualmenteEnCero ? b.diasCalendario : 0;
@@ -478,7 +590,7 @@ const MaquinasEnCeroStats = ({
   }, [empresaSeleccionada]);
 
   // ===== SUB-COMPONENTS =====
-  const SortableHeader = ({ campo, label, align = 'left' }) => (
+  const SortableHeader = ({ campo, label, align = 'left', tooltip }) => (
     <TableCell
       align={align}
       sx={{
@@ -493,14 +605,16 @@ const MaquinasEnCeroStats = ({
       }}
       onClick={() => handleSort(campo)}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', gap: 0.5 }}>
-        {label}
-        {ordenamiento.campo === campo && (
-          <Typography variant="caption" sx={{ fontSize: 10 }}>
-            {ordenamiento.dir === 'asc' ? '▲' : '▼'}
-          </Typography>
-        )}
-      </Box>
+      <MuiTooltip title={tooltip || ''} arrow enterDelay={300} disableHoverListener={!tooltip} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', gap: 0.5 }}>
+          {label}
+          {ordenamiento.campo === campo && (
+            <Typography variant="caption" sx={{ fontSize: 10 }}>
+              {ordenamiento.dir === 'asc' ? '▲' : '▼'}
+            </Typography>
+          )}
+        </Box>
+      </MuiTooltip>
     </TableCell>
   );
 
@@ -530,6 +644,7 @@ const MaquinasEnCeroStats = ({
           label={c.label}
           color={c.color}
           icon={c.icon}
+          variant="outlined"
           sx={{ fontSize: 11, fontWeight: 600, height: 24, cursor: 'help' }}
         />
       </MuiTooltip>
@@ -616,7 +731,7 @@ const MaquinasEnCeroStats = ({
       ws.getRow(6).height = 8;
 
       // Fila 7 — Headers de columnas
-      const headers1 = ['#', 'Serial', 'NUC', 'Tipo', 'Sala', 'Meses en Cero', 'Meses Consecutivos', 'Días Calendario', 'Nivel', 'Estado'];
+      const headers1 = ['#', 'Serial', 'NUC', 'Tipo', 'Sala', 'Meses (Episodio Actual)', 'Días Calendario', 'Nivel', 'Estado', 'Fecha Último Estado'];
       const headerRow1 = ws.getRow(7);
       headers1.forEach((h, i) => {
         const cell = headerRow1.getCell(i + 1);
@@ -636,17 +751,29 @@ const MaquinasEnCeroStats = ({
       // Filas 8+ — Datos
       maquinasFiltradas.forEach((m, idx) => {
         const row = ws.getRow(8 + idx);
+        // Fecha del último estado:
+        // En Cero → fecha en que empezó el episodio actual
+        // Recuperada → fecha del primer periodo con producción (recuperación)
+        let fechaUltimoEstado = '—';
+        if (m.esActualmenteEnCero) {
+          const fi = m.ultimoEpisodio?.fechaInicioCero;
+          if (fi) fechaUltimoEstado = new Date(fi + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } else {
+          const pr = m.ultimoEpisodio?.periodoRecuperacion;
+          const d = pr ? periodoToDate(pr) : null;
+          if (d) fechaUltimoEstado = d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
         const values = [
           idx + 1,
           m.serial,
           m.nuc,
           m.tipoApuesta,
           m.sala,
-          m.esActualmenteEnCero ? m.mesesEnCero : '—',
           m.esActualmenteEnCero ? m.mesesConsecutivos : '—',
           m.esActualmenteEnCero ? m.diasCalendario : '—',
           m.esActualmenteEnCero ? (m.nivel === 'critico' ? 'Crítico' : m.nivel === 'alerta' ? 'Alerta' : 'Reciente') : '—',
           m.esActualmenteEnCero ? 'En Cero' : 'Recuperada',
+          fechaUltimoEstado,
         ];
         values.forEach((val, ci) => {
           const cell = row.getCell(ci + 1);
@@ -658,7 +785,7 @@ const MaquinasEnCeroStats = ({
 
       ws.columns = [
         { width: 6 }, { width: 18 }, { width: 14 }, { width: 14 }, { width: 28 },
-        { width: 16 }, { width: 20 }, { width: 18 }, { width: 14 }, { width: 16 }
+        { width: 22 }, { width: 18 }, { width: 14 }, { width: 16 }, { width: 20 }
       ];
 
       // ── SHEET 2: Resumen por Sala ─────────────────────────────────────────
@@ -947,11 +1074,101 @@ const MaquinasEnCeroStats = ({
     </Dialog>
   );
 
+  // ===== RENDER: MODAL DE ALIASES =====
+  const renderAliasModal = () => {
+    const salasDisponibles = [...new Set((data?.maquinas || []).map(m => m.sala))].sort();
+    const handleSaveAlias = async () => {
+      if (!nuevoAlias.viejo || !nuevoAlias.nuevo || nuevoAlias.viejo === nuevoAlias.nuevo) return;
+      setSavingAlias(true);
+      try {
+        const empresaNorm = normalizeEmpresa(empresaSeleccionada);
+        const newAliases = { ...salaAliases, [normalizeEmpresa(nuevoAlias.viejo)]: nuevoAlias.nuevo };
+        await setDoc(doc(db, 'sala_aliases', empresaNorm), { aliases: newAliases });
+        setSalaAliases(newAliases);
+        setNuevoAlias({ viejo: '', nuevo: '' });
+        addNotification?.(`Alias creado: "${nuevoAlias.viejo}" → "${nuevoAlias.nuevo}"`, 'success');
+      } catch (err) {
+        addNotification?.('Error guardando alias: ' + err.message, 'error');
+      } finally { setSavingAlias(false); }
+    };
+    const handleDeleteAlias = async (key) => {
+      try {
+        const empresaNorm = normalizeEmpresa(empresaSeleccionada);
+        const { [key]: _, ...rest } = salaAliases;
+        await setDoc(doc(db, 'sala_aliases', empresaNorm), { aliases: rest });
+        setSalaAliases(rest);
+      } catch (err) {
+        addNotification?.('Error eliminando alias: ' + err.message, 'error');
+      }
+    };
+    const existingAliases = Object.entries(salaAliases);
+    return (
+      <Dialog open={aliasModalOpen} onClose={() => setAliasModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SwapHoriz color="primary" />
+            Aliases de Sala
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400, mt: 0.5 }}>
+            Fusiona histórico de una sala que cambió de nombre. Las máquinas del nombre antiguo se consolidan bajo el nombre canónico.
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: '16px !important' }}>
+          {existingAliases.length > 0 ? (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="overline" sx={{ fontWeight: 600, letterSpacing: 0.8, color: 'text.secondary' }}>Aliases activos</Typography>
+              {existingAliases.map(([key, canonical]) => (
+                <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, p: 1.5, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.3)}`, bgcolor: alpha(theme.palette.primary.main, 0.03) }}>
+                  <Typography variant="body2" sx={{ flex: 1, color: 'text.secondary', fontSize: 12 }} noWrap>{key.replace(/_/g, ' ')}</Typography>
+                  <SwapHoriz sx={{ fontSize: 16, color: 'text.disabled', flexShrink: 0 }} />
+                  <Typography variant="body2" sx={{ flex: 1, fontWeight: 600, fontSize: 12 }} noWrap>{canonical}</Typography>
+                  <IconButton size="small" onClick={() => handleDeleteAlias(key)} sx={{ color: 'error.main', flexShrink: 0 }}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Alert severity="info" sx={{ borderRadius: 1, mb: 2, fontSize: 13 }}>No hay aliases configurados para esta empresa.</Alert>
+          )}
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="overline" sx={{ fontWeight: 600, letterSpacing: 0.8, color: 'text.secondary' }}>Crear nuevo alias</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1.5 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Nombre antiguo (en datos históricos)</InputLabel>
+              <Select value={nuevoAlias.viejo} label="Nombre antiguo (en datos históricos)" onChange={e => setNuevoAlias(p => ({ ...p, viejo: e.target.value }))}>
+                {salasDisponibles.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small">
+              <InputLabel>Nombre canónico actual</InputLabel>
+              <Select value={nuevoAlias.nuevo} label="Nombre canónico actual" onChange={e => setNuevoAlias(p => ({ ...p, nuevo: e.target.value }))}>
+                {salasDisponibles.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, justifyContent: 'space-between' }}>
+          <Button onClick={() => setAliasModalOpen(false)} variant="outlined" sx={{ borderRadius: 1, textTransform: 'none' }}>Cerrar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveAlias}
+            disabled={!nuevoAlias.viejo || !nuevoAlias.nuevo || nuevoAlias.viejo === nuevoAlias.nuevo || savingAlias}
+            startIcon={savingAlias ? <CircularProgress size={16} color="inherit" /> : <Save />}
+            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+          >
+            {savingAlias ? 'Guardando...' : 'Guardar Alias'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
   // ===== RENDER: NO ZERO MACHINES =====
   if (!kpis || maquinas.length === 0) {
     return (
       <Box>
-        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
+        <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} onAliases={() => setAliasModalOpen(true)} aliasCount={Object.keys(salaAliases).length} />
         <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 4, textAlign: 'center' }}>
           <CheckCircle sx={{ fontSize: 80, color: theme.palette.success.main, mb: 2 }} />
           <Typography variant="h6" color="text.secondary">
@@ -970,7 +1187,7 @@ const MaquinasEnCeroStats = ({
   return (
     <Box>
       {/* Info bar + action buttons */}
-      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} />
+      <InfoBar data={data} theme={theme} onUpload={() => setUploadModalOpen(true)} onBackfill={handleBackfill} backfillRunning={backfillRunning} backfillProgress={backfillProgress} onAliases={() => setAliasModalOpen(true)} aliasCount={Object.keys(salaAliases).length} />
 
       {/* KPIs */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -1061,7 +1278,7 @@ const MaquinasEnCeroStats = ({
                 {peorMaquinaReal && (
                   <>
                     <Typography variant="h5" fontWeight={700} sx={{ mt: 1, mb: 0.5 }}>
-                      {peorMaquinaReal.diasCalendario}d
+                      {peorMaquinaReal.diasCalendario} Días
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {peorMaquinaReal.serial !== 'N/A' ? peorMaquinaReal.serial : peorMaquinaReal.nuc}
@@ -1090,13 +1307,13 @@ const MaquinasEnCeroStats = ({
           Distribución
         </Typography>
         <MuiTooltip title="Más de 180 días en cero. Requiere acción urgente: retiro, reubicación o mantenimiento mayor." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.criticas} Críticas (>180d)`} color="error" variant={kpis.criticas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+          <Chip size="small" label={`${kpis.criticas} Críticas (>180d)`} color="error" variant="outlined" sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
         <MuiTooltip title="Entre 60 y 179 días en cero. Monitorear: puede necesitar mantenimiento o reubicación." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.alertas} Alertas (60-179d)`} color="warning" variant={kpis.alertas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+          <Chip size="small" label={`${kpis.alertas} Alertas (60-179d)`} color="warning" variant="outlined" sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
         <MuiTooltip title="Menos de 60 días en cero. Podría ser temporal (mantenimiento, baja estacional). Seguimiento normal." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.recientes} Recientes (<60d)`} color="info" variant={kpis.recientes > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+          <Chip size="small" label={`${kpis.recientes} Recientes (<60d)`} color="info" variant="outlined" sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
       </Box>
 
@@ -1206,10 +1423,9 @@ const MaquinasEnCeroStats = ({
                         <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>NUC</TableCell>
                         <TableCell sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>Tipo</TableCell>
                         <SortableHeader campo="sala" label="Sala" />
-                        <SortableHeader campo="mesesEnCero" label="Meses en Cero" align="right" />
-                        <SortableHeader campo="mesesConsecutivos" label="Consec." align="right" />
-                        <SortableHeader campo="diasCalendario" label="Días" align="right" />
-                        <MuiTooltip title="Severidad según días en cero: Crítico (>90d), Alerta (30-90d), Reciente (<30d)" arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
+                        <SortableHeader campo="mesesConsecutivos" label="Meses" align="right" tooltip="Meses del episodio actual en cero (racha consecutiva vigente)" />
+                        <SortableHeader campo="diasCalendario" label="Días" align="right" tooltip="Días calendario desde el inicio del episodio actual" />
+                        <MuiTooltip title="Severidad según días en cero: Crítico (>180d), Alerta (60-179d), Reciente (<60d)" arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
                           <TableCell align="center" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', cursor: 'help' }}>Nivel</TableCell>
                         </MuiTooltip>
                         <MuiTooltip title="'En Cero' = sin ingresos en el último periodo. 'Recuperada' = volvió a generar ingresos." arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
@@ -1247,11 +1463,8 @@ const MaquinasEnCeroStats = ({
                                 <TableCell sx={{ fontSize: 12 }}>{m.nuc}</TableCell>
                                 <TableCell sx={{ fontSize: 12 }}>{m.tipoApuesta}</TableCell>
                                 <TableCell sx={{ fontSize: 12, color: theme.palette.primary.main, fontWeight: 500 }}>{m.sala}</TableCell>
-                                <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600 }}>
-                                  {m.esActualmenteEnCero ? m.mesesEnCero : <Typography sx={{ fontSize: 14, color: 'text.disabled', fontWeight: 400 }}>—</Typography>}
-                                </TableCell>
                                 <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.warning.main }}>
-                                  {m.mesesConsecutivos}
+                                  {m.esActualmenteEnCero ? m.mesesConsecutivos : <Typography sx={{ fontSize: 14, color: 'text.disabled', fontWeight: 400 }}>—</Typography>}
                                 </TableCell>
                                 <TableCell align="right">
                                   {m.esActualmenteEnCero ? (
@@ -1278,7 +1491,7 @@ const MaquinasEnCeroStats = ({
                                   <MuiTooltip
                                     title={m.esActualmenteEnCero
                                       ? 'Esta máquina registró $0 en el último periodo de liquidación. Sigue sin generar ingresos.'
-                                      : `Esta máquina volvió a generar ingresos en el último periodo. Estuvo ${m.mesesEnCero} mes${m.mesesEnCero !== 1 ? 'es' : ''} en cero antes de recuperarse.`
+                                      : `Esta máquina volvió a generar ingresos en el último periodo. Estuvo ${m.mesesConsecutivos} mes${m.mesesConsecutivos !== 1 ? 'es' : ''} en cero antes de recuperarse.`
                                     }
                                     arrow
                                     placement="top"
@@ -1289,7 +1502,7 @@ const MaquinasEnCeroStats = ({
                                       size="small"
                                       label={m.esActualmenteEnCero ? 'En Cero' : 'Recuperada'}
                                       color={m.esActualmenteEnCero ? 'error' : 'success'}
-                                      variant={m.esActualmenteEnCero ? 'filled' : 'outlined'}
+                                      variant="outlined"
                                       sx={{ fontSize: 11, height: 24, cursor: 'help' }}
                                     />
                                   </MuiTooltip>
@@ -1299,7 +1512,7 @@ const MaquinasEnCeroStats = ({
                               {/* FILA EXPANDIBLE: Detalle de fechas */}
                               {isExpanded && (
                                 <TableRow>
-                                  <TableCell colSpan={11} sx={{ py: 0, borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
+                                  <TableCell colSpan={10} sx={{ py: 0, borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
                                     <Collapse in={isExpanded} timeout={250}>
                                       <Box sx={{ py: 2, px: 2 }}>
                                         {/* Alerta de normativa si >= 30 días */}
@@ -1383,7 +1596,7 @@ const MaquinasEnCeroStats = ({
                                                   <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.error.main }}>
                                                     {m.diasCalendario} días
                                                   </Typography>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>{m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero</Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>{m.mesesConsecutivos} mes{m.mesesConsecutivos !== 1 ? 'es' : ''} en cero</Typography>
                                                 </Box>
                                               </Box>
                                             </Grid>
@@ -1406,7 +1619,7 @@ const MaquinasEnCeroStats = ({
                                                           {fechaInicio.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                         </Typography>
                                                         <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
-                                                          {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero
+                                                          {m.mesesConsecutivos} mes{m.mesesConsecutivos !== 1 ? 'es' : ''} en cero
                                                         </Typography>
                                                       </>
                                                     ) : (
@@ -1450,7 +1663,7 @@ const MaquinasEnCeroStats = ({
                                                   <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.info.main }}>
                                                     {m.diasCalendario} días
                                                   </Typography>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''}</Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. {m.mesesConsecutivos} mes{m.mesesConsecutivos !== 1 ? 'es' : ''}</Typography>
                                                 </Box>
                                               </Box>
                                             </Grid>
@@ -1537,14 +1750,23 @@ const MaquinasEnCeroStats = ({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.5 }}>
           <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                Resumen por Sala
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600}>Resumen por Sala</Typography>
+                {salasResumen.some(s => s.retirada) && (
+                  <Button size="small" variant="outlined" startIcon={<BlockOutlined />}
+                    onClick={() => setMostrarRetiradas(v => !v)}
+                    sx={{ borderRadius: 1, textTransform: 'none', fontSize: 12, color: 'text.secondary', borderColor: alpha(theme.palette.divider, 0.5) }}
+                  >
+                    {mostrarRetiradas ? 'Ocultar' : 'Mostrar'} retiradas ({salasResumen.filter(s => s.retirada).length})
+                  </Button>
+                )}
+              </Box>
 
               <Grid container spacing={2}>
-                {salasResumen.map((sala) => {
+                {salasResumen.filter(s => mostrarRetiradas || !s.retirada).map((sala) => {
                   const isExpanded = expandedSalas.has(sala.sala);
                   const porcentaje = sala.totalFlota ? ((sala.activas / sala.totalFlota) * 100).toFixed(1) : '—';
+                  const isRetirada = sala.retirada;
 
                   return (
                     <Grid item xs={12} sm={6} md={4} key={sala.sala}>
@@ -1552,63 +1774,73 @@ const MaquinasEnCeroStats = ({
                         variant="outlined"
                         sx={{
                           borderRadius: 2,
-                          borderColor: alpha(
-                            sala.criticas > 0 ? theme.palette.error.main
-                              : sala.alertas > 0 ? theme.palette.warning.main
-                                : theme.palette.info.main,
-                            0.6
-                          ),
+                          borderColor: isRetirada
+                            ? alpha(theme.palette.text.disabled, 0.25)
+                            : alpha(sala.criticas > 0 ? theme.palette.error.main : sala.alertas > 0 ? theme.palette.warning.main : theme.palette.info.main, 0.6),
+                          opacity: isRetirada ? 0.6 : 1,
                           transition: 'all 0.2s ease',
                           '&:hover': { boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }
                         }}
                       >
                         <CardContent sx={{ pb: '12px !important' }}>
                           <Box
-                            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                            onClick={() => toggleSala(sala.sala)}
+                            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: isRetirada ? 'default' : 'pointer' }}
+                            onClick={() => !isRetirada && toggleSala(sala.sala)}
                           >
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                                {sala.sala}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {sala.activas} en cero de {sala.totalFlota || '?'} ({porcentaje}%)
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: 12 }}>
+                                  {sala.sala}
+                                </Typography>
+                                {isRetirada && (
+                                  <Chip size="small"
+                                    label={sala.retiradaSource === 'auto' ? 'Retirada (auto)' : 'Retirada'}
+                                    icon={<BlockOutlined sx={{ fontSize: 11 }} />}
+                                    sx={{ fontSize: 10, height: 18, bgcolor: alpha(theme.palette.text.disabled, 0.1), color: 'text.disabled' }}
+                                  />
+                                )}
+                              </Box>
+                              <Typography variant="body2" color={isRetirada ? 'text.disabled' : 'text.secondary'} sx={{ fontSize: 12 }}>
+                                {isRetirada ? 'Sin actividad reciente' : `${sala.activas} en cero de ${sala.totalFlota || '?'} (${porcentaje}%)`}
                               </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="h5" fontWeight={700} color="error.main">
-                                {sala.total}
-                              </Typography>
-                              {isExpanded ? <ExpandLess /> : <ExpandMore />}
-                            </Box>
+                            {!isRetirada && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                                <Typography variant="h5" fontWeight={700} color={
+                                  sala.activas === 0 ? 'text.disabled'
+                                    : sala.criticas > 0 ? 'error.main'
+                                    : sala.alertas > 0 ? 'warning.main'
+                                    : 'info.main'
+                                }>
+                                  {sala.activas}
+                                </Typography>
+                                {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                              </Box>
+                            )}
                           </Box>
 
-                          {sala.totalFlota > 0 && (
-                            <LinearProgress
-                              variant="determinate"
+                          {!isRetirada && sala.totalFlota > 0 && (
+                            <LinearProgress variant="determinate"
                               value={Math.min(100, (sala.activas / sala.totalFlota) * 100)}
-                              sx={{
-                                mt: 1.5,
-                                height: 6,
-                                borderRadius: 1,
+                              sx={{ mt: 1.5, height: 6, borderRadius: 1,
                                 backgroundColor: alpha(theme.palette.error.main, 0.1),
                                 '& .MuiLinearProgress-bar': {
-                                  backgroundColor: sala.criticas > 0 ? theme.palette.error.main
-                                    : sala.alertas > 0 ? theme.palette.warning.main
-                                      : theme.palette.info.main,
+                                  backgroundColor: sala.criticas > 0 ? theme.palette.error.main : sala.alertas > 0 ? theme.palette.warning.main : theme.palette.info.main,
                                   borderRadius: 1
                                 }
                               }}
                             />
                           )}
 
-                          <Collapse in={isExpanded}>
-                            <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                              <Chip size="small" label={`${sala.criticas} críticas`} color="error" variant="outlined" sx={{ fontSize: 11 }} />
-                              <Chip size="small" label={`${sala.alertas} alertas`} color="warning" variant="outlined" sx={{ fontSize: 11 }} />
-                              <Chip size="small" label={`${sala.recientes} recientes`} color="info" variant="outlined" sx={{ fontSize: 11 }} />
-                            </Box>
-                          </Collapse>
+                          {!isRetirada && (
+                            <Collapse in={isExpanded}>
+                              <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                <Chip size="small" label={`${sala.criticas} críticas`} color="error" variant="outlined" sx={{ fontSize: 11 }} />
+                                <Chip size="small" label={`${sala.alertas} alertas`} color="warning" variant="outlined" sx={{ fontSize: 11 }} />
+                                <Chip size="small" label={`${sala.recientes} recientes`} color="info" variant="outlined" sx={{ fontSize: 11 }} />
+                              </Box>
+                            </Collapse>
+                          )}
                         </CardContent>
                       </Card>
                     </Grid>
@@ -1672,12 +1904,14 @@ const MaquinasEnCeroStats = ({
 
       {/* UPLOAD MODAL */}
       {renderUploadModal()}
+      {/* ALIAS MODAL */}
+      {renderAliasModal()}
     </Box>
   );
 };
 
 // ===== InfoBar sub-component =====
-const InfoBar = ({ data, theme, onUpload, onBackfill, backfillRunning, backfillProgress }) => {
+const InfoBar = ({ data, theme, onUpload, onBackfill, backfillRunning, backfillProgress, onAliases, aliasCount = 0 }) => {
   const updatedAt = data?.ultimaActualizacion
     ? new Date(data.ultimaActualizacion.seconds * 1000).toLocaleString('es-CO')
     : 'N/A';
@@ -1709,10 +1943,17 @@ const InfoBar = ({ data, theme, onUpload, onBackfill, backfillRunning, backfillP
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <MuiTooltip title="Actualizar con archivo Houndoc">
-            <Button size="small" variant="outlined" startIcon={<CloudUpload />} onClick={onUpload}
+            <Button size="small" variant="contained" startIcon={<CloudUpload />} onClick={onUpload}
               sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
             >
               Houndoc
+            </Button>
+          </MuiTooltip>
+          <MuiTooltip title="Gestionar aliases de sala (fusionar salas con nombre cambiado)">
+            <Button size="small" variant="outlined" startIcon={<SwapHoriz />} onClick={onAliases}
+              sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
+            >
+              Aliases{aliasCount > 0 ? ` (${aliasCount})` : ''}
             </Button>
           </MuiTooltip>
           {!tieneEpisodios && (
