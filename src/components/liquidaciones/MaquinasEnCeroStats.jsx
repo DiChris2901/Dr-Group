@@ -356,6 +356,15 @@ const MaquinasEnCeroStats = ({
 
       const nuevoNivel = diasCalc >= 180 ? 'critico' : diasCalc >= 60 ? 'alerta' : 'reciente';
 
+      // Para recuperadas: encontrar el periodo de recuperación (mes siguiente al último cero)
+      let periodoRecuperacion = null;
+      if (!sigueEnCero) {
+        const idxEnd = sorted.indexOf(streak[streak.length - 1]);
+        if (idxEnd >= 0 && idxEnd < sorted.length - 1) {
+          periodoRecuperacion = sorted[idxEnd + 1];
+        }
+      }
+
       // Construir episodio corregido: preservar datos exactos de Houndoc,
       // pero sobreescribir fechas/días con cálculo correcto de racha
       const episodioCorregido = {
@@ -364,6 +373,9 @@ const MaquinasEnCeroStats = ({
         fechaFin: fechaFin,
         diasInactividad: diasCalc,
         periodoOrigen: streak[0],
+        periodoRecuperacion: periodoRecuperacion,
+        // Solo marcar como 'exacta' si sigue en cero Y tenía dato exacto de Houndoc
+        fuenteFecha: (sigueEnCero && ep.fuenteFecha === 'exacta') ? 'exacta' : 'periodo',
       };
 
       return {
@@ -1190,16 +1202,33 @@ const MaquinasEnCeroStats = ({
                                 <TableCell align="right" sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.warning.main }}>
                                   {m.mesesConsecutivos}
                                 </TableCell>
-                                <TableCell align="right" sx={{
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  color: m.nivel === 'critico' ? theme.palette.error.main
-                                    : m.nivel === 'alerta' ? theme.palette.warning.main
-                                      : theme.palette.info.main
-                                }}>
-                                  {m.diasCalendario}
+                                <TableCell align="right">
+                                  {m.esActualmenteEnCero ? (
+                                    // En cero: días actuales sin producción (urgente)
+                                    <Typography sx={{
+                                      fontSize: 13, fontWeight: 700,
+                                      color: m.nivel === 'critico' ? theme.palette.error.main
+                                        : m.nivel === 'alerta' ? theme.palette.warning.main
+                                        : theme.palette.info.main
+                                    }}>
+                                      {m.diasCalendario}
+                                    </Typography>
+                                  ) : (
+                                    // Recuperada: duración histórica del episodio (informativo)
+                                    <Box sx={{ textAlign: 'right' }}>
+                                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.disabled' }}>
+                                        {m.diasCalendario}
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 9, color: 'text.disabled', lineHeight: 1 }}>
+                                        del episodio
+                                      </Typography>
+                                    </Box>
+                                  )}
                                 </TableCell>
-                                <TableCell align="center"><NivelChip nivel={m.nivel} /></TableCell>
+                                <TableCell align="center">
+                                  {/* Badge de nivel solo para máquinas EN CERO — para recuperadas no tiene sentido mostrar urgencia */}
+                                  {m.esActualmenteEnCero && <NivelChip nivel={m.nivel} />}
+                                </TableCell>
                                 <TableCell align="center">
                                   <MuiTooltip
                                     title={m.esActualmenteEnCero
@@ -1243,135 +1272,131 @@ const MaquinasEnCeroStats = ({
                                           return null;
                                         })()}
 
-                                        <Grid container spacing={2} alignItems="stretch">
-                                          {/* Fecha inicio en cero */}
-                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
-                                            <Box sx={{
-                                              display: 'flex', alignItems: 'flex-start', gap: 1,
-                                              p: 1.5, borderRadius: 1, width: '100%',
-                                              backgroundColor: alpha(m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main, 0.06),
-                                              border: `1px solid ${alpha(m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main, 0.4)}`
-                                            }}>
-                                              <Stop sx={{ fontSize: 20, color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main }} />
-                                              <Box>
-                                                <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  En cero desde
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 600, color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.warning.main }}>
-                                                  {m.ultimoEpisodio?.fechaInicioCero
-                                                    ? new Date(m.ultimoEpisodio.fechaInicioCero + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                                                    : formatPeriodoLabel(m.primerCero)
-                                                  }
-                                                </Typography>
-                                                {m.ultimoEpisodio?.fuenteFecha === 'exacta' && (
-                                                  <Chip size="small" label="Fecha exacta" sx={{ mt: 0.5, height: 16, fontSize: 9, fontWeight: 600, bgcolor: alpha(theme.palette.success.main, 0.12), color: theme.palette.success.main }} />
-                                                )}
-                                              </Box>
-                                            </Box>
-                                          </Grid>
-
-                                          {/* Última producción / Período en cero */}
-                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
-                                            <Box sx={{
-                                              display: 'flex', alignItems: 'flex-start', gap: 1,
-                                              p: 1.5, borderRadius: 1, width: '100%',
-                                              backgroundColor: alpha(theme.palette.warning.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`
-                                            }}>
-                                              <DateRange sx={{ fontSize: 20, color: theme.palette.warning.main }} />
-                                              <Box>
-                                                <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  {m.ultimoEpisodio?.ultimaFechaConProduccion ? 'Última producción' : 'Último periodo en cero'}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
-                                                  {m.ultimoEpisodio?.ultimaFechaConProduccion
-                                                    ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                                                    : formatPeriodoLabel(m.ultimoCero)
-                                                  }
-                                                </Typography>
-                                                {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
-                                                    ${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}
+                                        {m.esActualmenteEnCero ? (
+                                          /* ===== MÁQUINA EN CERO: 4 cards de estado actual ===== */
+                                          <Grid container spacing={2} alignItems="stretch">
+                                            {/* C1: En cero desde */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.error.main, 0.06), border: `1px solid ${alpha(theme.palette.error.main, 0.4)}` }}>
+                                                <Stop sx={{ fontSize: 20, color: theme.palette.error.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>En cero desde</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.main }}>
+                                                    {m.ultimoEpisodio?.fechaInicioCero
+                                                      ? new Date(m.ultimoEpisodio.fechaInicioCero + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                      : formatPeriodoLabel(m.primerCero)}
                                                   </Typography>
-                                                )}
+                                                  {m.ultimoEpisodio?.fuenteFecha === 'exacta' && (
+                                                    <Chip size="small" label="Fecha exacta" sx={{ mt: 0.5, height: 16, fontSize: 9, fontWeight: 600, bgcolor: alpha(theme.palette.success.main, 0.12), color: theme.palette.success.main }} />
+                                                  )}
+                                                </Box>
                                               </Box>
-                                            </Box>
-                                          </Grid>
-
-                                          {/* Estado actual / Recuperación */}
-                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
-                                            <Box sx={{
-                                              display: 'flex', alignItems: 'flex-start', gap: 1,
-                                              p: 1.5, borderRadius: 1, width: '100%',
-                                              backgroundColor: m.esActualmenteEnCero
-                                                ? alpha(theme.palette.error.main, 0.06)
-                                                : alpha(theme.palette.success.main, 0.06),
-                                              border: `1px solid ${alpha(
-                                                m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.success.main, 0.4
-                                              )}`
-                                            }}>
-                                              {m.esActualmenteEnCero
-                                                ? <Schedule sx={{ fontSize: 20, color: theme.palette.error.main }} />
-                                                : <PlayArrow sx={{ fontSize: 20, color: theme.palette.success.main }} />
-                                              }
-                                              <Box>
-                                                <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  {m.esActualmenteEnCero ? 'Estado actual' : 'Recuperada en'}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{
-                                                  fontWeight: 600,
-                                                  color: m.esActualmenteEnCero ? theme.palette.error.main : theme.palette.success.main
-                                                }}>
-                                                  {m.esActualmenteEnCero
-                                                    ? `Sigue en cero (${m.ultimoEpisodio?.diasInactividad || m.diasCalendario} días)`
-                                                    : (() => {
-                                                        // Mostrar el periodo de recuperación (mes después del último cero)
-                                                        const sorted = [...(m.periodosTotales || [])].sort();
-                                                        const idxUltimoCero = sorted.indexOf(m.ultimoCero);
-                                                        const periodoRecuperacion = idxUltimoCero >= 0 && idxUltimoCero < sorted.length - 1
-                                                          ? sorted[idxUltimoCero + 1]
-                                                          : null;
-                                                        if (periodoRecuperacion) return formatPeriodoLabel(periodoRecuperacion);
-                                                        // Fallback: si tiene fecha de última producción, mostrar mes/año
-                                                        if (m.ultimoEpisodio?.ultimaFechaConProduccion) {
-                                                          return new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { month: 'short', year: 'numeric' });
-                                                        }
-                                                        return 'Periodo siguiente';
-                                                      })()
-                                                  }
-                                                </Typography>
+                                            </Grid>
+                                            {/* C2: Última producción (antes de caer a cero) */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.warning.main, 0.06), border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}` }}>
+                                                <DateRange sx={{ fontSize: 20, color: theme.palette.warning.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Última producción</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
+                                                    {m.ultimoEpisodio?.ultimaFechaConProduccion
+                                                      ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                      : formatPeriodoLabel(m.ultimoCero)}
+                                                  </Typography>
+                                                  {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
+                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}</Typography>
+                                                  )}
+                                                </Box>
                                               </Box>
-                                            </Box>
-                                          </Grid>
-
-                                          {/* Duración / Días exactos */}
-                                          <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
-                                            <Box sx={{
-                                              display: 'flex', alignItems: 'flex-start', gap: 1,
-                                              p: 1.5, borderRadius: 1, width: '100%',
-                                              backgroundColor: alpha(theme.palette.info.main, 0.06),
-                                              border: `1px solid ${alpha(theme.palette.info.main, 0.4)}`
-                                            }}>
-                                              <CalendarMonth sx={{ fontSize: 20, color: theme.palette.info.main }} />
-                                              <Box>
-                                                <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>
-                                                  {m.esActualmenteEnCero ? 'Días inactiva' : 'Duración del episodio'}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{
-                                                  fontWeight: 700, fontSize: 15,
-                                                  color: (m.ultimoEpisodio?.diasInactividad || m.diasCalendario) >= 30
-                                                    ? theme.palette.error.main
-                                                    : theme.palette.info.main
-                                                }}>
-                                                  {m.ultimoEpisodio?.diasInactividad || m.diasCalendario} días
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
-                                                  {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero
-                                                </Typography>
+                                            </Grid>
+                                            {/* C3: Estado actual */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.error.main, 0.06), border: `1px solid ${alpha(theme.palette.error.main, 0.4)}` }}>
+                                                <Schedule sx={{ fontSize: 20, color: theme.palette.error.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Estado actual</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.main }}>Sigue en cero</Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>Último periodo: {formatPeriodoLabel(m.ultimoCero)}</Typography>
+                                                </Box>
                                               </Box>
-                                            </Box>
+                                            </Grid>
+                                            {/* C4: Días actualmente inactiva */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.error.main, 0.06), border: `1px solid ${alpha(theme.palette.error.main, 0.4)}` }}>
+                                                <CalendarMonth sx={{ fontSize: 20, color: theme.palette.error.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Días inactiva</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.error.main }}>
+                                                    {m.diasCalendario} días
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>{m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero</Typography>
+                                                </Box>
+                                              </Box>
+                                            </Grid>
                                           </Grid>
-                                        </Grid>
+                                        ) : (
+                                          /* ===== MÁQUINA RECUPERADA: narración cronológica del episodio ===== */
+                                          <Grid container spacing={2} alignItems="stretch">
+                                            {/* C1: Cuándo empezó el episodio */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.warning.main, 0.06), border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}` }}>
+                                                <Stop sx={{ fontSize: 20, color: theme.palette.warning.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Estuvo en cero desde</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.warning.main }}>
+                                                    {formatPeriodoLabel(m.ultimoEpisodio?.periodoOrigen || m.primerCero)}
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>{m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''} en cero</Typography>
+                                                </Box>
+                                              </Box>
+                                            </Grid>
+                                            {/* C2: Cuándo se recuperó */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.success.main, 0.06), border: `1px solid ${alpha(theme.palette.success.main, 0.4)}` }}>
+                                                <PlayArrow sx={{ fontSize: 20, color: theme.palette.success.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Se recuperó en</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+                                                    {m.ultimoEpisodio?.periodoRecuperacion
+                                                      ? formatPeriodoLabel(m.ultimoEpisodio.periodoRecuperacion)
+                                                      : 'Periodo siguiente'}
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Periodo sin cero</Typography>
+                                                </Box>
+                                              </Box>
+                                            </Grid>
+                                            {/* C3: Duración del episodio */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.info.main, 0.06), border: `1px solid ${alpha(theme.palette.info.main, 0.4)}` }}>
+                                                <CalendarMonth sx={{ fontSize: 20, color: theme.palette.info.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Duración del episodio</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.info.main }}>
+                                                    {m.diasCalendario} días
+                                                  </Typography>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. {m.mesesEnCero} mes{m.mesesEnCero !== 1 ? 'es' : ''}</Typography>
+                                                </Box>
+                                              </Box>
+                                            </Grid>
+                                            {/* C4: Producción más reciente registrada */}
+                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.success.main, 0.06), border: `1px solid ${alpha(theme.palette.success.main, 0.4)}` }}>
+                                                <DateRange sx={{ fontSize: 20, color: theme.palette.success.main }} />
+                                                <Box>
+                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Última prod. registrada</Typography>
+                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+                                                    {m.ultimoEpisodio?.ultimaFechaConProduccion
+                                                      ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                      : 'Sin datos'}
+                                                  </Typography>
+                                                  {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
+                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}</Typography>
+                                                  )}
+                                                </Box>
+                                              </Box>
+                                            </Grid>
+                                          </Grid>
+                                        )}
 
                                         {/* Timeline de periodos en cero */}
                                         {Array.isArray(m.periodosEnCero) && m.periodosEnCero.length > 0 && (
