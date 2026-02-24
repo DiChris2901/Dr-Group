@@ -543,87 +543,117 @@ const MaquinasEnCeroStats = ({
       workbook.creator = 'DR Group Dashboard';
       workbook.created = new Date();
 
+      // BRAND_COLORS — Paleta corporativa DR Group (ARGB con prefijo FF)
       const BRAND_COLORS = {
-        primary: '2563EB',
-        secondary: '7C3AED',
-        success: '16A34A',
-        warning: 'D97706',
-        error: 'DC2626',
-        headerBg: '1E293B',
-        headerText: 'FFFFFF',
-        altRow: 'F8FAFC',
-        border: 'E2E8F0'
+        titleBg:    'FF0B3040',
+        subtitleBg: 'FF1A5F7A',
+        metricsBg:  'FF334155',
+        dateBg:     'FF475569',
+        headerBg:   'FF0B3040',
+        white:      'FFFFFFFF',
+        textDark:   'FF223344',
+        borderLight:'FFE2E8F0',
+        borderMid:  'FFC0CCDA',
+        borderDark: 'FF94A3B8',
+        borderHdr:  'FFCCCCCC',
+        borderHdrB: 'FF666666',
       };
 
-      // Sheet 1: Ranking
+      const FONT = 'Segoe UI';
+
+      // ── Helpers reutilizables ──────────────────────────────────────────────
+      const applyHeaderRow = (ws, totalCols, fila, value, bgColor, fontSize, bold, rowHeight) => {
+        ws.mergeCells(fila, 1, fila, totalCols);
+        const cell = ws.getCell(fila, 1);
+        cell.value = value;
+        cell.font = { name: FONT, size: fontSize, bold, color: { argb: BRAND_COLORS.white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        ws.getRow(fila).height = rowHeight;
+      };
+
+      const applyDataBorder = (cell, isCenter = false) => {
+        cell.font = { name: FONT, size: 9, color: { argb: BRAND_COLORS.textDark } };
+        cell.alignment = { horizontal: isCenter ? 'center' : 'left', vertical: 'middle', wrapText: false };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+          left:   { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+          bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderMid } },
+          right:  { style: 'thin', color: { argb: BRAND_COLORS.borderLight } },
+        };
+      };
+
+      // ── SHEET 1: Ranking de máquinas ──────────────────────────────────────
+      const COLS1 = 10;
       const ws = workbook.addWorksheet('Máquinas en Cero', {
         views: [{ state: 'frozen', ySplit: 7 }]
       });
 
-      ws.mergeCells('A1:J1');
-      ws.getCell('A1').value = 'DR GROUP - REPORTE DE MÁQUINAS EN CERO';
-      ws.getCell('A1').font = { size: 16, bold: true, color: { argb: BRAND_COLORS.headerText } };
-      ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.primary } };
-      ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-      ws.getRow(1).height = 36;
+      // Fila 1 — Título principal
+      applyHeaderRow(ws, COLS1, 1, 'DR GROUP', BRAND_COLORS.titleBg, 18, true, 30);
 
-      ws.mergeCells('A2:J2');
-      ws.getCell('A2').value = `Empresa: ${empresaSeleccionada} | Periodos: ${(data?.periodosRegistrados || []).length} meses de histórico | Datos completos`;
-      ws.getCell('A2').font = { size: 11, color: { argb: BRAND_COLORS.headerText } };
-      ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.secondary } };
-      ws.getCell('A2').alignment = { horizontal: 'center' };
+      // Fila 2 — Subtítulo descriptivo
+      applyHeaderRow(ws, COLS1, 2,
+        `Reporte de Máquinas en Cero — ${empresaSeleccionada}`,
+        BRAND_COLORS.subtitleBg, 11, true, 22);
 
-      ws.mergeCells('A3:J3');
+      // Fila 3 — Métricas consolidadas
+      const metricsText = kpis
+        ? `Total en Cero: ${kpis.totalEnCero} | Activas: ${kpis.activasEnCero} | Recuperadas: ${kpis.totalEnCero - kpis.activasEnCero} | Días Promedio: ${kpis.diasPromedio} | % Flota: ${kpis.porcentajeEnCero}%`
+        : 'Sin datos de KPIs';
+      applyHeaderRow(ws, COLS1, 3, metricsText, BRAND_COLORS.metricsBg, 10, true, 22);
+
+      // Fila 4 — Fecha de generación
       const updatedAt = data?.ultimaActualizacion
         ? new Date(data.ultimaActualizacion.seconds * 1000).toLocaleString('es-CO')
         : 'N/A';
-      ws.getCell('A3').value = `Generado: ${new Date().toLocaleString('es-CO')} | Última actualización: ${updatedAt}`;
-      ws.getCell('A3').font = { size: 10, italic: true };
-      ws.getCell('A3').alignment = { horizontal: 'center' };
+      applyHeaderRow(ws, COLS1, 4,
+        `Generado: ${new Date().toLocaleString('es-CO')} | Última actualización datos: ${updatedAt}`,
+        BRAND_COLORS.dateBg, 10, false, 18);
 
-      ws.mergeCells('A4:J4');
-      ws.getCell('A4').value = kpis
-        ? `Total en Cero: ${kpis.totalEnCero} | Activas: ${kpis.activasEnCero} | Días Promedio: ${kpis.diasPromedio} | % Flota: ${kpis.porcentajeEnCero}%`
-        : 'Sin datos';
-      ws.getCell('A4').font = { size: 10, bold: true };
-      ws.getCell('A4').alignment = { horizontal: 'center' };
-
-      ws.getRow(5).height = 8;
+      // Filas 5-6 — Espaciadores
+      ws.getRow(5).height = 5;
       ws.getRow(6).height = 8;
 
-      const headers = ['#', 'Serial', 'NUC', 'Tipo', 'Sala', 'Meses en Cero', 'Meses Consecutivos', 'Días Calendario', 'Nivel', 'Estado'];
-      const headerRow = ws.getRow(7);
-      headers.forEach((h, i) => {
-        const cell = headerRow.getCell(i + 1);
+      // Fila 7 — Headers de columnas
+      const headers1 = ['#', 'Serial', 'NUC', 'Tipo', 'Sala', 'Meses en Cero', 'Meses Consecutivos', 'Días Calendario', 'Nivel', 'Estado'];
+      const headerRow1 = ws.getRow(7);
+      headers1.forEach((h, i) => {
+        const cell = headerRow1.getCell(i + 1);
         cell.value = h;
-        cell.font = { bold: true, size: 11, color: { argb: BRAND_COLORS.headerText } };
+        cell.font = { name: FONT, size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.headerBg } };
-        cell.alignment = { horizontal: i >= 5 ? 'center' : 'left', vertical: 'middle' };
-        cell.border = { bottom: { style: 'thin', color: { argb: BRAND_COLORS.border } } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+          left:   { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+          bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderHdrB } },
+          right:  { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+        };
       });
-      headerRow.height = 28;
+      headerRow1.height = 28;
 
+      // Filas 8+ — Datos
       maquinasFiltradas.forEach((m, idx) => {
         const row = ws.getRow(8 + idx);
-        row.getCell(1).value = idx + 1;
-        row.getCell(2).value = m.serial;
-        row.getCell(3).value = m.nuc;
-        row.getCell(4).value = m.tipoApuesta;
-        row.getCell(5).value = m.sala;
-        row.getCell(6).value = m.mesesEnCero;
-        row.getCell(7).value = m.mesesConsecutivos;
-        row.getCell(8).value = m.diasCalendario;
-        row.getCell(9).value = m.nivel === 'critico' ? 'Crítico' : m.nivel === 'alerta' ? 'Alerta' : 'Reciente';
-        row.getCell(10).value = m.esActualmenteEnCero ? 'En Cero' : 'Recuperada';
-
-        if (idx % 2 === 0) {
-          for (let c = 1; c <= 10; c++) {
-            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.altRow } };
-          }
-        }
-        for (let c = 6; c <= 8; c++) {
-          row.getCell(c).alignment = { horizontal: 'center' };
-        }
+        const values = [
+          idx + 1,
+          m.serial,
+          m.nuc,
+          m.tipoApuesta,
+          m.sala,
+          m.esActualmenteEnCero ? m.mesesEnCero : '—',
+          m.esActualmenteEnCero ? m.mesesConsecutivos : '—',
+          m.esActualmenteEnCero ? m.diasCalendario : '—',
+          m.esActualmenteEnCero ? (m.nivel === 'critico' ? 'Crítico' : m.nivel === 'alerta' ? 'Alerta' : 'Reciente') : '—',
+          m.esActualmenteEnCero ? 'En Cero' : 'Recuperada',
+        ];
+        values.forEach((val, ci) => {
+          const cell = row.getCell(ci + 1);
+          cell.value = val;
+          applyDataBorder(cell, ci >= 5);
+        });
+        row.height = 18;
       });
 
       ws.columns = [
@@ -631,39 +661,55 @@ const MaquinasEnCeroStats = ({
         { width: 16 }, { width: 20 }, { width: 18 }, { width: 14 }, { width: 16 }
       ];
 
-      // Sheet 2: Resumen por Sala
-      const ws2 = workbook.addWorksheet('Resumen por Sala');
-      ws2.mergeCells('A1:G1');
-      ws2.getCell('A1').value = 'RESUMEN POR SALA — MÁQUINAS EN CERO';
-      ws2.getCell('A1').font = { size: 14, bold: true, color: { argb: BRAND_COLORS.headerText } };
-      ws2.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.primary } };
-      ws2.getCell('A1').alignment = { horizontal: 'center' };
-      ws2.getRow(1).height = 32;
+      // ── SHEET 2: Resumen por Sala ─────────────────────────────────────────
+      const COLS2 = 7;
+      const ws2 = workbook.addWorksheet('Resumen por Sala', {
+        views: [{ state: 'frozen', ySplit: 7 }]
+      });
 
-      const headers2 = ['Sala', 'Total en Cero', 'Críticas', 'Alertas', 'Recientes', 'Activas', 'Flota Total'];
-      const headerRow2 = ws2.getRow(3);
+      applyHeaderRow(ws2, COLS2, 1, 'DR GROUP', BRAND_COLORS.titleBg, 18, true, 30);
+      applyHeaderRow(ws2, COLS2, 2,
+        `Resumen por Sala — Máquinas en Cero — ${empresaSeleccionada}`,
+        BRAND_COLORS.subtitleBg, 11, true, 22);
+      applyHeaderRow(ws2, COLS2, 3,
+        `Salas analizadas: ${salasResumen.length}`,
+        BRAND_COLORS.metricsBg, 10, true, 22);
+      applyHeaderRow(ws2, COLS2, 4,
+        `Generado: ${new Date().toLocaleString('es-CO')}`,
+        BRAND_COLORS.dateBg, 10, false, 18);
+      ws2.getRow(5).height = 5;
+      ws2.getRow(6).height = 8;
+
+      const headers2 = ['Sala', 'Total en Cero', 'Críticas (>180d)', 'Alertas (60-179d)', 'Recientes (<60d)', 'Activas', 'Flota Total'];
+      const headerRow2 = ws2.getRow(7);
       headers2.forEach((h, i) => {
         const cell = headerRow2.getCell(i + 1);
         cell.value = h;
-        cell.font = { bold: true, size: 11, color: { argb: BRAND_COLORS.headerText } };
+        cell.font = { name: FONT, size: 10, bold: true, color: { argb: BRAND_COLORS.white } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.headerBg } };
-        cell.alignment = { horizontal: i >= 1 ? 'center' : 'left' };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+          left:   { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+          bottom: { style: 'thin', color: { argb: BRAND_COLORS.borderHdrB } },
+          right:  { style: 'thin', color: { argb: BRAND_COLORS.borderHdr } },
+        };
       });
+      headerRow2.height = 28;
 
       salasResumen.forEach((s, idx) => {
-        const row = ws2.getRow(4 + idx);
-        row.getCell(1).value = s.sala;
-        row.getCell(2).value = s.total;
-        row.getCell(3).value = s.criticas;
-        row.getCell(4).value = s.alertas;
-        row.getCell(5).value = s.recientes;
-        row.getCell(6).value = s.activas;
-        row.getCell(7).value = s.totalFlota || 'N/A';
-        for (let c = 2; c <= 7; c++) row.getCell(c).alignment = { horizontal: 'center' };
+        const row = ws2.getRow(8 + idx);
+        const values2 = [s.sala, s.total, s.criticas, s.alertas, s.recientes, s.activas, s.totalFlota || 'N/A'];
+        values2.forEach((val, ci) => {
+          const cell = row.getCell(ci + 1);
+          cell.value = val;
+          applyDataBorder(cell, ci >= 1);
+        });
+        row.height = 18;
       });
 
       ws2.columns = [
-        { width: 30 }, { width: 16 }, { width: 12 }, { width: 12 }, { width: 14 }, { width: 12 }, { width: 14 }
+        { width: 30 }, { width: 16 }, { width: 18 }, { width: 18 }, { width: 16 }, { width: 12 }, { width: 14 }
       ];
 
       const buffer = await workbook.xlsx.writeBuffer();
