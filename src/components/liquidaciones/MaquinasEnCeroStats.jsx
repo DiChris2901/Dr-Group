@@ -1312,10 +1312,7 @@ const MaquinasEnCeroStats = ({
                                                     })()}
                                                   </Typography>
                                                   {!m.ultimoEpisodio?.ultimaFechaConProduccion && (periodoToDate(m.ultimoEpisodio?.periodoOrigen || m.primerCero)) && (
-                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. mes anterior al primer cero</Typography>
-                                                  )}
-                                                  {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
-                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}</Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled', display: 'block' }}>Aprox. mes anterior al primer cero</Typography>
                                                   )}
                                                 </Box>
                                               </Box>
