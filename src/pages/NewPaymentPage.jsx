@@ -51,12 +51,12 @@ import {
 } from '@mui/material';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -70,6 +70,9 @@ import AttachmentPreviewDialog from '../components/common/AttachmentPreviewDialo
 const NewPaymentPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedCommitmentId = searchParams.get('commitmentId');
+  const preselectedHandled = useRef(false);
   const { addNotification } = useNotifications();
   const { user } = useAuth();
   const { settings } = useSettings();
@@ -234,10 +237,107 @@ const NewPaymentPage = () => {
 
   // 🏢 Abrir modal de compromiso si no hay selección bloqueada
   useEffect(() => {
+    // Si hay commitmentId preseleccionado, no abrir el modal automáticamente
+    if (preselectedCommitmentId && !preselectedHandled.current) return;
     if (!commitmentLocked && !formData.commitmentId) {
       setCommitmentModalOpen(true);
     }
-  }, [commitmentLocked, formData.commitmentId]);
+  }, [commitmentLocked, formData.commitmentId, preselectedCommitmentId]);
+
+  // 🎯 Auto-seleccionar compromiso desde URL (?commitmentId=xxx)
+  // Estrategia: primero buscar en pendingCommitments (ya cargados con filtro de 3 meses),
+  // si no se encuentra y la carga terminó, hacer fetch directo por ID desde Firestore.
+  useEffect(() => {
+    if (!preselectedCommitmentId || preselectedHandled.current) return;
+
+    // 1. Buscar en la lista pendiente ya cargada
+    if (pendingCommitments.length > 0) {
+      const target = pendingCommitments.find(c => c.id === preselectedCommitmentId);
+      if (target) {
+        preselectedHandled.current = true;
+        handleCommitmentSelect(target);
+        setCommitmentLocked(true);
+        setCommitmentModalOpen(false);
+        addNotification({
+          type: 'success',
+          title: 'Compromiso seleccionado',
+          message: `Pagarás "${target.companyName || 'Sin empresa'} - ${target.concept || target.name || 'Sin concepto'}"`,
+          icon: 'success',
+          color: 'success',
+          duration: 3000
+        });
+        return;
+      }
+    }
+
+    // 2. Si la carga finalizó y no se encontró, fetch directo desde Firestore
+    if (!loadingCommitments) {
+      const fetchPreselected = async () => {
+        try {
+          const docSnap = await getDoc(doc(db, 'commitments', preselectedCommitmentId));
+          if (!docSnap.exists()) {
+            addNotification({
+              type: 'warning',
+              title: 'Compromiso no encontrado',
+              message: 'El compromiso seleccionado no existe o fue eliminado',
+              icon: 'warning'
+            });
+            return;
+          }
+
+          const data = docSnap.data();
+
+          // Calcular saldo restante consultando pagos del compromiso
+          const paymentsQ = query(
+            collection(db, 'payments'),
+            where('commitmentId', '==', preselectedCommitmentId)
+          );
+          const paymentsSnap = await getDocs(paymentsQ);
+          const totalPaid = paymentsSnap.docs
+            .filter(p => !p.data().is4x1000Tax)
+            .reduce((sum, p) => sum + (p.data().amount || 0), 0);
+
+          const originalAmount = data.amount || 0;
+          const remaining = originalAmount - totalPaid;
+          const displayBalance = remaining > 0 ? remaining : originalAmount;
+          const isPartial = paymentsSnap.docs.length > 0 && remaining > 0;
+
+          const commitment = {
+            id: docSnap.id,
+            ...data,
+            originalAmount,
+            totalPaid,
+            remainingBalance: displayBalance,
+            hasPartialPayments: isPartial,
+            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}${isPartial ? ' (Saldo Pendiente)' : ''} - ${data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM', { locale: es }) : 'Sin fecha'}`,
+          };
+
+          preselectedHandled.current = true;
+          handleCommitmentSelect(commitment);
+          setCommitmentLocked(true);
+          setCommitmentModalOpen(false);
+          addNotification({
+            type: 'success',
+            title: 'Compromiso seleccionado',
+            message: `Pagarás "${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}"`,
+            icon: 'success',
+            color: 'success',
+            duration: 3000
+          });
+        } catch (error) {
+          console.error('Error al cargar compromiso preseleccionado:', error);
+          addNotification({
+            type: 'error',
+            title: 'Error',
+            message: 'No se pudo cargar el compromiso seleccionado',
+            icon: 'error'
+          });
+        }
+      };
+
+      fetchPreselected();
+    }
+  }, [preselectedCommitmentId, pendingCommitments, loadingCommitments]);
 
   // Listener en tiempo real para compromisos y pagos
   // onSnapshot dispara inmediatamente al suscribirse → NO necesitamos loadPendingCommitments() separado
@@ -249,11 +349,11 @@ const NewPaymentPage = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
-    const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
+    const endOfFilterWindow = new Date(currentYear, currentMonth + 12, 1);
 
     const commitmentsQuery = query(
       collection(db, 'commitments'),
-      where('dueDate', '<', startOfThreeMonthsLater),
+      where('dueDate', '<', endOfFilterWindow),
       orderBy('dueDate', 'asc')
     );
 
@@ -402,11 +502,11 @@ const NewPaymentPage = () => {
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
-      const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
+      const endOfFilterWindow = new Date(currentYear, currentMonth + 12, 1);
 
       const commitmentsQuery = query(
         collection(db, 'commitments'),
-        where('dueDate', '<', startOfThreeMonthsLater),
+        where('dueDate', '<', endOfFilterWindow),
         orderBy('dueDate', 'asc')
       );
 
@@ -1103,7 +1203,6 @@ const NewPaymentPage = () => {
             receiptURL: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null
           });
         } catch (telegramError) {
-          console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
         }
       }
 

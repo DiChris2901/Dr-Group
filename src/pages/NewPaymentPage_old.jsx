@@ -234,7 +234,6 @@ const NewPaymentPage = () => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // console.log('🔄 Configurando listeners en tiempo real para compromisos y pagos...');
 
     // Listener para compromisos (detecta cambios en estados de pago)
     const now = new Date();
@@ -249,7 +248,6 @@ const NewPaymentPage = () => {
     );
 
     const unsubscribeCommitments = onSnapshot(commitmentsQuery, (snapshot) => {
-      // console.log('🔄 Cambios detectados en compromisos, actualizando lista...');
       // Solo recargar si la página está visible y hay cambios relevantes
       if (!document.hidden) {
         loadPendingCommitments();
@@ -266,7 +264,6 @@ const NewPaymentPage = () => {
     );
 
     const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
-      // console.log('🔄 Cambios detectados en pagos, actualizando compromisos disponibles...');
       // Solo recargar si la página está visible y hay cambios en pagos
       if (!document.hidden) {
         // Delay para permitir que se procesen las actualizaciones de compromisos
@@ -280,7 +277,6 @@ const NewPaymentPage = () => {
 
     // Cleanup listeners
     return () => {
-      // console.log('🧹 Limpiando listeners en tiempo real...');
       unsubscribeCommitments();
       unsubscribePayments();
     };
@@ -372,7 +368,6 @@ const NewPaymentPage = () => {
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
-        // console.log('🌍 [NewPaymentPage] personal_accounts snapshot (GLOBAL) size:', snapshot.size);
         let accounts = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -413,7 +408,6 @@ const NewPaymentPage = () => {
       // Límite superior: inicio del mes que está 3 meses adelante
       const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
       
-      // console.log('📅 NUEVA LÓGICA - Filtrando compromisos: todos del pasado + actual + 2 meses adelante:', {
       //   currentDate: now.toISOString(),
       //   limiteSuperior: startOfThreeMonthsLater.toISOString(),
       //   currentMonth: currentMonth + 1,   // mes actual (human-readable) 
@@ -433,7 +427,6 @@ const NewPaymentPage = () => {
       const snapshot = await getDocs(commitmentsQuery);
       const commitments = [];
       
-      // console.log(`📊 Compromisos encontrados en rango (pasado+actual+2futuros): ${snapshot.size}`);
       
       // También consultar todos los pagos ACTIVOS para verificar cuáles compromisos realmente tienen pago válido
       const paymentsQuery = query(
@@ -443,7 +436,6 @@ const NewPaymentPage = () => {
       
       const paymentsSnapshot = await getDocs(paymentsQuery);
       
-      // console.log('📊 Total de pagos en base de datos:', paymentsSnapshot.size);
       
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -461,7 +453,6 @@ const NewPaymentPage = () => {
           }
         });
         
-        // console.log(`� Compromiso "${data.concept}" (${data.companyName}):`, {
         //   id: commitmentId,
         //   status: data.status,
         //   paid: data.paid,
@@ -503,16 +494,13 @@ const NewPaymentPage = () => {
                 effectiveStatus = 'pending';
               }
             } catch(normalizeErr) {
-              console.warn('⚠️ Error normalizando status, usando pending por defecto:', normalizeErr);
               effectiveStatus = 'pending';
             }
-          // console.log('🛠 Normalización aplicada: compromiso sin pagos pero marcado pagado. Nuevo status:', effectiveStatus);
         }
 
         // Excluir solo si realmente está pagado y existen pagos válidos
         const shouldExclude = hasActivePayments && (isReallyPaid || isFullyPaidByAmount);
         
-        // console.log(`🔍 ANÁLISIS DETALLADO "${data.companyName} - ${data.concept}":`, {
         //   id: commitmentId,
         //   status: data.status,
         //   paid: data.paid,
@@ -532,7 +520,6 @@ const NewPaymentPage = () => {
         // ✅ NUEVA LÓGICA: Incluir compromisos que no están realmente pagados
   if ((effectiveStatus === 'pending' || effectiveStatus === 'overdue' || effectiveStatus === 'partial_payment') && !shouldExclude) {
           
-          // console.log(`✅ Compromiso DISPONIBLE agregado:`, {
           //   id: commitmentId,
           //   concept: data.concept,
           //   company: data.companyName,
@@ -566,7 +553,6 @@ const NewPaymentPage = () => {
             }).format(displayBalance) // 💰 Mostrar saldo pendiente o monto original
           });
         } else {
-          // console.log('🚫 Compromiso OMITIDO:', commitmentId, `"${data.companyName} - ${data.concept}"`, {
           //   reason: shouldExclude ? 'YA TIENE PAGO VÁLIDO' : 'ESTADO NO VÁLIDO',
           //   status: effectiveStatus,
           //   shouldExclude,
@@ -585,7 +571,6 @@ const NewPaymentPage = () => {
         return a.dueDate.toDate() - b.dueDate.toDate();
       });
       
-      // console.log(`📋 Total compromisos sin pago: ${commitments.length}`);
       setPendingCommitments(commitments);
     } catch (error) {
       console.error('Error loading pending commitments:', error);
@@ -745,7 +730,6 @@ const NewPaymentPage = () => {
       // Agregar a la colección de pagos
       const taxRef = await addDoc(collection(db, 'payments'), tax4x1000Data);
       
-      // console.log('✅ Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
       return { amount: tax4x1000, id: taxRef.id };
     } catch (error) {
       console.error('❌ Error creando registro 4x1000:', error);
@@ -783,7 +767,6 @@ const NewPaymentPage = () => {
     const [year, month, day] = paymentDate.split('-').map(Number);
     const payment = new Date(year, month - 1, day, 0, 0, 0, 0);
     
-    // console.log('Checking interests requirement:', {
     //   dueDate: dueDate.toDateString(),
     //   paymentDate: payment.toDateString(),
     //   dueDateMs: dueDate.getTime(),
@@ -801,7 +784,6 @@ const NewPaymentPage = () => {
     const concept = commitment.concept?.toLowerCase() || '';
     const beneficiary = commitment.beneficiary?.toLowerCase() || '';
     
-    // console.log('Checking Coljuegos for:', { companyName, concept, beneficiary });
     
     // Buscar por nombre de empresa, concepto o beneficiario relacionado a Coljuegos
     const isColjuegos = companyName.includes('coljuegos') || 
@@ -813,7 +795,6 @@ const NewPaymentPage = () => {
            concept.includes('gastos de administración') ||
            concept.includes('gastos de administracion');
            
-    // console.log('Is Coljuegos:', isColjuegos);
     return isColjuegos;
   };
 
@@ -863,14 +844,6 @@ const NewPaymentPage = () => {
     const remainingBalance = commitment.remainingBalance || originalAmount;
     const hasPartialPayments = commitment.hasPartialPayments || false;
     
-    console.log('💰 Compromiso seleccionado:', {
-      id: commitment.id,
-      originalAmount,
-      remainingBalance,
-      hasPartialPayments,
-      totalPaid: commitment.totalPaid || 0,
-      isColjuegos: isColjuegosCommitment(commitment)
-    });
     
     // 🚫 Si es Coljuegos, desactivar automáticamente pago parcial
     if (isColjuegosCommitment(commitment)) {
@@ -906,78 +879,51 @@ const NewPaymentPage = () => {
       return;
     }
 
-    console.log('🔍 Extrayendo URL de factura para compromiso:', commitment.id);
-    console.log('📄 DATOS COMPLETOS DEL COMPROMISO:', commitment);
-    console.log('📄 Analizando campos de archivos:', {
-      'invoice.url': commitment.invoice?.url,
-      'invoice': commitment.invoice,
-      receiptUrl: commitment.receiptUrl,
-      receiptUrls: commitment.receiptUrls,
-      attachments: commitment.attachments,
-      attachmentUrls: commitment.attachmentUrls,
-      invoiceUrl: commitment.invoiceUrl,
-      fileUrl: commitment.fileUrl,
-      fileUrls: commitment.fileUrls
-    });
 
     let foundUrl = null;
 
     // PRIORIDAD 1: invoice.url (campo específico de factura - ESTRUCTURA CORRECTA)
     if (commitment.invoice && commitment.invoice.url && commitment.invoice.url.trim() !== '') {
       foundUrl = commitment.invoice.url;
-      console.log('✅ URL de factura encontrada en invoice.url:', foundUrl);
     }
     // PRIORIDAD 2: invoiceUrl (campo directo de factura)
     else if (commitment.invoiceUrl && commitment.invoiceUrl.trim() !== '') {
       foundUrl = commitment.invoiceUrl;
-      console.log('✅ URL de factura encontrada en invoiceUrl:', foundUrl);
     }
     // PRIORIDAD 3: attachments (URLs más frescas)
     else if (commitment.attachments && commitment.attachments.length > 0) {
       foundUrl = commitment.attachments[commitment.attachments.length - 1]; // Más reciente
-      console.log('✅ URL de factura encontrada en attachments:', foundUrl);
     }
     // PRIORIDAD 4: receiptUrls (múltiples archivos)
     else if (commitment.receiptUrls && commitment.receiptUrls.length > 0) {
       foundUrl = commitment.receiptUrls[commitment.receiptUrls.length - 1]; // Más reciente
-      console.log('✅ URL de factura encontrada en receiptUrls:', foundUrl);
     }
     // PRIORIDAD 5: receiptUrl (archivo único)
     else if (commitment.receiptUrl && commitment.receiptUrl.trim() !== '') {
       foundUrl = commitment.receiptUrl;
-      console.log('✅ URL de factura encontrada en receiptUrl:', foundUrl);
     }
     // PRIORIDAD 6: attachmentUrls (legacy)
     else if (commitment.attachmentUrls && commitment.attachmentUrls.length > 0) {
       foundUrl = commitment.attachmentUrls[commitment.attachmentUrls.length - 1];
-      console.log('✅ URL de factura encontrada en attachmentUrls:', foundUrl);
     }
     // PRIORIDAD 7: fileUrls (otro campo posible)
     else if (commitment.fileUrls && commitment.fileUrls.length > 0) {
       foundUrl = commitment.fileUrls[commitment.fileUrls.length - 1];
-      console.log('✅ URL de factura encontrada en fileUrls:', foundUrl);
     }
     // PRIORIDAD 8: fileUrl (archivo único)
     else if (commitment.fileUrl && commitment.fileUrl.trim() !== '') {
       foundUrl = commitment.fileUrl;
-      console.log('✅ URL de factura encontrada en fileUrl:', foundUrl);
     }
 
     if (foundUrl) {
       // Verificar que la URL sea válida
       if (foundUrl.includes('firebase') && (foundUrl.includes('googleapis.com') || foundUrl.includes('firebasestorage'))) {
         setInvoiceUrl(foundUrl);
-        console.log('📄 ✅ URL de factura establecida (Firebase Storage):', foundUrl);
-        console.log('📄 ✅ Nombre del archivo:', commitment.invoice?.fileName || 'Nombre no disponible');
       } else {
         setInvoiceUrl(foundUrl);
-        console.log('📄 ✅ URL de factura establecida (otro origen):', foundUrl);
       }
     } else {
       setInvoiceUrl(null);
-      console.log('⚠️ NINGÚN CAMPO DE ARCHIVO ENCONTRADO');
-      console.log('🔍 Estructura del campo invoice:', commitment.invoice);
-      console.log('🔍 Todos los campos disponibles:', Object.keys(commitment));
       
       // Debug adicional: buscar cualquier campo que contenga palabras clave
       Object.keys(commitment).forEach(key => {
@@ -988,7 +934,6 @@ const NewPaymentPage = () => {
             key.toLowerCase().includes('receipt') ||
             key.toLowerCase().includes('invoice') ||
             key.toLowerCase().includes('document')) {
-          console.log(`🔍 Campo sospechoso encontrado: ${key} =`, value);
         }
       });
     }
@@ -998,7 +943,6 @@ const NewPaymentPage = () => {
   const handleOpenPdfViewer = () => {
     if (invoiceUrl) {
       setPdfViewerOpen(true);
-      console.log('📄 Abriendo visor PDF con URL:', invoiceUrl);
     } else {
       addNotification({
         type: 'warning',
@@ -1027,7 +971,6 @@ const NewPaymentPage = () => {
   const handleOpenInNewTab = () => {
     if (invoiceUrl) {
       window.open(invoiceUrl, '_blank');
-      console.log('🔗 Abriendo PDF en nueva pestaña:', invoiceUrl);
     }
   };
 
@@ -1130,7 +1073,6 @@ const NewPaymentPage = () => {
   // 📦 MANEJAR CLICK DEL BOTÓN DE GUARDAR (muestra modal de confirmación)
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('🎯 handleSubmit INICIADO - event:', event);
     
     // Verificar autenticación
     if (!user) {
@@ -1163,15 +1105,9 @@ const NewPaymentPage = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('🚀 Iniciando proceso de pago...');
-      console.log('👤 Usuario autenticado:', user?.uid, user?.email);
-      console.log('📋 Selected commitment completo:', JSON.stringify(selectedCommitment, null, 2));
-      console.log('📝 Form data completo:', JSON.stringify(formData, null, 2));
       
       // Subir archivos primero
-      console.log('📎 Subiendo archivos...');
       const uploadedFileUrls = await uploadFiles();
-      console.log('✅ Archivos subidos:', uploadedFileUrls);
       
       // Preparar datos del pago incluyendo URLs de archivos
       const paymentData = {
@@ -1222,19 +1158,15 @@ const NewPaymentPage = () => {
       };
       
       // Validar que los campos críticos no estén vacíos
-      console.log('🔍 Validando paymentData antes de guardar:', paymentData);
       
       if (!paymentData.commitmentId) {
         throw new Error('ID del compromiso no válido');
       }
       if (!paymentData.concept || paymentData.concept === 'Sin concepto') {
-        console.warn('⚠️ Concepto no encontrado en selectedCommitment:', selectedCommitment);
       }
       
       // Guardar el pago en la colección payments
-      console.log('💾 Guardando pago en Firebase:', paymentData);
       const paymentRef = await addDoc(collection(db, 'payments'), paymentData);
-      console.log('✅ Pago guardado con ID:', paymentRef.id);
       
       // 📝 Registrar actividad de auditoría - Creación de nuevo pago
       await logActivity('create_payment', 'payment', paymentRef.id, {
@@ -1261,7 +1193,6 @@ const NewPaymentPage = () => {
         const effectiveSourceAccount = paymentData.sourceAccount || 'Cuenta Corriente Principal';
         const effectiveSourceBank = paymentData.sourceBank || 'Banco Principal';
         
-        console.log('💰 Generando 4x1000 para método', paymentData.method, 'de:', formatCurrencyBalance(paymentData.amount));
         
         const tax4x1000Result = await create4x1000Record(
           paymentData.amount,
@@ -1273,7 +1204,6 @@ const NewPaymentPage = () => {
         );
 
         if (tax4x1000Result) {
-          console.log('ℹ️ 4x1000 generado automáticamente:', formatCurrencyBalance(tax4x1000Result.amount));
           
           // 🔄 ACTUALIZAR EL PAGO PRINCIPAL CON LA REFERENCIA AL 4x1000
           await updateDoc(paymentRef, {
@@ -1285,7 +1215,6 @@ const NewPaymentPage = () => {
       }
       
       // 💰 LÓGICA PARA PAGOS PARCIALES - Actualizar compromiso según el tipo de pago
-      // console.log('🔄 Actualizando compromiso...');
       const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
       
       // Calcular nuevo saldo pendiente
@@ -1295,14 +1224,6 @@ const NewPaymentPage = () => {
       const newTotalPaid = previouslyPaid + currentPayment;
       const newRemainingBalance = originalAmount - newTotalPaid;
       
-      console.log('💰 Cálculos de pago parcial:', {
-        originalAmount,
-        previouslyPaid,
-        currentPayment,
-        newTotalPaid,
-        newRemainingBalance,
-        isFullyPaid: newRemainingBalance <= 0
-      });
 
       if (newRemainingBalance <= 0) {
         // 💰 PAGO COMPLETO - Marcar compromiso como totalmente pagado
@@ -1330,7 +1251,6 @@ const NewPaymentPage = () => {
           interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
           updatedAt: Timestamp.now()
         });
-        console.log('✅ Compromiso marcado como TOTALMENTE PAGADO');
       } else {
         // 💰 PAGO PARCIAL - Mantener compromiso pendiente con nuevo saldo
         await updateDoc(commitmentRef, {
@@ -1350,7 +1270,6 @@ const NewPaymentPage = () => {
           interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
           updatedAt: Timestamp.now()
         });
-        console.log('✅ Compromiso actualizado con PAGO PARCIAL - Saldo pendiente:', formatCurrencyDisplay(newRemainingBalance));
       }
       
       // =====================================================
@@ -1384,13 +1303,7 @@ const NewPaymentPage = () => {
             registeredBy: user?.displayName || user?.email || 'Usuario',
             receiptURL: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null
           });
-          console.log('✅ Notificación de Telegram enviada para pago', {
-            amount: formattedAmount,
-            originalAmount: formData.finalAmount,
-            parsedAmount: amountValue
-          });
         } catch (telegramError) {
-          console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
         }
       }
       
@@ -1501,7 +1414,6 @@ const NewPaymentPage = () => {
 
     // 🆕 AGREGAR PDFs A LA COLA Y PROCESAR EL PRIMERO
     if (pdfsToCompress.length > 0) {
-      console.log(`📋 Agregando ${pdfsToCompress.length} PDFs a la cola de compresión`);
       setPendingPDFQueue(pdfsToCompress);
       // Procesar el primer PDF inmediatamente
       setPendingPDFFile(pdfsToCompress[0]);
@@ -1511,7 +1423,6 @@ const NewPaymentPage = () => {
 
   // 🗜️ MANEJAR RESULTADO DE COMPRESIÓN
   const handleCompressionAccept = (compressionResult) => {
-    console.log('✅ Compresión aceptada:', compressionResult.stats);
     
     // Convertir el blob comprimido a File objeto
     const compressedFile = new File([compressionResult.compressed], pendingPDFFile.name, {
@@ -1532,7 +1443,6 @@ const NewPaymentPage = () => {
   };
 
   const handleCompressionReject = () => {
-    console.log('❌ Compresión rechazada, usando original');
     
     addFileToList(pendingPDFFile);
     
@@ -1555,7 +1465,6 @@ const NewPaymentPage = () => {
 
     if (remainingQueue.length > 0) {
       // Hay más PDFs en la cola, procesar el siguiente
-      console.log(`📋 Procesando siguiente PDF (${remainingQueue.length} restantes)`);
       
       addNotification({
         type: 'info',
@@ -1568,7 +1477,6 @@ const NewPaymentPage = () => {
       setCompressionPreviewOpen(true);
     } else {
       // No hay más PDFs en la cola, cerrar modal
-      console.log('✅ Todos los PDFs procesados');
       setPendingPDFFile(null);
       setCompressionPreviewOpen(false);
     }
@@ -1928,17 +1836,6 @@ const NewPaymentPage = () => {
                           
                           // Debug: Log para ver qué campos están disponibles
                           if (searchText === 'salario' && options.indexOf(option) === 0) {
-                            console.log('🔍 Campos disponibles para búsqueda:', {
-                              companyName: option.companyName,
-                              concept: option.concept,
-                              name: option.name,
-                              beneficiary: option.beneficiary,
-                              provider: option.provider,
-                              displayName: option.displayName,
-                              description: option.description,
-                              category: option.category,
-                              allFields: Object.keys(option)
-                            });
                           }
                           
                           // Buscar en todos los campos de texto
@@ -2372,7 +2269,6 @@ const NewPaymentPage = () => {
                         <>
                           {(() => {
                             const isColj = isColjuegosCommitment(selectedCommitment);
-                            console.log('Rendering interest fields - Is Coljuegos:', isColj);
                             return isColj;
                           })() ? (
                             <>
@@ -3447,13 +3343,6 @@ const NewPaymentPage = () => {
               disabled={isSubmitting || uploading}
               sx={{ minWidth: 120 }}
               onClick={() => {
-                console.log('🔘 Botón clicked - Estado del formulario:');
-                console.log('- isSubmitting:', isSubmitting);
-                console.log('- uploading:', uploading);
-                console.log('- selectedCommitment:', !!selectedCommitment);
-                console.log('- areInterestsComplete():', areInterestsComplete());
-                console.log('- requiresInterests:', requiresInterests(selectedCommitment, formData.date));
-                console.log('- formData:', formData);
               }}
             >
               {isSubmitting ? (

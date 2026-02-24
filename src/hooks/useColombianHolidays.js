@@ -61,9 +61,7 @@ export const useColombianHolidays = (year = new Date().getFullYear()) => {
     // Debug para verificar festivos de noviembre 2025
     if (year === 2025) {
       const novemberHolidays = formattedHolidays.filter(h => h.date.startsWith('2025-11'));
-      console.log('🎉 [FESTIVOS OFICIALES] Noviembre 2025 (con Ley Emiliani aplicada):');
       novemberHolidays.forEach(h => {
-        console.log(`   ${h.date} - ${h.name}${h.originalDate ? ` (original: ${h.originalDate})` : ''}`);
       });
     }
 

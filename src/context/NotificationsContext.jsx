@@ -24,7 +24,6 @@ export const NotificationsProvider = ({ children }) => {
         setResolvedAlerts(new Set(JSON.parse(savedResolvedAlerts)));
       }
     } catch (error) {
-      console.warn('Error cargando alertas resueltas:', error);
     }
   }, []);
 
@@ -36,7 +35,6 @@ export const NotificationsProvider = ({ children }) => {
         setDismissedNotifications(new Set(JSON.parse(savedDismissed)));
       }
     } catch (error) {
-      console.warn('Error cargando notificaciones descartadas:', error);
     }
   }, []);
 
@@ -45,7 +43,6 @@ export const NotificationsProvider = ({ children }) => {
     try {
       localStorage.setItem('dr_group_resolved_alerts', JSON.stringify([...resolvedAlerts]));
     } catch (error) {
-      console.warn('Error guardando alertas resueltas:', error);
     }
   }, [resolvedAlerts]);
 
@@ -54,7 +51,6 @@ export const NotificationsProvider = ({ children }) => {
     try {
       localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify([...dismissedNotifications]));
     } catch (error) {
-      console.warn('Error guardando notificaciones descartadas:', error);
     }
   }, [dismissedNotifications]);
 
@@ -192,11 +188,9 @@ export const NotificationsProvider = ({ children }) => {
             const recent = dismissed.slice(-500);
             localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify(recent));
             setDismissedNotifications(new Set(recent));
-            console.log('🧹 Limpieza de notificaciones descartadas antiguas');
           }
         }
       } catch (error) {
-        console.warn('Error en limpieza de notificaciones:', error);
       }
     }, 24 * 60 * 60 * 1000); // Cada 24 horas
 

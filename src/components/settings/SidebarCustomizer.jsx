@@ -50,7 +50,6 @@ const SidebarCustomizer = ({ settings, updateSettings }) => {
                     checked={settings.sidebar?.compactMode || false}
                     onChange={(e) => {
                       const newCompactMode = e.target.checked;
-                      console.log('🔄 [SidebarCustomizer] Cambiando modo compacto a:', newCompactMode);
                       
                       // ✅ Actualizar ambas configuraciones en una sola llamada
                       updateSettings({

@@ -42,7 +42,6 @@ export const useTypingIndicator = (conversationId) => {
         stopTyping();
       }, 3000);
     } catch (error) {
-      console.debug('Error updating typing status:', error);
     }
   }, [conversationId, currentUser]);
 
@@ -54,7 +53,6 @@ export const useTypingIndicator = (conversationId) => {
       const typingRef = ref(database, `/typing/${conversationId}/${currentUser.uid}`);
       await remove(typingRef);
     } catch (error) {
-      console.debug('Error clearing typing status:', error);
     }
   }, [conversationId, currentUser]);
 

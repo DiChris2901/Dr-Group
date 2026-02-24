@@ -103,7 +103,6 @@ const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
     
     return dateToFormat.toLocaleDateString('es-CO');
   } catch (error) {
-    console.warn('Error formatting date:', error);
     return '';
   }
 };
@@ -266,12 +265,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
   // Llenar formulario cuando se abre O cuando commitment cambia
   useEffect(() => {
     if (commitment && open) {
-      console.log('🔄 Re-sincronizando formData con commitment actualizado');
-      console.log('🔍 Debugging commitment data:', commitment);
-      console.log('🔍 invoiceFiles (legacy):', commitment.invoiceFiles);
-      console.log('🔍 invoiceURLs (legacy):', commitment.invoiceURLs);
-      console.log('🔍 invoices (current):', commitment.invoices);
-      console.log('🔍 receiptMetadata:', commitment.receiptMetadata);
       
       // ✅ ACTUALIZADO: Leer archivos del campo invoices array
       let invoiceFiles = [];
@@ -280,7 +273,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       
       // Prioridad: usar invoices array si existe, sino legacy fields
       if (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0) {
-        console.log('📁 Usando invoices array (formato actual)');
         commitment.invoices.forEach((invoice, index) => {
           if (invoice.url || invoice.downloadURL) {
             invoiceURLs.push(invoice.url || invoice.downloadURL);
@@ -293,14 +285,11 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           }
         });
       } else if (commitment.invoiceFiles || commitment.invoiceURLs) {
-        console.log('📁 Usando campos legacy (invoiceFiles/invoiceURLs)');
         invoiceFiles = commitment.invoiceFiles || [];
         invoiceURLs = commitment.invoiceURLs || [];
         invoiceFileNames = commitment.invoiceFileNames || [];
       }
       
-      console.log('✅ Archivos procesados:', { invoiceFiles, invoiceURLs, invoiceFileNames });
-      console.log('📋 Método de pago desde Firestore:', commitment.paymentMethod);
       
       // Mapear valores antiguos (inglés) a nuevos (español)
       const mapPaymentMethod = (value) => {
@@ -317,7 +306,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       };
       
       const mappedPaymentMethod = mapPaymentMethod(commitment.paymentMethod);
-      console.log('🔄 Método de pago mapeado:', mappedPaymentMethod);
       
       const initialData = {
         concept: commitment.concept || commitment.description || '',
@@ -351,7 +339,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       setFormData(initialData);
       setOriginalData(initialData);
       setHasChanges(false);
-      console.log('✅ FormData inicializado con método de pago:', initialData.paymentMethod);
     }
   }, [commitment, open]);
 
@@ -369,7 +356,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       
       // Si los archivos cambiaron (por ejemplo, se eliminaron), actualizar formData
       if (hasFilesInCommitment !== hasFilesInFormData) {
-        console.log('🔄 Detectado cambio en archivos, re-sincronizando formData');
         
         let invoiceFiles = [];
         let invoiceURLs = [];
@@ -401,7 +387,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           receiptMetadata: commitment.receiptMetadata || {}
         }));
         
-        console.log('✅ FormData sincronizado con archivos actualizados');
       }
     }
   }, [commitment?.invoiceFiles, commitment?.invoiceURLs, commitment?.invoices, open, formData.concept]);
@@ -505,7 +490,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       const isNowRecurring = formData.periodicity !== 'unique';
       
       if (wasUnique && isNowRecurring) {
-        console.log('🔄 Detectado cambio de único a recurrente, generando compromisos...');
         
         // Usar los datos actualizados para generar compromisos recurrentes
         const baseCommitmentData = {
@@ -520,12 +504,10 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         try {
           // 🔄 Generar compromisos recurrentes (saltando el primero para evitar duplicados)
           const recurringCommitments = await generateRecurringCommitments(baseCommitmentData, 12, true);
-          console.log('✅ Compromisos recurrentes generados:', recurringCommitments);
           
           // 💾 Guardar los compromisos generados en Firebase
           if (recurringCommitments && recurringCommitments.length > 0) {
             const savedIds = await saveRecurringCommitments(recurringCommitments);
-            console.log('✅ Compromisos guardados en Firebase:', savedIds);
             
             addNotification({
               type: 'success',
@@ -534,7 +516,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
               duration: 4000
             });
           } else {
-            console.log('ℹ️ No se generaron compromisos (posiblemente limitados por fecha)');
             addNotification({
               type: 'info',
               title: 'ℹ️ Sin Compromisos Adicionales',
@@ -558,7 +539,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       const isNowUnique = formData.periodicity === 'unique';
       
       if (wasRecurring && isNowUnique) {
-        console.log('🗑️ Detectado cambio de recurrente a único, eliminando compromisos relacionados...');
         
         try {
           // Buscar compromisos relacionados con el mismo concepto, empresa y beneficiario
@@ -581,7 +561,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
             });
             
             await batch.commit();
-            console.log(`✅ Eliminados ${relatedCommitments.length} compromisos relacionados`);
             
             addNotification({
               type: 'success',
@@ -590,7 +569,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
               duration: 4000
             });
           } else {
-            console.log('ℹ️ No se encontraron compromisos relacionados para eliminar');
           }
           
         } catch (deleteError) {
@@ -761,7 +739,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           const oldFileRef = ref(storage, currentFile);
           await deleteObject(oldFileRef);
         } catch (error) {
-          console.warn('Error eliminando archivo anterior:', error);
         }
       } else if (currentFile) {
         // Si no es PDF o si hay archivo existente, solo reemplazar
@@ -769,7 +746,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           const oldFileRef = ref(storage, currentFile);
           await deleteObject(oldFileRef);
         } catch (error) {
-          console.warn('Error eliminando archivo anterior:', error);
         }
       }
 
@@ -867,7 +843,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
           const oldFileRef = ref(storage, currentFile);
           await deleteObject(oldFileRef);
         } catch (error) {
-          console.warn('Error eliminando archivo anterior:', error);
         }
       }
 
@@ -1019,15 +994,12 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         throw new Error('No hay archivo para eliminar');
       }
 
-      console.log('🗑️ Eliminando archivo:', fileURL);
 
       // Eliminar archivo de Firebase Storage
       try {
         const fileRef = ref(storage, fileURL);
         await deleteObject(fileRef);
-        console.log('✅ Archivo eliminado de Storage');
       } catch (error) {
-        console.warn('⚠️ Error al eliminar archivo de storage:', error);
         // Continuar aunque falle la eliminación del storage
       }
 
@@ -1052,7 +1024,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         updatedBy: currentUser.uid
       });
       
-      console.log('✅ Firestore actualizado');
 
       // 📝 Registrar actividad de auditoría - Eliminación de comprobante de compromiso
       await logActivity('delete_commitment_invoice', 'commitment', commitment.id, {
@@ -1583,15 +1554,11 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                       <Select
                         value={formData.paymentMethod || ''}
                         onChange={(e) => {
-                          console.log('🔄 Cambiando método de pago a:', e.target.value);
                           handleFormChange('paymentMethod', e.target.value);
                         }}
                         label="Método de Pago"
                         sx={{ borderRadius: 1 }}
                         onOpen={() => {
-                          console.log('📋 Select abierto. Valor actual:', formData.paymentMethod);
-                          console.log('📋 Opciones disponibles:', getPaymentMethodOptions());
-                          console.log('📋 ¿Valor coincide con opciones?:', getPaymentMethodOptions().some(opt => opt.value === formData.paymentMethod));
                         }}
                       >
                         {getPaymentMethodOptions().map((option) => (

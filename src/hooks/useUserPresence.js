@@ -13,7 +13,6 @@ import { database, db, auth } from '../config/firebase';
 export const useUserPresence = (userId) => {
   useEffect(() => {
     if (!userId || !database) {
-      console.warn('⚠️ useUserPresence: userId o RTDB no disponible');
       return;
     }
     

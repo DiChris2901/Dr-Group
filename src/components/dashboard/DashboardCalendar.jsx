@@ -158,8 +158,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         oneYearAgo.setHours(0, 0, 0, 0);
         
-        console.log('📅 Cargando eventos del calendario...');
-        console.log('🗑️ Fecha límite para limpieza:', oneYearAgo.toLocaleDateString('es-CO'));
         
         // Cargar TODOS los eventos primero (para limpiar antiguos y corruptos)
         const eventsQuery = query(collection(db, 'calendar_events'));
@@ -179,7 +177,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
           
           if (isCorruptId) {
             // ID temporal/corrupto - eliminar
-            console.warn(`⚠️ Evento con ID temporal detectado: ${eventId} - "${eventData.title}"`);
             eventsToDelete.push({
               id: eventId,
               title: eventData.title,
@@ -206,26 +203,21 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
         
         // 🗑️ Eliminar eventos antiguos o corruptos
         if (eventsToDelete.length > 0) {
-          console.log(`🗑️ Eliminando ${eventsToDelete.length} eventos no válidos:`);
           
           const deletePromises = eventsToDelete.map(async (event) => {
             try {
               await deleteDoc(doc(db, 'calendar_events', event.id));
-              console.log(`  ✅ Eliminado: "${event.title}" - ${event.reason}`);
             } catch (error) {
               console.error(`  ❌ Error eliminando evento ${event.id}:`, error);
             }
           });
           
           await Promise.all(deletePromises);
-          console.log(`✅ Limpieza completada: ${eventsToDelete.length} eventos eliminados`);
         } else {
-          console.log('✅ No hay eventos para eliminar');
         }
         
         // Actualizar estado con eventos válidos
         setCustomEvents(currentEvents);
-        console.log(`📊 Eventos cargados: ${currentEvents.length} eventos válidos`);
         
       } catch (error) {
         console.error('❌ Error cargando/limpiando eventos del calendario:', error);
@@ -496,26 +488,17 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       // 📨 Enviar notificaciones a usuarios suscritos
       const notificationPromises = [];
       
-      console.log(`📧 Verificando notificaciones para ${usersSnapshot.size} usuarios`);
       
       usersSnapshot.forEach(userDoc => {
         const userData = userDoc.data();
         const settings = userData.notificationSettings;
         
-        console.log(`Usuario: ${userData.email || userData.displayName}`, {
-          hasSettings: !!settings,
-          calendarEventsEnabled: settings?.calendarEventsEnabled,
-          emailEnabled: settings?.emailEnabled,
-          telegramEnabled: settings?.telegramEnabled
-        });
         
         // Verificar si el usuario tiene notificaciones de calendario habilitadas
         if (!settings || !settings.calendarEventsEnabled) {
-          console.log(`❌ Usuario ${userData.email} no tiene calendarEventsEnabled habilitado`);
           return; // Skip este usuario
         }
         
-        console.log(`✅ Usuario ${userData.email} recibirá notificación del evento`);
         
         // Preparar datos del evento para notificación
         const eventNotificationData = {
@@ -582,8 +565,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
 
   // 🆕 Función para editar evento personalizado
   const handleEditEvent = (event) => {
-    console.log('✏️ Abriendo editor para evento:', event);
-    console.log('🆔 ID del evento:', event?.id);
     
     if (!event?.id) {
       console.error('❌ El evento no tiene ID, no se puede editar');
@@ -603,8 +584,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       return;
     }
     
-    console.log('📝 Actualizando evento:', editingEvent.id);
-    console.log('📋 Datos a actualizar:', eventData);
     
     setSavingEvent(true);
     
@@ -621,9 +600,7 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
         updatedAt: new Date()
       };
       
-      console.log('🔥 Enviando actualización a Firestore...');
       await updateDoc(eventRef, updatedData);
-      console.log('✅ Firestore actualizado correctamente');
       
       // Actualizar estado local con la fecha correcta
       setCustomEvents(prev => prev.map(evt => 
@@ -696,7 +673,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
 
   const saveEvent = () => {
     // TODO: Implementar guardado de eventos personalizados
-    console.log('Nuevo evento:', newEvent, 'para fecha:', selectedDay);
     setShowEventDialog(false);
     setNewEvent({ title: '', description: '' });
   };

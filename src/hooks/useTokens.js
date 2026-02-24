@@ -153,13 +153,11 @@ export const useTableTokens = () => {
  */
 export const useTokenDebug = () => {
   const validateTokens = () => {
-    console.log('🔍 Validando tokens críticos...');
     const results = enhancedTokenUtils.validateCriticalTokens();
     
     if (results.invalid.length > 0) {
       console.error('❌ Tokens faltantes encontrados:', results.invalid);
     } else {
-      console.log('✅ Todos los tokens críticos están disponibles');
     }
     
     return results;
@@ -167,7 +165,6 @@ export const useTokenDebug = () => {
   
   const logToken = (path) => {
     const value = enhancedTokenUtils.getToken(path);
-    console.log(`🏷️ unifiedTokens.${path}:`, value);
     return value;
   };
   

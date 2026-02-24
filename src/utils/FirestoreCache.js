@@ -73,7 +73,6 @@ class FirestoreCache {
     }
     
     keysToDelete.forEach(key => this.cache.delete(key));
-    console.log(`🧹 Cache: Invalidated ${keysToDelete.length} entries matching "${pattern}"`);
   }
 
   /**
@@ -91,7 +90,6 @@ class FirestoreCache {
     
     const cleaned = initialSize - this.cache.size;
     if (cleaned > 0) {
-      console.log(`🧹 Cache: Cleaned ${cleaned} expired entries`);
     }
   }
 

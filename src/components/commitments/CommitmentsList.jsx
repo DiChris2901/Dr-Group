@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -37,7 +37,7 @@ import { useTheme, alpha } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, limit, getDocs } from 'firebase/firestore';
 import { ref, deleteObject, getDownloadURL, getMetadata } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -96,7 +96,6 @@ const createSafeDate = (year, month, day = 1, hours = 0, minutes = 0, seconds = 
   if (isNaN(yearNum) || isNaN(monthNum) || 
       yearNum < 1900 || yearNum > 2100 || 
       monthNum < 0 || monthNum > 11) {
-    console.warn('🚨 Valores de fecha inválidos:', { year: yearNum, month: monthNum, day });
     return null;
   }
   
@@ -104,7 +103,6 @@ const createSafeDate = (year, month, day = 1, hours = 0, minutes = 0, seconds = 
   
   // Verificar que la fecha creada sea válida
   if (isNaN(date.getTime())) {
-    console.warn('🚨 Fecha inválida generada:', { year: yearNum, month: monthNum, day, date });
     return null;
   }
   
@@ -311,7 +309,6 @@ const CommitmentsList = ({
   shouldLoadData = true,
   showEmptyState = false
 }) => {
-  // console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, dateRangeFilter, customStartDate, customEndDate, shouldLoadData });
 
   // Si no debemos cargar datos (filtros no aplicados), limpiar visualmente
   useEffect(() => {
@@ -344,6 +341,7 @@ const CommitmentsList = ({
   // ================= Pagination & View Config =================
   // Constant restored (was referenced before declaration after refactor)
   const ITEMS_PER_PAGE = 9; // Fixed as per original design
+  const QUERY_LIMIT = 500; // Server-side safety cap for onSnapshot listener
 
   // Helper functions that depend on density/cardSize now placed AFTER those vars
   const getSpacingByDensity = () => {
@@ -417,11 +415,7 @@ const CommitmentsList = ({
   const [totalCommitments, setTotalCommitments] = useState(0); // Total global filtrado
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Cache de documentos por página para optimizar startAfter
-  const [pageDocuments, setPageDocuments] = useState({});
-  const [firstVisibleDoc, setFirstVisibleDoc] = useState(null);
-  const [lastVisibleDoc, setLastVisibleDoc] = useState(null);
+  const [isResultsTruncated, setIsResultsTruncated] = useState(false);
 
   // Estados de diálogos / selección
   const [selectedCommitment, setSelectedCommitment] = useState(null);
@@ -450,325 +444,10 @@ const CommitmentsList = ({
 
   // Eliminados en esta versión: visor de comprobantes de pago y estados relacionados
 
-  // Función helper para verificar si un compromiso tiene pago válido (SIMPLIFICADA PARA DEBUG)
+  // Función helper para verificar si un compromiso tiene pago válido
   const hasValidPayment = (commitment) => {
-    const isPaid = commitment.paid || commitment.isPaid;
-    const hasPaymentDate = commitment.paymentDate || commitment.paidAt;
-    
-    // ✅ ACTUALIZADO: Detectar archivos de comprobante incluyendo invoices array
-    const hasReceipt = commitment.receiptUrl || 
-                      (commitment.receiptUrls && commitment.receiptUrls.length > 0) ||
-                      (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0);
-    
-    const hasPaymentRef = commitment.paymentReference || commitment.paymentId;
-    const hasPaymentMetadata = commitment.receiptMetadata && commitment.receiptMetadata.length > 0;
-    
-    console.log('🔍 [DEBUG] Validando pago para compromiso:', commitment.id, {
-      isPaid,
-      hasPaymentDate,
-      hasReceipt,
-      hasPaymentRef,
-      hasPaymentMetadata,
-      receiptUrl: commitment.receiptUrl,
-      receiptUrls: commitment.receiptUrls,
-      invoices: commitment.invoices,
-      paid: commitment.paid,
-      isPaidField: commitment.isPaid
-    });
-    
-    // TEMPORALMENTE: devolver true si está marcado como pagado, sin importar los comprobantes
-    const result = isPaid;
-    console.log('🔍 [DEBUG] Resultado final hasValidPayment:', result);
-    return result;
+    return commitment.paid || commitment.isPaid;
   };
-
-  // Función simplificada para obtener el total sin caché
-  const getTotalCount = useCallback(async () => {
-    try {
-      let q = query(collection(db, 'commitments'));
-
-      // 🐛 DEBUG: Log de filtros aplicados
-      console.log('🔍 Filtros recibidos:', {
-        companyFilter: debouncedCompanyFilter,
-        conceptFilter: debouncedConceptFilter,
-        beneficiaryFilter: debouncedBeneficiaryFilter
-      });
-
-      // Aplicar filtros
-      if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0) {
-        console.log('✅ Aplicando filtro de empresa (Firestore):', debouncedCompanyFilter);
-        // Firestore 'in' operator has a limit of 10 items
-        if (debouncedCompanyFilter.length <= 10) {
-          q = query(q, where('companyId', 'in', debouncedCompanyFilter));
-        }
-        // Si hay más de 10, se filtrará localmente después
-      }
-      
-      // Aplicar filtro de rango de fechas
-      if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
-        const { startDate, endDate } = getDateRangeFromFilter(
-          debouncedDateRangeFilter,
-          debouncedCustomStartDate,
-          debouncedCustomEndDate
-        );
-        
-        if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
-          q = query(q, where('createdAt', '>=', startDate), where('createdAt', '<=', endDate));
-        }
-      }
-
-      let totalCount = 0;
-      
-      if (debouncedStatusFilter !== 'all' || debouncedSearchTerm) {
-        // Obtener todos los documentos y filtrar localmente
-        const snapshot = await getDocs(q);
-        let filteredCommitments = [];
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          filteredCommitments.push({
-            id: doc.id,
-            ...data,
-            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate)
-          });
-        });
-
-        // Aplicar filtros locales
-        if (debouncedSearchTerm) {
-          filteredCommitments = filteredCommitments.filter(commitment =>
-            (commitment.concept && commitment.concept.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.observations && commitment.observations.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.notes && commitment.notes.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
-          );
-        }
-
-        if (debouncedConceptFilter && debouncedConceptFilter.length > 0) {
-          filteredCommitments = filteredCommitments.filter(commitment =>
-            commitment.concept && debouncedConceptFilter.some(c => 
-              commitment.concept.toLowerCase() === c.toLowerCase()
-            )
-          );
-        }
-
-        if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter.length > 0) {
-          filteredCommitments = filteredCommitments.filter(commitment =>
-            commitment.beneficiary && debouncedBeneficiaryFilter.some(b => 
-              commitment.beneficiary.toLowerCase() === b.toLowerCase()
-            )
-          );
-        }
-
-        if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
-          // Usar la nueva lógica de filtrado con estados de pago reales
-          filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
-        }
-        
-        totalCount = filteredCommitments.length;
-      } else {
-        // Sin filtros de estado o búsqueda, usar getCountFromServer
-        const countSnapshot = await getCountFromServer(q);
-        totalCount = countSnapshot.data().count;
-      }
-      
-      setTotalCommitments(totalCount);
-      return totalCount;
-    } catch (error) {
-      console.error('Error getting count:', error);
-      setTotalCommitments(0);
-      return 0;
-    }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, debouncedYearFilter, debouncedMonthFilter]);
-
-  // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
-  // Función simplificada para cargar página sin caché problemático
-  const loadCommitmentsPage = useCallback(async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
-
-      // Aplicar filtros básicos en Firestore
-      if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0) {
-        // Firestore 'in' operator has a limit of 10 items
-        if (debouncedCompanyFilter.length <= 10) {
-          q = query(collection(db, 'commitments'), where('companyId', 'in', debouncedCompanyFilter), orderBy('createdAt', 'desc'));
-        } else {
-          // Si hay más de 10 empresas, no aplicar el filtro en Firestore y filtrar localmente después
-          q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
-        }
-      }
-      
-      // Aplicar filtro de rango de fechas
-      if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
-        const { startDate, endDate } = getDateRangeFromFilter(
-          debouncedDateRangeFilter,
-          debouncedCustomStartDate,
-          debouncedCustomEndDate
-        );
-        
-        if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
-          if (debouncedCompanyFilter && debouncedCompanyFilter.length > 0 && debouncedCompanyFilter.length <= 10) {
-            q = query(collection(db, 'commitments'), 
-              where('companyId', 'in', debouncedCompanyFilter),
-              where('createdAt', '>=', startDate),
-              where('createdAt', '<=', endDate),
-              orderBy('createdAt', 'desc')
-            );
-          } else {
-            q = query(collection(db, 'commitments'), 
-              where('createdAt', '>=', startDate),
-              where('createdAt', '<=', endDate),
-              orderBy('createdAt', 'desc')
-            );
-          }
-        }
-      }
-
-      // Paginación simplificada: Para página 1, no usar startAfter
-      if (pageNumber > 1) {
-        // Para páginas > 1, intentar usar el cache de páginas
-        const prevPageKey = pageNumber - 1;
-        const prevPageDoc = pageDocuments[prevPageKey]?.lastVisible;
-        if (prevPageDoc) {
-          q = query(q, startAfter(prevPageDoc), limit(pageSize));
-        } else {
-          // Fallback: usar lastVisibleDoc actual si no hay cache
-          if (lastVisibleDoc) {
-            q = query(q, startAfter(lastVisibleDoc), limit(pageSize));
-          } else {
-            // Si no hay referencia, cargar desde el principio
-            console.warn('Sin documento de referencia para paginación, cargando desde inicio');
-            q = query(q, limit(pageSize));
-          }
-        }
-      } else {
-        // Página 1: limpiar estado y empezar desde el principio
-        setLastVisibleDoc(null);
-        setFirstVisibleDoc(null);
-        q = query(q, limit(pageSize));
-      }
-
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        setCommitments([]);
-        setLoading(false);
-        return;
-      }
-
-      const commitmentsData = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        commitmentsData.push({
-          id: doc.id,
-          ...data,
-          dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
-        });
-      });
-
-      // Aplicar filtros locales
-      let filteredCommitments = commitmentsData;
-
-      console.log('📊 Total compromisos de Firestore:', commitmentsData.length);
-
-      // Filtro por empresa (si hay más de 10 o si no se aplicó en Firestore)
-      if (debouncedCompanyFilter && debouncedCompanyFilter.length > 10) {
-        console.log('🔍 Aplicando filtro local de empresa (>10)');
-        filteredCommitments = filteredCommitments.filter(commitment =>
-          commitment.companyId && debouncedCompanyFilter.includes(commitment.companyId)
-        );
-        console.log('📊 Después de filtro empresa:', filteredCommitments.length);
-      }
-
-      // Filtro por término de búsqueda
-      if (debouncedSearchTerm) {
-        filteredCommitments = filteredCommitments.filter(
-          commitment =>
-            (commitment.concept && commitment.concept.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.observations && commitment.observations.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.notes && commitment.notes.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
-        );
-      }
-
-      // Filtro por concepto
-      if (debouncedConceptFilter && debouncedConceptFilter.length > 0) {
-        console.log('🔍 Aplicando filtro de concepto:', debouncedConceptFilter);
-        const beforeCount = filteredCommitments.length;
-        filteredCommitments = filteredCommitments.filter(commitment => {
-          const match = commitment.concept && debouncedConceptFilter.some(c => 
-            commitment.concept.toLowerCase() === c.toLowerCase()
-          );
-          if (!match && commitment.concept) {
-            console.log('❌ No match concepto:', commitment.concept, 'vs', debouncedConceptFilter);
-          }
-          return match;
-        });
-        console.log('📊 Filtro concepto: antes', beforeCount, 'después', filteredCommitments.length);
-      }
-
-      // Filtro por beneficiario
-      if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter.length > 0) {
-        console.log('🔍 Aplicando filtro de beneficiario:', debouncedBeneficiaryFilter);
-        const beforeCount = filteredCommitments.length;
-        filteredCommitments = filteredCommitments.filter(commitment => {
-          const match = commitment.beneficiary && debouncedBeneficiaryFilter.some(b => 
-            commitment.beneficiary.toLowerCase() === b.toLowerCase()
-          );
-          if (!match && commitment.beneficiary) {
-            console.log('❌ No match beneficiario:', commitment.beneficiary, 'vs', debouncedBeneficiaryFilter);
-          }
-          return match;
-        });
-        console.log('📊 Filtro beneficiario: antes', beforeCount, 'después', filteredCommitments.length);
-      }
-
-      // Filtro por estado
-      if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
-        // Usar la nueva lógica de filtrado con estados de pago reales
-        filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
-      }
-
-      const firstVisible = snapshot.docs[0];
-      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
-
-      setCommitments(filteredCommitments);
-      setFirstVisibleDoc(firstVisible);
-      setLastVisibleDoc(lastVisible);
-      
-      // Guardar documentos de esta página en el cache
-      setPageDocuments(prev => ({
-        ...prev,
-        [pageNumber]: {
-          firstVisible,
-          lastVisible
-        }
-      }));
-      
-      setLoading(false);
-
-      // Notificar al componente padre
-      if (onCommitmentsChange) {
-        onCommitmentsChange(filteredCommitments);
-      }
-
-    } catch (error) {
-      console.error('Error loading commitments page:', error);
-      setError('Error al cargar los compromisos');
-      setLoading(false);
-    }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, paginationConfig]); // ✅ Use whole paginationConfig object que ya está memoized
 
   // SISTEMA DE DATOS EN TIEMPO REAL - Solo para filtros, NO para paginación
   const [allCommitments, setAllCommitments] = useState([]); // Todos los compromisos después de filtros
@@ -778,7 +457,6 @@ const CommitmentsList = ({
     // ✅ Solo cargar datos si shouldLoadData es true
     if (!currentUser || !shouldLoadData) return;
     
-    // console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
     
     let q = query(collection(db, 'commitments'), orderBy('createdAt', 'desc'));
 
@@ -841,16 +519,8 @@ const CommitmentsList = ({
       }
   } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
       // Solo filtro por mes/año sin filtro de año heredado
-      console.log('🗓️ [MONTH FILTER] *** APLICANDO FILTRO DE MES ***', debouncedMonthFilter);
-      
       const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
       const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
-      
-      console.log('🗓️ [MONTH FILTER] *** FECHAS CALCULADAS ***', { 
-        startDate: startDate?.toISOString?.(),
-        endDate: endDate?.toISOString?.(),
-        monthFilterValues: debouncedMonthFilter
-      });
       
       // Solo proceder si las fechas son válidas
       if (startDate && endDate) {
@@ -871,14 +541,16 @@ const CommitmentsList = ({
       }
     }
 
+    // Server-side safety cap: limit maximum documents loaded
+    q = query(q, limit(QUERY_LIMIT));
+
     // Configurar listener en tiempo real
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      // console.log('🔔 [REAL TIME] Datos actualizados desde Firestore');
       
       if (snapshot.empty) {
-        // console.log('📄 [REAL TIME] No hay compromisos');
         setAllCommitments([]);
         setFilteredTotal(0);
+        setIsResultsTruncated(false);
         setLoading(false);
         return;
       }
@@ -894,7 +566,8 @@ const CommitmentsList = ({
         });
       });
 
-      // console.log(`📊 [REAL TIME] ${commitmentsData.length} compromisos cargados desde Firestore`);
+      // Detect if results were truncated by the safety cap
+      setIsResultsTruncated(commitmentsData.length >= QUERY_LIMIT);
 
       // Aplicar filtros locales
       let filteredCommitments = commitmentsData;
@@ -950,7 +623,6 @@ const CommitmentsList = ({
         }
       }
 
-      // console.log(`🎯 [REAL TIME] ${filteredCommitments.length} compromisos después de filtros`);
 
       // Guardar todos los compromisos filtrados
       setAllCommitments(filteredCommitments);
@@ -966,12 +638,10 @@ const CommitmentsList = ({
     // Limpiar caché cuando se conecte el listener
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COMMITMENTS_CACHE' });
-      // console.log('🧹 [REAL TIME] Cache de compromisos limpiado al iniciar listener');
     }
 
     // Cleanup del listener
     return () => {
-      // console.log('🧹 [REAL TIME] Desconectando listener...');
       unsubscribe();
     };
     
@@ -981,14 +651,12 @@ const CommitmentsList = ({
   useEffect(() => {
     if (allCommitments.length === 0 && !loading) return;
     
-    // console.log(`📖 [PAGINATION] Aplicando paginación para página ${currentPage}`); // ✅ Desactivado temporalmente
     
     // Aplicar paginación local a los datos ya filtrados
     const startIndex = (currentPage - 1) * paginationConfig.itemsPerPage;
     const endIndex = startIndex + paginationConfig.itemsPerPage;
     const paginatedCommitments = allCommitments.slice(startIndex, endIndex);
 
-    // console.log(`📖 [PAGINATION] Página ${currentPage}: ${paginatedCommitments.length} compromisos (${startIndex}-${endIndex} de ${filteredTotal})`); // ✅ Desactivado temporalmente
 
     setCommitments(paginatedCommitments);
     setTotalCommitments(filteredTotal);
@@ -1008,12 +676,8 @@ const CommitmentsList = ({
   // Reset página cuando cambien SOLO los filtros (no la página) - CON DEBOUNCE
   useEffect(() => {
     const resetTimer = setTimeout(() => {
-      // console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change (debounced)');
-      if (currentPage !== 1) { // Solo resetear si no está ya en página 1
+      if (currentPage !== 1) {
         setCurrentPage(1);
-        setLastVisibleDoc(null);
-        setFirstVisibleDoc(null);
-        setPageDocuments({}); // Limpiar cache de páginas
       }
     }, 100); // Pequeño debounce para evitar resets múltiples
 
@@ -1212,7 +876,6 @@ const CommitmentsList = ({
             };
             
           } catch (metadataError) {
-            console.log('Error obteniendo metadatos de Firebase:', metadataError);
             // Fallback a información extraída de la URL
             docInfo = await extractInfoFromUrl(url, commitment);
           }
@@ -1222,7 +885,6 @@ const CommitmentsList = ({
         }
         
       } catch (error) {
-        console.log('Error procesando información del archivo:', error);
         // Fallback a información extraída de la URL
         docInfo = await extractInfoFromUrl(url, commitment);
       }
@@ -1296,7 +958,6 @@ const CommitmentsList = ({
       }
       
     } catch (error) {
-      console.log('Error procesando nombre del archivo:', error);
       const isPdf = url.toLowerCase().includes('.pdf');
       fileName = isPdf ? 'Comprobante.pdf' : 'Comprobante.jpg';
     }
@@ -1466,44 +1127,17 @@ const CommitmentsList = ({
   };
 
   const handleCommitmentSaved = async () => {
-    // console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
-    // console.log('🔍 [DEBUG] Compromiso seleccionado antes de actualizar:', selectedCommitment?.id);
-    
     // Cerrar el modal de edición
     setEditDialogOpen(false);
     setSelectedCommitment(null);
     
-    // Recargar la página actual directamente - SIMPLE Y EFECTIVO
-    try {
-      setLoading(true);
-      // console.log('🔄 [DEBUG] Recargando datos después de guardar compromiso...');
-      
-      const total = await getTotalCount();
-      // console.log('📊 [DEBUG] Total compromisos después de actualizar:', total);
-      setTotalCommitments(total);
-      
-      await loadCommitmentsPage(currentPage);
-      // console.log('✅ [DEBUG] Página recargada exitosamente');
-      
-      // Agregar notificación de éxito
-      addNotification({
-        type: 'success',
-        title: '¡Compromiso actualizado!',
-        message: 'Los cambios se han guardado correctamente',
-        icon: '💾'
-      });
-    } catch (error) {
-      console.error('❌ [DEBUG] Error recargando después de guardar:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Error actualizando la vista, por favor recarga la página',
-        icon: '❌'
-      });
-    } finally {
-      setLoading(false);
-      console.log('🏁 [DEBUG] handleCommitmentSaved finalizado');
-    }
+    // onSnapshot se encarga de refrescar los datos automáticamente
+    addNotification({
+      type: 'success',
+      title: '¡Compromiso actualizado!',
+      message: 'Los cambios se han guardado correctamente',
+      icon: '💾'
+    });
   };
 
   // El componente CommitmentEditForm manejará el cierre
@@ -1511,7 +1145,6 @@ const CommitmentsList = ({
 
   // Funciones de manejo de paginación spectacular - SIMPLIFICADO SIN RECARGA
   const handlePageChange = async (newPage) => {
-    // console.log(`🔄 [PAGINATION] Cambiando a página ${newPage} (sin recarga)`);
     if (newPage !== currentPage && newPage >= 1) {
       setCurrentPage(newPage);
       // Ya no necesitamos recargar datos, el useEffect de paginación se encarga
@@ -1591,7 +1224,6 @@ const CommitmentsList = ({
     setIsDeletingCommitment(true);
 
     console.group(`🗑️ ELIMINANDO COMPROMISO: ${commitmentToDelete.concept || commitmentToDelete.description || commitmentToDelete.id}`);
-    console.log('🔑 ID del compromiso:', commitmentToDelete.id);
     
     try {
       // 🔒 Auditoría: registrar intento de eliminación ANTES de borrar
@@ -1614,8 +1246,6 @@ const CommitmentsList = ({
       // 1. Análisis previo de archivos
       const filesToDelete = [];
       
-      // console.log('📋 Analizando archivos asociados...');
-      // console.log('📊 Datos del compromiso:', {
       //   id: commitmentToDelete.id,
       //   receiptUrl: commitmentToDelete.receiptUrl ? '✅ Presente' : '❌ No presente',
       //   receiptUrls: commitmentToDelete.receiptUrls ? `✅ Array con ${commitmentToDelete.receiptUrls.length} elementos` : '❌ No presente',
@@ -1625,29 +1255,19 @@ const CommitmentsList = ({
       // Función avanzada para debug y extracción de paths
       const debugAndExtractPath = (url, type = 'archivo') => {
         console.group(`🔍 Analizando ${type}`);
-        console.log('URL original:', url);
         
         if (!url) {
-          console.log('❌ URL vacía o undefined');
           console.groupEnd();
           return null;
         }
         
         try {
           const urlObj = new URL(url);
-          console.log('✅ URL válida:', {
-            protocol: urlObj.protocol,
-            hostname: urlObj.hostname,
-            pathname: urlObj.pathname,
-            search: urlObj.search
-          });
           
           // Verificar si es Firebase Storage
           const isFirebaseStorage = url.includes('firebase') && (url.includes('googleapis.com') || url.includes('firebasestorage'));
-          console.log('Es Firebase Storage:', isFirebaseStorage);
           
           if (!isFirebaseStorage) {
-            console.log('⚠️ No es una URL de Firebase Storage válida');
             console.groupEnd();
             return null;
           }
@@ -1659,17 +1279,14 @@ const CommitmentsList = ({
             const pathMatch = url.match(/\/o\/(.+?)\?/);
             if (pathMatch && pathMatch[1]) {
               extractedPath = decodeURIComponent(pathMatch[1]);
-              console.log('✅ Método 1 exitoso - Path extraído:', extractedPath);
               console.groupEnd();
               return extractedPath;
             }
-            console.log('⚠️ Método 1 falló - no se encontró match');
           }
           
           // Método 2: URLs directas
           if (url.includes('firebasestorage.googleapis.com')) {
             const pathParts = urlObj.pathname.split('/');
-            console.log('🔍 Path parts:', pathParts);
             
             if (pathParts.length > 4) {
               // Buscar patrón /v0/b/bucket/o/path
@@ -1680,13 +1297,11 @@ const CommitmentsList = ({
                 extractedPath = pathParts.slice(oIndex + 1).join('/');
                 if (extractedPath) {
                   extractedPath = decodeURIComponent(extractedPath);
-                  console.log('✅ Método 2 exitoso - Path extraído:', extractedPath);
                   console.groupEnd();
                   return extractedPath;
                 }
               }
             }
-            console.log('⚠️ Método 2 falló - estructura no reconocida');
           }
           
           // Método 3: Patrones comunes
@@ -1702,13 +1317,11 @@ const CommitmentsList = ({
             const match = url.match(patterns[i]);
             if (match) {
               extractedPath = match[0];
-              console.log(`✅ Método 3.${i+1} exitoso - Path extraído:`, extractedPath);
               console.groupEnd();
               return extractedPath;
             }
           }
           
-          console.log('❌ Ningún método pudo extraer el path');
           console.groupEnd();
           return null;
           
@@ -1721,7 +1334,6 @@ const CommitmentsList = ({
 
       // 2. Procesar receiptUrl (formato singular)
       if (commitmentToDelete.receiptUrl) {
-        console.log('� Procesando receiptUrl...');
         const path = debugAndExtractPath(commitmentToDelete.receiptUrl, 'receiptUrl');
         if (path) {
           filesToDelete.push({ 
@@ -1735,7 +1347,6 @@ const CommitmentsList = ({
       
       // 3. Procesar receiptUrls (formato array)
       if (commitmentToDelete.receiptUrls && Array.isArray(commitmentToDelete.receiptUrls)) {
-        console.log(`📎 Procesando receiptUrls (${commitmentToDelete.receiptUrls.length} elementos)...`);
         commitmentToDelete.receiptUrls.forEach((url, index) => {
           if (url) {
             const path = debugAndExtractPath(url, `receiptUrls[${index}]`);
@@ -1753,7 +1364,6 @@ const CommitmentsList = ({
       
       // 4. Procesar attachments (formato array)
       if (commitmentToDelete.attachments && Array.isArray(commitmentToDelete.attachments)) {
-        console.log(`📎 Procesando attachments (${commitmentToDelete.attachments.length} elementos)...`);
         commitmentToDelete.attachments.forEach((attachment, index) => {
           const attachmentUrl = attachment.url || attachment;
           if (attachmentUrl) {
@@ -1770,10 +1380,7 @@ const CommitmentsList = ({
         });
       }
       
-      console.log(`🎯 RESUMEN: ${filesToDelete.length} archivos válidos encontrados para eliminar`);
       filesToDelete.forEach((file, index) => {
-        console.log(`   ${index + 1}. ${file.name} (${file.type})`);
-        console.log(`      Path: ${file.path}`);
       });
       
       // 5. Eliminar cada archivo de Storage con monitoreo detallado
@@ -1785,23 +1392,15 @@ const CommitmentsList = ({
         console.group(`🔥 Eliminando archivo ${i + 1}/${filesToDelete.length}: ${fileInfo.name}`);
         
         try {
-          console.log('� Path del archivo:', fileInfo.path);
-          console.log('🔗 URL original:', fileInfo.url);
           
           const fileRef = ref(storage, fileInfo.path);
-          console.log('📋 Referencia creada:', fileRef.fullPath);
           
           await deleteObject(fileRef);
           
           deletedFiles.push(fileInfo.name);
-          console.log(`✅ ${fileInfo.name} eliminado exitosamente`);
           
         } catch (storageError) {
           console.error(`❌ Error eliminando ${fileInfo.name}:`, storageError);
-          console.log(`🔍 URL problemática: ${fileInfo.url}`);
-          console.log(`🔍 Path intentado: ${fileInfo.path}`);
-          console.log(`� Código de error: ${storageError.code}`);
-          console.log(`🔍 Mensaje de error: ${storageError.message}`);
           
           failedFiles.push({
             name: fileInfo.name,
@@ -1813,7 +1412,6 @@ const CommitmentsList = ({
       }
 
       // 2. Eliminar pagos relacionados con este compromiso
-      console.log('🧹 Buscando pagos relacionados con el compromiso...');
       let deletedPayments = 0;
       let failedPaymentDeletions = 0;
       
@@ -1824,14 +1422,12 @@ const CommitmentsList = ({
         );
         
         const paymentsSnapshot = await getDocs(paymentsQuery);
-        console.log(`📋 Pagos encontrados: ${paymentsSnapshot.size}`);
         
         if (paymentsSnapshot.size > 0) {
           // Eliminar cada pago encontrado
           for (const paymentDoc of paymentsSnapshot.docs) {
             try {
               const paymentData = paymentDoc.data();
-              console.log(`🗑️ Eliminando pago: ${paymentDoc.id} (Monto: ${formatCurrency(paymentData.amount || 0)})`);
               
               // Eliminar archivos de Storage del pago si existen
               const paymentFilesToDelete = [];
@@ -1884,11 +1480,9 @@ const CommitmentsList = ({
               // Eliminar archivos del pago de Storage
               for (const fileInfo of paymentFilesToDelete) {
                 try {
-                  console.log(`🔥 Eliminando archivo de pago: ${fileInfo.name}`);
                   const fileRef = ref(storage, fileInfo.path);
                   await deleteObject(fileRef);
                   deletedFiles.push(fileInfo.name);
-                  console.log(`✅ ${fileInfo.name} eliminado exitosamente`);
                 } catch (storageError) {
                   console.error(`❌ Error eliminando archivo de pago ${fileInfo.name}:`, storageError);
                   failedFiles.push({
@@ -1901,7 +1495,6 @@ const CommitmentsList = ({
               // Eliminar documento de pago
               await deleteDoc(paymentDoc.ref);
               deletedPayments++;
-              console.log(`✅ Pago ${paymentDoc.id} eliminado exitosamente`);
               
             } catch (paymentError) {
               console.error(`❌ Error eliminando pago ${paymentDoc.id}:`, paymentError);
@@ -1909,7 +1502,6 @@ const CommitmentsList = ({
             }
           }
         } else {
-          console.log('ℹ️ No se encontraron pagos asociados con este compromiso');
         }
         
       } catch (paymentsError) {
@@ -1917,20 +1509,16 @@ const CommitmentsList = ({
         failedPaymentDeletions++;
       }
 
-      // console.log(`📊 RESULTADO PAGOS: ${deletedPayments} eliminados, ${failedPaymentDeletions} fallos`);
 
       // 3. Verificar si el documento existe antes de eliminar
-      // console.log('🔍 Verificando existencia del documento...');
       const docRef = doc(db, 'commitments', commitmentToDelete.id);
       const docSnapshot = await getDoc(docRef);
       
       if (!docSnapshot.exists()) {
-        // console.log('❌ El documento ya no existe en Firestore');
         
         // Actualizar estado local para remover el compromiso inexistente
         setCommitments(prevCommitments => {
           const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
-          // console.log(`📊 Limpiando estado local: ${prevCommitments.length} → ${filtered.length}`);
           return filtered;
         });
         
@@ -1946,12 +1534,9 @@ const CommitmentsList = ({
         return;
       }
       
-      console.log('✅ Documento existe, procediendo con eliminación...');
       
       // 4. Eliminar el documento de Firestore
-      console.log('🗑️ Eliminando documento de Firestore...');
       await deleteDoc(docRef);
-      // console.log('✅ Documento eliminado de Firestore exitosamente');
 
       // 🔒 Auditoría: registrar eliminación confirmada
       try {
@@ -1975,38 +1560,23 @@ const CommitmentsList = ({
       }
       
       // 4. Actualizar estado local
-      // console.log(`🔄 Actualizando estado local: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
       setCommitments(prevCommitments => {
         const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
-        // console.log(`📊 Compromisos: ${prevCommitments.length} → ${filtered.length}`);
         return filtered;
       });
       
       // 5. Limpiar caché del Service Worker (opcional)
-      // console.log(`🧹 Limpiando caché del Service Worker...`);
       // Limpiar caché básico si está disponible
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
-        // console.log(`✅ Service Worker cache cleared via message`);
       }
       
-      // 6. Recargar datos
-      // console.log(`🔄 Recargando datos después de eliminación...`);
-      try {
-        const total = await getTotalCount();
-        setTotalCommitments(total);
-        
-        // Si eliminamos el último elemento de la página, ir a la página anterior
-        const totalPages = Math.ceil(total / paginationConfig.itemsPerPage);
-        let targetPage = currentPage;
-        if (currentPage > totalPages && totalPages > 0) {
-          targetPage = totalPages;
-          setCurrentPage(targetPage);
-        }
-        
-        await loadCommitmentsPage(targetPage);
-      } catch (error) {
-        console.error('Error recargando después de eliminar:', error);
+      // 6. onSnapshot se encarga de refrescar los datos automáticamente
+      // Si eliminamos el último elemento de la página, ir a la página anterior
+      const newTotal = allCommitments.length - 1;
+      const totalPages = Math.ceil(newTotal / paginationConfig.itemsPerPage);
+      if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages);
       }
       
       // 10. Mostrar notificación de éxito con detalles mejorados
@@ -2022,11 +1592,6 @@ const CommitmentsList = ({
         ? ` (${failedFiles.length + failedPaymentDeletions} elemento${failedFiles.length + failedPaymentDeletions > 1 ? 's' : ''} no se pudo${failedFiles.length + failedPaymentDeletions > 1 ? 'ieron' : ''} eliminar)`
         : '';
       
-      console.log(`🎉 ELIMINACIÓN COMPLETADA`);
-      console.log(`   📋 Compromiso: "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}"`);
-      console.log(`   📁 Archivos eliminados: ${deletedFiles.length}`);
-      console.log(`   💰 Pagos eliminados: ${deletedPayments}`);
-      console.log(`   ❌ Fallos totales: ${failedFiles.length + failedPaymentDeletions}`);
       
       addNotification({
         type: (deletedFiles.length > 0 || deletedPayments > 0) ? 'success' : 'warning',
@@ -2066,11 +1631,9 @@ const CommitmentsList = ({
 
   // 🧹 FUNCIÓN DE EMERGENCIA: Limpiar compromisos huérfanos
   const cleanupOrphanedCommitments = async () => {
-    console.log('🧹 INICIANDO LIMPIEZA DE EMERGENCIA DE COMPROMISOS HUÉRFANOS');
     
     try {
       // 1. Buscar compromisos con "Sin empresa"
-      console.log('🔍 Buscando compromisos "Sin empresa"...');
       
       const orphanQuery = query(
         collection(db, 'commitments'),
@@ -2078,7 +1641,6 @@ const CommitmentsList = ({
       );
       
       const orphanSnapshot = await getDocs(orphanQuery);
-      console.log(`📋 Compromisos "Sin empresa" encontrados: ${orphanSnapshot.size}`);
       
       // 2. Buscar compromisos con companyName vacío
       const emptyCompanyQuery = query(
@@ -2087,7 +1649,6 @@ const CommitmentsList = ({
       );
       
       const emptySnapshot = await getDocs(emptyCompanyQuery);
-      console.log(`📋 Compromisos con empresa vacía: ${emptySnapshot.size}`);
       
       const totalProblematic = orphanSnapshot.size + emptySnapshot.size;
       
@@ -2110,12 +1671,10 @@ const CommitmentsList = ({
       );
       
       if (!userConfirmed) {
-        console.log('❌ Limpieza cancelada por el usuario');
         return;
       }
       
       // 4. Procesar eliminaciones
-      console.log('🗑️ Iniciando eliminaciones...');
       let deletedCount = 0;
       let errorCount = 0;
       const deletedCommitments = [];
@@ -2124,7 +1683,6 @@ const CommitmentsList = ({
       for (const docSnapshot of orphanSnapshot.docs) {
         try {
           const data = docSnapshot.data();
-          console.log(`🔍 Verificando: ${data.concept} - ${data.beneficiary}`);
           
           // Verificar si realmente existe
           const docRef = doc(db, 'commitments', docSnapshot.id);
@@ -2134,9 +1692,7 @@ const CommitmentsList = ({
             await deleteDoc(docRef);
             deletedCount++;
             deletedCommitments.push(`${data.concept} (${data.beneficiary})`);
-            console.log(`✅ Eliminado: ${docSnapshot.id}`);
           } else {
-            console.log(`👻 Ya no existe: ${docSnapshot.id}`);
           }
         } catch (error) {
           console.error(`❌ Error eliminando ${docSnapshot.id}:`, error);
@@ -2148,7 +1704,6 @@ const CommitmentsList = ({
       for (const docSnapshot of emptySnapshot.docs) {
         try {
           const data = docSnapshot.data();
-          console.log(`🔍 Verificando empresa vacía: ${data.concept} - ${data.beneficiary}`);
           
           // Verificar si realmente existe
           const docRef = doc(db, 'commitments', docSnapshot.id);
@@ -2158,9 +1713,7 @@ const CommitmentsList = ({
             await deleteDoc(docRef);
             deletedCount++;
             deletedCommitments.push(`${data.concept} (${data.beneficiary})`);
-            console.log(`✅ Eliminado: ${docSnapshot.id}`);
           } else {
-            console.log(`👻 Ya no existe: ${docSnapshot.id}`);
           }
         } catch (error) {
           console.error(`❌ Error eliminando ${docSnapshot.id}:`, error);
@@ -2169,30 +1722,19 @@ const CommitmentsList = ({
       }
       
       // 5. Actualizar estado local inmediatamente
-      // console.log('🔄 Actualizando estado local...');
       setCommitments(prevCommitments => {
         const filtered = prevCommitments.filter(commitment => 
           commitment.companyName && 
           commitment.companyName !== 'Sin empresa' && 
           commitment.companyName.trim() !== ''
         );
-        // console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length}`);
         return filtered;
       });
       
-      // 6. Recargar datos desde servidor
-      // console.log('🔄 Recargando datos desde servidor...');
-      try {
-        const total = await getTotalCount();
-        setTotalCommitments(total);
-        await loadCommitmentsPage(1); // Ir a la primera página
-        setCurrentPage(1);
-      } catch (reloadError) {
-        console.error('Error recargando datos:', reloadError);
-      }
+      // 6. onSnapshot se encarga de refrescar los datos automáticamente
+      setCurrentPage(1);
       
       // 7. Mostrar resultado al usuario
-      // console.log(`📊 LIMPIEZA COMPLETADA: ${deletedCount} eliminados, ${errorCount} errores`);
       
       if (deletedCount > 0) {
         addNotification({
@@ -2664,10 +2206,10 @@ const CommitmentsList = ({
                         </Tooltip>
                         {/* ✅ NUEVO: Botón condicional "Marcar Pagado" con tooltip - Solo aparece si NO está pagado */}
                         {!commitment.paid && !commitment.isPaid && (
-                          <Tooltip title="Marcar como pagado" arrow>
+                          <Tooltip title="Registrar pago" arrow>
                             <IconButton 
                               size="small" 
-                              onClick={() => navigate('/payments/new')}
+                              onClick={() => navigate(`/payments/new?commitmentId=${commitment.id}`)}
                               sx={{ color: 'success.main' }}
                             >
                               <Payment />
@@ -2706,7 +2248,7 @@ const CommitmentsList = ({
                         {!commitment.paid && !commitment.isPaid && (
                           <IconButton 
                             size="small" 
-                            onClick={() => navigate('/payments/new')}
+                            onClick={() => navigate(`/payments/new?commitmentId=${commitment.id}`)}
                             sx={{ color: 'success.main' }}
                           >
                             <Payment />
@@ -3076,11 +2618,11 @@ const CommitmentsList = ({
                                 </Tooltip>
                                 {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
                                 {!commitment.paid && !commitment.isPaid && (
-                                  <Tooltip title="Marcar como pagado" arrow>
+                                  <Tooltip title="Registrar pago" arrow>
                                     <IconButton 
                                       size="small" 
                                       sx={{ mr: 1 }}
-                                      onClick={() => navigate('/payments/new')}
+                                      onClick={() => navigate(`/payments/new?commitmentId=${commitment.id}`)}
                                     >
                                       <Payment fontSize="small" sx={{ color: 'success.main' }} />
                                     </IconButton>
@@ -3340,11 +2882,11 @@ const CommitmentsList = ({
                               </Tooltip>
                               {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
                               {!commitment.paid && !commitment.isPaid && (
-                                <Tooltip title="Marcar como pagado" arrow>
+                                <Tooltip title="Registrar pago" arrow>
                                   <IconButton 
                                     size="small" 
                                     sx={{ mr: 1 }}
-                                    onClick={() => navigate('/payments/new')}
+                                    onClick={() => navigate(`/payments/new?commitmentId=${commitment.id}`)}
                                   >
                                     <Payment fontSize="small" sx={{ color: 'success.main' }} />
                                   </IconButton>
@@ -3383,7 +2925,7 @@ const CommitmentsList = ({
                                 <IconButton 
                                   size="small" 
                                   sx={{ mr: 1 }}
-                                  onClick={() => navigate('/payments/new')}
+                                  onClick={() => navigate(`/payments/new?commitmentId=${commitment.id}`)}
                                 >
                                   <Payment fontSize="small" sx={{ color: 'success.main' }} />
                                 </IconButton>
@@ -4030,6 +3572,20 @@ const CommitmentsList = ({
         isDeleting={isDeletingCommitment}
       />
 
+      {/* Aviso de resultados truncados */}
+      {isResultsTruncated && (
+        <Alert 
+          severity="info" 
+          sx={{ 
+            mt: 2, 
+            borderRadius: 1,
+            '& .MuiAlert-message': { fontSize: '0.85rem' }
+          }}
+        >
+          Mostrando los primeros {QUERY_LIMIT} compromisos. Aplica filtros más específicos (fecha, empresa, etc.) para ver resultados más precisos.
+        </Alert>
+      )}
+
       {/* Paginación Sobria - Diseño Empresarial */}
       {!loading && commitments.length > 0 && (
         <motion.div
@@ -4343,7 +3899,7 @@ const CommitmentsList = ({
         {/* Marcar como pagado - solo si NO está pagado */}
         {currentCommitment && !currentCommitment.paid && !currentCommitment.isPaid && (
           <ListItemButton onClick={() => {
-            navigate('/payments/new');
+            navigate(`/payments/new?commitmentId=${currentCommitment.id}`);
             handleActionMenuClose();
           }}>
             <ListItemIcon>

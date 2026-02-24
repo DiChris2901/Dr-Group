@@ -49,9 +49,7 @@ try {
   // Habilitar persistencia IndexedDB (cache automático de Firebase)
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
-      console.warn('⚠️ Persistencia no disponible: múltiples pestañas abiertas');
     } else if (err.code === 'unimplemented') {
-      console.warn('⚠️ Persistencia no soportada en este navegador');
     }
   });
 } catch (error) {
@@ -88,7 +86,6 @@ try {
   database = getDatabase(app);
 } catch (error) {
   console.error('🚨 Error initializing Realtime Database:', error);
-  console.warn('⚠️ La aplicación funcionará sin el sistema de presencia');
 }
 
 export { auth, db, storage, functions, database };

@@ -85,7 +85,6 @@ const LoginForm = () => {
       const adminSnapshot = await getDocs(adminQuery);
       
       setHasAdmins(!adminSnapshot.empty);
-      console.log(adminSnapshot.empty ? '⚠️ No hay administradores en el sistema' : '✅ Sistema con administradores configurado');
     } catch (error) {
       console.error('Error verificando administradores:', error);
       setHasAdmins(true); // En caso de error, asumir que hay admins para no mostrar el enlace
@@ -112,7 +111,6 @@ const LoginForm = () => {
     setUserPreview(null);
     
     try {
-      console.log('🔍 Verificando email:', emailValue);
       
       // Simular delay mínimo para mostrar skeleton
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -121,7 +119,6 @@ const LoginForm = () => {
       const realUser = await checkEmailExists(emailValue);
       
       if (realUser) {
-        console.log('✅ Usuario real encontrado:', realUser);
         setUserPreview({
           email: emailValue,
           name: realUser.name || realUser.displayName,
@@ -136,7 +133,6 @@ const LoginForm = () => {
           joinDate: realUser.createdAt || new Date().toISOString()
         });
       } else {
-        console.log('⚠️ Usuario no encontrado en Firebase:', emailValue);
         
         // Verificar si es un usuario conocido del sistema (fallback)
         const emailUser = emailValue.toLowerCase();

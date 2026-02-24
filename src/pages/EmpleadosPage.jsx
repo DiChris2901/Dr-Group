@@ -513,11 +513,9 @@ const EmpleadosPage = () => {
       // Crear referencia desde la URL
       const fileRef = ref(storage, fileURL);
       await deleteObject(fileRef);
-      console.log('Archivo eliminado de Storage:', fileURL);
     } catch (error) {
       // Si el archivo no existe (404), no es un error crítico
       if (error.code === 'storage/object-not-found') {
-        console.log('El archivo ya no existe en Storage');
       } else {
         console.error('Error al eliminar archivo de Storage:', error);
         throw error;

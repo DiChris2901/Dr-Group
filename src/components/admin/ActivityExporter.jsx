@@ -120,7 +120,6 @@ const ActivityExporter = ({ logs, filters, stats }) => {
       const fileName = `auditoria_sistema_${format(new Date(), 'ddMMyyyy_HHmm')}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
-      console.log('✅ Reporte Excel exportado exitosamente');
     } catch (error) {
       console.error('❌ Error al exportar a Excel:', error);
     }
@@ -160,7 +159,6 @@ const ActivityExporter = ({ logs, filters, stats }) => {
       link.download = fileName;
       link.click();
 
-      console.log('✅ Reporte CSV exportado exitosamente');
     } catch (error) {
       console.error('❌ Error al exportar a CSV:', error);
     }
@@ -227,7 +225,6 @@ Sistema DR Group - Auditoría Empresarial
       link.download = fileName;
       link.click();
 
-      console.log('✅ Reporte resumen exportado exitosamente');
     } catch (error) {
       console.error('❌ Error al exportar resumen:', error);
     }

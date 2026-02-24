@@ -295,7 +295,6 @@ const IncomePage = () => {
             ...data
           });
         });
-        // console.log('🌍 [IncomePage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
         setPersonalAccounts(accounts);
       },
       (error) => {
@@ -673,10 +672,8 @@ const IncomePage = () => {
           try {
             const fileRef = ref(storage, file.path);
             await deleteObject(fileRef);
-            console.log(`Archivo eliminado: ${file.name}`);
           } catch (error) {
             // Si el archivo no existe en Storage, continuamos
-            console.warn(`Error eliminando archivo ${file.name}:`, error);
           }
         });
         

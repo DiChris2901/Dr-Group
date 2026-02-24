@@ -255,7 +255,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       await updateTask(task.id, { adjunto: null });
       
       setExistingAttachment(null);
-      console.log('✅ Adjunto eliminado de Storage y Firestore');
     } catch (error) {
       console.error('❌ Error al eliminar adjunto:', error);
       setErrors({ ...errors, file: 'Error al eliminar el adjunto' });
@@ -317,7 +316,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       setUploadingFile(true);
       setProcessingFiles(true);
 
-      console.log(`📄 Procesando ${files.length} archivo(s)...`);
 
       // Determinar qué archivos son imágenes y cuáles son otros tipos
       const imageFiles = files.filter(f => {
@@ -337,11 +335,9 @@ const TaskDialog = ({ open, onClose, task = null }) => {
 
       // CASO 1: Solo imágenes → Convertir a PDF y combinar
       if (imageFiles.length > 0 && pdfFiles.length === 0 && otherFiles.length === 0) {
-        console.log('🖼️ Solo imágenes detectadas, convirtiendo a PDF...');
         const pdfBuffers = [];
         
         for (const file of imageFiles) {
-          console.log(`🔄 Convirtiendo: ${file.name}`);
           const pdfBuffer = await convertImageToPDF(file);
           if (pdfBuffer) pdfBuffers.push(pdfBuffer);
         }
@@ -352,7 +348,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         let finalFileName;
 
         if (pdfBuffers.length > 1) {
-          console.log('🔗 Combinando imágenes en un PDF...');
           finalPdfBuffer = await combinePDFs(pdfBuffers);
           finalFileName = `imagenes_combinadas_${Date.now()}.pdf`;
         } else {
@@ -373,14 +368,12 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
         const storageRef = ref(storage, filePath);
         
-        console.log(`📤 Subiendo PDF de imágenes (${pdfSizeMB.toFixed(2)}MB)...`);
 
         await uploadBytes(storageRef, pdfBlob, {
           contentType: 'application/pdf'
         });
         const downloadURL = await getDownloadURL(storageRef);
 
-        console.log('✅ Imágenes procesadas y combinadas en PDF');
 
         return {
           nombre: finalFileName,
@@ -396,7 +389,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
 
       // CASO 2: PDFs + Imágenes → Convertir imágenes y combinar todo
       if ((imageFiles.length > 0 || pdfFiles.length > 0) && otherFiles.length === 0) {
-        console.log('📄 PDFs e imágenes detectados, combinando...');
         const pdfBuffers = [];
 
         // Procesar imágenes
@@ -434,7 +426,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         const filePath = `tasks/${currentUser.uid}/${timestamp}_${sanitizedFileName}`;
         const storageRef = ref(storage, filePath);
         
-        console.log(`📤 Subiendo PDF combinado (${pdfSizeMB.toFixed(2)}MB)...`);
 
         // Subir con reintentos
         let uploadSuccess = false;
@@ -453,7 +444,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
             uploadSuccess = true;
           } catch (uploadError) {
             retries++;
-            console.warn(`⚠️ Intento ${retries}/${maxRetries + 1} falló:`, uploadError.message);
             
             if (retries > maxRetries) {
               throw new Error(`Error al subir archivo después de ${maxRetries + 1} intentos. El archivo puede ser demasiado grande o hay problemas de conexión.`);
@@ -466,7 +456,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         
         const downloadURL = await getDownloadURL(storageRef);
 
-        console.log('✅ Documentos combinados en PDF');
 
         return {
           nombre: finalFileName,
@@ -493,7 +482,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
-        console.log('✅ Archivo original subido (sin conversión)');
 
         return {
           nombre: file.name,
@@ -508,14 +496,12 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       }
 
       // CASO 4: Múltiples archivos mixtos → Comprimir en ZIP
-      console.log('📦 Archivos mixtos detectados, comprimiendo en ZIP...');
       setProcessingFiles(false);
 
       const zip = new JSZip();
       
       // Agregar todos los archivos al ZIP
       for (const file of files) {
-        console.log(`📎 Agregando al ZIP: ${file.name}`);
         zip.file(file.name, file);
       }
 
@@ -535,7 +521,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       await uploadBytes(storageRef, zipBlob);
       const downloadURL = await getDownloadURL(storageRef);
 
-      console.log('✅ Archivos comprimidos y subidos en ZIP');
 
       return {
         nombre: finalFileName,
@@ -586,7 +571,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
           try {
             const oldStorageRef = ref(storage, existingAttachment.path);
             await deleteObject(oldStorageRef);
-            console.log('✅ Adjunto anterior eliminado de Storage');
           } catch (error) {
             console.error('⚠️ Error al eliminar adjunto anterior:', error);
             // Continuar aunque falle la eliminación del adjunto anterior
@@ -595,7 +579,6 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         
         // Procesar y subir archivos
         adjuntoData = await uploadFile(selectedFiles);
-        console.log('✅ Archivos procesados y subidos a Storage');
       }
 
       // Preparar datos para enviar
@@ -616,21 +599,11 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         adjunto: adjuntoData || null
       };
 
-      console.log('📝 Guardando tarea en Firestore...', {
-        titulo: dataToSubmit.titulo,
-        asignadoA: dataToSubmit.asignadoA,
-        prioridad: dataToSubmit.prioridad,
-        empresa: dataToSubmit.empresa || 'Sin empresa',
-        fechaVencimiento: dataToSubmit.fechaVencimiento,
-        tieneAdjunto: !!dataToSubmit.adjunto
-      });
 
       if (task) {
         await updateTask(task.id, dataToSubmit);
-        console.log('✅ Tarea actualizada exitosamente en Firestore');
       } else {
         const taskId = await createTask(dataToSubmit);
-        console.log('✅ Tarea creada exitosamente en Firestore con ID:', taskId);
       }
       onClose();
     } catch (error) {

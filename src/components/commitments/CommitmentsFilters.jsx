@@ -141,7 +141,6 @@ const CommitmentsFilters = ({
   };
 
   const handleClearFilters = () => {
-    console.log('🧹 [FILTERS] *** CLEARING ALL FILTERS ***');
     
     // ✅ Limpiar todos los filtros del padre
     onSearchChange('');
@@ -154,10 +153,8 @@ const CommitmentsFilters = ({
     
     // ✅ Llamar onClearFilters del componente padre
     if (onClearFilters) {
-      console.log('🧹 [FILTERS] *** CALLING PARENT onClearFilters ***');
       onClearFilters();
     } else {
-      console.log('🧹 [FILTERS] *** NO PARENT onClearFilters AVAILABLE ***');
     }
   };
 

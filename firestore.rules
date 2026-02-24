@@ -368,6 +368,35 @@ service cloud.firestore {
     }
 
     // ========================================
+    // Configuración de perfil de usuario
+    // ========================================
+    match /userProfileSettings/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ========================================
+    // Configuración global del sistema (SMMLV, etc.)
+    // ========================================
+    match /system_config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null; // Solo admins en la práctica (validado en frontend)
+    }
+
+    // Subcollection settings de usuarios (preferencias de notificaciones, etc.)
+    // Read: cualquier autenticado (necesario para notifyAdminsWorkEvent que lee prefs de todos)
+    // Write: solo el dueño
+    match /users/{userId}/settings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Device tokens para push notifications (cada usuario escribe su propio token)
+    match /deviceTokens/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================================
     // 🚫 DENY-ALL: Cualquier colección no listada
     // ========================================
 

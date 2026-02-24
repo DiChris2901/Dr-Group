@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isValid } from 'date-fns';
 import { fCurrency } from '../utils/formatNumber';
 import { calculateMonthlyAccountBalance } from '../utils/monthlyBalanceUtils';
 import {
@@ -238,7 +239,6 @@ const PaymentsPage = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       window.updatePaymentsWithBeneficiaries = async () => {
-        console.log('� Ejecutando actualización de beneficiarios...');
         try {
           const paymentsQuery = query(collection(db, 'payments'));
           const paymentsSnapshot = await getDocs(paymentsQuery);
@@ -265,7 +265,6 @@ const PaymentsPage = () => {
             }
           }
           
-          console.log(`✅ Actualizados ${updateCount} pagos`);
           return updateCount;
         } catch (error) {
           console.error('❌ Error:', error);
@@ -592,13 +591,6 @@ const PaymentsPage = () => {
       )].sort();
       
       // Debug temporal
-      console.log('Beneficiarios únicos encontrados:', beneficiaries);
-      console.log('Pagos con datos de proveedor/beneficiario:', payments.map(p => ({
-        id: p.id,
-        provider: p.provider,
-        beneficiary: p.beneficiary,
-        commitmentId: p.commitmentId
-      })));
       
       setUniqueCompanies(companies);
       setUniqueConcepts(concepts);
@@ -703,7 +695,6 @@ useEffect(() => {
           ...data
         });
       });
-      console.log('🌍 [PaymentsPage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
       setPersonalAccounts(accounts);
     },
     (error) => {
@@ -743,7 +734,6 @@ useEffect(() => {
 
   // Funciones para el visor de comprobantes
   const handleViewReceipt = (payment) => {
-    console.log('📄 Abriendo visor para pago:', payment);
     setSelectedPayment(payment);
     setAutoOpenPdfViewer(false);
     setReceiptViewerOpen(true);
@@ -751,7 +741,6 @@ useEffect(() => {
 
   // Función para abrir PDF del comprobante directamente
   const handleOpenPdfDirect = (payment) => {
-    console.log('📄 Abriendo PDF directo para pago:', payment);
     setSelectedPayment(payment);
     setAutoOpenPdfViewer(true);
     setReceiptViewerOpen(true);
@@ -843,17 +832,9 @@ useEffect(() => {
       }
 
       setUploadingFile(true);
-      console.log('📤 Reemplazando comprobantes con archivos:', files.map(f => f.name));
-      console.log('💾 Datos del pago actual:', {
-        id: payment.id,
-        attachments: payment.attachments,
-        receiptUrls: payment.receiptUrls,
-        receiptUrl: payment.receiptUrl
-      });
 
       // 1. Eliminar archivos antiguos del Storage
       const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
-      console.log('🗑️ Eliminando archivos antiguos:', receiptUrls);
       
       for (const url of receiptUrls) {
         if (url) {
@@ -877,21 +858,15 @@ useEffect(() => {
             }
             
             if (filePath) {
-              console.log('🔥 Eliminando archivo con path:', filePath);
               const fileRef = ref(storage, filePath);
               await deleteObject(fileRef);
-              console.log('✅ Archivo antiguo eliminado exitosamente');
             } else {
-              console.warn('⚠️ No se pudo extraer el path del archivo:', url);
             }
           } catch (deleteError) {
             // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
             if (deleteError.code === 'storage/object-not-found') {
-              console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente):', filePath || url);
             } else if (deleteError.code === 'storage/unauthorized') {
-              console.warn('⚠️ Sin permisos para eliminar archivo del storage:', filePath || url);
             } else {
-              console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message, 'Path:', filePath || url);
             }
             // Continuar con el siguiente archivo aunque falle la eliminación
           }
@@ -904,7 +879,6 @@ useEffect(() => {
       
       // Si hay múltiples archivos, combinarlos en un PDF único
       if (files.length > 1) {
-        console.log('📄 Combinando múltiples archivos en un PDF único...');
         showNotification('Combinando archivos en PDF único...', 'info');
         
         try {
@@ -913,7 +887,6 @@ useEffect(() => {
             type: 'application/pdf'
           });
           filesToUpload = [combinedFile];
-          console.log('✅ Archivos combinados exitosamente en PDF único');
         } catch (combineError) {
           console.error('❌ Error combinando archivos:', combineError);
           showNotification('Error combinando archivos. Subiendo archivos por separado...', 'warning');
@@ -936,20 +909,17 @@ useEffect(() => {
           : `payments/${payment.id}_${timestamp}_${i + 1}.${fileExtension}`;
         const storageRef = ref(storage, fileName);
         
-        console.log('⬆️ Subiendo archivo:', fileName, 'Tamaño:', file.size, 'bytes');
         
         try {
           await uploadBytes(storageRef, file);
           const downloadURL = await getDownloadURL(storageRef);
           newReceiptUrls.push(downloadURL);
-          console.log('✅ Archivo subido exitosamente:', downloadURL);
         } catch (uploadError) {
           console.error('❌ Error subiendo archivo:', fileName, uploadError);
           throw new Error(`Error subiendo ${file.name}: ${uploadError.message}`);
         }
       }
       
-      console.log('📋 URLs de nuevos comprobantes:', newReceiptUrls);
 
       // 3. Actualizar documento en Firestore
       const paymentRef = doc(db, 'payments', payment.id);
@@ -960,9 +930,7 @@ useEffect(() => {
         updatedAt: new Date()
       };
       
-      console.log('🔄 Actualizando Firestore con datos:', updateData);
       await updateDoc(paymentRef, updateData);
-      console.log('✅ Documento actualizado en Firestore exitosamente');
 
       // 📝 Registrar actividad de auditoría - Modificación de comprobantes de pago
       await logActivity('update_receipt', 'payment', payment.id, {
@@ -983,7 +951,6 @@ useEffect(() => {
         id: payment.id
       }));
 
-      console.log('✅ Comprobantes reemplazados exitosamente');
       showNotification('Comprobantes reemplazados exitosamente', 'success');
       
       // Cerrar el modal después de un breve delay para permitir que el usuario vea el éxito
@@ -1002,17 +969,9 @@ useEffect(() => {
   const handleDeleteReceipt = async (payment) => {
     try {
       setUploadingFile(true);
-      console.log('🗑️ Iniciando eliminación de comprobante para pago:', payment.id);
       
       // Verificar que el pago tenga comprobantes - usar attachments como campo principal
       const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
-      console.log('📄 URLs a eliminar:', receiptUrls);
-      console.log('📄 Estructura completa del pago:', {
-        attachments: payment.attachments,
-        receiptUrls: payment.receiptUrls,
-        receiptUrl: payment.receiptUrl,
-        files: payment.files
-      });
       
       if (receiptUrls.length === 0) {
         showNotification('No hay comprobantes para eliminar', 'warning');
@@ -1027,19 +986,14 @@ useEffect(() => {
             const filePathMatch = url.match(/o\/(.+?)\?/);
             if (filePathMatch) {
               const filePath = decodeURIComponent(filePathMatch[1]);
-              console.log('🔥 Eliminando archivo:', filePath);
               const fileRef = ref(storage, filePath);
               await deleteObject(fileRef);
-              console.log('✅ Archivo eliminado de Storage');
             }
           } catch (storageError) {
             // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
             if (storageError.code === 'storage/object-not-found') {
-              console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente)');
             } else if (storageError.code === 'storage/unauthorized') {
-              console.warn('⚠️ Sin permisos para eliminar archivo del storage');
             } else {
-              console.warn('⚠️ Error al eliminar archivo de Storage:', storageError.message);
             }
           }
         }
@@ -1055,7 +1009,6 @@ useEffect(() => {
         updatedAt: new Date()
       });
 
-      console.log('✅ Comprobante eliminado exitosamente de Firestore');
       
       // Cerrar el visor de PDF si está abierto para este pago
       if (selectedPayment?.id === payment.id) {
@@ -1073,7 +1026,6 @@ useEffect(() => {
 
   // Función para editar comprobante (reemplazar)
   const handleEditReceipt = (payment) => {
-    console.log('✏️ Editando comprobante para pago:', payment.id);
     setEditingReceipt(payment);
     
     // Crear input de archivo temporal
@@ -1091,11 +1043,9 @@ useEffect(() => {
 
       try {
         setUploadingFile(true);
-        console.log('📤 Subiendo nuevos archivos:', files.map(f => f.name));
 
         // 1. Eliminar archivos antiguos del Storage
         const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
-        console.log('🗑️ Eliminando archivos antiguos:', receiptUrls);
         
         for (const url of receiptUrls) {
           if (url) {
@@ -1105,16 +1055,12 @@ useEffect(() => {
                 const filePath = decodeURIComponent(filePathMatch[1]);
                 const fileRef = ref(storage, filePath);
                 await deleteObject(fileRef);
-                console.log('✅ Archivo antiguo eliminado:', filePath);
               }
             } catch (deleteError) {
               // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
               if (deleteError.code === 'storage/object-not-found') {
-                console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente)');
               } else if (deleteError.code === 'storage/unauthorized') {
-                console.warn('⚠️ Sin permisos para eliminar archivo del storage');
               } else {
-                console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message);
               }
             }
           }
@@ -1127,11 +1073,9 @@ useEffect(() => {
           const fileName = `receipts/${payment.id}_${i + 1}_${Date.now()}_${file.name}`;
           const storageRef = ref(storage, fileName);
           
-          console.log('⬆️ Subiendo archivo:', fileName);
           await uploadBytes(storageRef, file);
           const downloadURL = await getDownloadURL(storageRef);
           newReceiptUrls.push(downloadURL);
-          console.log('✅ Archivo subido:', downloadURL);
         }
 
         // 3. Actualizar documento en Firestore
@@ -1143,7 +1087,6 @@ useEffect(() => {
           updatedAt: new Date()
         });
 
-        console.log('✅ Comprobante editado exitosamente');
         showNotification('Comprobante editado exitosamente', 'success');
       } catch (error) {
         console.error('❌ Error al editar comprobante:', error);

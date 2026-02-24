@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Alert, Pressable, Keyboard, Platform } from 'react-native';
 import { Text, TextInput, useTheme, ActivityIndicator } from 'react-native-paper';
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -37,6 +37,22 @@ export default function NovedadesSheet({ onClose, onSuccess, initialType }) {
   const [description, setDescription] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const tiposNovedad = [
     { id: 'llegada_tarde', label: 'Llegada Tarde', icon: 'clock-alert-outline' },
@@ -128,7 +144,12 @@ export default function NovedadesSheet({ onClose, onSuccess, initialType }) {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={[styles.content, { paddingBottom: keyboardHeight > 0 ? 16 : 40 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text variant="titleMedium" style={{ marginBottom: 12, color: surfaceColors.onSurfaceVariant, textTransform: 'uppercase', fontSize: 12, fontWeight: '600', letterSpacing: 0.8 }}>Tipo de Novedad</Text>
         <View style={styles.chipContainer}>
           {tiposNovedad.map((t) => (
@@ -201,6 +222,9 @@ export default function NovedadesSheet({ onClose, onSuccess, initialType }) {
           style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
           outlineStyle={{ borderRadius: 20 }}
           theme={{ roundness: 20 }}
+          onFocus={() => {
+            setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
+          }}
         />
 
         <Pressable

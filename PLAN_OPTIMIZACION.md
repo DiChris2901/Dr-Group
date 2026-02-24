@@ -812,8 +812,8 @@ Get-ChildItem -Recurse "src" -Include *.js,*.jsx | Select-String "console\.(log|
 | Fase 2: Optimización Firebase | 3 | 3 | ✅ Completada |
 | Fase 3: Refactoring God Components | 5 | 5 | ✅ Completada |
 | Fase 4: Optimización Mobile | 3 | 3 | ✅ Completada |
-| Fase 5: Arquitectura Avanzada | 4 | 3 | ✅ Completada (T5.2 diferida) |
-| **TOTAL** | **22** | **21** | |
+| Fase 5: Arquitectura Avanzada | 4 | 4 | ✅ Completada |
+| **TOTAL** | **22** | **22** | |
 
 ### Checklist Rápido por Tarea
 
@@ -838,7 +838,7 @@ Get-ChildItem -Recurse "src" -Include *.js,*.jsx | Select-String "console\.(log|
 | 4.2 | Eliminar hasPermission legacy mobile (0 consumidores) | ✅ | -28L código muerto |
 | 4.3 | Error Boundaries mobile (ErrorBoundary.js + AppNavigator wrap) | ✅ | Estabilidad |
 | 5.1 | CompaniesContext global (1 listener shared vs 5 independientes) | ✅ | -4 listeners Firestore |
-| 5.2 | Paginación real Commitments | ⏸️ Diferida | Riesgo alto, ROI bajo actual |
+| 5.2 | Paginación real Commitments (limit 500 + eliminación código muerto 361L) | ✅ | Safety cap + -361L dead code |
 | 5.3 | Error Boundaries web (ErrorBoundary.jsx + App.jsx wrap) | ✅ | Estabilidad |
 | 5.4 | Strip console.log/warn en producción (esbuild pure, 1,110 statements) | ✅ | Bundle limpio + seguridad |
 

@@ -55,7 +55,6 @@ class LiquidacionPersistenceService {
       throw new Error('No hay datos consolidados para extraer el período');
     }
 
-    console.log('🔍 Buscando período en datos consolidados con', consolidatedData.length, 'filas');
 
     let periodoDetectado = null;
     const meses = [
@@ -74,7 +73,6 @@ class LiquidacionPersistenceService {
       
       if (periodoValue) {
         const valorStr = periodoValue.toString().toLowerCase();
-        console.log(`� Encontrada columna periodo [${i}]:`, valorStr);
 
         // Buscar patrones de fecha en el valor del período
         const patronesFecha = [
@@ -90,7 +88,6 @@ class LiquidacionPersistenceService {
           const patron = patronesFecha[j];
           const match = valorStr.match(patron);
           if (match) {
-            console.log('✅ Encontrado patrón de fecha en período:', match);
             
             if (j === 1) { // Formato numérico MM/YYYY
               const mes = parseInt(match[1]) - 1; // JavaScript months are 0-indexed
@@ -100,7 +97,6 @@ class LiquidacionPersistenceService {
                   mes: meses[mes],
                   año: año
                 };
-                console.log('📅 Período detectado (numérico):', periodoDetectado);
                 break;
               }
             } else if (match[1] && meses.includes(match[1].toLowerCase())) {
@@ -110,7 +106,6 @@ class LiquidacionPersistenceService {
                 mes: match[1].toLowerCase(),
                 año: año
               };
-              console.log('📅 Período detectado (texto):', periodoDetectado);
               break;
             }
           }
@@ -122,12 +117,10 @@ class LiquidacionPersistenceService {
 
     // Si no se encontró en columna período, buscar en fecha de reporte del primer registro
     if (!periodoDetectado && consolidatedData.length > 0) {
-      console.log('🔍 Buscando en fecha de reporte del primer registro...');
       const firstRow = consolidatedData[0];
       const fechaReporte = firstRow.fechaReporte || firstRow.fecha || firstRow.date;
       
       if (fechaReporte) {
-        console.log('📅 Fecha de reporte encontrada:', fechaReporte);
         const fechaStr = fechaReporte.toString();
         
         // Si es una fecha válida, extraer mes y año
@@ -137,14 +130,12 @@ class LiquidacionPersistenceService {
             mes: meses[fecha.getMonth()],
             año: fecha.getFullYear()
           };
-          console.log('📅 Período extraído de fecha de reporte:', periodoDetectado);
         }
       }
     }
 
     // Fallback: usar el mes actual
     if (!periodoDetectado) {
-      console.log('⚠️ No se detectó período, usando mes actual como fallback');
       const now = new Date();
       periodoDetectado = {
         mes: meses[now.getMonth()],
@@ -152,7 +143,6 @@ class LiquidacionPersistenceService {
       };
     }
 
-    console.log('🎯 Período final seleccionado:', periodoDetectado);
 
     return {
       periodoLiquidacion: `${periodoDetectado.mes}_${periodoDetectado.año}`,
@@ -239,24 +229,13 @@ class LiquidacionPersistenceService {
    */
   async saveLiquidacionesPorSala(liquidacionData, userId, liquidacionOriginalId, liquidacionCompleta) {
     try {
-      console.log('🏢 INICIO saveLiquidacionesPorSala');
-      console.log('📊 liquidacionData recibida:', {
-        hasReporteBySala: Boolean(liquidacionData?.reporteBySala),
-        reporteBySalaLength: liquidacionData?.reporteBySala?.length || 0,
-        empresa: liquidacionData?.empresa,
-        hasConsolidatedData: Boolean(liquidacionData?.consolidatedData),
-        consolidatedDataLength: liquidacionData?.consolidatedData?.length || 0
-      });
       
       const { reporteBySala, empresa, consolidatedData } = liquidacionData;
       
       if (!reporteBySala || !Array.isArray(reporteBySala) || reporteBySala.length === 0) {
-        console.log('⚠️ No hay datos por sala para guardar - reporteBySala:', reporteBySala);
         return [];
       }
 
-      console.log(`🏢 Guardando ${reporteBySala.length} liquidaciones por sala...`);
-      console.log('📋 Salas encontradas:', reporteBySala.map(s => s.establecimiento));
       
       const salaIds = [];
       
@@ -301,10 +280,8 @@ class LiquidacionPersistenceService {
                   nombre: empresaData.name || empresaData.nombre,
                   normalizado: (empresaData.name || empresaData.nombre).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
                 };
-                console.log(`✅ Empresa correcta cargada para ${sala.establecimiento}: ${empresaSala.nombre}`);
               }
             } else {
-              console.warn(`⚠️ No se encontró sala en Firestore: ${sala.establecimiento}, usando empresa por defecto`);
             }
           } catch (errorEmpresa) {
             console.error(`❌ Error cargando empresa para sala ${sala.establecimiento}:`, errorEmpresa);
@@ -390,7 +367,6 @@ class LiquidacionPersistenceService {
           await setDoc(doc(db, 'liquidaciones_por_sala', salaId), liquidacionSalaDoc);
           salaIds.push(salaId);
           
-          console.log(`✅ Sala guardada: ${sala.establecimiento} (${datosSala.length} máquinas)`);
           
         } catch (error) {
           console.error(`❌ Error guardando sala ${sala.establecimiento}:`, error);
@@ -398,7 +374,6 @@ class LiquidacionPersistenceService {
         }
       }
 
-      console.log(`🎉 ${salaIds.length} liquidaciones por sala guardadas exitosamente`);
       return salaIds;
       
     } catch (error) {
@@ -456,7 +431,6 @@ class LiquidacionPersistenceService {
               fechaProcesamiento: new Date().toISOString().split('T')[0]
             };
             
-            console.log('📅 Período parseado desde modal en servicio:', periodoInfoExtracted);
           }
         } catch (error) {
           console.error('Error parseando período del modal en servicio:', error);
@@ -604,16 +578,9 @@ class LiquidacionPersistenceService {
       await setDoc(doc(db, 'liquidaciones', liquidacionId), liquidacionDoc);
 
       // 🆕 NUEVO: Guardar automáticamente liquidaciones separadas por sala
-      console.log('🔄 Iniciando guardado de liquidaciones por sala...');
-      console.log('📊 Datos disponibles para salas:');
-      console.log('  - reporteBySala:', liquidacionData.reporteBySala?.length || 'No disponible');
-      console.log('  - consolidatedData:', liquidacionData.consolidatedData?.length || 'No disponible');
-      console.log('  - empresa:', liquidacionData.empresa || 'No disponible');
       
       try {
         const salaIds = await this.saveLiquidacionesPorSala(liquidacionData, userId, liquidacionId, liquidacionDoc);
-        console.log('✅ Liquidaciones por sala guardadas exitosamente:', salaIds);
-        console.log('📊 Cantidad de salas guardadas:', salaIds.length);
       } catch (error) {
         console.error('❌ ERROR CRÍTICO guardando liquidaciones por sala:');
         console.error('Error completo:', error);
@@ -625,25 +592,8 @@ class LiquidacionPersistenceService {
         // No lanzar error para no interrumpir el flujo principal
       }
 
-      console.log('✅ LIQUIDACIÓN GUARDADA EXITOSAMENTE');
-      console.log('📋 RESUMEN DE DATOS GUARDADOS:');
-      console.log(`   🏢 Empresa: ${empresa}`);
-      console.log(`   📅 Período Liquidado: ${periodoInfoExtracted.mesLiquidacion} ${periodoInfoExtracted.añoLiquidacion}`);
-      console.log(`   📅 Período Detectado (Modal): ${periodoDetectado || 'No especificado'}`);
-      console.log(`   🗓️ Fecha Procesamiento: ${periodoInfoExtracted.fechaProcesamiento}`);
-      console.log(`   📊 Métricas guardadas:`);
-      console.log(`      - Máquinas: ${liquidacionDoc.metricas.maquinasConsolidadas}`);
-      console.log(`      - Establecimientos: ${liquidacionDoc.metricas.totalEstablecimientos}`);
-      console.log(`      - Producción: $${liquidacionDoc.metricas.totalProduccion.toLocaleString()}`);
-      console.log(`      - Derechos: $${liquidacionDoc.metricas.derechosExplotacion.toLocaleString()}`);
-      console.log(`      - Gastos: $${liquidacionDoc.metricas.gastosAdministracion.toLocaleString()}`);
-      console.log(`      - Total Impuestos: $${liquidacionDoc.metricas.totalImpuestos.toLocaleString()}`);
-      console.log(`   📁 Archivos en Storage:`);
-      console.log(`      - Principal: ${fileInfo.originalName}`);
       if (archivoTarifasInfo) {
-        console.log(`      - Tarifas: ${archivoTarifasInfo.originalName}`);
       }
-      console.log(`   🆔 ID Liquidación: ${liquidacionId}`);
 
       return liquidacionId;
     } catch (error) {
@@ -839,14 +789,6 @@ class LiquidacionPersistenceService {
     try {
       const { empresa, mes, año, startDate, endDate } = filters;
       
-      console.log('🔍 Consultando liquidaciones con filtros:', {
-        empresa: empresa || 'todas',
-        mes: mes || 'todos',
-        año: año || 'todos',
-        startDate: startDate ? startDate.toLocaleDateString() : 'sin filtro',
-        endDate: endDate ? endDate.toLocaleDateString() : 'sin filtro',
-        límite: limitCount
-      });
       
       // Construir query dinámicamente según filtros
       let constraints = [];
@@ -875,10 +817,6 @@ class LiquidacionPersistenceService {
         const endTimestamp = new Date(endDate);
         endTimestamp.setHours(23, 59, 59, 999); // Fin del día
         
-        console.log('📅 Filtrando por rango:', {
-          inicio: startTimestamp.toLocaleDateString(),
-          fin: endTimestamp.toLocaleDateString()
-        });
         
         // Firebase requiere usar where con '>=' y '<=' para rangos
         // IMPORTANTE: Filtrar por PERÍODO DE LIQUIDACIÓN, no por fecha de procesamiento
@@ -912,10 +850,8 @@ class LiquidacionPersistenceService {
         return b.id.localeCompare(a.id);
       });
 
-      console.log(`✅ Cargadas ${liquidaciones.length} liquidaciones desde Firestore`);
       
       if (liquidaciones.length === limitCount) {
-        console.warn(`⚠️ Se alcanzó el límite de ${limitCount} registros. Puede haber más en la BD.`);
       }
       
       return liquidaciones;
@@ -943,7 +879,6 @@ class LiquidacionPersistenceService {
    */
   async loadAndProcessLiquidacion(liquidacionId, userId, processingFunction) {
     try {
-      console.log('📥 Cargando liquidación:', liquidacionId);
 
       // 1. Obtener metadatos
       const docRef = doc(db, 'liquidaciones', liquidacionId);
@@ -1000,7 +935,6 @@ class LiquidacionPersistenceService {
           const fileRef = ref(storage, storagePath);
           return await getBlob(fileRef);
         } catch (corsError) {
-          console.warn(`⚠️ CORS con getBlob (${label}), intentando getDownloadURL + fetch`);
           const fileRef = ref(storage, storagePath);
           const downloadUrl = await getDownloadURL(fileRef);
           const response = await fetch(downloadUrl, { mode: 'cors' });
@@ -1009,7 +943,6 @@ class LiquidacionPersistenceService {
       };
 
       // 4. Descargar archivo original
-      console.log('📁 Descargando archivo original...');
       const originalPath = resolveStoragePath(originalMeta);
       const originalBlob = await downloadBlob(originalPath, 'original');
       const originalName = originalMeta.nombre || originalMeta.originalName || 'liquidacion.xlsx';
@@ -1021,7 +954,6 @@ class LiquidacionPersistenceService {
       if (tarifasMeta) {
         const tarifasPath = resolveStoragePath(tarifasMeta);
         if (tarifasPath) {
-          console.log('📄 Descargando archivo de tarifas...');
           const tarifasBlob = await downloadBlob(tarifasPath, 'tarifas');
           const tarifasName = tarifasMeta.nombre || tarifasMeta.originalName || 'tarifas.xlsx';
           const tarifasType = tarifasMeta.tipo || tarifasMeta.type || 'application/octet-stream';
@@ -1030,7 +962,6 @@ class LiquidacionPersistenceService {
       }
 
       // 4. Procesar archivos con la misma lógica de la página
-      console.log('⚙️ Procesando archivos originales...');
       const processedData = await processingFunction(originalFile, tarifasFile);
 
       // 5. Retornar datos completos
@@ -1055,16 +986,13 @@ class LiquidacionPersistenceService {
    */
   async deleteLiquidacion(liquidacionId, userId, isAdmin = false) {
     try {
-      console.log('🔍 [Service] Iniciando eliminación - ID:', liquidacionId, 'Usuario:', userId, 'Admin:', isAdmin);
       
       // 🔒 VALIDACIONES DE SEGURIDAD MEJORADAS
       if (!liquidacionId || typeof liquidacionId !== 'string') {
-        console.log('❌ [Service] ID de liquidación inválido:', liquidacionId);
         throw new Error('ID de liquidación inválido');
       }
       
       if (!userId || typeof userId !== 'string') {
-        console.log('❌ [Service] Usuario ID inválido:', userId);
         throw new Error('Usuario no autenticado correctamente');
       }
       
@@ -1073,40 +1001,17 @@ class LiquidacionPersistenceService {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        console.log('❌ [Service] Liquidación no encontrada');
         throw new Error('Liquidación no encontrada');
       }
 
       const liquidacionData = docSnap.data();
-      console.log('📄 [Service] Documento encontrado - Usuario propietario:', liquidacionData.userId);
-      console.log('🔑 [Service] Usuario solicitante:', userId);
-      console.log('� [Service] Tipos de datos:', 
-        'propietario:', typeof liquidacionData.userId, 
-        'solicitante:', typeof userId
-      );
       
       // 🆕 VALIDACIÓN MEJORADA: Normalizar y comparar IDs
       const propietarioId = String(liquidacionData.userId || '').trim();
       const solicitanteId = String(userId || '').trim();
       
-      console.log('🔍 [Service] Comparación normalizada:', {
-        propietario: propietarioId,
-        solicitante: solicitanteId,
-        iguales: propietarioId === solicitanteId
-      });
       
       // 🔍 DIAGNÓSTICO TEMPORAL: Imprimir TODA la estructura del documento
-      console.log('🗂️ [DEBUG TEMPORAL] Estructura COMPLETA del documento:', {
-        ...liquidacionData,
-        // Campos específicos que podrían contener el userId
-        usuario: liquidacionData.usuario,
-        user: liquidacionData.user,
-        createdBy: liquidacionData.createdBy,
-        owner: liquidacionData.owner,
-        authorId: liquidacionData.authorId,
-        // Mostrar todas las claves del documento
-        allKeys: Object.keys(liquidacionData)
-      });
       
       // 🔍 VERIFICACIÓN ALTERNATIVA: Buscar userId en diferentes campos
       const possibleUserFields = [
@@ -1118,13 +1023,11 @@ class LiquidacionPersistenceService {
         liquidacionData.authorId
       ].filter(Boolean);
       
-      console.log('🔍 [DEBUG] Posibles campos de usuario encontrados:', possibleUserFields);
       
       // 🆕 LÓGICA DE VALIDACIÓN AMPLIADA CON SOPORTE PARA ADMINS
       const isUserAuthorized = possibleUserFields.some(fieldValue => {
         const normalizedField = String(fieldValue || '').trim();
         const isMatch = normalizedField === solicitanteId;
-        console.log(`🔍 Comparando campo "${fieldValue}" con usuario "${solicitanteId}": ${isMatch}`);
         return isMatch;
       });
       
@@ -1132,89 +1035,66 @@ class LiquidacionPersistenceService {
       
       // 🔑 PERMITIR A ADMINS ELIMINAR CUALQUIER LIQUIDACIÓN
       if (isAdmin) {
-        console.log('✅ [Service] Usuario es ADMIN - Permitiendo eliminación');
       } else if (!isOwner) {
-        console.log('❌ [Service] Sin permisos para eliminar - Usuario no es propietario ni admin');
-        console.log('📋 [Service] Propietario de la liquidación:', propietarioId);
-        console.log('🔑 [Service] Usuario solicitante:', solicitanteId);
-        console.log('📊 [Service] Usuario es admin?', isAdmin);
         throw new Error('No tienes permisos para eliminar esta liquidación. Solo el propietario o un administrador pueden eliminarla.');
       }
       
-      console.log('✅ [Service] Validación de permisos exitosa -', isAdmin ? 'Usuario ADMIN' : 'Usuario propietario');
 
-      console.log('🗂️ [Service] Eliminando archivos de Storage...');
       // Eliminar archivos de Storage
       const deletePromises = [];
       
       // Verificar todas las posibles ubicaciones de archivos
-      console.log('🔍 [Service] Verificando archivos en diferentes campos:');
-      console.log('📁 archivos.archivoOriginal:', liquidacionData.archivos?.archivoOriginal);
-      console.log('📁 archivos.archivoTarifas:', liquidacionData.archivos?.archivoTarifas);
-      console.log('📁 archivoOriginal (legacy):', liquidacionData.archivoOriginal);
-      console.log('📁 archivoTarifas (legacy):', liquidacionData.archivoTarifas);
-      console.log('📁 archivosStorage (legacy):', liquidacionData.archivosStorage);
       
       // Archivo original (nueva estructura - estructura principal actual)
       if (liquidacionData.archivos?.archivoOriginal?.nombreStorage) {
-        console.log('📁 [Service] Eliminando archivo original (nueva estructura):', liquidacionData.archivos.archivoOriginal.nombreStorage);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivos.archivoOriginal.nombreStorage))
-            .catch(error => console.warn('Error eliminando archivo original (nueva):', error))
+            .catch(() => { /* Error eliminando archivo original (nueva) - ignorado */ })
         );
       }
       
       // Archivo de tarifas (nueva estructura - estructura principal actual)
       if (liquidacionData.archivos?.archivoTarifas?.nombreStorage) {
-        console.log('📄 [Service] Eliminando archivo de tarifas (nueva estructura):', liquidacionData.archivos.archivoTarifas.nombreStorage);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivos.archivoTarifas.nombreStorage))
-            .catch(error => console.warn('Error eliminando archivo de tarifas (nueva):', error))
+            .catch(() => { /* Error eliminando archivo de tarifas (nueva) - ignorado */ })
         );
       }
       
       // Archivo original (estructura legacy - para compatibilidad)
       if (liquidacionData.archivoOriginal?.fileName) {
-        console.log('📁 [Service] Eliminando archivo original (legacy):', liquidacionData.archivoOriginal.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivoOriginal.fileName))
-            .catch(error => console.warn('Error eliminando archivo original (legacy):', error))
+            .catch(() => { /* Error eliminando archivo original (legacy) - ignorado */ })
         );
       }
 
       // Archivo de tarifas (estructura legacy - para compatibilidad)
       if (liquidacionData.archivoTarifas?.fileName) {
-        console.log('📄 [Service] Eliminando archivo de tarifas (legacy):', liquidacionData.archivoTarifas.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivoTarifas.fileName))
-            .catch(error => console.warn('Error eliminando archivo de tarifas (legacy):', error))
+            .catch(() => { /* Error eliminando archivo de tarifas (legacy) - ignorado */ })
         );
       }
 
       // Archivos en archivosStorage (estructura antigua - para compatibilidad)
       if (liquidacionData.archivosStorage?.original?.fileName) {
-        console.log('📁 [Service] Eliminando archivo original (archivosStorage):', liquidacionData.archivosStorage.original.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivosStorage.original.fileName))
-            .catch(error => console.warn('Error eliminando archivo original (archivosStorage):', error))
+            .catch(() => { /* Error eliminando archivo original (archivosStorage) - ignorado */ })
         );
       }
       
       if (liquidacionData.archivosStorage?.tarifas?.fileName) {
-        console.log('📄 [Service] Eliminando archivo de tarifas (archivosStorage):', liquidacionData.archivosStorage.tarifas.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivosStorage.tarifas.fileName))
-            .catch(error => console.warn('Error eliminando archivo de tarifas (archivosStorage):', error))
+            .catch(() => { /* Error eliminando archivo de tarifas (archivosStorage) - ignorado */ })
         );
       }
 
-      console.log('⏳ [Service] Esperando eliminación de archivos...');
-      console.log('📊 [Service] Total de archivos a eliminar:', deletePromises.length);
       await Promise.all(deletePromises);
-      console.log('✅ [Service] Archivos eliminados');
 
       // Eliminar registros de liquidaciones por sala relacionados
-      console.log('🏢 [Service] Eliminando registros de liquidaciones por sala...');
       try {
         // CORREGIDO: usar la colección correcta y el campo correcto
         const liquidacionesPorSalaQuery = query(
@@ -1224,24 +1104,18 @@ class LiquidacionPersistenceService {
         );
         
         const liquidacionesPorSalaSnapshot = await getDocs(liquidacionesPorSalaQuery);
-        console.log(`🔍 [Service] Encontrados ${liquidacionesPorSalaSnapshot.docs.length} registros por sala para eliminar`);
         
         const deleteSalaPromises = liquidacionesPorSalaSnapshot.docs.map(async (salaDoc) => {
-          console.log(`🗑️ [Service] Eliminando sala: ${salaDoc.id} - ${salaDoc.data().sala?.nombre || 'Sin nombre'}`);
           return deleteDoc(doc(db, 'liquidaciones_por_sala', salaDoc.id));
         });
         
         await Promise.all(deleteSalaPromises);
-        console.log('✅ [Service] Registros por sala eliminados exitosamente');
       } catch (salaError) {
-        console.warn('⚠️ [Service] Error eliminando registros por sala:', salaError);
         // No lanzar error aquí para no interrumpir la eliminación principal
       }
 
       // Eliminar documento principal
-      console.log('📄 [Service] Eliminando documento principal de Firestore...');
       await deleteDoc(docRef);
-      console.log('✅ [Service] Documento principal eliminado exitosamente');
 
     } catch (error) {
       console.error('❌ [Service] Error eliminando liquidación:', error);
@@ -1343,7 +1217,6 @@ class LiquidacionPersistenceService {
         return timestampB - timestampA;
       });
 
-      console.log(`📋 Encontradas ${liquidacionesSala.length} liquidaciones por sala`);
       return liquidacionesSala;
 
     } catch (error) {
@@ -1396,7 +1269,6 @@ class LiquidacionPersistenceService {
         }
       }, { merge: true });
 
-      console.log(`✅ Estado de facturación actualizado para sala ${salaId}`);
     } catch (error) {
       console.error('Error actualizando estado de facturación:', error);
       throw new Error(`Error al actualizar estado de facturación: ${error.message}`);
@@ -1412,7 +1284,6 @@ class LiquidacionPersistenceService {
     try {
       const docRef = doc(db, 'liquidaciones_por_sala', salaId);
       await deleteDoc(docRef);
-      console.log(`✅ Liquidación por sala eliminada: ${salaId}`);
     } catch (error) {
       console.error('Error eliminando liquidación por sala:', error);
       throw new Error(`Error al eliminar liquidación por sala: ${error.message}`);
@@ -1482,7 +1353,6 @@ class LiquidacionPersistenceService {
    */
   async limpiarRegistrosMalformados(userId) {
     try {
-      console.log('🧹 Iniciando limpieza de registros malformados...');
       
       // Obtener todas las liquidaciones por sala del usuario
       const q = query(
@@ -1491,7 +1361,6 @@ class LiquidacionPersistenceService {
       );
       
       const querySnapshot = await getDocs(q);
-      console.log(`📋 Encontrados ${querySnapshot.size} registros para revisar`);
       
       let eliminados = 0;
       const batch = writeBatch(db);
@@ -1502,7 +1371,6 @@ class LiquidacionPersistenceService {
         
         // Detectar períodos malformados que contienen números (como enero_45900)
         if (periodo && /\d{4,5}/.test(periodo)) {
-          console.log(`❌ Período malformado detectado: ${periodo} - Eliminando ${doc.id}`);
           batch.delete(doc.ref);
           eliminados++;
         }
@@ -1510,9 +1378,7 @@ class LiquidacionPersistenceService {
       
       if (eliminados > 0) {
         await batch.commit();
-        console.log(`✅ ${eliminados} registros malformados eliminados`);
       } else {
-        console.log('✨ No se encontraron registros malformados para eliminar');
       }
       
       return { eliminados, total: querySnapshot.size };
@@ -1530,14 +1396,12 @@ class LiquidacionPersistenceService {
    */
   async limpiarRegistrosHuerfanos(userId) {
     try {
-      console.log('🧹 Iniciando limpieza de registros huérfanos...');
       
       // 1. Obtener todos los registros de liquidaciones por sala del usuario
       const liquidacionesPorSalaRef = collection(db, 'liquidacionesPorSala');
       const q = query(liquidacionesPorSalaRef, where('userId', '==', userId));
       const snapshot = await getDocs(q);
       
-      console.log(`📊 Encontrados ${snapshot.docs.length} registros por sala`);
       
       const registrosHuerfanos = [];
       const registrosMalformados = [];
@@ -1571,7 +1435,6 @@ class LiquidacionPersistenceService {
               registrosValidos.push({ id: docId, data });
             }
           } catch (error) {
-            console.warn(`Error verificando liquidación original ${data.liquidacionOriginalId}:`, error);
             registrosHuerfanos.push({ id: docId, liquidacionOriginalId: data.liquidacionOriginalId, data });
           }
         } else {
@@ -1580,20 +1443,15 @@ class LiquidacionPersistenceService {
         }
       }
       
-      console.log(`🔍 Análisis completo:`);
-      console.log(`   • Registros válidos: ${registrosValidos.length}`);
-      console.log(`   • Registros huérfanos: ${registrosHuerfanos.length}`);
-      console.log(`   • Registros malformados: ${registrosMalformados.length}`);
       
       // 3. Eliminar registros huérfanos y malformados
       const registrosAEliminar = [...registrosHuerfanos, ...registrosMalformados];
       const promesasEliminacion = [];
       
       registrosAEliminar.forEach(registro => {
-        console.log(`🗑️ Eliminando: ${registro.id} (${registro.periodo || 'Sin período'})`);
         promesasEliminacion.push(
           deleteDoc(doc(db, 'liquidacionesPorSala', registro.id))
-            .catch(error => console.warn(`Error eliminando ${registro.id}:`, error))
+            .catch(() => { /* Error eliminando registro - ignorado */ })
         );
       });
       
@@ -1609,7 +1467,6 @@ class LiquidacionPersistenceService {
         detalleMalformados: registrosMalformados.map(r => ({ id: r.id, periodo: r.periodo }))
       };
       
-      console.log('✅ Limpieza completada:', resultado);
       return resultado;
       
     } catch (error) {
@@ -1625,7 +1482,6 @@ class LiquidacionPersistenceService {
    */
   async saveLiquidacionPorSala(liquidacionEditada) {
     try {
-      console.log('💾 Guardando nueva versión de liquidación editada...');
       
       // Función para limpiar valores undefined recursivamente
       const limpiarUndefined = (obj) => {
@@ -1655,13 +1511,11 @@ class LiquidacionPersistenceService {
         }
       });
       
-      console.log('🔍 Datos limpios a guardar:', JSON.stringify(datosLimpios, null, 2));
       
       // Usar setDoc en lugar de addDoc para mantener control del ID
       const docRef = doc(collection(db, 'liquidaciones_por_sala'));
       await setDoc(docRef, datosLimpios);
 
-      console.log('✅ Nueva versión guardada con ID:', docRef.id);
       return docRef.id;
       
     } catch (error) {
@@ -1684,7 +1538,6 @@ class LiquidacionPersistenceService {
     if (!Array.isArray(nuevosDatosMaquinas)) throw new Error('Formato inválido de máquinas');
 
     try {
-      console.log('🛠️ upsertLiquidacionEdicionPorSala start', { originalId: originalDoc.id, maquinas: nuevosDatosMaquinas.length });
 
       // 1. Buscar si ya existe una edición acumulada
       const q = query(
@@ -1716,7 +1569,6 @@ class LiquidacionPersistenceService {
 
       // 2. Si NO existe edición previa -> crear documento nuevo
       if (snap.empty) {
-        console.log('📄 No existe edición previa, creando nueva');
 
         // Detectar máquinas editadas (marcadas o con fueEditada true)
         const maquinasEditadasSeriales = [];
@@ -1759,7 +1611,6 @@ class LiquidacionPersistenceService {
             }
           }
         } catch (e) {
-          console.warn('⚠️ No se pudo cargar documento original para historial de cambios:', e);
         }
 
         // Construir lista de cambios con antes/después cuando sea posible
@@ -1858,7 +1709,6 @@ class LiquidacionPersistenceService {
         // Marcar original con flag de que tiene ediciones
         await setDoc(doc(db, 'liquidaciones_por_sala', originalDoc.id), { tieneEdiciones: true, edicionId: docRef.id }, { merge: true });
 
-        console.log('✅ Edición creada', docRef.id);
         return docRef.id;
       }
 
@@ -1866,7 +1716,6 @@ class LiquidacionPersistenceService {
       const existingDoc = snap.docs[0];
       editDocRef = existingDoc.ref;
       editDocData = existingDoc.data();
-      console.log('✏️ Actualizando edición existente', existingDoc.id);
 
   const previoDatos = Array.isArray(editDocData.datosConsolidados) ? [...editDocData.datosConsolidados] : [];
   const previoMap = indexBySerial(previoDatos);
@@ -1965,7 +1814,6 @@ class LiquidacionPersistenceService {
       // Marcar original (por si no estaba)
       await setDoc(doc(db, 'liquidaciones_por_sala', originalDoc.id), { tieneEdiciones: true, edicionId: existingDoc.id }, { merge: true });
 
-      console.log('✅ Edición actualizada', existingDoc.id, 'cambios:', cambiosAplicados.length);
       return existingDoc.id;
     } catch (error) {
       console.error('Error en upsertLiquidacionEdicionPorSala:', error);

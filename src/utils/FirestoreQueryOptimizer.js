@@ -211,9 +211,8 @@ class FirestoreQueryOptimizer {
             const cacheKey = `prefetch-${JSON.stringify(nextYearFilters)}`;
             const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             firestoreCache.set(cacheKey, docs, 10 * 60 * 1000); // 10 minutos
-            console.log('🚀 Prefetch completado para año siguiente');
           })
-          .catch(error => console.log('Prefetch error (ignorado):', error));
+          .catch(() => { /* Prefetch error - ignorado */ });
       }
     }
   }

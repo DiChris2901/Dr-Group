@@ -240,7 +240,6 @@ const UserManagementPage = () => {
 
   const handleOpenModal = async (user = null) => {
     try {
-      console.log('🔧 Abriendo modal de usuario...', user ? 'Editando' : 'Creando nuevo');
       
       if (user) {
         // Editar usuario existente
@@ -297,13 +296,11 @@ const UserManagementPage = () => {
           photoURL: ''
         };
         
-        console.log('📋 Datos del nuevo usuario:', newUserData);
         setFormData(newUserData);
         setOriginalFormData(JSON.parse(JSON.stringify(newUserData)));
         setHasUnsavedChanges(false);
       }
       
-      console.log('✅ Abriendo modal...');
       setOpenModal(true);
       setActiveTab(0); // Resetear a primera pestaña
       
@@ -328,7 +325,6 @@ const UserManagementPage = () => {
 
   // Funciones para manejar el modal de notificaciones
   const handleOpenNotificationsModal = (user) => {
-    console.log('🔔 Abriendo modal de notificaciones para:', user.email);
     setSelectedUserForNotifications(user);
     setOpenNotificationsModal(true);
   };
@@ -371,7 +367,6 @@ const UserManagementPage = () => {
   };
   
   const handleRoleChange = (newRole) => {
-    console.log('🔧 Cambiando rol a:', newRole);
     
     let newPermissions = [];
     
@@ -499,7 +494,6 @@ const UserManagementPage = () => {
   // 🔄 Función para sincronizar usuarios con Authentication
   const syncUserWithAuth = async (user) => {
     try {
-      console.log('🔄 Sincronizando usuario con Authentication...', user.email);
       
       // Actualizar estado a ACTIVE (ya no pendiente)
       await updateDoc(doc(db, 'users', user.id), {
@@ -517,7 +511,6 @@ const UserManagementPage = () => {
       
       if (!pendingSnapshot.empty) {
         await deleteDoc(doc(db, 'pending_auth_users', pendingSnapshot.docs[0].id));
-        console.log('✅ Eliminado de pending_auth_users');
       }
       
       await loadUsers();
@@ -577,7 +570,6 @@ const UserManagementPage = () => {
         })
       };
       
-      console.log('👤 [UserManagement] Guardando usuario con name:', userData.name);
 
       if (editingUser) {
         // Actualizar usuario existente
@@ -593,12 +585,8 @@ const UserManagementPage = () => {
         }
         
         // 🚀 Crear usuario completo
-        console.log('🔧 Creando usuario completo automáticamente...');
         
         try {
-          console.log('🔧 Iniciando creación de usuario...');
-          console.log('📧 Email:', formData.email.toLowerCase());
-          console.log('👤 Usuario actual:', currentUser?.email);
           
           // 1. Inicializar app secundaria para no perder sesión del admin
           const firebaseConfig = {
@@ -621,7 +609,6 @@ const UserManagementPage = () => {
             formData.temporalPassword || 'DRGroup2025!'
           );
           
-          console.log('✅ Usuario creado en Authentication:', userCredential.user.uid);
           
           // 2. Preparar datos simplificados para Firestore
           const simpleUserData = {
@@ -648,21 +635,15 @@ const UserManagementPage = () => {
             notes: formData.notes || 'Usuario creado desde panel de administración'
           };
           
-          console.log('👤 [DEBUG] Guardando usuario con name:', simpleUserData.name);
           
           // 3. Crear documento en Firestore usando el UID de Auth como ID
-          console.log('� Creando documento en Firestore con UID:', userCredential.user.uid);
-          console.log('📋 Datos a guardar:', simpleUserData);
           
           await setDoc(doc(db, 'users', userCredential.user.uid), simpleUserData);
-          console.log('✅ Usuario guardado en Firestore con ID:', userCredential.user.uid);
           
           // 5. Enviar email de reset (usando auth secundaria)
           try {
             await sendPasswordResetEmail(secondaryAuth, formData.email.toLowerCase());
-            console.log('📧 Email de reset enviado para configurar contraseña');
           } catch (emailError) {
-            console.warn('⚠️ No se pudo enviar email de reset:', emailError.message);
           }
           
           // 6. Limpiar app secundaria
@@ -670,13 +651,6 @@ const UserManagementPage = () => {
           deleteApp(secondaryApp).catch(console.error);
           
           // 7. Mostrar resultado exitoso
-          console.log('� === USUARIO CREADO COMPLETAMENTE ===');
-          console.log(`📧 Email: ${formData.email.toLowerCase()}`);
-          console.log(`🔑 Password temporal: ${formData.temporalPassword || 'DRGroup2025!'}`);
-          console.log(`🆔 Auth UID: ${userCredential.user.uid}`);
-          console.log(`🆔 UID: ${userCredential.user.uid}`);
-          console.log('✅ El usuario puede iniciar sesión inmediatamente');
-          console.log('==========================================');
           
           // ✅ Guardar credenciales para mostrar en modal
           setCreatedCredentials({
@@ -728,7 +702,6 @@ const UserManagementPage = () => {
         
         // 📧 ENVIAR EMAIL DE ACTUALIZACIÓN
         try {
-          console.log('📧 Enviando email de actualización a:', formData.email);
           
           // Determinar qué campos cambiaron
           const updatedFields = [];
@@ -740,7 +713,6 @@ const UserManagementPage = () => {
           
           // Si cambió el rol, enviar notificación específica de cambio de rol
           if (editingUser.role !== formData.role) {
-            console.log('🔐 Cambio de rol detectado, enviando notificación específica...');
             
             await sendRoleChangedNotification(formData.email, {
               displayName: formData.displayName,
@@ -752,7 +724,6 @@ const UserManagementPage = () => {
             
             // Si el nuevo rol es Admin o Super Admin, enviar alerta de seguridad crítica
             if (formData.role === 'ADMIN' || formData.role === 'admin' || formData.role === 'SUPER_ADMIN' || formData.role === 'super_admin') {
-              console.log('🛡️ Cambio crítico de permisos detectado, notificando a administradores...');
               
               await sendCriticalPermissionChangeNotification(formData.email, {
                 targetUserName: formData.displayName,
@@ -765,7 +736,6 @@ const UserManagementPage = () => {
               });
             }
             
-            console.log('✅ Notificación de cambio de rol enviada');
           } else {
             // Solo actualización de información sin cambio de rol
             await sendUserUpdatedNotification(formData.email, {
@@ -775,7 +745,6 @@ const UserManagementPage = () => {
               updatedBy: userProfile?.name || userProfile?.displayName || currentUser.email
             });
             
-            console.log('✅ Email de actualización enviado');
           }
           
           // Registrar en Activity Logs
@@ -809,11 +778,9 @@ const UserManagementPage = () => {
           message: `Usuario "${formData.displayName || formData.email}" creado completamente en Firebase Auth + Firestore. ¡Listo para usar!`,
           icon: 'person_add'
         });
-        console.log('✅ Proceso de creación automática completado exitosamente');
         
         // 📧 ENVIAR EMAIL DE BIENVENIDA
         try {
-          console.log('📧 Enviando email de bienvenida a:', formData.email);
           
           await sendUserCreatedNotification(formData.email, {
             displayName: formData.displayName,
@@ -822,7 +789,6 @@ const UserManagementPage = () => {
             createdBy: userProfile?.name || userProfile?.displayName || currentUser.email
           });
           
-          console.log('✅ Email de bienvenida enviado');
           
           // Registrar en Activity Logs
           await logActivity(
@@ -893,8 +859,6 @@ const UserManagementPage = () => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar completamente al usuario "${userToDelete.displayName || userToDelete.email}"?\n\nEsta acción eliminará:\n- Su cuenta de autenticación\n- Todos sus datos del sistema\n- No se puede deshacer`)) {
       try {
         setLoading(true);
-        console.log('🗑️ Eliminando usuario completo...', userToDelete.email);
-        console.log('🔍 Datos del usuario:', userToDelete);
         
         let deletedFromAuth = false;
         
@@ -902,14 +866,10 @@ const UserManagementPage = () => {
         // Solo puede eliminar al usuario actualmente autenticado
         
         // 1. Primero eliminar de Firestore (siempre funciona)
-        console.log('🔥 Eliminando de Firestore...');
         await deleteDoc(doc(db, 'users', userId));
-        console.log('✅ Usuario eliminado de Firestore');
         
         // 2. Para Firebase Auth, solo mostrar advertencia
         if (userToDelete.authUid) {
-          console.warn('⚠️ No se puede eliminar de Firebase Auth desde frontend');
-          console.warn('⚠️ El usuario aún existe en Authentication, deberá ser eliminado manualmente desde Firebase Console');
           deletedFromAuth = false;
         } else {
           deletedFromAuth = true; // No había authUid, no hay nada que eliminar en Auth
@@ -933,7 +893,6 @@ const UserManagementPage = () => {
             }
           });
         } catch (auditError) {
-          console.warn('⚠️ Error creando log de auditoría:', auditError);
         }
         
         await loadUsers();
@@ -951,7 +910,6 @@ const UserManagementPage = () => {
           icon: 'delete'
         });
         
-        console.log('✅', message);
         
       } catch (err) {
         console.error('❌ Error eliminando usuario:', err);

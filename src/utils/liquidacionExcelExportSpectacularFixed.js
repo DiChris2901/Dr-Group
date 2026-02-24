@@ -10,7 +10,6 @@ import * as XLSX from 'xlsx';
  * Mapear datos de liquidación al formato esperado del Python
  */
 const mapearDatosConsolidados = (data) => {
-  console.log('🔍 Datos originales recibidos:', data);
   
   if (!Array.isArray(data)) {
     console.error('❌ Los datos no son un array:', data);
@@ -18,7 +17,6 @@ const mapearDatosConsolidados = (data) => {
   }
 
   return data.map((item, index) => {
-    console.log(`🔍 Procesando item ${index}:`, item);
     
     // Mapear campos con diferentes posibles nombres
     const empresa = item.empresa || item.Empresa || item.EMPRESA || 'DR GROUP';
@@ -71,7 +69,6 @@ const mapearDatosConsolidados = (data) => {
       novedad
     };
     
-    console.log(`✅ Item ${index} mapeado:`, mapped);
     return mapped;
   });
 };
@@ -80,10 +77,8 @@ const mapearDatosConsolidados = (data) => {
  * Crear datos para el Excel siguiendo la estructura del Python
  */
 const crearDatosExcel = (datosConsolidados) => {
-  console.log('📊 Creando datos Excel para:', datosConsolidados.length, 'registros');
   
   if (!datosConsolidados || datosConsolidados.length === 0) {
-    console.warn('⚠️ No hay datos consolidados para exportar');
     return [];
   }
 
@@ -111,13 +106,6 @@ const crearDatosExcel = (datosConsolidados) => {
     second: '2-digit'
   });
 
-  console.log('📈 Totales calculados:', {
-    totalMaquinas,
-    totalProduccion: totalProduccion.toLocaleString('es-CO'),
-    totalDerechos: totalDerechos.toLocaleString('es-CO'),
-    totalGastos: totalGastos.toLocaleString('es-CO'),
-    totalImpuestos: totalImpuestos.toLocaleString('es-CO')
-  });
 
   const excelData = [
     // FILA 1: Título principal (merged A:P)
@@ -187,7 +175,6 @@ const crearDatosExcel = (datosConsolidados) => {
     ]);
   });
 
-  console.log('📋 Datos Excel creados:', excelData.length, 'filas');
   return excelData;
 };
 
@@ -195,7 +182,6 @@ const crearDatosExcel = (datosConsolidados) => {
  * Aplicar estilos al workbook (sin gradientes, solo colores sólidos)
  */
 const aplicarEstilosSpectacular = (workbook, worksheet, datosConsolidados) => {
-  console.log('🎨 Aplicando estilos spectacular...');
   
   const range = XLSX.utils.decode_range(worksheet['!ref']);
   
@@ -320,7 +306,6 @@ const aplicarEstilosSpectacular = (workbook, worksheet, datosConsolidados) => {
     }
   }
 
-  console.log('✅ Estilos spectacular aplicados');
 };
 
 /**
@@ -328,8 +313,6 @@ const aplicarEstilosSpectacular = (workbook, worksheet, datosConsolidados) => {
  */
 export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP') => {
   try {
-    console.log('🚀 Iniciando exportación spectacular...');
-    console.log('📊 Datos recibidos:', data);
 
     // Validar datos
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -338,7 +321,6 @@ export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP')
 
     // Mapear datos al formato consolidado
     const datosConsolidados = mapearDatosConsolidados(data);
-    console.log('🔄 Datos consolidados:', datosConsolidados);
 
     if (datosConsolidados.length === 0) {
       throw new Error('No se pudieron procesar los datos para exportación');
@@ -364,7 +346,6 @@ export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP')
     // Descargar archivo
     XLSX.writeFile(workbook, filename);
     
-    console.log('✅ Exportación spectacular completada:', filename);
     
     return {
       success: true,
@@ -385,7 +366,6 @@ export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP')
  */
 export const exportarLiquidacionSimple = (data, empresa = 'DR GROUP') => {
   try {
-    console.log('🔄 Iniciando exportación simple...');
     
     if (!data || !Array.isArray(data) || data.length === 0) {
       throw new Error('No hay datos para exportar');
@@ -417,7 +397,6 @@ export const exportarLiquidacionSimple = (data, empresa = 'DR GROUP') => {
     
     XLSX.writeFile(workbook, filename);
     
-    console.log('✅ Exportación simple completada:', filename);
     
     return {
       success: true,

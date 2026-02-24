@@ -110,9 +110,6 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
     // Propagar empresa a registros vacíos para mantener consistencia visual
     mapped.forEach(r => { if (!r.empresa || r.empresa === 'SIN EMPRESA') r.empresa = empresa; });
 
-    console.log('[ExcelExport] Empresa fallback recibida:', empresaFallback);
-    console.log('[ExcelExport] Empresa final usada para título:', empresa);
-    console.log('[ExcelExport] Ejemplos primeras 3 empresas mapeadas:', mapped.slice(0,3).map(m=>m.empresa));
 
     // Totales
     const totalProduccion = mapped.reduce((s, r) => s + r.produccion, 0);
@@ -295,7 +292,6 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
         ws.getColumn(colIndex).width = computed;
       });
     } catch (autoErr) {
-      console.warn('[AutoWidth] No se pudo calcular anchos dinámicos:', autoErr);
     }
 
     // Totales (fila después de los datos + 1 espacio)

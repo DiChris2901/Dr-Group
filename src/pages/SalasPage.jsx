@@ -676,7 +676,6 @@ const SalasPage = () => {
                 const oldFileRef = ref(storage, attachments.camaraComercio.path);
                 await deleteObject(oldFileRef);
               } catch (deleteError) {
-                console.warn('Error eliminando archivo anterior:', deleteError);
               }
             }
             // Subir nuevo archivo
@@ -692,7 +691,6 @@ const SalasPage = () => {
                 const oldFileRef = ref(storage, attachments.usoSuelos.path);
                 await deleteObject(oldFileRef);
               } catch (deleteError) {
-                console.warn('Error eliminando archivo anterior:', deleteError);
               }
             }
             // Subir nuevo archivo
@@ -708,7 +706,6 @@ const SalasPage = () => {
                 const oldFileRef = ref(storage, attachments.validacionUsoSuelos.path);
                 await deleteObject(oldFileRef);
               } catch (deleteError) {
-                console.warn('Error eliminando archivo anterior:', deleteError);
               }
             }
             // Subir nuevo archivo
@@ -828,7 +825,6 @@ const SalasPage = () => {
           const fileRef = ref(storage, filePathToDelete);
           await deleteObject(fileRef);
         } catch (storageError) {
-          console.warn('Error eliminando archivo de Storage (puede que no exista):', storageError);
         }
       }
       

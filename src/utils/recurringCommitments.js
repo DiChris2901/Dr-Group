@@ -41,7 +41,6 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     }
     
     if (!commitmentData.companyId) {
-      console.warn('⚠️ companyId faltante en commitmentData');
     }
     
     if (!commitmentData.companyName || commitmentData.companyName.trim() === '') {
@@ -83,14 +82,6 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     const startIndex = skipFirst ? 1 : 0;
     
     // Log de debug para monitorear generación
-    console.log('🔄 Generando compromisos recurrentes:', {
-      concept: commitmentData.concept,
-      companyName: commitmentData.companyName,
-      periodicity: commitmentData.periodicity,
-      instancesCount,
-      skipFirst,
-      baseDate: format(baseDate, 'dd/MM/yyyy', { locale: es })
-    });
     
     // Generar compromisos recurrentes con límite temporal
     let generatedCount = 0;
@@ -99,7 +90,6 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
       
       // Verificar límite temporal (solo año en curso)
       if (currentDate > effectiveMaxDate) {
-        console.log(`📅 Límite anual alcanzado: ${format(currentDate, 'dd/MM/yyyy', { locale: es })} excede el año ${currentYear}`);
         break;
       }
       
@@ -132,7 +122,6 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
 
     // Log del resultado
     const limitedByTime = generatedCount < instancesCount;
-    console.log(`📅 Compromisos generados: ${generatedCount}/${instancesCount}${limitedByTime ? ` (limitado al año ${currentYear})` : ''}`);
     
     // ✅ VALIDACIÓN FINAL DEL RESULTADO
     if (generatedCommitments.length === 0) {
@@ -172,15 +161,6 @@ export const saveRecurringCommitments = async (commitments) => {
     }
     
     // Log de debug
-    console.log('💾 Guardando compromisos recurrentes:', {
-      count: commitments.length,
-      firstCommitment: {
-        concept: commitments[0].concept,
-        companyName: commitments[0].companyName,
-        beneficiary: commitments[0].beneficiary,
-        periodicity: commitments[0].periodicity
-      }
-    });
     
     const savedIds = [];
     const recurringGroupId = `recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -200,7 +180,6 @@ export const saveRecurringCommitments = async (commitments) => {
     const firstDocRef = await addDoc(collection(db, 'commitments'), firstCommitment);
     savedIds.push(firstDocRef.id);
     
-    console.log(`✅ Primer compromiso guardado: ${firstDocRef.id} (${firstCommitment.concept} - ${firstCommitment.companyName})`);
     
     // Guardar el resto de compromisos con referencia al primer compromiso
     for (let i = 1; i < commitments.length; i++) {
@@ -220,7 +199,6 @@ export const saveRecurringCommitments = async (commitments) => {
       savedIds.push(docRef.id);
     }
     
-    console.log(`✅ ${savedIds.length} compromisos recurrentes guardados exitosamente`);
 
     // ✅ VALIDACIÓN FINAL: Verificar que todos los IDs se generaron correctamente
     const invalidIds = savedIds.filter(id => !id || id === undefined || id === null);
@@ -233,7 +211,6 @@ export const saveRecurringCommitments = async (commitments) => {
       throw new Error(`${invalidIds.length} compromisos se guardaron sin ID válido`);
     }
 
-    console.log('🔑 Todos los IDs validados correctamente:', savedIds);
 
     return {
       success: true,
@@ -313,24 +290,14 @@ export const calculateTemporalLimit = (yearsAhead = 1) => {
  * @returns {Object} Información sobre compromisos que necesitan extensión
  */
 export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
-  console.log('🔍 checkCommitmentsForExtension iniciado');
-  console.log('📊 Compromisos recibidos:', commitments.length);
   
   const today = new Date();
   const checkDate = addMonths(today, monthsAhead);
-  console.log('📅 Fecha límite para verificar:', checkDate.toISOString());
   
   const recurringGroups = {};
   
   // Agrupar compromisos recurrentes
   commitments.forEach((commitment, index) => {
-    console.log(`📋 Compromiso ${index + 1}:`, {
-      concept: commitment.concept,
-      isRecurring: commitment.isRecurring,
-      recurringGroup: commitment.recurringGroup,
-      periodicity: commitment.periodicity,
-      dueDate: commitment.dueDate
-    });
     
     if (commitment.isRecurring && commitment.recurringGroup) {
       if (!recurringGroups[commitment.recurringGroup]) {
@@ -348,8 +315,6 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     }
   });
   
-  console.log('📦 Grupos recurrentes encontrados:', Object.keys(recurringGroups).length);
-  console.log('🔍 Grupos:', Object.keys(recurringGroups));
   
   // Verificar cuáles grupos necesitan extensión
   const needsExtension = [];
@@ -360,13 +325,6 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     
     const needsExtensionCheck = monthsAhead < 0 ? true : new Date(lastCommitment.dueDate) < checkDate;
     
-    console.log(`📆 Grupo ${groupId}:`, {
-      concept: group.concept,
-      lastDueDate: lastCommitment.dueDate,
-      checkDate: checkDate,
-      needsExtension: needsExtensionCheck,
-      forced: monthsAhead < 0
-    });
     
     if (lastCommitment && needsExtensionCheck) {
       needsExtension.push({
@@ -384,7 +342,6 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     groups: needsExtension
   };
   
-  console.log('🎯 Resultado final:', result);
   
   return result;
 };

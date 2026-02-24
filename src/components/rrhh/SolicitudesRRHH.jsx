@@ -245,12 +245,10 @@ const SolicitudesRRHH = ({
         const filePath = pathMatch[1];
         const fileRef = ref(storage, filePath);
         await deleteObject(fileRef);
-        console.log('✅ Archivo eliminado de Storage:', filePath);
       }
     } catch (error) {
       // Si el archivo no existe (404), está bien - el objetivo ya se cumplió
       if (error.code === 'storage/object-not-found') {
-        console.log('ℹ️ Archivo ya no existe en Storage (previamente eliminado)');
       } else {
         // Solo loggear otros errores reales
         console.error('⚠️ Error al eliminar archivo de Storage:', error);
@@ -285,16 +283,12 @@ const SolicitudesRRHH = ({
   // Función auxiliar: Desencriptar PDF con contraseña
   const desencriptarPDF = async (file, password) => {
     try {
-      console.log(`🔐 Intentando desencriptar: ${file.name}`);
-      console.log(`🔑 Contraseña proporcionada: ${password ? '[PROPORCIONADA]' : '[VACÍA]'} (longitud: ${password.length})`);
       
       const fileBuffer = await file.arrayBuffer();
-      console.log(`📦 Buffer cargado: ${(fileBuffer.byteLength / 1024).toFixed(2)} KB`);
       
       // Fallback robusto: pdf-lib NO soporta todos los tipos de encriptación (AES/DRM)
       // Si pdf-lib falla, usamos PDF.js para desencriptar/renderizar y reempaquetar como PDF limpio.
       const desencriptarConPdfJs = async () => {
-        console.log('🧩 Fallback: desencriptando con PDF.js y rearmando PDF...');
         const data = new Uint8Array(fileBuffer);
 
         const loadingTask = pdfjsLib.getDocument({ data, password });
@@ -332,7 +326,6 @@ const SolicitudesRRHH = ({
           }
 
           const pdfBytes = await outputDoc.save();
-          console.log(`✅ PDF.js rearmó el PDF (${(pdfBytes.byteLength / 1024).toFixed(2)} KB)`);
 
           const blob = new Blob([pdfBytes], { type: 'application/pdf' });
           const desencriptado = new File([blob], file.name, {
@@ -368,14 +361,11 @@ const SolicitudesRRHH = ({
 
       let pdfDoc;
       try {
-        console.log(`🔓 Intentando con pdf-lib (password)...`);
         pdfDoc = await PDFDocument.load(fileBuffer, {
           password: password,
           updateMetadata: false
         });
-        console.log(`✅ pdf-lib cargó el PDF con contraseña.`);
       } catch (errorPdfLib) {
-        console.warn('⚠️ pdf-lib no pudo desencriptar. Intentando PDF.js...', errorPdfLib?.message);
         try {
           return await desencriptarConPdfJs();
         } catch (errorPdfJs) {
@@ -387,18 +377,15 @@ const SolicitudesRRHH = ({
         }
       }
       
-      console.log(`💾 Guardando PDF sin encriptación...`);
       
       // ESTRATEGIA UNIFICADA: SIEMPRE RECONSTRUIR EL PDF
       // Esto garantiza eliminar cualquier rastro de encriptación o metadata restrictiva
       // Copiamos las páginas a un documento nuevo y limpio
-      console.log(`🔧 Reconstruyendo PDF limpio (Sanitización)...`);
       const newPdfDoc = await PDFDocument.create();
       newPdfDoc.setCreator('DR Group System');
       newPdfDoc.setProducer('DR Group PDF Sanitizer');
       
       const pageCount = pdfDoc.getPageCount();
-      console.log(`📄 Copiando ${pageCount} página(s) al nuevo documento...`);
       
       // Copiar páginas del documento original (ya abierto) al nuevo documento
       const copiedPages = await newPdfDoc.copyPages(pdfDoc, Array.from({ length: pageCount }, (_, i) => i));
@@ -406,7 +393,6 @@ const SolicitudesRRHH = ({
       
       // Guardar el nuevo documento limpio
       const pdfBytes = await newPdfDoc.save();
-      console.log(`✅ PDF reconstruido exitosamente (${(pdfBytes.byteLength / 1024).toFixed(2)} KB)`);
       
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       
@@ -434,17 +420,12 @@ const SolicitudesRRHH = ({
         configurable: true
       });
       
-      console.log(`✅ PDF desencriptado exitosamente (Estrategia ${estrategiaExitosa}): ${file.name} (${(desencriptado.size / 1024).toFixed(2)} KB)`);
-      console.log(`✅ Archivo marcado con propiedades inmutables: _yaDesencriptado=true, _sinEncriptacion=true`);
       
       // Verificar que el PDF NO esté encriptado
       try {
-        console.log(`🔍 Verificación final: Intentando leer PDF guardado sin contraseña...`);
         const testBuffer = await desencriptado.arrayBuffer();
         await PDFDocument.load(testBuffer); // Si esto funciona, NO tiene contraseña
-        console.log(`✅ Verificación exitosa: PDF sin encriptación confirmado`);
       } catch (verifyError) {
-        console.warn(`⚠️ ADVERTENCIA: PDF guardado aún podría tener encriptación:`, verifyError.message);
       }
       
       return desencriptado;
@@ -478,7 +459,6 @@ const SolicitudesRRHH = ({
     try {
       // Caso base: Si ya procesamos todos, terminar y combinar
       if (currentIndex >= files.length) {
-        console.log(`📦 Todos los archivos procesados (${archivosProcesados.length}), combinando...`);
         const result = await procesarYCombinarArchivos(archivosProcesados, nombreBase);
         return result;
       }
@@ -489,11 +469,9 @@ const SolicitudesRRHH = ({
       const yaDesencriptado = file._yaDesencriptado || file._sinEncriptacion;
       
       if (file.type === 'application/pdf' && !yaDesencriptado) {
-        console.log(`🔍 Verificando archivo ${currentIndex + 1}/${files.length}: ${file.name}`);
         const tienePassword = await pdfTieneContrasena(file);
         
         if (tienePassword) {
-          console.log(`🔒 PDF con contraseña detectado: ${file.name}`);
           // Detener proceso y pedir contraseña
           return new Promise((resolve, reject) => {
             setPendingPasswordFile({ 
@@ -534,12 +512,10 @@ const SolicitudesRRHH = ({
       // Recuperar estado completo
       const { file, resolve, nombreBase, originalFiles, currentIndex, archivosProcesados } = pendingPasswordFile;
       
-      console.log(`🔐 Desencriptando archivo ${currentIndex + 1}...`);
       
       // Intentar desencriptar
       const archivoDesencriptado = await desencriptarPDF(file, pdfPassword);
       
-      console.log(`✅ Desencriptado. Reanudando cola desde índice ${currentIndex + 1}...`);
       
       // Cerrar modal y limpiar estado UI
       setOpenPasswordModal(false);
@@ -592,7 +568,6 @@ const SolicitudesRRHH = ({
   const handleSubirEncriptado = async () => {
     try {
       const { file, resolve, nombreBase, originalFiles, currentIndex, archivosProcesados } = pendingPasswordFile;
-      console.log(`⚠️ Saltando desencriptación para: ${file.name}`);
       
       // Cerrar modal
       setOpenPasswordModal(false);
@@ -619,11 +594,9 @@ const SolicitudesRRHH = ({
     if (!files || files.length === 0) return null;
 
     try {
-      console.log(`📄 Procesando ${files.length} archivo(s)...`);
 
       // Si es solo 1 archivo y ya es PDF, subirlo directamente sin procesamiento
       if (files.length === 1 && files[0].type === 'application/pdf') {
-        console.log('📄 Un solo PDF detectado, subida directa');
         return {
           blob: files[0],
           fileName: files[0].name,
@@ -633,7 +606,6 @@ const SolicitudesRRHH = ({
 
       // Si es solo 1 archivo imagen, convertirlo a PDF
       if (files.length === 1 && files[0].type.startsWith('image/')) {
-        console.log('🖼️ Una sola imagen detectada, convirtiendo a PDF...');
         const result = await combineFilesToPDF([files[0]], { title: nombreBase });
         return {
           blob: result.combinedPDF,
@@ -643,7 +615,6 @@ const SolicitudesRRHH = ({
       }
 
       // Si hay múltiples archivos (PDFs + imágenes), combinarlos
-      console.log('🔗 Múltiples archivos detectados, combinando en PDF...');
       const result = await combineFilesToPDF(files, { title: nombreBase });
       
       // Validar tamaño del PDF combinado (máx 25MB)
@@ -673,20 +644,10 @@ const SolicitudesRRHH = ({
     try {
       // Subir Incapacidad
       if (pendingFiles.incapacidad) {
-        console.log(`📄 Subiendo incapacidad a Storage...`, {
-          fileName: pendingFiles.incapacidad.fileName,
-          blobSize: `${(pendingFiles.incapacidad.blob.size / 1024).toFixed(2)} KB`,
-          blobType: pendingFiles.incapacidad.blob.type,
-          _yaDesencriptado: pendingFiles.incapacidad.blob._yaDesencriptado,
-          _sinEncriptacion: pendingFiles.incapacidad.blob._sinEncriptacion,
-          _estrategiaUsada: pendingFiles.incapacidad.blob._estrategiaUsada
-        });
         const storageRef = ref(storage, `incapacidades/${pendingFiles.incapacidad.fileName}`);
         await uploadBytes(storageRef, pendingFiles.incapacidad.blob);
         uploadedRefs.push(storageRef);
-        console.log(`✅ Archivo subido, obteniendo URL...`);
         urls.incapacidadURL = await getDownloadURL(storageRef);
-        console.log(`✅ URL obtenida: ${urls.incapacidadURL.substring(0, 80)}...`);
         nombres.incapacidadNombre = pendingFiles.incapacidad.stats 
           ? `${pendingFiles.incapacidad.stats.processedFiles} archivo(s) combinado(s)` 
           : pendingFiles.incapacidad.fileName;
@@ -694,17 +655,10 @@ const SolicitudesRRHH = ({
 
       // Subir Epicrisis
       if (pendingFiles.epicrisis) {
-        console.log(`📄 Subiendo epicrisis a Storage...`, {
-          fileName: pendingFiles.epicrisis.fileName,
-          blobSize: `${(pendingFiles.epicrisis.blob.size / 1024).toFixed(2)} KB`,
-          _yaDesencriptado: pendingFiles.epicrisis.blob._yaDesencriptado,
-          _sinEncriptacion: pendingFiles.epicrisis.blob._sinEncriptacion
-        });
         const storageRef = ref(storage, `licencias/${pendingFiles.epicrisis.fileName}`);
         await uploadBytes(storageRef, pendingFiles.epicrisis.blob);
         uploadedRefs.push(storageRef);
         urls.epicrisisURL = await getDownloadURL(storageRef);
-        console.log(`✅ Epicrisis subida: ${urls.epicrisisURL.substring(0, 80)}...`);
         nombres.epicrisisNombre = pendingFiles.epicrisis.stats 
           ? `${pendingFiles.epicrisis.stats.processedFiles} archivo(s) combinado(s)` 
           : pendingFiles.epicrisis.fileName;
@@ -712,17 +666,10 @@ const SolicitudesRRHH = ({
 
       // Subir Nacido Vivo
       if (pendingFiles.nacidoVivo) {
-        console.log(`📄 Subiendo nacido vivo a Storage...`, {
-          fileName: pendingFiles.nacidoVivo.fileName,
-          blobSize: `${(pendingFiles.nacidoVivo.blob.size / 1024).toFixed(2)} KB`,
-          _yaDesencriptado: pendingFiles.nacidoVivo.blob._yaDesencriptado,
-          _sinEncriptacion: pendingFiles.nacidoVivo.blob._sinEncriptacion
-        });
         const storageRef = ref(storage, `licencias/${pendingFiles.nacidoVivo.fileName}`);
         await uploadBytes(storageRef, pendingFiles.nacidoVivo.blob);
         uploadedRefs.push(storageRef);
         urls.nacidoVivoURL = await getDownloadURL(storageRef);
-        console.log(`✅ Nacido vivo subido: ${urls.nacidoVivoURL.substring(0, 80)}...`);
         nombres.nacidoVivoNombre = pendingFiles.nacidoVivo.stats 
           ? `${pendingFiles.nacidoVivo.stats.processedFiles} archivo(s) combinado(s)` 
           : pendingFiles.nacidoVivo.fileName;
@@ -730,17 +677,10 @@ const SolicitudesRRHH = ({
 
       // Subir Historia Clínica
       if (pendingFiles.historiaClinica) {
-        console.log(`📄 Subiendo historia clínica a Storage...`, {
-          fileName: pendingFiles.historiaClinica.fileName,
-          blobSize: `${(pendingFiles.historiaClinica.blob.size / 1024).toFixed(2)} KB`,
-          _yaDesencriptado: pendingFiles.historiaClinica.blob._yaDesencriptado,
-          _sinEncriptacion: pendingFiles.historiaClinica.blob._sinEncriptacion
-        });
         const storageRef = ref(storage, `licencias/${pendingFiles.historiaClinica.fileName}`);
         await uploadBytes(storageRef, pendingFiles.historiaClinica.blob);
         uploadedRefs.push(storageRef);
         urls.historiaClinicaURL = await getDownloadURL(storageRef);
-        console.log(`✅ Historia clínica subida: ${urls.historiaClinicaURL.substring(0, 80)}...`);
         nombres.historiaClinicaNombre = pendingFiles.historiaClinica.stats 
           ? `${pendingFiles.historiaClinica.stats.processedFiles} archivo(s) combinado(s)` 
           : pendingFiles.historiaClinica.fileName;
@@ -748,17 +688,10 @@ const SolicitudesRRHH = ({
 
       // Subir Registro Civil
       if (pendingFiles.registroCivil) {
-        console.log(`📄 Subiendo registro civil a Storage...`, {
-          fileName: pendingFiles.registroCivil.fileName,
-          blobSize: `${(pendingFiles.registroCivil.blob.size / 1024).toFixed(2)} KB`,
-          _yaDesencriptado: pendingFiles.registroCivil.blob._yaDesencriptado,
-          _sinEncriptacion: pendingFiles.registroCivil.blob._sinEncriptacion
-        });
         const storageRef = ref(storage, `licencias/${pendingFiles.registroCivil.fileName}`);
         await uploadBytes(storageRef, pendingFiles.registroCivil.blob);
         uploadedRefs.push(storageRef);
         urls.registroCivilURL = await getDownloadURL(storageRef);
-        console.log(`✅ Registro civil subido: ${urls.registroCivilURL.substring(0, 80)}...`);
         nombres.registroCivilNombre = pendingFiles.registroCivil.stats 
           ? `${pendingFiles.registroCivil.stats.processedFiles} archivo(s) combinado(s)` 
           : pendingFiles.registroCivil.fileName;
@@ -777,14 +710,11 @@ const SolicitudesRRHH = ({
                 await deleteObject(fileRef);
               } catch (deleteErr) {
                 if (deleteErr?.code !== 'storage/object-not-found') {
-                  console.warn('⚠️ No se pudo limpiar archivo parcial:', deleteErr);
                 }
               }
             })
           );
-          console.log(`🧹 Rollback completo: ${uploadedRefs.length} archivo(s) eliminado(s) de Storage`);
         } catch (rollbackErr) {
-          console.warn('⚠️ Rollback incompleto de archivos parciales:', rollbackErr);
         }
       }
 
@@ -883,19 +813,10 @@ const SolicitudesRRHH = ({
       const empleado = empleados.find(e => e.id === formSolicitud.empleadoId);
       
       // 🚀 PASO 1: Subir archivos pendientes a Storage antes de crear la solicitud
-      console.log(`🚀 PASO 1: Verificando archivos pendientes...`, {
-        tieneIncapacidad: !!pendingFiles.incapacidad,
-        tieneEpicrisis: !!pendingFiles.epicrisis,
-        tieneNacidoVivo: !!pendingFiles.nacidoVivo,
-        tieneHistoriaClinica: !!pendingFiles.historiaClinica,
-        tieneRegistroCivil: !!pendingFiles.registroCivil
-      });
       let uploadedFiles = { urls: {}, nombres: {} };
       if (!editingSolicitudId && (pendingFiles.incapacidad || pendingFiles.epicrisis || pendingFiles.nacidoVivo || pendingFiles.historiaClinica || pendingFiles.registroCivil)) {
-        console.log(`📤 Iniciando subida de archivos pendientes...`);
         try {
           uploadedFiles = await subirArchivosPendientes(formSolicitud.empleadoId);
-          console.log(`✅ Archivos subidos exitosamente:`, uploadedFiles);
         } catch (error) {
           console.error('❌ Error al subir archivos adjuntos:', error);
           showToast('Error al subir archivos adjuntos', 'error');
@@ -1166,7 +1087,6 @@ const SolicitudesRRHH = ({
           await Promise.all(
             archivosAEliminar.map(url => eliminarArchivoStorage(url))
           );
-          console.log(`🗑️ ${archivosAEliminar.length} archivo(s) eliminado(s) de Storage`);
         }
       }
       
@@ -2512,13 +2432,6 @@ const SolicitudesRRHH = ({
                               if (!result) throw new Error('Error al procesar archivos');
 
                               // 🎯 Guardar en memoria (NO subir a Storage aún)
-                              console.log(`💾 Guardando en pendingFiles.epicrisis:`, {
-                                tieneBlob: !!result?.blob,
-                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
-                                fileName: result?.fileName,
-                                _yaDesencriptado: result?.blob?._yaDesencriptado,
-                                _sinEncriptacion: result?.blob?._sinEncriptacion
-                              });
                               setPendingFiles(prev => ({
                                 ...prev,
                                 epicrisis: result
@@ -2615,13 +2528,6 @@ const SolicitudesRRHH = ({
                               if (!result) throw new Error('Error al procesar archivos');
 
                               // 🎯 Guardar en memoria (NO subir a Storage aún)
-                              console.log(`💾 Guardando en pendingFiles.nacidoVivo:`, {
-                                tieneBlob: !!result?.blob,
-                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
-                                fileName: result?.fileName,
-                                _yaDesencriptado: result?.blob?._yaDesencriptado,
-                                _sinEncriptacion: result?.blob?._sinEncriptacion
-                              });
                               setPendingFiles(prev => ({
                                 ...prev,
                                 nacidoVivo: result
@@ -2718,13 +2624,6 @@ const SolicitudesRRHH = ({
                               if (!result) throw new Error('Error al procesar archivos');
 
                               // 🎯 Guardar en memoria (NO subir a Storage aún)
-                              console.log(`💾 Guardando en pendingFiles.historiaClinica:`, {
-                                tieneBlob: !!result?.blob,
-                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
-                                fileName: result?.fileName,
-                                _yaDesencriptado: result?.blob?._yaDesencriptado,
-                                _sinEncriptacion: result?.blob?._sinEncriptacion
-                              });
                               setPendingFiles(prev => ({
                                 ...prev,
                                 historiaClinica: result
@@ -2821,13 +2720,6 @@ const SolicitudesRRHH = ({
                               if (!result) throw new Error('Error al procesar archivos');
 
                               // 🎯 Guardar en memoria (NO subir a Storage aún)
-                              console.log(`💾 Guardando en pendingFiles.registroCivil:`, {
-                                tieneBlob: !!result?.blob,
-                                blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
-                                fileName: result?.fileName,
-                                _yaDesencriptado: result?.blob?._yaDesencriptado,
-                                _sinEncriptacion: result?.blob?._sinEncriptacion
-                              });
                               setPendingFiles(prev => ({
                                 ...prev,
                                 registroCivil: result
@@ -3045,16 +2937,6 @@ const SolicitudesRRHH = ({
                         if (!result) throw new Error('Error al procesar archivos');
 
                         // 🎯 Guardar en memoria (NO subir a Storage aún)
-                        console.log(`💾 Guardando en pendingFiles.incapacidad:`, {
-                          tieneBlob: !!result?.blob,
-                          tieneFileName: !!result?.fileName,
-                          blobSize: result?.blob ? `${(result.blob.size / 1024).toFixed(2)} KB` : 'N/A',
-                          fileName: result?.fileName,
-                          blobType: result?.blob?.type,
-                          _yaDesencriptado: result?.blob?._yaDesencriptado,
-                          _sinEncriptacion: result?.blob?._sinEncriptacion,
-                          _estrategiaUsada: result?.blob?._estrategiaUsada
-                        });
                         setPendingFiles(prev => ({
                           ...prev,
                           incapacidad: result

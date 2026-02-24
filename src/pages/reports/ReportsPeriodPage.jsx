@@ -97,24 +97,9 @@ const ReportsPeriodPage = () => {
   // 🐛 DEBUG: Logging de datos recibidos
   useEffect(() => {
     if (commitments && commitments.length > 0) {
-      console.log('🔥 DATOS DE COMPROMISOS RECIBIDOS:', {
-        total: commitments.length,
-        primeros3: commitments.slice(0, 3).map(c => ({
-          id: c.id,
-          amount: c.amount,
-          totalAmount: c.totalAmount,
-          createdAt: c.createdAt,
-          dueDate: c.dueDate,
-          companyId: c.companyId
-        }))
-      });
     }
     
     if (companies && companies.length > 0) {
-      console.log('🏢 DATOS DE EMPRESAS RECIBIDOS:', {
-        total: companies.length,
-        nombres: companies.slice(0, 5).map(c => c.name)
-      });
     }
   }, [commitments, companies]);
 
@@ -149,7 +134,6 @@ const ReportsPeriodPage = () => {
       customEndDate
     };
 
-    console.log('🎯 Aplicando filtros a compromisos:', filters);
 
     return commitments.filter(commitment => {
       // Filtro por término de búsqueda
@@ -210,12 +194,9 @@ const ReportsPeriodPage = () => {
     const filteredCommitments = getFilteredCommitments;
     
     if (!filteredCommitments || filteredCommitments.length === 0) {
-      console.log('⏳ Esperando datos de compromisos filtrados...');
       return [];
     }
     
-    console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis mensual...`);
-    console.log(`� Rango de fechas: ${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`);
     
     const months = [];
     
@@ -235,7 +216,6 @@ const ReportsPeriodPage = () => {
         ? endDate 
         : monthEnd;
       
-      console.log(`📅 Buscando compromisos para ${currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })} (${rangeStart.toLocaleDateString('es-ES')} - ${rangeEnd.toLocaleDateString('es-ES')})`);
       
       // 🔄 USAR dueDate (fecha de vencimiento) para clasificar compromisos por período
       const monthCommitments = filteredCommitments.filter(c => {
@@ -245,7 +225,6 @@ const ReportsPeriodPage = () => {
         return dueDate >= rangeStart && dueDate <= rangeEnd;
       });
       
-      console.log(`✅ ${currentMonth.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}: ${monthCommitments.length} compromisos encontrados`);
       
       // Calcular monto total usando totalAmount o amount
       const totalAmount = monthCommitments.reduce((sum, c) => {
@@ -289,8 +268,6 @@ const ReportsPeriodPage = () => {
       currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
     
-    console.log(`✅ Análisis mensual completado: ${months.length} períodos procesados`);
-    console.log('📈 Resumen por mes:', months.map(m => `${m.period}: ${m.commitments} compromisos`));
     return months;
   }, [getFilteredCommitments, startDate, endDate]);
 
@@ -299,12 +276,9 @@ const ReportsPeriodPage = () => {
     const filteredCommitments = getFilteredCommitments;
     
     if (!filteredCommitments || filteredCommitments.length === 0) {
-      console.log('⏳ Esperando datos de compromisos filtrados para análisis semanal...');
       return [];
     }
     
-    console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis semanal...`);
-    console.log(`📅 Rango de fechas semanal: ${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`);
     const weeks = [];
     
     // Generar semanas dinámicamente basadas en startDate y endDate
@@ -323,7 +297,6 @@ const ReportsPeriodPage = () => {
       // Ajustar si el final de semana excede endDate
       const actualWeekEnd = weekEnd > endDate ? endDate : weekEnd;
       
-      console.log(`📅 Semana ${weekNumber}: ${currentWeekStart.toLocaleDateString('es-ES')} - ${actualWeekEnd.toLocaleDateString('es-ES')}`);
       
       // 🔄 Usar dueDate (fecha de vencimiento) para consistencia con análisis mensual
       const weekCommitments = filteredCommitments.filter(c => {
@@ -331,7 +304,6 @@ const ReportsPeriodPage = () => {
         return dueDate >= currentWeekStart && dueDate <= actualWeekEnd;
       });
       
-      console.log(`📊 Semana ${weekNumber}: ${weekCommitments.length} compromisos encontrados`);
       
       const totalAmount = weekCommitments.reduce((sum, c) => {
         const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
@@ -375,8 +347,6 @@ const ReportsPeriodPage = () => {
       weekNumber++;
     }
     
-    console.log(`✅ Análisis semanal completado: ${weeks.length} períodos procesados`);
-    console.log('📈 Resumen por semana:', weeks.map(w => `${w.period}: ${w.commitments} compromisos`));
     return weeks;
   }, [getFilteredCommitments, startDate, endDate]);
 
@@ -737,17 +707,10 @@ const ReportsPeriodPage = () => {
   // 🐛 DEBUG: Logging de estadísticas calculadas
   useEffect(() => {
     if (currentData && currentData.length > 0) {
-      console.log('📊 ESTADÍSTICAS CALCULADAS:', {
-        totalPeriods: currentData.length,
-        stats: stats,
-        periodType: periodType,
-        sampleData: currentData.slice(0, 3)
-      });
     }
   }, [currentData, stats, periodType]);
 
   const exportReport = async () => {
-    console.log('🚀 Iniciando exportación de reporte temporal...');
     
     try {
       // 📝 Registrar actividad de auditoría - Exportación de reporte
@@ -1159,8 +1122,6 @@ const ReportsPeriodPage = () => {
       
       saveAs(blob, fileName);
       
-      console.log(`✅ Reporte temporal exportado exitosamente: ${fileName}`);
-      console.log(`📊 Estadísticas: ${currentData.length} períodos, ${stats.totalCommitments} compromisos, ${formatCurrency(stats.totalAmount)} monto total`);
 
     } catch (logError) {
       console.error('❌ Error exportando reporte temporal:', logError);
@@ -1187,12 +1148,6 @@ const ReportsPeriodPage = () => {
       isAnimationActive: false
     };
 
-    console.log('🔍 DEBUG renderPeriodChart:', {
-      chartType,
-      dataLength: data?.length,
-      firstDataItem: data?.[0],
-      colors: colors.slice(0, 3)
-    });
 
     switch (chartType) {
       case 'area':
@@ -1329,12 +1284,6 @@ const ReportsPeriodPage = () => {
       isAnimationActive: false
     };
 
-    console.log('🔍 DEBUG renderCommitmentChart:', {
-      chartType,
-      dataLength: data?.length,
-      firstDataItem: data?.[0],
-      colors: colors.slice(0, 3)
-    });
 
     switch (chartType) {
       case 'area':
@@ -1583,7 +1532,6 @@ const ReportsPeriodPage = () => {
                   const newDate = new Date(e.target.value);
                   if (!isNaN(newDate.getTime())) {
                     setStartDate(newDate);
-                    console.log('📅 Fecha inicio actualizada:', newDate.toLocaleDateString('es-ES'));
                   }
                 }}
                 InputLabelProps={{
@@ -1605,7 +1553,6 @@ const ReportsPeriodPage = () => {
                   const newDate = new Date(e.target.value);
                   if (!isNaN(newDate.getTime())) {
                     setEndDate(newDate);
-                    console.log('📅 Fecha fin actualizada:', newDate.toLocaleDateString('es-ES'));
                   }
                 }}
                 InputLabelProps={{
@@ -1622,10 +1569,6 @@ const ReportsPeriodPage = () => {
               <Button
                 variant="contained"
                 onClick={() => {
-                  console.log('✅ Aplicando filtros de fecha:', {
-                    inicio: startDate.toLocaleDateString('es-ES'),
-                    fin: endDate.toLocaleDateString('es-ES')
-                  });
                   // Los datos se actualizan automáticamente por los useMemo que dependen de startDate/endDate
                 }}
                 sx={{

@@ -124,12 +124,10 @@ const CommitmentsPage = () => {
   };
 
   const handleDateRangeChange = (value) => {
-    console.log('🗓️ [PAGE] *** handleDateRangeChange received ***:', value);
     setDateRangeFilter(value);
   };
 
   const handleCustomDateRangeChange = (startDate, endDate) => {
-    console.log('🗓️ [PAGE] *** handleCustomDateRangeChange received ***:', { startDate, endDate });
     setCustomStartDate(startDate);
     setCustomEndDate(endDate);
   };
@@ -140,13 +138,6 @@ const CommitmentsPage = () => {
 
   // ✅ NUEVAS FUNCIONES PARA SISTEMA DE FILTROS
   const handleApplyFilters = () => {
-    console.log('🎯 [PAGE] Aplicando filtros:', {
-      companyFilter,
-      conceptFilter,
-      beneficiaryFilter,
-      statusFilter,
-      dateRangeFilter
-    });
     setAppliedFilters({
       searchTerm,
       companyFilter,
@@ -161,7 +152,6 @@ const CommitmentsPage = () => {
   };
 
   const handleClearFilters = () => {
-    console.log('🧹 [PAGE] *** CLEAR FILTERS ACTION ***');
     setSearchTerm('');
     setCompanyFilter([]);
     setStatusFilter('all');

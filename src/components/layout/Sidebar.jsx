@@ -90,7 +90,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         }
       }
     } catch (error) {
-      console.warn('Error leyendo photoURL desde cache:', error);
     }
     
     // Fallback a Auth o default

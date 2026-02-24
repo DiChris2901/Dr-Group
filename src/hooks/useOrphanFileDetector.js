@@ -19,7 +19,6 @@ export const useOrphanFileDetector = () => {
 
   // Función optimizada para obtener todos los archivos del Storage
   const scanStorageFiles = useCallback(async (onProgress = () => {}) => {
-    console.log('🔍 Iniciando escaneo de archivos en Storage...');
     
     const files = [];
     let totalSize = 0;
@@ -60,7 +59,6 @@ export const useOrphanFileDetector = () => {
               contentType: metadata.contentType
             };
           } catch (error) {
-            console.warn(`⚠️ Error procesando archivo ${fileRef.fullPath}:`, error);
             return null;
           }
         });
@@ -94,7 +92,6 @@ export const useOrphanFileDetector = () => {
                 totalSize += subfolderFiles.reduce((sum, f) => sum + f.size, 0);
               }
             } catch (error) {
-              console.warn(`⚠️ Error procesando subcarpeta ${subfolderRef.fullPath}:`, error);
             }
           }
           
@@ -102,13 +99,11 @@ export const useOrphanFileDetector = () => {
           onProgress((processedFolders / folders.length) * 50); // 50% del progreso total
           
         } catch (error) {
-          console.warn(`⚠️ Error procesando carpeta ${folder}:`, error);
           processedFolders++;
           onProgress((processedFolders / folders.length) * 50);
         }
       }
       
-      console.log(`✅ Escaneo de Storage completado: ${files.length} archivos, ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
       setTotalStorageSize(totalSize);
       return files;
     } catch (error) {
@@ -119,7 +114,6 @@ export const useOrphanFileDetector = () => {
 
   // Función optimizada para obtener referencias de archivos en Firestore
   const scanFirestoreReferences = useCallback(async (onProgress = () => {}) => {
-    console.log('🔍 Iniciando escaneo de referencias en Firestore...');
     
     const references = new Set();
     // ✅ FIXED: Agregada colección 'incomes' que también maneja attachments
@@ -140,7 +134,6 @@ export const useOrphanFileDetector = () => {
           if (pathMatch) {
             const decodedPath = decodeURIComponent(pathMatch[1]);
             // Solo log en modo debug
-            // console.log(`🔍 Path extraído: ${url} -> ${decodedPath}`);
             return decodedPath;
           }
           
@@ -149,11 +142,9 @@ export const useOrphanFileDetector = () => {
           if (altMatch) {
             const decodedPath = decodeURIComponent(altMatch[1]);
             // Solo log en modo debug
-            // console.log(`🔍 Path extraído (alt): ${url} -> ${decodedPath}`);
             return decodedPath;
           }
         } catch (error) {
-          console.warn(`⚠️ Error extrayendo path de URL: ${url}`, error);
         }
         
         return null;
@@ -170,7 +161,6 @@ export const useOrphanFileDetector = () => {
           const filePath = extractFilePathFromUrl(data);
           if (filePath) {
             urls.push(filePath);
-            console.log(`📎 URL encontrada en ${path}: ${filePath}`);
           }
         }
         // Si es array, procesar cada elemento
@@ -186,37 +176,31 @@ export const useOrphanFileDetector = () => {
             const filePath = extractFilePathFromUrl(data.url);
             if (filePath) {
               urls.push(filePath);
-              console.log(`📎 URL encontrada en ${path}.url: ${filePath}`);
             }
           }
           if (data.downloadURL && typeof data.downloadURL === 'string') {
             const filePath = extractFilePathFromUrl(data.downloadURL);
             if (filePath) {
               urls.push(filePath);
-              console.log(`📎 DownloadURL encontrada en ${path}.downloadURL: ${filePath}`);
             }
           }
           if (data.path && typeof data.path === 'string' && data.path.includes('/')) {
             // Path directo al archivo
             urls.push(data.path);
-            console.log(`📎 Path directo encontrado en ${path}.path: ${data.path}`);
           }
           
           // ✅ CAMPOS ESPECÍFICOS PARA LIQUIDACIONES - CRÍTICO
           if (data.nombreStorage && typeof data.nombreStorage === 'string') {
             // Este campo contiene la ruta completa del archivo en Storage
             urls.push(data.nombreStorage);
-            console.log(`📁 Archivo de liquidación encontrado en ${path}.nombreStorage: ${data.nombreStorage}`);
           }
           if (data.fileName && typeof data.fileName === 'string' && data.fileName.includes('/')) {
             // Otro campo posible para rutas de archivo
             urls.push(data.fileName);
-            console.log(`📁 Archivo encontrado en ${path}.fileName: ${data.fileName}`);
           }
           
           // ✅ CASOS ESPECÍFICOS PARA FACTURAS
           if (path.includes('invoice') || path.includes('Invoice')) {
-            console.log(`🧾 Procesando campo de factura: ${path}`, data);
           }
           
           // Procesar todos los campos del objeto recursivamente
@@ -233,7 +217,6 @@ export const useOrphanFileDetector = () => {
 
       for (const collectionName of collections) {
         try {
-          console.log(`🔍 Escaneando colección: ${collectionName}`);
           const q = query(collection(db, collectionName));
           const snapshot = await getDocs(q);
           
@@ -250,19 +233,16 @@ export const useOrphanFileDetector = () => {
             totalFoundUrls += foundUrls.length;
           });
           
-          console.log(`✅ ${collectionName}: ${documentsProcessed} documentos, ${totalFoundUrls} referencias encontradas`);
           
           processedCollections++;
           onProgress(50 + (processedCollections / collections.length) * 30); // 30% del progreso total
           
         } catch (error) {
-          console.warn(`⚠️ Error escaneando colección ${collectionName}:`, error);
           processedCollections++;
           onProgress(50 + (processedCollections / collections.length) * 30);
         }
       }
       
-      console.log(`✅ Escaneo de Firestore completado: ${references.size} referencias encontradas`);
       return references;
     } catch (error) {
       console.error('❌ Error escaneando Firestore:', error);
@@ -294,9 +274,6 @@ export const useOrphanFileDetector = () => {
       
       // Paso 3: Identificar archivos huérfanos con comparación mejorada
       setScanProgress(85);
-      console.log('🔍 Iniciando identificación de archivos huérfanos...');
-      console.log(`📁 Total archivos en Storage: ${files.length}`);
-      console.log(`📋 Total referencias en Firestore: ${references.size}`);
       
       // ✅ IMPROVED: Comparación más robusta para detectar huérfanos
       const orphans = files.filter(file => {
@@ -305,7 +282,6 @@ export const useOrphanFileDetector = () => {
         
         // Verificar si existe una referencia exacta
         if (references.has(normalizedFilePath)) {
-          console.log(`✅ Archivo referenciado (exacto): ${normalizedFilePath}`);
           return false; // No es huérfano
         }
         
@@ -327,7 +303,6 @@ export const useOrphanFileDetector = () => {
         });
         
         if (hasReference) {
-          console.log(`✅ Archivo con referencia similar: ${normalizedFilePath}`);
           return false; // No es huérfano
         }
         
@@ -343,27 +318,19 @@ export const useOrphanFileDetector = () => {
                                    file.name.includes('.xls'));
         
         if (isLiquidacionFile && !isObviousOrphan) {
-          console.log(`⚠️ Archivo de liquidación detectado como posible huérfano, pero podría estar referenciado: ${normalizedFilePath}`);
-          console.log(`🔍 Referencias disponibles para verificación:`, Array.from(references).filter(ref => 
-            ref.includes(file.name) || ref.endsWith(normalizedFilePath.split('/').pop())
-          ));
           
           // Solo marcar como huérfano si es obviamente temporal/corrupto
           if (isObviousOrphan) {
-            console.log(`❌ Archivo de liquidación huérfano obvio: ${normalizedFilePath}`);
             return true;
           } else {
-            console.log(`⚠️ Archivo de liquidación sospechoso pero protegido: ${normalizedFilePath}`);
             return false; // Proteger archivos de liquidación válidos
           }
         }
         
         if (isObviousOrphan) {
-          console.log(`❌ Archivo huérfano obvio detectado: ${normalizedFilePath}`);
           return true;
         }
         
-        console.log(`❌ Archivo huérfano detectado: ${normalizedFilePath}`);
         return true; // Es huérfano
       });
       
@@ -434,7 +401,6 @@ export const useOrphanFileDetector = () => {
             message: 'Archivo eliminado exitosamente'
           });
           
-          console.log(`✅ Archivo eliminado: ${filePath}`);
           
         } catch (error) {
           results.errors++;

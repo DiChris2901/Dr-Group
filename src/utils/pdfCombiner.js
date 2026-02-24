@@ -36,7 +36,6 @@ export class EnterprisePDFCombiner {
    */
   async combineFiles(files, metadata = {}) {
     try {
-      console.log('🔄 Iniciando combinación de archivos...', files.length);
       const startTime = performance.now();
 
       // Crear nuevo documento PDF
@@ -55,7 +54,6 @@ export class EnterprisePDFCombiner {
       // Procesar cada archivo
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        console.log(`📄 Procesando archivo ${i + 1}/${files.length}: ${file.name}`);
 
         try {
           if (file.type === 'application/pdf') {
@@ -91,7 +89,6 @@ export class EnterprisePDFCombiner {
         compressionRatio: this.calculateCompressionRatio(files, combinedBlob)
       };
 
-      console.log('✅ Combinación completada:', stats);
 
       return {
         combinedPDF: combinedBlob,
@@ -125,7 +122,6 @@ export class EnterprisePDFCombiner {
         }
       });
 
-      console.log(`📄 PDF agregado: ${copiedPages.length} páginas`);
       return copiedPages.length;
 
     } catch (error) {
@@ -195,7 +191,6 @@ export class EnterprisePDFCombiner {
         this.addPageNumber(page, currentPageCount + 1);
       }
 
-      console.log(`🖼️ Imagen agregada: ${fileName}`);
       return 1; // Una página agregada
 
     } catch (error) {

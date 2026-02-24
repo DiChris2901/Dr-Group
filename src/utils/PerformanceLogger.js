@@ -26,7 +26,6 @@ class PerformanceLogger {
     this.metrics.totalOperations++;
     
     if (this.isDev) {
-      console.log(`🔥 Firebase Read: ${operation} (${count} docs) - Total reads: ${this.metrics.firebaseReads}`);
     }
   }
 
@@ -41,7 +40,6 @@ class PerformanceLogger {
     
     if (this.isDev) {
       const hitRate = ((this.metrics.cacheHits / this.metrics.totalOperations) * 100).toFixed(1);
-      console.log(`⚡ Cache Hit: ${cacheType} (${key}) - Hit rate: ${hitRate}%`);
     }
   }
 
@@ -53,7 +51,6 @@ class PerformanceLogger {
     this.metrics.debounceEvents++;
     
     if (this.isDev) {
-      console.log(`⏱️ Debounce Event: ${filterType} - Total saved: ${this.metrics.debounceEvents}`);
     }
   }
 
@@ -84,12 +81,6 @@ class PerformanceLogger {
     
     const summary = this.getSummary();
     console.group('🚀 OPTIMIZACIÓN FIREBASE - REPORTE DE SESIÓN');
-    console.log('⏱️  Duración:', summary.sessionDuration);
-    console.log('🔥 Firebase Reads:', summary.firebaseReads);
-    console.log('⚡ Cache Hits:', summary.cacheHits);
-    console.log('📊 Hit Rate:', summary.hitRate);
-    console.log('⏳ Debounce Events:', summary.debounceEvents);
-    console.log('🎯 Ops/sec:', summary.operationsPerSecond);
     console.groupEnd();
   }
 

@@ -8,12 +8,12 @@ import Constants from 'expo-constants';
 
 // Firebase configuration desde variables de entorno
 const firebaseConfig = {
-  apiKey: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyDpjCcOe4CRvAdeClCskt0-jLQeXGf62tY",
+  apiKey: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAB8H1NhXGln2YTvsH3lcL47tPzK0foXWw",
   authDomain: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "dr-group-cd21b.firebaseapp.com",
   projectId: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "dr-group-cd21b",
   storageBucket: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "dr-group-cd21b.firebasestorage.app",
-  messagingSenderId: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "629470690851",
-  appId: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_APP_ID || "1:629470690851:web:cbda5f4b29c0a93bb17e97",
+  messagingSenderId: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "526970184316",
+  appId: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_APP_ID || "1:526970184316:web:ff36ddc99909c1dbf41ff9",
   databaseURL: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_DATABASE_URL || "https://dr-group-cd21b-default-rtdb.firebaseio.com"
 };
 

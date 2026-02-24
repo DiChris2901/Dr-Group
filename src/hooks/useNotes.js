@@ -48,7 +48,6 @@ export const useNotes = () => {
           });
         });
 
-        console.log('📝 Notas cargadas:', notesData.length);
         setNotes(notesData);
         setLoading(false);
         setError(null);
@@ -78,7 +77,6 @@ export const useNotes = () => {
       };
 
       const docRef = await addDoc(collection(db, 'notes'), newNote);
-      console.log('✅ Nota creada:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error creating note:', error);
@@ -100,7 +98,6 @@ export const useNotes = () => {
       };
 
       await updateDoc(noteRef, updatedData);
-      console.log('✅ Nota actualizada:', noteId);
     } catch (error) {
       console.error('Error updating note:', error);
       throw error;
@@ -116,7 +113,6 @@ export const useNotes = () => {
     try {
       const noteRef = doc(db, 'notes', noteId);
       await deleteDoc(noteRef);
-      console.log('✅ Nota eliminada:', noteId);
     } catch (error) {
       console.error('Error deleting note:', error);
       throw error;

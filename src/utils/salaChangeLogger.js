@@ -424,7 +424,6 @@ export const logSalaChange = async (salaId, salaName, oldData, newData, user, re
       );
       
       await Promise.all(changePromises);
-      console.log(`✅ ${changes.length} cambio(s) registrado(s) en sala: ${salaName}`);
       return { success: true, changesCount: changes.length };
     }
 
@@ -458,7 +457,6 @@ export const logSalaCreation = async (salaId, salaName, salaData, user) => {
       }
     });
 
-    console.log(`✅ Creación de sala registrada: ${salaName}`);
   } catch (error) {
     console.error('❌ Error registrando creación de sala:', error);
     throw error;
@@ -472,7 +470,6 @@ export const deleteSalaChange = async (changeId) => {
   try {
     const { doc, deleteDoc } = await import('firebase/firestore');
     await deleteDoc(doc(db, 'sala_changes', changeId));
-    console.log(`✅ Registro de cambio eliminado: ${changeId}`);
     return { success: true };
   } catch (error) {
     console.error('❌ Error eliminando registro de cambio:', error);

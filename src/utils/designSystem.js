@@ -382,7 +382,6 @@ export const typography = {
 // Función para debugear estilos en desarrollo
 export const debugStyle = (label) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(`🎨 Design System Debug: ${label}`);
   }
   return {};
 };
@@ -393,7 +392,6 @@ export const validateDesignSystemProps = (props, componentName) => {
     const requiredProps = ['theme'];
     requiredProps.forEach(prop => {
       if (!props[prop]) {
-        console.warn(`⚠️ Design System: ${componentName} requires ${prop} prop`);
       }
     });
   }

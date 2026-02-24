@@ -95,26 +95,6 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
 
       // 🐛 DEBUG: Log para verificar estructura de datos
       if (stats.total < 3) { // Solo los primeros 3 para no saturar la consola
-        console.log('🔍 DEBUG Compromiso:', {
-          id: commitment.id,
-          status: commitment.status,
-          paymentStatus: commitment.paymentStatus,
-          paid: commitment.paid,
-          isPaid: commitment.isPaid,
-          concept: commitment.concept,
-          dueDate: dueDate.toISOString(),
-          isOverdue: dueDate < new Date(),
-          willBeClassifiedAs: (() => {
-            const isCompleted = commitment.status === 'completed' || commitment.status === 'paid';
-            const isPaidByPaymentStatus = commitment.paymentStatus === 'paid' || commitment.paymentStatus === 'Pagado' || commitment.paymentStatus === 'pagado';
-            const isPaidByFlag = commitment.paid === true || commitment.isPaid === true;
-            
-            if (isCompleted || isPaidByPaymentStatus || isPaidByFlag) return 'COMPLETADOS';
-            else if (dueDate < new Date()) return 'VENCIDOS';
-            else if (dueDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) return 'PRÓXIMOS';
-            else return 'AL DÍA';
-          })()
-        });
       }
 
       // Compromisos de este mes

@@ -502,7 +502,6 @@ const ActivityLogsPage = () => {
       {/* Configuración de alertas - Fase 2 */}
       {showAlerts && (
         <ActivityAlertsConfig onConfigSave={(config) => {
-          console.log('Configuración de alertas guardada:', config);
           addNotification({
             type: 'success',
             message: 'Configuración de alertas guardada exitosamente'

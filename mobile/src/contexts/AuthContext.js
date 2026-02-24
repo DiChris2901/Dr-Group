@@ -311,13 +311,24 @@ export const AuthProvider = ({ children }) => {
       // � CAPA 1: Verificar caché local PRIMERO (más rápido y funciona offline)
       const cachedSession = await checkTodaySessionInCache(user.uid, todayStr);
       if (cachedSession) {
-        console.log('✅ Registro encontrado en caché, cargando sesión existente...');
+        console.log('✅ Registro encontrado en caché, verificando estado...');
         try {
           const docSnap = await getDoc(doc(db, 'asistencias', cachedSession.sessionId));
           if (docSnap.exists()) {
             const sessionData = { id: docSnap.id, ...docSnap.data() };
-            setActiveSession(sessionData);
-            return { success: true, sessionId: docSnap.id, resumed: true, fromCache: true };
+            
+            // ✅ Si la sesión está FINALIZADA, NO reanudar silenciosamente
+            // Dejar que la validación de Firestore abajo lance el error correcto
+            // para que DashboardScreen ofrezca la opción de reapertura
+            if (sessionData.salida || sessionData.estadoActual === 'finalizado') {
+              console.log('⚠️ Sesión en caché está finalizada, continuando a validación...');
+              // Actualizar activeSession para que la UI refleje el estado
+              setActiveSession(sessionData);
+              // NO retornar - continuar al flujo de validación de Firestore
+            } else {
+              setActiveSession(sessionData);
+              return { success: true, sessionId: docSnap.id, resumed: true, fromCache: true };
+            }
           }
         } catch (e) {
           console.warn('No se pudo cargar sesión desde Firestore, continuando...');
@@ -760,7 +771,7 @@ export const AuthProvider = ({ children }) => {
         logger.debug('NotificationsContext no disponible aún');
       }
 
-      return { success: true, sessionId: asistenciaRef.id };
+      return { success: true, sessionId };
     } catch (error) {
       // Solo loguear como error si NO es el caso controlado de jornada finalizada
       if (!error.message.includes('Ya finalizaste tu jornada')) {
@@ -786,8 +797,9 @@ export const AuthProvider = ({ children }) => {
     }
     actionInProgressRef.current = true;
 
-    // ✅ Validar máximo 2 breaks
-    if (activeSession.breaks && activeSession.breaks.length >= 2) {
+    // ✅ Validar máximo 2 breaks (sin contar gap breaks de reapertura)
+    const realBreaks = activeSession.breaks ? activeSession.breaks.filter(b => b.tipo !== 'reapertura_gap') : [];
+    if (realBreaks.length >= 2) {
       actionInProgressRef.current = false;
       throw new Error('Has alcanzado el límite máximo de 2 breaks por día.');
     }
@@ -1202,13 +1214,24 @@ export const AuthProvider = ({ children }) => {
       let tiempoDescansoMs = 0;
       
       activeSession.breaks.forEach(b => {
-        if (b.duracion && typeof b.duracion === 'string' && b.duracion.includes(':')) {
+        // Prioridad 1: Calcular desde timestamps (más preciso, incluye gap breaks de reapertura)
+        if (b.inicio && b.fin) {
+          const inicioBreak = b.inicio.toDate ? b.inicio.toDate() : new Date(b.inicio);
+          const finBreak = b.fin.toDate ? b.fin.toDate() : new Date(b.fin);
+          tiempoDescansoMs += (finBreak - inicioBreak);
+        }
+        // Prioridad 2: Fallback a campo duracion string (compatibilidad)
+        else if (b.duracion && typeof b.duracion === 'string' && b.duracion.includes(':')) {
           const [h, m, s] = b.duracion.split(':').map(Number);
           tiempoDescansoMs += (h * 60 * 60 + m * 60 + s) * 1000;
         }
       });
       
-      if (activeSession.almuerzo?.duracion && typeof activeSession.almuerzo.duracion === 'string' && activeSession.almuerzo.duracion.includes(':')) {
+      if (activeSession.almuerzo?.inicio && activeSession.almuerzo?.fin) {
+        const inicioAlmuerzo = activeSession.almuerzo.inicio.toDate ? activeSession.almuerzo.inicio.toDate() : new Date(activeSession.almuerzo.inicio);
+        const finAlmuerzo = activeSession.almuerzo.fin.toDate ? activeSession.almuerzo.fin.toDate() : new Date(activeSession.almuerzo.fin);
+        tiempoDescansoMs += (finAlmuerzo - inicioAlmuerzo);
+      } else if (activeSession.almuerzo?.duracion && typeof activeSession.almuerzo.duracion === 'string' && activeSession.almuerzo.duracion.includes(':')) {
         const [h, m, s] = activeSession.almuerzo.duracion.split(':').map(Number);
         tiempoDescansoMs += (h * 60 * 60 + m * 60 + s) * 1000;
       }

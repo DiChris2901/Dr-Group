@@ -11,7 +11,6 @@ class ListenerManager {
   register(unsubscribe) {
     if (typeof unsubscribe === 'function') {
       this.listeners.add(unsubscribe);
-      console.log(`📡 Listener registrado. Total activos: ${this.listeners.size}`);
     }
     return unsubscribe;
   }
@@ -36,7 +35,6 @@ class ListenerManager {
   unregister(unsubscribe) {
     if (this.listeners.has(unsubscribe)) {
       this.listeners.delete(unsubscribe);
-      console.log(`📡 Listener desregistrado. Total activos: ${this.listeners.size}`);
     }
   }
 
@@ -45,7 +43,6 @@ class ListenerManager {
     if (this.isClearing) return; // Evitar recursión
     
     this.isClearing = true;
-    console.log(`🧹 Limpiando ${this.listeners.size} listeners activos...`);
     
     const listenersArray = Array.from(this.listeners);
     this.listeners.clear();
@@ -53,14 +50,12 @@ class ListenerManager {
     listenersArray.forEach((unsubscribe, index) => {
       try {
         unsubscribe();
-        console.log(`✅ Listener ${index + 1} limpiado`);
       } catch (error) {
         console.error(`❌ Error limpiando listener ${index + 1}:`, error);
       }
     });
     
     this.isClearing = false;
-    console.log('🧹 Limpieza de listeners completada');
   }
 
   // Obtener estadísticas

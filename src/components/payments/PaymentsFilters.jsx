@@ -62,14 +62,6 @@ const PaymentsFilters = ({
   const theme = useTheme();
 
   // Debug temporal para verificar tipos de filtros
-  console.log('[PaymentsFilters] tipos de filtros:', {
-    companyFilterType: Array.isArray(companyFilter) ? 'array' : typeof companyFilter,
-    companyFilter,
-    conceptFilterType: Array.isArray(conceptFilter) ? 'array' : typeof conceptFilter,
-    conceptFilter,
-    beneficiaryFilterType: Array.isArray(beneficiaryFilter) ? 'array' : typeof beneficiaryFilter,
-    beneficiaryFilter
-  });
 
   const handleSearchChange = (event) => {
     onSearchChange(event.target.value);

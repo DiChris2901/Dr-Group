@@ -21,7 +21,6 @@ class AIDataService {
    */
   async getCompanyInfo(searchTerm, userId) {
     try {
-      console.log('🔍 Buscando empresa:', searchTerm, 'para usuario:', userId);
       
       const companiesRef = collection(db, 'companies');
       const q = query(
@@ -34,11 +33,9 @@ class AIDataService {
       
       snapshot.forEach(doc => {
         const data = doc.data();
-        console.log('📄 Empresa encontrada:', data);
         companies.push({ id: doc.id, ...data });
       });
 
-      console.log(`📊 Total empresas encontradas: ${companies.length}`);
 
       if (companies.length === 0) {
         return {
@@ -57,18 +54,11 @@ class AIDataService {
         const businessNameMatch = company.businessName?.toLowerCase().includes(searchLower);
         const aliasMatch = company.alias?.toLowerCase().includes(searchLower);
         
-        console.log(`🔍 Comparando "${searchLower}" con:`, {
-          name: company.name?.toLowerCase(),
-          nit: company.nit?.toLowerCase(),
-          businessName: company.businessName?.toLowerCase(),
-          alias: company.alias?.toLowerCase()
-        });
         
         return nameMatch || nitMatch || businessNameMatch || aliasMatch;
       });
 
       if (matchingCompany) {
-        console.log('✅ Empresa encontrada:', matchingCompany);
         return {
           found: true,
           company: matchingCompany,
@@ -336,12 +326,10 @@ class AIDataService {
    */
   async processAIQuery(query, userId) {
     const queryLower = query.toLowerCase();
-    console.log('🤖 Procesando consulta:', queryLower);
     
     try {
       // Detectar consulta sobre empresas
       if (queryLower.includes('nit') || (queryLower.includes('empresa') && !queryLower.includes('pag'))) {
-        console.log('📋 Detectada consulta de empresa');
         
         // Extraer nombres de empresas comunes
         const possibleCompanies = ['divergames', 'montecarlo', 'coljuegos', 'casino', 'juegos'];
@@ -359,13 +347,11 @@ class AIDataService {
           }
         }
         
-        console.log('🏢 Empresa detectada:', matchedCompany);
         return await this.getCompanyInfo(matchedCompany || '', userId);
       }
 
       // Detectar consulta sobre pagos
       if ((queryLower.includes('pag') || queryLower.includes('cuanto')) && (queryLower.includes('mes') || queryLower.includes('historial'))) {
-        console.log('💰 Detectada consulta de pagos');
         
         // Extraer empresa y concepto
         const companyNames = ['montecarlo', 'divergames', 'casino'];
@@ -374,29 +360,24 @@ class AIDataService {
         const matchedCompany = companyNames.find(name => queryLower.includes(name));
         const matchedConcept = concepts.find(concept => queryLower.includes(concept));
         
-        console.log('💰 Parámetros:', { company: matchedCompany, concept: matchedConcept });
         return await this.getPaymentHistory(matchedCompany || '', matchedConcept || '', userId);
       }
 
       // Detectar consulta sobre compromisos
       if (queryLower.includes('compromiso') || queryLower.includes('deuda') || queryLower.includes('venc') || queryLower.includes('debe')) {
-        console.log('📋 Detectada consulta de compromisos');
         
         const companyNames = ['montecarlo', 'divergames'];
         const matchedCompany = companyNames.find(name => queryLower.includes(name));
         
-        console.log('📋 Empresa para compromisos:', matchedCompany);
         return await this.getCommitmentsAnalysis(matchedCompany || '', userId);
       }
 
       // Si pregunta por resumen o estadísticas generales
       if (queryLower.includes('resumen') || queryLower.includes('estado') || queryLower.includes('general') || queryLower.includes('todo')) {
-        console.log('📊 Detectada consulta general');
         return await this.getGeneralStats(userId);
       }
 
       // Consulta no reconocida - devolver ayuda
-      console.log('❓ Consulta no reconocida, devolviendo ayuda');
       return {
         help: true,
         message: `No pude identificar exactamente qué información necesitas.\n\n**Ejemplos de preguntas que puedo responder:**\n\n🏢 **Sobre empresas:**\n• "¿Cuál es el NIT de DiverGames?"\n• "Información de Montecarlo"\n• "Empresas registradas"\n\n💰 **Sobre pagos:**\n• "¿Cuánto pagué a Coljuegos el mes pasado?"\n• "Pagos de Montecarlo en agosto"\n• "Historial de pagos a licencias"\n\n📋 **Sobre compromisos:**\n• "Compromisos de DiverGames"\n• "¿Cuántos compromisos vencidos tengo?"\n• "Estado de mis obligaciones"\n\n📊 **Resúmenes:**\n• "Resumen general"\n• "Estado de mi dashboard"\n• "Estadísticas generales"`

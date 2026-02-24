@@ -99,7 +99,6 @@ export const useAutomaticEventNotifications = () => {
           <hr>
           <p style="color: #666; font-size: 0.9em;">Este es un recordatorio automático de evento crítico del sistema.</p>`
         );
-        console.log(`📧 Email enviado: ${eventData.title} - ${eventData.reminderLabel}`);
       } catch (error) {
         console.error('❌ Error enviando email:', error);
       }
@@ -118,7 +117,6 @@ export const useAutomaticEventNotifications = () => {
           `⚠️ <b>Prioridad:</b> ${eventData.priority}\n\n` +
           `<i>Recordatorio automático de evento crítico</i>`
         );
-        console.log(`📱 Telegram enviado: ${eventData.title} - ${eventData.reminderLabel}`);
       } catch (error) {
         console.error('❌ Error enviando Telegram:', error);
       }

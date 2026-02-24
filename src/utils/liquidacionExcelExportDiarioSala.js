@@ -93,7 +93,6 @@ const buildDailyDataset = (rawData, establecimiento) => {
   });
 
   if (!productionRows.length) {
-    console.warn('[ReporteDiario] No se generaron fechas válidas. Samples:', [...rawDateSamples].slice(0,10));
     return new Map();
   }
 
@@ -130,8 +129,6 @@ const buildDailyDataset = (rawData, establecimiento) => {
     });
   });
 
-  console.log('[ReporteDiario] Fechas detectadas:', uniqueDateKeys);
-  console.log('[ReporteDiario] Rangos máquinas:', [...machineMap.values()].map(m => ({ serial: m.serial, nuc: m.nuc, desde: m.min.toISOString().slice(0,10), hasta: m.max.toISOString().slice(0,10), dias: m.dates.size })) );
 
   // Ordenar filas de cada día por serial
   grouped.forEach(list => list.sort((a,b) => (a.serial||'').localeCompare(b.serial||'')));

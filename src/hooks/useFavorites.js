@@ -95,12 +95,10 @@ export const useFavorites = (maxFavorites = 5) => {
   // Agregar favorito
   const addFavorite = async (item) => {
     if (favorites.length >= maxFavorites) {
-      console.warn(`Máximo de ${maxFavorites} favoritos alcanzado`);
       return false;
     }
 
     if (isFavorite(item.path)) {
-      console.warn('Este item ya es favorito');
       return false;
     }
 

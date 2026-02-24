@@ -195,7 +195,6 @@ const CompaniesPage = () => {
         url: url
       };
     } catch (error) {
-      console.log('Error obteniendo metadatos:', error);
       // Fallback con información básica extraída de la URL
       return {
         name: 'Certificación Bancaria',
@@ -222,7 +221,6 @@ const CompaniesPage = () => {
       const docInfo = await getDocumentInfo(url);
       setDocumentInfo(docInfo);
     } catch (error) {
-      console.log('Error cargando información del documento:', error);
     }
   };
 

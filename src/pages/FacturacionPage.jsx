@@ -100,12 +100,6 @@ const FacturacionPage = () => {
 
   // 🐛 DEBUG: Log de permisos (temporal)
   useEffect(() => {
-    console.log('🔍 [FacturacionPage] Debug de Permisos:');
-    console.log('  - userProfile:', userProfile);
-    console.log('  - permissions:', userProfile?.permissions);
-    console.log('  - hasPermission("facturacion"):', hasPermission('facturacion'));
-    console.log('  - hasPermission("facturacion.cuentas_cobro"):', hasPermission('facturacion.cuentas_cobro'));
-    console.log('  - hasPageAccess:', hasPageAccess);
   }, [userProfile, hasPermission, hasPageAccess]);
 
   // Listener en tiempo real para liquidaciones aprobadas
@@ -139,13 +133,10 @@ const FacturacionPage = () => {
             });
           });
 
-          console.log(`📡 ${liquidacionesData.length} liquidaciones aprobadas cargadas`);
           
           // Log detallado de empresas y periodos únicos
           const empresasUnicas = [...new Set(liquidacionesData.map(l => l.empresa?.nombre).filter(Boolean))];
           const periodosUnicos = [...new Set(liquidacionesData.map(l => l.fechas?.periodoLiquidacion).filter(Boolean))];
-          console.log('🏢 Empresas únicas encontradas:', empresasUnicas);
-          console.log('📅 Periodos únicos encontrados:', periodosUnicos);
 
           // Guardar TODAS las liquidaciones para opciones de filtros
           setTodasLasLiquidaciones(liquidacionesData);
@@ -156,7 +147,6 @@ const FacturacionPage = () => {
           let liquidacionesFiltradas = [];
           
           if (hayFiltrosValidos) {
-            console.log('🔍 Filtros aplicados:', filtrosAplicados);
             
             // Primero filtrar por criterios
             liquidacionesFiltradas = liquidacionesData.filter(liquidacion => {
@@ -189,7 +179,6 @@ const FacturacionPage = () => {
               
               // Si es una original PERO tiene edición, excluirla
               if (idsOriginalesConEdicion.has(liq.id)) {
-                console.log(`🚫 Ocultando original: ${liq.sala?.nombre} (tiene versión editada)`);
                 return false;
               }
               
@@ -197,9 +186,7 @@ const FacturacionPage = () => {
               return true;
             });
             
-            console.log(`✅ ${liquidacionesFiltradas.length} liquidaciones después de filtrar (sin duplicados)`);
           } else {
-            console.log('⚠️ Sin filtros aplicados - tabla vacía');
           }
 
           setLiquidaciones(liquidacionesFiltradas);
@@ -347,7 +334,6 @@ const FacturacionPage = () => {
     setSincronizando(true);
     
     try {
-      console.log('🔄 Iniciando sincronización de empresas...');
       
       // Función para normalizar texto
       const normalizarTexto = (texto) => {
@@ -365,7 +351,6 @@ const FacturacionPage = () => {
       );
       const liquidacionesSnapshot = await getDocs(liquidacionesQuery);
       
-      console.log(`📊 Encontradas ${liquidacionesSnapshot.docs.length} liquidaciones`);
       
       // 2. Cargar todas las salas una vez
       const salasSnapshot = await getDocs(collection(db, 'salas'));
@@ -380,7 +365,6 @@ const FacturacionPage = () => {
         });
       });
       
-      console.log(`🏢 Cargadas ${salasMap.size} salas`);
       
       // 3. Procesar cada liquidación
       let actualizadas = 0;
@@ -392,7 +376,6 @@ const FacturacionPage = () => {
         const nombreSala = liquidacion.sala?.nombre;
         
         if (!nombreSala) {
-          console.warn(`⚠️ Liquidación sin nombre de sala: ${liquidacionDoc.id}`);
           continue;
         }
         
@@ -400,7 +383,6 @@ const FacturacionPage = () => {
         const salaEncontrada = salasMap.get(nombreSalaNormalizado);
         
         if (!salaEncontrada || !salaEncontrada.companyId) {
-          console.warn(`⚠️ Sala no encontrada o sin companyId: ${nombreSala}`);
           noEncontradas++;
           continue;
         }
@@ -410,7 +392,6 @@ const FacturacionPage = () => {
           const empresaDoc = await getDoc(doc(db, 'companies', salaEncontrada.companyId));
           
           if (!empresaDoc.exists()) {
-            console.warn(`⚠️ Empresa no encontrada: ${salaEncontrada.companyId}`);
             noEncontradas++;
             continue;
           }
@@ -428,7 +409,6 @@ const FacturacionPage = () => {
             updatedAt: serverTimestamp()
           });
           
-          console.log(`✅ Actualizada: ${nombreSala} → ${empresaActualizada.nombre}`);
           actualizadas++;
           
         } catch (error) {
@@ -446,7 +426,6 @@ const FacturacionPage = () => {
       `;
       
       addNotification(mensaje, actualizadas > 0 ? 'success' : 'warning');
-      console.log('🎉 Sincronización finalizada:', { actualizadas, noEncontradas, errores });
       
     } catch (error) {
       console.error('❌ Error en sincronización:', error);
@@ -559,7 +538,6 @@ const FacturacionPage = () => {
     }
     
     if (iteraciones >= MAX_ITERACIONES) {
-      console.warn('⚠️ Se alcanzó el límite de iteraciones en sumarDiasHabiles');
     }
     
     return fecha;
@@ -651,11 +629,9 @@ const FacturacionPage = () => {
                 administracion: salaData.administracion || 0,
                 conexion: salaData.conexion || 0
               };
-              console.log('✅ Datos de sala cargados por ID:', datosSala);
             }
           } else {
             // Si no hay ID, buscar por nombre con similitud
-            console.log('🔍 Buscando sala por nombre:', nombreSalaOriginal);
             const salasSnapshot = await getDocs(collection(db, 'salas'));
             
             let mejorCoincidencia = null;
@@ -668,7 +644,6 @@ const FacturacionPage = () => {
               if (nombreSalaDB) {
                 const similitud = calcularSimilitud(nombreSalaOriginal, nombreSalaDB);
                 
-                console.log(`   Comparando "${nombreSalaOriginal}" vs "${nombreSalaDB}" → Similitud: ${similitud}%`);
                 
                 // Si la similitud es mayor al 75%, considerarla candidata
                 if (similitud > mejorSimilitud && similitud >= 75) {
@@ -679,7 +654,6 @@ const FacturacionPage = () => {
             });
             
             if (mejorCoincidencia) {
-              console.log(`✅ Sala encontrada con ${mejorSimilitud}% de similitud:`, mejorCoincidencia.nombre || mejorCoincidencia.name);
               datosSala = {
                 id: mejorCoincidencia.id,
                 nombre: mejorCoincidencia.nombre || mejorCoincidencia.name || datosSala.nombre,
@@ -692,11 +666,9 @@ const FacturacionPage = () => {
                 conexion: mejorCoincidencia.conexion || 0
               };
             } else {
-              console.warn('⚠️ No se encontró sala con suficiente similitud para:', nombreSalaOriginal);
             }
           }
         } catch (error) {
-          console.warn('No se pudieron cargar datos completos de la sala:', error);
         }
       }
       
@@ -718,7 +690,6 @@ const FacturacionPage = () => {
             empresaId = empresasSnapshot.docs[0].id;
           }
         } catch (error) {
-          console.warn('No se pudo buscar empresa por nombre:', error);
         }
       }
       
@@ -741,18 +712,10 @@ const FacturacionPage = () => {
               bankName: empresaData.bankName || null,
               accountType: empresaData.accountType || 'Ahorros'
             };
-            console.log('✅ Datos de empresa cargados:', datosEmpresa);
-            console.log('🏦 Datos bancarios:', {
-              bankAccount: datosEmpresa.bankAccount,
-              bankName: datosEmpresa.bankName,
-              accountType: datosEmpresa.accountType
-            });
           }
         } catch (error) {
-          console.warn('No se pudieron cargar datos completos de la empresa:', error);
         }
       } else {
-        console.warn('⚠️ No se encontró ID de empresa para cargar datos completos');
       }
       
       const fechaEmision = new Date();
@@ -762,7 +725,6 @@ const FacturacionPage = () => {
       
       try {
         const periodoLiquidacion = datosCompletos.fechas?.periodoLiquidacion;
-        console.log('📅 Periodo liquidado:', periodoLiquidacion);
         
         if (periodoLiquidacion) {
           // Parsear el periodo
@@ -793,7 +755,6 @@ const FacturacionPage = () => {
             añoPeriodo = parseInt(partes[1]);
           }
           
-          console.log('📅 Periodo parseado - Mes:', mesPeriodo, 'Año:', añoPeriodo);
           
           // Calcular mes de vencimiento (siguiente al periodo)
           // mesPeriodo está en base 1 (1-12), calcularDecimoHabil espera base 0 (0-11)
@@ -808,7 +769,6 @@ const FacturacionPage = () => {
             mesVencimiento++; // Siguiente mes
           }
           
-          console.log('📅 Vencimiento - Mes:', mesVencimiento, 'Año:', añoVencimiento);
           
           // Calcular décimo día hábil
           fechaVencimiento = calcularDecimoHabil(añoVencimiento, mesVencimiento);
@@ -821,8 +781,6 @@ const FacturacionPage = () => {
           fechaVencimiento = calcularDecimoHabil(añoSiguiente, mesSiguiente);
         }
         
-        console.log('📅 Fecha de emisión:', fechaEmision.toLocaleDateString('es-CO'));
-        console.log('📅 Fecha de vencimiento:', fechaVencimiento.toLocaleDateString('es-CO'));
       } catch (error) {
         console.error('❌ Error calculando fecha de vencimiento:', error);
         // Fallback: 30 días desde hoy
@@ -877,7 +835,6 @@ const FacturacionPage = () => {
       const logoUrl = datosEmpresa.logo || datosEmpresa.logoURL || datosEmpresa.logoUrl;
       if (logoUrl) {
         try {
-          console.log('🖼️ Cargando logo:', logoUrl);
           const logoBase64 = await getBase64Image(logoUrl);
           
           // Contenedor blanco redondeado para el logo
@@ -886,9 +843,7 @@ const FacturacionPage = () => {
           
           // Logo centrado dentro del contenedor
           pdf.addImage(logoBase64, 'PNG', 17.5, 14.5, 30, 21);
-          console.log('✅ Logo cargado exitosamente');
         } catch (error) {
-          console.warn('⚠️ Error cargando logo:', error);
         }
       }
       
@@ -1109,14 +1064,6 @@ const FacturacionPage = () => {
       const totalConexion = conexionPorMaquina * totalMaquinas;
       const totalAPagar = derechosExplotacion + gastosAdministracion + totalAdministracion + totalConexion;
       
-      console.log('📊 Desglose completo PDF:', {
-        totalMaquinas,
-        administracionPorMaquina,
-        conexionPorMaquina,
-        totalAdministracion,
-        totalConexion,
-        totalAPagar
-      });
       
       const tableData = [
         ['Derechos de Explotación', formatearMonto(derechosExplotacion)],
@@ -1215,7 +1162,6 @@ const FacturacionPage = () => {
         leftY += 5;
         pdf.text(`Titular: ${datosEmpresa.nombre || 'DR Group SAS'}`, 18, leftY);
       } else {
-        console.log('⚠️ Empresa sin cuenta bancaria registrada - sección omitida');
       }
       
       // COLUMNA DERECHA: TÉRMINOS Y CONDICIONES
@@ -1391,13 +1337,6 @@ const FacturacionPage = () => {
               });
               
               if (salaEncontrada) {
-                console.log('✅ Sala encontrada:', salaEncontrada.nombre);
-                console.log('📋 Datos extraídos:', {
-                  administracion: salaEncontrada.administracion,
-                  conexion: salaEncontrada.conexion,
-                  contactoAutorizado: salaEncontrada.contactoAutorizado,
-                  ciudad: salaEncontrada.ciudad
-                });
                 
                 datosAdicionales = {
                   administracion: salaEncontrada.administracion || 0,
@@ -1406,9 +1345,7 @@ const FacturacionPage = () => {
                   ciudad: salaEncontrada.ciudad || 'N/A'
                 };
                 
-                console.log('💾 Datos adicionales listos:', datosAdicionales);
               } else {
-                console.warn('⚠️ Sala no encontrada con búsqueda normalizada:', nombreSala);
               }
             } catch (salaError) {
               console.error('Error cargando datos de sala:', salaError);

@@ -49,7 +49,6 @@ export const isCurrentMonthTransaction = (transactionDate, referenceDate = new D
     const { startDate, endDate } = getCurrentMonthDateRange(referenceDate);
     return dateObj >= startDate && dateObj <= endDate;
   } catch (error) {
-    console.warn('Error checking transaction date:', error);
     return false;
   }
 };

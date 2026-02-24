@@ -25,7 +25,7 @@ import {
   Notes as NotesIcon,
   Receipt as ReceiptIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fCurrency } from '../../utils/formatNumber';
@@ -43,37 +43,12 @@ const PaymentReceiptViewer = ({
   autoOpenPdf = false // Nueva prop para abrir PDF automáticamente
 }) => {
   // 🔍 DEBUG INICIAL: Ver qué datos están llegando al modal
-  console.log('🚀 PaymentReceiptViewer PROPS RECEIVED:', {
-    open,
-    commitment,
-    'commitment is null': commitment === null,
-    'commitment is undefined': commitment === undefined,
-    'commitment exists': !!commitment,
-    'commitment keys': commitment ? Object.keys(commitment) : 'No commitment'
-  });
 
   // 🔍 ANÁLISIS DETALLADO DE VALORES PARA ENCONTRAR EL VALOR BASE ORIGINAL
   if (commitment && open) {
-    console.log('💰 ANÁLISIS COMPLETO DE VALORES - COMMITMENT:');
-    console.log('📋 Commitment data completo:', JSON.stringify(commitment, null, 2));
     
     // Buscar todos los campos que podrían contener el valor base original
-    console.log('💵 POSIBLES VALORES BASE ORIGINALES:');
-    console.log('💵 originalCommitmentAmount:', commitment.originalCommitmentAmount);
-    console.log('💵 originalAmount:', commitment.originalAmount);
-    console.log('💵 amount:', commitment.amount);
-    console.log('💵 partialPaymentAmount:', commitment.partialPaymentAmount);
-    console.log('💵 remainingBalanceBefore:', commitment.remainingBalanceBefore);
-    console.log('💵 remainingBalanceAfter:', commitment.remainingBalanceAfter);
-    console.log('💵 baseAmount:', commitment.baseAmount);
-    console.log('💵 commitmentAmount:', commitment.commitmentAmount);
-    console.log('💵 totalAmount:', commitment.totalAmount);
     
-    console.log('🔢 OTROS CAMPOS:');
-    console.log('💵 intereses/interests:', commitment.intereses || commitment.interests);
-    console.log('💵 iva:', commitment.iva);
-    console.log('🏷️ isPartialPayment:', commitment.isPartialPayment);
-    console.log('🏷️ paymentSequence:', commitment.paymentSequence);
   }
 
   const theme = useTheme();
@@ -123,12 +98,6 @@ const PaymentReceiptViewer = ({
 
   // 💳 Función para cargar información de cuotas
   const loadInstallmentInfo = async (commitment) => {
-    console.log('🔍 [DEBUG CUOTAS] loadInstallmentInfo called with:', {
-      commitment,
-      'commitment.isInstallment': commitment?.isInstallment,
-      'commitment.parentPaymentId': commitment?.parentPaymentId,
-      'all commitment keys': commitment ? Object.keys(commitment) : 'no commitment'
-    });
     
     if (!commitment) return;
     
@@ -139,14 +108,8 @@ const PaymentReceiptViewer = ({
       const isInstallment = commitment.isInstallment;
       const parentPaymentId = commitment.parentPaymentId;
       
-      console.log('🔍 [DEBUG CUOTAS] Checking installment status:', {
-        isInstallment,
-        parentPaymentId,
-        'should load installments': isInstallment && parentPaymentId
-      });
       
       if (isInstallment && parentPaymentId) {
-        console.log('💳 [DEBUG CUOTAS] Loading installments for parentPaymentId:', parentPaymentId);
         
         // Obtener todas las cuotas del plan
         const installmentsQuery = query(
@@ -161,7 +124,6 @@ const PaymentReceiptViewer = ({
           ...doc.data()
         }));
         
-        console.log('💳 [DEBUG CUOTAS] Found installments:', allInstallments);
         
         // Calcular estadísticas
         const totalInstallments = allInstallments.length;
@@ -186,10 +148,8 @@ const PaymentReceiptViewer = ({
           allInstallments
         };
         
-        console.log('💳 [DEBUG CUOTAS] Setting installment info:', installmentInfoData);
         setInstallmentInfo(installmentInfoData);
       } else {
-        console.log('💳 [DEBUG CUOTAS] Not an installment payment, setting null');
         setInstallmentInfo(null);
       }
     } catch (error) {
@@ -255,24 +215,6 @@ const PaymentReceiptViewer = ({
     // Retornar null si no hay nombre descriptivo explícito
     return null;
   };
-  console.log('🔍 PaymentReceiptViewer - Props recibidas:', {
-    open,
-    commitment,
-    receiptUrl,
-    receiptMetadata
-  });
-  console.log('🔍 PaymentReceiptViewer - Payment extraído:', payment);
-  console.log('🏦 PaymentReceiptViewer - Account Info Debug:', {
-    accountDisplayName: getAccountDisplayName(commitment),
-    rawAccountData: {
-      accountName: commitment?.accountName,
-      paymentAccount: commitment?.paymentAccount,
-      bankAccount: commitment?.bankAccount,
-      sourceAccount: commitment?.sourceAccount,
-      account: commitment?.account,
-    },
-    allCommitmentKeys: Object.keys(commitment || {})
-  });
 
   // Validación de fecha de pago
   const validPaymentDate = payment?.paidAt?.toDate?.() || payment?.paidAt || new Date();
@@ -280,96 +222,41 @@ const PaymentReceiptViewer = ({
   
   // Determinar la URL final del comprobante con validación MEJORADA - SOLUCIÓN DEFINITIVA
   const finalReceiptUrl = useMemo(() => {
-    console.log('🔍 [DEBUG PaymentReceiptViewer] Determinando URL final:', {
-      propsReceiptUrl: receiptUrl,
-      commitmentAttachments: commitment?.attachments, // ← NUEVA PRIORIDAD
-      commitmentReceiptUrls: commitment?.receiptUrls,
-      commitmentReceiptUrl: commitment?.receiptUrl,
-      paymentReceiptUrl: payment?.receiptUrl
-    });
 
     // PRIORIDAD 1: receiptUrl prop si existe y es válido
     if (receiptUrl && receiptUrl.trim() !== '') {
-      console.log('✅ [DEBUG] Usando receiptUrl prop:', receiptUrl);
       return receiptUrl;
     }
     
     // PRIORIDAD 2: attachments más reciente del commitment (URLs MÁS FRESCAS)
     if (commitment?.attachments && commitment.attachments.length > 0) {
       const latestUrl = commitment.attachments[commitment.attachments.length - 1];
-      console.log('✅ [DEBUG] Usando attachments más reciente (FRESCO):', latestUrl);
       return latestUrl;
     }
     
     // PRIORIDAD 3: receiptUrls más reciente del commitment
     if (commitment?.receiptUrls && commitment.receiptUrls.length > 0) {
       const latestUrl = commitment.receiptUrls[commitment.receiptUrls.length - 1];
-      console.log('⚠️ [DEBUG] Usando receiptUrls más reciente (PUEDE ESTAR EXPIRADA):', latestUrl);
       return latestUrl;
     }
     
     // PRIORIDAD 3: receiptUrl del commitment
     if (commitment?.receiptUrl && commitment.receiptUrl.trim() !== '') {
-      console.log('✅ [DEBUG] Usando receiptUrl del commitment:', commitment.receiptUrl);
       return commitment.receiptUrl;
     }
     
     // PRIORIDAD 4: receiptUrl del payment (último recurso)
     if (payment?.receiptUrl && payment.receiptUrl.trim() !== '') {
-      console.log('✅ [DEBUG] Usando receiptUrl del payment:', payment.receiptUrl);
       return payment.receiptUrl;
     }
     
-    console.warn('⚠️ [DEBUG] No se encontró URL válida para el comprobante');
     return null;
   }, [receiptUrl, commitment?.receiptUrls, commitment?.receiptUrl, payment?.receiptUrl]);
   
-  console.log('🔍 PaymentReceiptViewer - Validaciones:', {
-    validPaymentDate,
-    hasReceipt,
-    receiptUrl,
-    commitmentReceiptUrl: commitment?.receiptUrl,
-    commitmentReceiptUrls: commitment?.receiptUrls,
-    finalReceiptUrl,
-    commitmentId: commitment?.id
-  });
 
   // LOGGING CRÍTICO MEJORADO para debug del error 403
-  console.log('🚨 [DEBUG 403] PaymentReceiptViewer URL Analysis COMPLETO:', {
-    // Props recibidas
-    propsReceiptUrl: receiptUrl,
-    receiptMetadata: receiptMetadata,
-    
-    // Commitment data
-    commitmentId: commitment?.id,
-    commitmentReceiptUrl: commitment?.receiptUrl,
-    commitmentReceiptUrls: commitment?.receiptUrls,
-    commitmentReceiptUrlsLength: commitment?.receiptUrls?.length || 0,
-    
-    // Payment data
-    paymentReceiptUrl: payment?.receiptUrl,
-    
-    // URLs finales calculadas
-    finalReceiptUrlCalculated: finalReceiptUrl,
-    
-    // Estado del componente
-    hasReceipt,
-    validPaymentDate,
-    
-    // Datos completos para debug
-    commitmentFullStructure: {
-      id: commitment?.id,
-      concept: commitment?.concept,
-      receiptUrl: commitment?.receiptUrl,
-      receiptUrls: commitment?.receiptUrls,
-      attachments: commitment?.attachments,
-      paid: commitment?.paid,
-      isPaid: commitment?.isPaid
-    }
-  });
 
   if (!payment || !commitment) {
-    console.warn('⚠️ PaymentReceiptViewer - No hay payment o commitment válido');
     return null;
   }
 
@@ -380,10 +267,8 @@ const PaymentReceiptViewer = ({
   };
 
   return (
-    <AnimatePresence mode="wait">
-      {open && (
-        <Dialog
-          key={`payment-receipt-${commitment?.id || 'dialog'}`}
+    <>
+      <Dialog
           open={open}
           onClose={onClose}
           maxWidth="md"
@@ -953,11 +838,6 @@ const PaymentReceiptViewer = ({
                 boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
               }}>
                 {(() => {
-                  console.log('💳 [DEBUG RENDER CUOTAS] Checking installment render condition:', {
-                    'installmentInfo': installmentInfo,
-                    'installmentInfo?.isInstallment': installmentInfo?.isInstallment,
-                    'should render': installmentInfo?.isInstallment
-                  });
                   
                   return installmentInfo?.isInstallment;
                 })() && (
@@ -1146,39 +1026,12 @@ const PaymentReceiptViewer = ({
                       // Es Coljuegos si tiene CUALQUIER dato específico de Coljuegos
                       const isColjuegos = hasDerechosExplotacion || hasGastosAdministracion || hasInteresesDerechos || hasInteresesGastos;
                       
-                      console.log('🔍 Debug PaymentReceiptViewer - LÓGICA BASADA EN DATOS:');
-                      console.log('- hasDerechosExplotacion:', hasDerechosExplotacion, `(${commitment?.derechosExplotacion})`);
-                      console.log('- hasGastosAdministracion:', hasGastosAdministracion, `(${commitment?.gastosAdministracion})`);
-                      console.log('- hasInteresesDerechos:', hasInteresesDerechos, `(${commitment?.interesesDerechosExplotacion})`);
-                      console.log('- hasInteresesGastos:', hasInteresesGastos, `(${commitment?.interesesGastosAdministracion})`);
-                      console.log('- isColjuegos (FINAL):', isColjuegos);
-                      console.log('- commitment.concept:', commitment?.concept);
-                      console.log('- commitment.reference:', commitment?.reference);
                       
                       // 🔍 DEBUG PAYMENT DATA TAMBIÉN
-                      console.log('💰 PAYMENT DATA DEBUG (commitment object):');
-                      console.log('- commitment.interesesDerechosExplotacion:', commitment?.interesesDerechosExplotacion);
-                      console.log('- commitment.interesesGastosAdministracion:', commitment?.interesesGastosAdministracion);
-                      console.log('- commitment.interests (total):', commitment?.interests);
-                      console.log('- commitment.amount:', commitment?.amount);
-                      console.log('- commitment completo:', commitment);
                       
                       // 🔍 DEBUG IVA Y OTROS IMPUESTOS
-                      console.log('💳 IVA AND TAX DEBUG:');
-                      console.log('- commitment.iva:', commitment?.iva);
-                      console.log('- commitment.tax:', commitment?.tax);
-                      console.log('- commitment.taxes:', commitment?.taxes);
-                      console.log('- commitment.baseAmount:', commitment?.baseAmount);
-                      console.log('- commitment.originalAmount:', commitment?.originalAmount);
-                      console.log('- commitment.vatAmount:', commitment?.vatAmount);
-                      console.log('- commitment.ivaAmount:', commitment?.ivaAmount);
                       
                       // 🔍 DEBUG ORIGINALCOMMITMENT DATA
-                      console.log('📋 ORIGINAL COMMITMENT DATA DEBUG:');
-                      console.log('- originalCommitment.interesesDerechosExplotacion:', originalCommitment?.interesesDerechosExplotacion);
-                      console.log('- originalCommitment.interesesGastosAdministracion:', originalCommitment?.interesesGastosAdministracion);
-                      console.log('- originalCommitment.iva:', originalCommitment?.iva);
-                      console.log('- originalCommitment completo:', originalCommitment);
                       
                       if (isColjuegos) {
                         return (
@@ -1206,13 +1059,6 @@ const PaymentReceiptViewer = ({
                                     const fromOriginalCommitment = originalCommitment?.derechosExplotacion;
                                     const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
-                                    console.log('🎯 Debug Derechos Explotación:', {
-                                      fromCommitment,
-                                      fromOriginalCommitment,
-                                      finalValue,
-                                      'commitment object': commitment,
-                                      'originalCommitment object': originalCommitment
-                                    });
                                     
                                     return fCurrency(finalValue);
                                   })()}
@@ -1243,11 +1089,6 @@ const PaymentReceiptViewer = ({
                                     const fromOriginalCommitment = originalCommitment?.gastosAdministracion;
                                     const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
-                                    console.log('📋 Debug Gastos Administración:', {
-                                      fromCommitment,
-                                      fromOriginalCommitment,
-                                      finalValue
-                                    });
                                     
                                     return fCurrency(finalValue);
                                   })()}
@@ -1277,13 +1118,6 @@ const PaymentReceiptViewer = ({
                                     const fromOriginalCommitment = originalCommitment?.interesesDerechosExplotacion;
                                     const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
-                                    console.log('🎯 Debug Intereses Derechos:', {
-                                      fromCommitment,
-                                      fromOriginalCommitment,
-                                      finalValue,
-                                      'commitment object': commitment,
-                                      'originalCommitment object': originalCommitment
-                                    });
                                     
                                     return fCurrency(finalValue);
                                   })()}
@@ -1313,11 +1147,6 @@ const PaymentReceiptViewer = ({
                                     const fromOriginalCommitment = originalCommitment?.interesesGastosAdministracion;
                                     const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
-                                    console.log('� Debug Intereses Gastos:', {
-                                      fromCommitment,
-                                      fromOriginalCommitment,
-                                      finalValue
-                                    });
                                     
                                     return fCurrency(finalValue);
                                   })()}
@@ -1556,7 +1385,6 @@ const PaymentReceiptViewer = ({
             </Box>
           </DialogContent>
         </Dialog>
-      )}
 
       {/* 📄 Vista previa del PDF del Pago - COMPONENTE COMPARTIDO IDÉNTICO */}
       <PDFPreviewDialog
@@ -1582,7 +1410,7 @@ const PaymentReceiptViewer = ({
         canDownloadReceipts={false}
         title="Factura del Compromiso"
       />
-    </AnimatePresence>
+    </>
   );
 };
 

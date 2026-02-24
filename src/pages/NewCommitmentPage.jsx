@@ -725,7 +725,6 @@ const NewCommitmentPage = () => {
 
     try {
       // 📄 COMBINAR TODOS LOS ARCHIVOS EN UN SOLO PDF
-      console.log('🔄 Iniciando combinación de archivos...', files.length);
       setUploadProgress(20); // 20% - Iniciando combinación
 
       // Obtener información del compromiso para metadatos
@@ -741,7 +740,6 @@ const NewCommitmentPage = () => {
       setUploadProgress(60); // 60% - Combinación completada
 
       // 🗜️ APLICAR COMPRESIÓN AL PDF COMBINADO
-      console.log('🗜️ Iniciando compresión del PDF combinado...');
       setUploadProgress(70); // 70% - Iniciando compresión
 
       let finalPDF = combinationResult.combinedPDF;
@@ -758,11 +756,6 @@ const NewCommitmentPage = () => {
           finalPDF = compressionResult.compressedBlob;
           compressionStats = compressionResult.stats;
           
-          console.log('✅ Compresión aplicada:', {
-            original: `${(combinationResult.combinedPDF.size / 1024).toFixed(2)} KB`,
-            comprimido: `${(finalPDF.size / 1024).toFixed(2)} KB`,
-            reducción: compressionStats?.reductionPercent || 'N/A'
-          });
         }
       }
 
@@ -1190,7 +1183,6 @@ const NewCommitmentPage = () => {
             };
             
             await addDoc(collection(db, 'providers'), providerData);
-            console.log('✅ Nuevo proveedor guardado:', providerData.name);
           } else if (formData.beneficiaryNit?.trim()) {
             // Actualizar NIT si el proveedor existe pero no tiene NIT o es diferente
             const providerDoc = existingProvider.docs[0];
@@ -1202,11 +1194,9 @@ const NewCommitmentPage = () => {
                 updatedAt: serverTimestamp(),
                 updatedBy: currentUser.uid
               });
-              console.log('✅ NIT del proveedor actualizado:', formData.beneficiary);
             }
           }
         } catch (error) {
-          console.warn('Error al guardar proveedor:', error);
           // No detener el proceso si falla el guardado del proveedor
         }
       }
@@ -1240,7 +1230,6 @@ const NewCommitmentPage = () => {
             type: 'recurring'
           }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         } catch (logError) {
-          console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
         }
 
         // �🔊 Notificación de éxito para compromisos recurrentes
@@ -1310,7 +1299,6 @@ const NewCommitmentPage = () => {
             type: 'single'
           }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         } catch (logError) {
-          console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
         }
         
         // 🔊 Notificación con sonido condicional
@@ -1360,14 +1348,7 @@ const NewCommitmentPage = () => {
                 dueDate: format(new Date(formData.dueDate), 'dd/MM/yyyy', { locale: es }),
                 threshold: 'Nuevo compromiso registrado'
               });
-              console.log('✅ Notificación de Telegram enviada para compromiso', {
-                amount: formattedAmount,
-                baseAmount: formData.baseAmount,
-                totalAmount: formData.totalAmount,
-                parsedAmount: amountValue
-              });
             } catch (telegramError) {
-              console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
             }
           }
         }

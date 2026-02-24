@@ -406,9 +406,7 @@ const IncomeHistoryPage = () => {
           try {
             const fileRef = ref(storage, file.path || file.storagePath);
             await deleteObject(fileRef);
-            console.log(`Archivo eliminado: ${file.name}`);
           } catch (fileError) {
-            console.warn(`Error al eliminar archivo ${file.name}:`, fileError);
           }
         }
       }

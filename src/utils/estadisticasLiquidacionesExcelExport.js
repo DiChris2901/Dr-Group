@@ -387,7 +387,6 @@ export const exportarEstadisticasLiquidaciones = async (
           wsResumen.addImage(imageId, 'A8:H20');
         }
       } catch (e) {
-        console.warn('⚠️ No se pudo generar/incrustar el gráfico en Excel:', e);
       }
     }
 
@@ -545,7 +544,6 @@ export const exportarEstadisticasLiquidaciones = async (
             wsDetalle.addImage(imageId, 'A8:F20');
           }
         } catch (e) {
-          console.warn('⚠️ No se pudo generar/incrustar el gráfico en Excel (detalle):', e);
         }
       }
 

@@ -14,7 +14,6 @@ export const useEmailNotifications = () => {
   const initEmailJS = () => {
     if (PUBLIC_KEY) {
       emailjs.init(PUBLIC_KEY);
-      console.log('📧 EmailJS inicializado correctamente');
     } else {
       console.error('❌ EmailJS - Falta PUBLIC_KEY en variables de entorno');
     }
@@ -33,9 +32,6 @@ export const useEmailNotifications = () => {
           PUBLIC_KEY === 'tu-public-key-aqui') {
         
         // Modo demo - simular envío exitoso
-        console.log('🎭 MODO DEMO - EmailJS no configurado');
-        console.log('📧 Simulando envío de email a:', recipientEmail);
-        console.log('📄 Datos del template:', templateData);
         
         // Simular delay de red
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -71,7 +67,6 @@ export const useEmailNotifications = () => {
         ...templateData.additionalData
       };
 
-      console.log('📧 Enviando email con parámetros:', templateParams);
 
       // Enviar email usando EmailJS
       const response = await emailjs.send(
@@ -81,7 +76,6 @@ export const useEmailNotifications = () => {
         PUBLIC_KEY
       );
 
-      console.log('✅ Email enviado exitosamente:', response);
       
       return {
         success: true,
@@ -443,7 +437,6 @@ export const useEmailNotifications = () => {
         message: htmlContent
       });
 
-      console.log('✅ Notificación personalizada enviada');
       return response;
     } catch (err) {
       console.error('❌ Error enviando notificación personalizada:', err);

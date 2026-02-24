@@ -39,7 +39,6 @@ export const useUsersCache = () => {
           setUsers(usersData);
           setLoading(false);
 
-          console.log(`✅ Cache de usuarios actualizado: ${usersData.length} usuarios`);
         },
         (err) => {
           console.error('❌ Error en listener de usuarios:', err);

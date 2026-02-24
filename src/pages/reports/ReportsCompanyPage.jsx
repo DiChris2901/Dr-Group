@@ -106,10 +106,6 @@ const ReportsCompanyPage = () => {
       const validIds = companiesData.map(company => company.id);
       const filteredSelection = selectedCompanies.filter(id => id && validIds.includes(id));
       if (filteredSelection.length !== selectedCompanies.length) {
-        console.log('Limpiando empresas inválidas:', {
-          original: selectedCompanies,
-          filtered: filteredSelection
-        });
         setSelectedCompanies(filteredSelection);
       }
     }
@@ -326,7 +322,6 @@ const ReportsCompanyPage = () => {
       
       // Validación adicional para evitar errores
       if (!start || !end) {
-        console.warn('⚠️ Fechas inválidas en activeDateRange:', activeDateRange);
         return [];
       }
       
@@ -799,7 +794,6 @@ const ReportsCompanyPage = () => {
   };
 
   const exportReport = async () => {
-    console.log('Exportando reporte por empresa...');
     setExportingExcel(true);
     
     try {
@@ -1256,23 +1250,6 @@ const ReportsCompanyPage = () => {
         new Map(completedCommitmentsWithPayments.map(c => [c.id, c])).values()
       );
       
-      console.log(`✅ [EXCEL DEBUG] Compromisos completados únicos:`, {
-        totalCommitmentsFiltered: filteredCommitmentsFromCompanies.length,
-        selectedCompanies: selectedCompanies.length === 0 ? 'TODAS' : selectedCompanies.length,
-        completedCommitments: uniqueCompletedCommitments.length,
-        sampleCompleted: uniqueCompletedCommitments.slice(0, 3).map(c => ({
-          id: c.id,
-          concept: c.concept,
-          paymentDate: c.paymentDate,
-          paymentMethod: c.paymentMethod,
-          paymentsCount: c.payments?.length || 0,
-          paymentsDetails: c.payments?.map(p => ({
-            date: p.date, // ✅ Campo correcto
-            amount: p.amount,
-            method: p.method // ✅ Campo correcto
-          }))
-        }))
-      });
       
       if (uniqueCompletedCommitments.length > 0) {
         const completedSheet = workbook.addWorksheet('Compromisos Completados', {
@@ -1525,34 +1502,6 @@ const ReportsCompanyPage = () => {
         return isSelectedCompany && isNotCompletelyPaid;
       });
       
-      console.log(`📊 [EXCEL PENDIENTES] Debug filtros detallado:`, {
-        totalCommitmentsFiltered: filteredCommitmentsFromCompanies.length,
-        commitmentsWithPayments: commitmentsWithPayments.length,
-        pendingCommitments: pendingCommitments.length,
-        completedCommitments: commitmentsWithPayments.filter(c => c.isCompletelyPaid).length,
-        samplePending: pendingCommitments.slice(0, 3).map(c => ({
-          id: c.id,
-          concept: c.concept,
-          totalPaid: c.totalPaid,
-          remainingBalance: c.remainingBalance,
-          isCompletelyPaid: c.isCompletelyPaid,
-          hasPayments: c.hasPayments,
-          paymentsCount: c.payments.length,
-          status: c.status,
-          paid: c.paid,
-          isPaid: c.isPaid
-        })),
-        sampleCompleted: commitmentsWithPayments.filter(c => c.isCompletelyPaid).slice(0, 3).map(c => ({
-          id: c.id,
-          concept: c.concept,
-          totalPaid: c.totalPaid,
-          remainingBalance: c.remainingBalance,
-          isCompletelyPaid: c.isCompletelyPaid,
-          status: c.status,
-          paid: c.paid,
-          isPaid: c.isPaid
-        }))
-      });
       
       if (pendingCommitments.length > 0) {
         const pendingSheet = workbook.addWorksheet('Compromisos Pendientes', {
@@ -1816,17 +1765,6 @@ const ReportsCompanyPage = () => {
         return isSelectedCompany && hasNoPayments && isOverdueByDate;
       });
       
-      console.log(`📊 [EXCEL VENCIDOS] Debug filtros:`, {
-        totalCommitmentsWithPayments: commitmentsWithPayments.length,
-        overdueCommitments: overdueCommitments.length,
-        sample: overdueCommitments.slice(0, 3).map(c => ({
-          id: c.id,
-          concept: c.concept,
-          hasPayments: c.hasPayments,
-          dueDate: c.dueDate,
-          isOverdueByDate: c.dueDate && new Date(c.dueDate.toDate ? c.dueDate.toDate() : c.dueDate) < new Date()
-        }))
-      });
       
       if (overdueCommitments.length > 0) {
         const overdueSheet = workbook.addWorksheet('Compromisos Vencidos', {
@@ -2016,7 +1954,6 @@ const ReportsCompanyPage = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      console.log(`✅ Reporte exportado exitosamente: ${filename}`);
       
     } catch (error) {
       console.error('❌ Error al exportar reporte:', error);

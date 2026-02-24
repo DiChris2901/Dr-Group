@@ -796,7 +796,6 @@ export default function LiquidacionesPage() {
         );
       }
     } catch (e) {
-      console.warn('Error logging validacion confirmada:', e);
     }
   }, [
     addLog,

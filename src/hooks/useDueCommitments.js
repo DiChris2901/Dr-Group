@@ -43,11 +43,9 @@ export const useDueCommitments = () => {
               
               // Validar que la fecha es válida
               if (!dueDate || isNaN(dueDate.getTime())) {
-                console.warn(`⚠️ Fecha inválida para compromiso ${doc.id}:`, data.dueDate);
                 dueDate = null;
               }
             } catch (error) {
-              console.warn(`⚠️ Error procesando fecha para compromiso ${doc.id}:`, error);
               dueDate = null;
             }
           }
@@ -133,7 +131,6 @@ export const useDueCommitments = () => {
   }, [currentUser]);
 
   const refreshCommitments = async () => {
-    console.log('🔄 Iniciando refresh manual de compromisos vencidos...');
     setLoading(true);
     setError(null);
     
@@ -170,7 +167,6 @@ export const useDueCommitments = () => {
               dueDate = data.dueDate;
             }
           } catch (error) {
-            console.warn(`⚠️ Error procesando fecha para compromiso ${doc.id}:`, error);
             dueDate = null;
           }
         }
@@ -209,7 +205,6 @@ export const useDueCommitments = () => {
         }
       });
 
-      console.log(`✅ Refresh manual completado: ${commitmentsData.length} compromisos encontrados`);
       setCommitments(commitmentsData);
       
     } catch (error) {

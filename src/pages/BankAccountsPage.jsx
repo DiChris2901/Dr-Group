@@ -206,7 +206,6 @@ const BankAccountsPage = () => {
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      // console.log('🌍 [BankAccountsPage] Personal accounts snapshot (GLOBAL) size:', snapshot.size);
       let accounts = snapshot.docs.map(doc => {
         const data = doc.data();
         const normalized = {
@@ -289,17 +288,6 @@ const BankAccountsPage = () => {
     const total4x1000 = account4x1000.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
     // 🔍 DEBUG: Log para cuentas personales
-    console.log(`� [DEBUG] Balance para cuenta ${accountNumber}:`, {
-      accountNumber,
-      totalIncomes,
-      totalPayments,
-      total4x1000,
-      finalBalance: totalIncomes - totalPayments - total4x1000,
-      incomesCount: accountIncomes.length,
-      paymentsCount: accountPayments.length,
-      sampleIncome: accountIncomes[0],
-      samplePayment: accountPayments[0]
-    });
 
     return {
       incomes: totalIncomes,
@@ -318,12 +306,6 @@ const BankAccountsPage = () => {
     const total4x1000 = tax4x1000Payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     
     // Debug logging
-    console.log('🔍 Debug 4x1000 Totals:', {
-      totalPayments: payments.length,
-      tax4x1000Payments: tax4x1000Payments.length,
-      total4x1000: total4x1000,
-      sampleTaxPayment: tax4x1000Payments[0]
-    });
     
     return {
       total: total4x1000,
@@ -468,7 +450,6 @@ const BankAccountsPage = () => {
       });
     } else {
       // Cuenta personal - implementar lógica similar si es necesario
-      console.log('Ver movimientos cuenta personal:', selectedAccountCard);
     }
     handleMenuClose();
   };

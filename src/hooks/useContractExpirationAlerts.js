@@ -123,7 +123,6 @@ export const useContractExpirationAlerts = () => {
                 });
               }
               
-              console.log(`📧 Email enviado: Contrato de ${company.name} vence en ${period.label}`);
               setEmailsSentToday(prev => new Set([...prev, emailKey]));
             } catch (error) {
               console.error('❌ Error enviando email de contrato:', error);
@@ -168,7 +167,6 @@ export const useContractExpirationAlerts = () => {
                 userName: user.displayName || user.email
               });
               
-              console.log(`📧 Email enviado: Contrato vencido de ${company.name} (${daysExpired} días)`);
               setEmailsSentToday(prev => new Set([...prev, emailKey]));
             } catch (error) {
               console.error('❌ Error enviando email de contrato vencido:', error);

@@ -537,7 +537,6 @@ export const enhancedTokenUtils = {
         if (value && typeof value === 'object' && key in value) {
           value = value[key];
         } else {
-          console.warn(`⚠️ Token no encontrado: unifiedTokens.${path}, usando fallback`);
           return fallback;
         }
       }
@@ -594,7 +593,6 @@ export const enhancedTokenUtils = {
     criticalPaths.forEach(path => {
       if (enhancedTokenUtils.tokenExists(path)) {
         results.valid.push(path);
-        console.log(`✅ Token válido: unifiedTokens.${path}`);
       } else {
         results.invalid.push(path);
         console.error(`❌ Token faltante: unifiedTokens.${path}`);

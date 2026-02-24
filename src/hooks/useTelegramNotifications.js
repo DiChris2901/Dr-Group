@@ -44,7 +44,6 @@ export const useTelegramNotifications = () => {
       finalMessage = (priorityEmoji[priority] || '') + message;
     }
     
-    // console.log('🔍 Telegram Debug:', {
     //   originalChatId: chatId,
     //   numericChatId,
     //   priority,
@@ -77,7 +76,6 @@ export const useTelegramNotifications = () => {
         throw new Error(data.description || 'Error al enviar mensaje de Telegram');
       }
 
-      // console.log('✅ Telegram - Mensaje enviado:', data.result.message_id);
       return { success: true, messageId: data.result.message_id };
 
     } catch (err) {

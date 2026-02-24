@@ -587,7 +587,8 @@ export default function DashboardScreen() {
           if (activeSession?.estadoActual === 'break') finalizarBreak();
           if (activeSession?.estadoActual === 'almuerzo') finalizarAlmuerzo();
         }}
-        breaksCount={activeSession?.breaks ? activeSession.breaks.length : 0}
+        breaksCount={activeSession?.breaks ? activeSession.breaks.filter(b => b.tipo !== 'reapertura_gap').length : 0}
+        lunchUsed={!!(activeSession?.almuerzo)}
       />
 
       {/* Novedades Bottom Sheet Modal */}

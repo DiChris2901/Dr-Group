@@ -206,7 +206,6 @@ const PDFPreviewDialog = ({
           };
           
         } catch (metadataError) {
-          console.log('Error obteniendo metadatos de Firebase:', metadataError);
           // Fallback a información básica
           const isPdf = url.toLowerCase().includes('.pdf');
           const estimatedSize = isPdf ? Math.floor(Math.random() * (5000000 - 500000) + 500000) : Math.floor(Math.random() * (2000000 - 100000) + 100000);

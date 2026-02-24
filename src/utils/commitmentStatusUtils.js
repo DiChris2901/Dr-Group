@@ -67,7 +67,6 @@ export const determineCommitmentStatus = async (commitment) => {
  * Función mejorada para filtrar compromisos basándose en estados reales de pago
  */
 export const filterCommitmentsByStatus = async (commitments, statusFilter) => {
-  console.log(`🔍 [FILTER DEBUG] Iniciando filtrado: ${commitments.length} compromisos, filtro: ${statusFilter}`);
   
   if (!commitments || commitments.length === 0) return [];
   if (statusFilter === 'all') return commitments;
@@ -90,7 +89,6 @@ export const filterCommitmentsByStatus = async (commitments, statusFilter) => {
       case 'pending':
         // Pendientes incluyen tanto sin pagos como con pagos parciales
         const shouldInclude = status === 'pending' || status === 'partial';
-        console.log(`🔍 [FILTER DEBUG] Compromiso ${commitment.id}: status=${status}, incluir=${shouldInclude}`);
         return shouldInclude;
       
       case 'overdue':
@@ -115,7 +113,6 @@ export const filterCommitmentsByStatus = async (commitments, statusFilter) => {
     }
   });
 
-  console.log(`🔍 [FILTER DEBUG] Resultado final: ${filteredResults.length} compromisos filtrados`);
   return filteredResults;
 };
 

@@ -130,7 +130,6 @@ const ActivityAlertsConfig = ({ onConfigSave }) => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       
-      console.log('✅ Configuración de alertas guardada');
     } catch (error) {
       console.error('❌ Error al guardar configuración:', error);
     }

@@ -82,7 +82,6 @@ export const useCommitments = (filters = {}) => {
         const invalidCount = commitmentsData.length - validCommitments.length;
         
         if (invalidCount > 0) {
-          console.warn(`⚠️ Se encontraron ${invalidCount} compromisos sin ID válido`);
         }
         
         setCommitments(validCommitments);

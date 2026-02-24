@@ -91,7 +91,6 @@ const PDFCompressionPreview = ({
   // Limpiar y recomprimir cuando cambie el archivo o nivel
   React.useEffect(() => {
     if (file) {
-      console.log('🔄 Nuevo archivo detectado, limpiando compresión anterior:', file.name);
       setCompressionResult(null);
       setError(null);
       setLoading(false);
@@ -103,7 +102,6 @@ const PDFCompressionPreview = ({
   const handleCompressionLevelChange = (level) => {
     setCompressionLevel(level);
     if (compressionResult) {
-      console.log('🔄 Cambiando nivel de compresión a:', level);
       setCompressionResult(null);
       setShowLevelSelector(false);
       // La compresión se ejecutará automáticamente
@@ -112,7 +110,6 @@ const PDFCompressionPreview = ({
 
   const compressFile = async () => {
     if (!file) {
-      console.warn('⚠️ No hay archivo para comprimir');
       return;
     }
 
@@ -120,14 +117,6 @@ const PDFCompressionPreview = ({
     setError(null);
     
     try {
-      console.log('🔄 Iniciando compresión de vista previa...');
-      console.log('📄 Archivo:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified
-      });
-      console.log('⚙️ Nivel de compresión:', compressionLevel);
       
       // Seleccionar configuración según el nivel elegido
       let config;
@@ -146,14 +135,6 @@ const PDFCompressionPreview = ({
       const compressor = new EnterprisePDFCompressor(config);
       const result = await compressor.compressPDF(file);
       
-      console.log('✅ Vista previa de compresión generada:', result.stats);
-      console.log('📊 Estadísticas completas:', {
-        originalSize: result.stats.originalSize,
-        compressedSize: result.stats.compressedSize,
-        reduction: result.stats.reduction,
-        reductionPercent: result.stats.reductionPercent,
-        saved: result.stats.saved
-      });
       
       setCompressionResult(result);
       setShowLevelSelector(false); // Ocultar selector después de comprimir
@@ -182,7 +163,6 @@ const PDFCompressionPreview = ({
   };
 
   const handleClose = () => {
-    console.log('🔄 Cerrando modal de compresión, limpiando estados');
     setCompressionResult(null);
     setError(null);
     setActiveTab(0);

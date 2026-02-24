@@ -51,7 +51,6 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAlertsCenter } from '../hooks/useAlertsCenter';
-import { useDashboardStats } from '../hooks/useDashboardStats';
 
 // Componente de tarjeta de alerta
 const AlertCard = ({ alert, onDismiss, onToggleStatus, onClick, delay = 0 }) => {
@@ -300,7 +299,6 @@ const AlertsStats = ({ alerts, onRefresh, refreshing }) => {
 
 const AlertsCenterPage = () => {
   const theme = useTheme();
-  const { stats } = useDashboardStats();
   const {
     // alerts, // Comentado temporalmente para evitar conflicto
     criticalAlerts,

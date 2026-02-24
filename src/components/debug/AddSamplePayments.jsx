@@ -122,7 +122,6 @@ const AddSamplePayments = () => {
     setMessage('');
     
     try {
-      console.log('🔥 Agregando pagos de prueba a Firebase...');
       
       const promises = samplePayments.map(payment => 
         addDoc(collection(db, 'payments'), payment)
@@ -131,8 +130,6 @@ const AddSamplePayments = () => {
       const results = await Promise.all(promises);
       
       setMessage(`✅ Se agregaron ${results.length} pagos de prueba exitosamente!`);
-      console.log(`✅ Se agregaron ${results.length} pagos de prueba exitosamente!`);
-      console.log('IDs generados:', results.map(doc => doc.id));
       
     } catch (error) {
       setMessage(`❌ Error agregando pagos: ${error.message}`);

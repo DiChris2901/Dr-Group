@@ -62,8 +62,6 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
   const usagePercentage = storageStats.total > 0 ? (storageStats.used / storageStats.total) * 100 : 0;
   
   // Debug logs comentados
-  // console.log('🔍 StorageMenu - storageStats recibidos:', storageStats);
-  // console.log('🔍 StorageMenu - usagePercentage calculado:', usagePercentage);
   
   const getStorageStatus = () => {
     if (usagePercentage > 90) return { 

@@ -146,7 +146,6 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
                 };
               }
             } catch (error) {
-              console.warn('Error enriqueciendo datos de usuario:', error);
               // Si falla, usar datos existentes
             }
           }

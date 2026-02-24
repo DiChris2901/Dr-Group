@@ -114,7 +114,6 @@ const LiquidacionesHistorialPage = () => {
       });
       
       setUsuarios(usuariosData);
-      console.log('👥 Usuarios cargados:', usuariosData.length);
       return usuariosData;
     } catch (error) {
       console.error('Error cargando usuarios:', error);
@@ -178,7 +177,6 @@ const LiquidacionesHistorialPage = () => {
       });
       
       setEmpresas(empresasData);
-      console.log('🏢 Empresas cargadas:', empresasData.length);
       return empresasData;
     } catch (error) {
       console.error('Error cargando empresas:', error);
@@ -237,7 +235,6 @@ const LiquidacionesHistorialPage = () => {
 
     setLoading(true);
     try {
-      console.log('🔍 Cargando historial con filtros aplicados:', filtrosAplicar);
       
       // Cargar empresas y usuarios primero para obtener los logos y nombres
       const [empresasData, usuariosData] = await Promise.all([
@@ -280,13 +277,6 @@ const LiquidacionesHistorialPage = () => {
         filtrosFirebase.año = fechaSeleccionada.getFullYear();
       }
       
-      console.log('📅 Filtros de período calculados:', {
-        periodoFiltro,
-        mes: filtrosFirebase.mes || 'todos',
-        año: filtrosFirebase.año || 'todos',
-        startDate: filtrosFirebase.startDate?.toLocaleDateString?.('es-CO'),
-        endDate: filtrosFirebase.endDate?.toLocaleDateString?.('es-CO')
-      });
       
       // Determinar límite según el filtro
       // Si es "Todos los meses", usar límite más alto para traer todas
@@ -299,21 +289,12 @@ const LiquidacionesHistorialPage = () => {
         limitePorFiltro
       );
 
-      console.log('📊 Liquidaciones cargadas desde Firebase:', liquidacionesFirebase.length);
       
       if (periodoFiltro !== 'allTime' && liquidacionesFirebase.length < 53) {
-        console.warn('⚠️ PROBLEMA DETECTADO: Se esperaban al menos 53 liquidaciones pero solo se cargaron', liquidacionesFirebase.length);
-        console.warn('⚠️ Verifica el límite en getAllLiquidaciones() o si hay problemas con Firebase');
       }
       
       // Debug: Verificar estructura de liquidaciones
       if (liquidacionesFirebase.length > 0) {
-        console.log('🔍 Primera liquidación de ejemplo:', {
-          id: liquidacionesFirebase[0].id,
-          userId: liquidacionesFirebase[0].userId,
-          empresa: liquidacionesFirebase[0].empresa,
-          fechas: liquidacionesFirebase[0].fechas
-        });
       }
 
       // Mapear datos de Firebase al formato esperado por la UI
@@ -324,11 +305,6 @@ const LiquidacionesHistorialPage = () => {
         
         // Debug para la primera liquidación
         if (index === 0) {
-          console.log('🔍 Mapeando primera liquidación:', {
-            userId: liq.userId,
-            nombreUsuario,
-            encontrado: usuariosData.some(u => u.uid === liq.userId || u.email === liq.userId)
-          });
         }
         
         return {
@@ -389,14 +365,11 @@ const LiquidacionesHistorialPage = () => {
 
       setLiquidaciones(liquidacionesFiltradas);
       
-      console.log('✅ Liquidaciones mapeadas y cargadas:', liquidacionesFiltradas.length);
-      console.log('📊 Resumen por usuario procesador:');
       const usuariosProcesadores = liquidacionesFiltradas.reduce((acc, liq) => {
         acc[liq.procesadoPor] = (acc[liq.procesadoPor] || 0) + 1;
         return acc;
       }, {});
       Object.entries(usuariosProcesadores).forEach(([usuario, count]) => {
-        console.log(`   - ${usuario}: ${count} liquidaciones`);
       });
       
       // Debug: Contar liquidaciones de Recreativos Tiburón específicamente
@@ -404,13 +377,9 @@ const LiquidacionesHistorialPage = () => {
         l.empresa.toLowerCase().includes('recreativos') && 
         l.empresa.toLowerCase().includes('tiburón')
       );
-      console.log(`🔍 Recreativos Tiburón encontradas: ${recreativosTiburon.length}`);
       if (recreativosTiburon.length < 4) {
-        console.warn(`⚠️ PROBLEMA: Se esperaban 4 liquidaciones de Recreativos Tiburón, solo hay ${recreativosTiburon.length}`);
-        console.warn('⚠️ Es probable que falten registros de usuarios eliminados');
       }
       recreativosTiburon.forEach(liq => {
-        console.log(`   → ${liq.periodo} - Procesado por: ${liq.procesadoPor} - ID: ${liq.id.substring(0, 30)}...`);
       });
       
       if (liquidacionesFiltradas.length === 0) {
@@ -482,22 +451,12 @@ const LiquidacionesHistorialPage = () => {
 
   // Debug: Ver resultado del filtrado
   if (liquidaciones.length > 0) {
-    console.log('🔍 Estado del filtro:');
-    console.log(`   - Total liquidaciones: ${liquidaciones.length}`);
-    console.log(`   - Filtro empresa: "${filterEmpresa}"`);
-    console.log(`   - Búsqueda: "${searchTerm}"`);
-    console.log(`   - Liquidaciones filtradas: ${liquidacionesFiltradas.length}`);
-    console.log(`   - Liquidaciones ordenadas por periodo: ${liquidacionesOrdenadas.length}`);
     
     if (liquidacionesOrdenadas.length > 0) {
-      console.log(`   - Primera liquidación (más reciente): ${liquidacionesOrdenadas[0].periodo}`);
-      console.log(`   - Última liquidación (más antigua): ${liquidacionesOrdenadas[liquidacionesOrdenadas.length - 1].periodo}`);
     }
     
     if (liquidacionesFiltradas.length === 0 && liquidaciones.length > 0) {
       console.error('⚠️ PROBLEMA: Hay liquidaciones pero el filtro las está ocultando todas');
-      console.log('🔍 Verificando primera liquidación:', liquidaciones[0]);
-      console.log('🔍 filterEmpresa === "todas":', filterEmpresa === 'todas');
     }
   }
 
@@ -508,16 +467,8 @@ const LiquidacionesHistorialPage = () => {
 
   // Debug: Ver paginación
   if (liquidaciones.length > 0) {
-    console.log('📄 Paginación:');
-    console.log(`   - Página actual: ${currentPage}`);
-    console.log(`   - Items por página: ${itemsPerPage}`);
-    console.log(`   - Total páginas: ${totalPages}`);
-    console.log(`   - Start index: ${startIndex}`);
-    console.log(`   - liquidacionesPaginadas.length: ${liquidacionesPaginadas.length}`);
     
     if (liquidacionesPaginadas.length > 0) {
-      console.log('✅ Primera liquidación paginada:', liquidacionesPaginadas[0]);
-      console.log(`   → Periodo: ${liquidacionesPaginadas[0].periodo}`);
     } else {
       console.error('❌ PROBLEMA: liquidacionesPaginadas está vacío');
     }
@@ -529,7 +480,6 @@ const LiquidacionesHistorialPage = () => {
   
   // Debug: Ver empresas únicas detectadas
   if (empresasUnicas.length > 0) {
-    console.log('🏢 Empresas disponibles en filtro:', empresasUnicas.length);
   }
 
   // Formatear moneda
@@ -607,7 +557,6 @@ const LiquidacionesHistorialPage = () => {
 
   // Ver detalle
   const verDetalle = () => {
-    console.log('🔍 Abriendo modal de detalle para:', selectedLiquidacion);
     setShowDetailDialog(true);
     // NO llamar handleMenuClose() aquí para mantener selectedLiquidacion
     setAnchorEl(null); // Solo cerrar el menú, pero mantener la selección
@@ -623,7 +572,6 @@ const LiquidacionesHistorialPage = () => {
 
   // Descargar liquidación
   const abrirDialogoDescarga = () => {
-    console.log('🔍 Abriendo modal de descarga para:', selectedLiquidacion);
     setShowDownloadDialog(true);
     setAnchorEl(null); // Solo cerrar el menú, pero mantener la selección
   };
@@ -749,18 +697,13 @@ const LiquidacionesHistorialPage = () => {
       event.stopPropagation();
     }
     
-    console.log('🗑️ CLICK DETECTADO - Iniciando eliminación...');
-    console.log('📋 Estado selectedLiquidacion:', selectedLiquidacion);
-    console.log('📋 Estado liquidacionToDelete:', liquidacionToDelete);
     
     if (!liquidacionToDelete) {
-      console.log('❌ No hay liquidación para eliminar en liquidacionToDelete');
       addNotification('No hay liquidación seleccionada', 'error');
       return;
     }
     
     if (!currentUser?.uid) {
-      console.log('❌ No hay usuario autenticado');
       addNotification('Usuario no autenticado', 'error');
       return;
     }
@@ -769,19 +712,7 @@ const LiquidacionesHistorialPage = () => {
       // 🔑 Verificar si el usuario es ADMIN o SUPER_ADMIN (case-insensitive) o pertenece a SYSTEM_USERS
       const normalizedRole = (userProfile?.role || '').toString().trim().toUpperCase();
       const isAdmin = normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN' || isSystemUser(currentUser?.email);
-      console.log('� [UI] Usuario es admin?', isAdmin, '- Role:', userProfile?.role, '- Email:', currentUser?.email);
 
-      console.log('�🔄 [UI] Eliminando liquidación:', {
-        liquidacionId: liquidacionToDelete.id,
-        userId: currentUser.uid,
-        userEmail: currentUser.email,
-        isAdmin,
-        liquidacionData: {
-          empresa: liquidacionToDelete.empresa,
-          periodo: liquidacionToDelete.periodoLiquidacion,
-          archivo: liquidacionToDelete.archivo
-        }
-      });
       
       // 🔒 VALIDACIÓN ADICIONAL DE SEGURIDAD
       if (!liquidacionToDelete.id || !currentUser.uid) {
@@ -794,7 +725,6 @@ const LiquidacionesHistorialPage = () => {
         isAdmin // Pasar flag de admin al servicio
       );
       
-      console.log('✅ Liquidación eliminada exitosamente');
       
       // 🗑️ LOG DE ACTIVIDAD: Liquidación eliminada
       try {
@@ -824,7 +754,6 @@ const LiquidacionesHistorialPage = () => {
       console.error('❌ Error eliminando liquidación:', error);
       addNotification('Error al eliminar liquidación: ' + error.message, 'error');
     } finally {
-      console.log('🔄 Cerrando modal y limpiando selección');
       setShowDeleteDialog(false);
       setSelectedLiquidacion(null);
       setLiquidacionToDelete(null); // Limpiar estado específico
@@ -846,7 +775,6 @@ const LiquidacionesHistorialPage = () => {
 
   // 📅 Handlers para filtro mensual
   const handlePeriodoFiltroChange = (value) => {
-    console.log('📅 Filtro de periodo seleccionado:', value);
     setPeriodoFiltro(value);
 
     // Solo ajustar periodoMes para los filtros originales
@@ -867,18 +795,12 @@ const LiquidacionesHistorialPage = () => {
   };
 
   const handleEmpresaChange = (value) => {
-    console.log('🔍 Filtro de empresa seleccionado:', value);
     setFilterEmpresa(value);
     // NO recargar automáticamente - esperar a que presione "Aplicar Filtros"
   };
   
   // Aplicar filtros seleccionados
   const aplicarFiltros = () => {
-    console.log('✅ Aplicando filtros:', { 
-      empresa: filterEmpresa, 
-      periodoFiltro,
-      periodoMes
-    });
     const nuevosFiltros = {
       empresa: filterEmpresa,
       periodoFiltro,
@@ -892,7 +814,6 @@ const LiquidacionesHistorialPage = () => {
 
   // Limpiar filtros
   const limpiarFiltros = () => {
-    console.log('🧹 Limpiando filtros - tabla quedará vacía hasta aplicar filtros');
     setSearchTerm('');
     setFilterEmpresa('todas');
     setPeriodoFiltro('thisMonth');
@@ -1993,7 +1914,6 @@ const LiquidacionesHistorialPage = () => {
           </Button>
           <Button 
             onClick={(e) => {
-              console.log('🖱️ CLICK EN BOTÓN ELIMINAR DETECTADO!');
               confirmarEliminacion(e);
             }}
             color="error"

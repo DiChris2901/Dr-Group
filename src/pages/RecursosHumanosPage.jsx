@@ -73,11 +73,9 @@ const RecursosHumanosPage = () => {
   useEffect(() => {
     // Si el usuario puede ver RRHH, puede ver empleados
     if (!canViewRRHH) {
-      console.log('❌ RRHH: Sin permisos para cargar empleados');
       return;
     }
 
-    console.log('🔍 RRHH: Iniciando listener de empleados...');
     // Sin orderBy para evitar problemas con campos faltantes
     const q = query(collection(db, 'empleados'));
     
@@ -93,9 +91,7 @@ const RecursosHumanosPage = () => {
         });
       });
       setEmpleados(empleadosData);
-      console.log('📊 RRHH: Empleados cargados desde Firestore:', empleadosData.length);
       if (empleadosData.length > 0) {
-        console.log('👥 Empleados:', empleadosData.map(e => e.nombre).join(', '));
       }
     }, (error) => {
       console.error('❌ Error al cargar empleados:', error);
@@ -103,7 +99,6 @@ const RecursosHumanosPage = () => {
     });
 
     return () => {
-      console.log('🔚 RRHH: Desconectando listener de empleados');
       unsubscribe();
     };
   }, [canViewRRHH]);

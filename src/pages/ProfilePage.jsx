@@ -214,7 +214,6 @@ const ProfilePage = () => {
           const photoRef = ref(storage, userProfile.photoURL);
           await deleteObject(photoRef);
         } catch (error) {
-          console.log('Error eliminando foto anterior:', error);
         }
       }
       
@@ -238,21 +237,8 @@ const ProfilePage = () => {
 
   // Actualizar formData cuando cambie userProfile
   useEffect(() => {
-    console.log('🔄 ProfilePage - useEffect userProfile triggered');
-    console.log('📋 ProfilePage - userProfile changed:', userProfile);
-    console.log('👤 ProfilePage - user data:', user);
     
     if (userProfile) {
-      console.log('🔍 ProfilePage - Datos del userProfile recibidos:', {
-        name: userProfile.name,
-        phone: userProfile.phone,
-        position: userProfile.position,
-        location: userProfile.location,
-        email: userProfile.email,
-        role: userProfile.role,
-        uid: userProfile.uid,
-        allData: userProfile
-      });
       
       const newFormData = {
         name: userProfile.name || '',
@@ -264,11 +250,9 @@ const ProfilePage = () => {
         role: userProfile.role || 'user'
       };
       
-      console.log('📝 ProfilePage - Nuevo formData generado:', newFormData);
       setFormData(newFormData);
       
     } else {
-      console.log('⚠️ ProfilePage - userProfile es null o undefined');
     }
   }, [userProfile, user]);
 
@@ -346,7 +330,6 @@ const ProfilePage = () => {
         await setDoc(profileConfigRef, profileConfig);
       });
 
-      console.log('✅ Configuraciones específicas de Profile aplicadas correctamente');
       
     } catch (error) {
       console.error('Error aplicando configuraciones de Profile:', error);
@@ -447,7 +430,6 @@ const ProfilePage = () => {
           const oldPhotoRef = ref(storage, userProfile.photoURL);
           await deleteObject(oldPhotoRef);
         } catch (error) {
-          console.log('Error eliminando foto anterior:', error);
         }
       }
 
@@ -465,10 +447,6 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    console.log('🚀 ProfilePage - Iniciando handleSave');
-    console.log('📊 ProfilePage - FormData a guardar:', formData);
-    console.log('👤 ProfilePage - Usuario actual:', { uid: user?.uid, email: user?.email });
-    console.log('🔍 ProfilePage - UserProfile actual:', userProfile);
     
     // Validar todos los campos antes de guardar
     const isValid = Object.keys(formData).every(field => 
@@ -476,25 +454,20 @@ const ProfilePage = () => {
     );
     
     if (!isValid) {
-      console.log('❌ ProfilePage - Validación falló:', errors);
       showAlert('Por favor corrige los errores antes de guardar', 'error');
       return;
     }
     
-    console.log('✅ ProfilePage - Validación exitosa, procediendo a guardar...');
     setLoading(true);
     
     try {
-      console.log('💾 ProfilePage - Llamando updateUserProfile con datos:', formData);
       await updateUserProfile(formData);
-      console.log('✅ ProfilePage - updateUserProfile exitoso');
       
       setEditing(false);
       setHasUnsavedChanges(false);
       setErrors({});
       showAlert('Perfil actualizado exitosamente');
       
-      console.log('🎉 ProfilePage - Proceso de guardado completado exitosamente');
       
     } catch (error) {
       console.error('❌ ProfilePage - Error al guardar:', error);

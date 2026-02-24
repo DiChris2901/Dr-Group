@@ -157,7 +157,6 @@ const EditPaymentDialog = ({
   }, [open, payment]);
 
   const handleEditPayment = async (payment) => {
-    console.log('âœï¸ Editando pago:', payment.id);
     setEditingPayment(payment);
     
     // Cargar datos del compromiso si existe commitmentId
@@ -172,11 +171,6 @@ const EditPaymentDialog = ({
     const isColjuegos = isColjuegosCommitment(commitment);
     
     // ðŸ” DEBUG VALORES EXACTOS COMO EN EL MODAL
-    console.log('ðŸ” PAYMENT FORM DEBUG - commitmentData:', commitment);
-    console.log('ðŸ” baseAmount:', commitment?.baseAmount);
-    console.log('ðŸ” iva:', commitment?.iva);
-    console.log('ðŸ” amount:', commitment?.amount);
-    console.log('ðŸ” originalCommitmentAmount:', payment.originalCommitmentAmount);
     
     // Crear copia del pago para trabajar
     let correctedPayment = { ...payment };
@@ -186,7 +180,6 @@ const EditPaymentDialog = ({
     /*
     // Si es un pago de Coljuegos pero los campos especÃ­ficos estÃ¡n en 0 o undefined
     if (isColjuegos && (!payment.interesesDerechosExplotacion && !payment.interesesGastosAdministracion) && payment.interests > 0) {
-      console.log('ðŸ”§ Detectado pago Coljuegos sin campos separados. Aplicando correcciÃ³n automÃ¡tica...');
       
       // Dividir interests entre derechos y gastos (50/50 como patrÃ³n comÃºn)
       const halfInterests = Math.round(payment.interests / 2);
@@ -197,16 +190,9 @@ const EditPaymentDialog = ({
         originalAmount: payment.amount - payment.interests
       };
       
-      console.log('âœ… CorrecciÃ³n aplicada:', {
-        original: payment.interests,
-        derechos: correctedPayment.interesesDerechosExplotacion,
-        gastos: correctedPayment.interesesGastosAdministracion,
-        originalAmount: correctedPayment.originalAmount
-      });
     }
     // Si es Coljuegos pero no tiene interests ni campos separados, calcular desde commitment
     else if (isColjuegos && !payment.interests && commitment) {
-      console.log('ðŸ”§ Detectado pago Coljuegos sin intereses. Calculando desde compromiso...');
       
       const totalInterests = payment.amount - (commitment.amount || 0);
       if (totalInterests > 0) {
@@ -219,13 +205,6 @@ const EditPaymentDialog = ({
           interests: totalInterests
         };
         
-        console.log('âœ… Intereses calculados desde compromiso:', {
-          commitmentAmount: commitment.amount,
-          paymentAmount: payment.amount,
-          totalInterests: totalInterests,
-          derechos: correctedPayment.interesesDerechosExplotacion,
-          gastos: correctedPayment.interesesGastosAdministracion
-        });
       }
     }
     */
@@ -269,41 +248,11 @@ const EditPaymentDialog = ({
       )
     });
 
-    console.log('ðŸ” Debug - Datos cargados en el modal de ediciÃ³n:', {
-      isColjuegos,
-      payment: correctedPayment,
-      commitment: commitment,
-      'RAW derechosExplotacion (PAGO)': correctedPayment.derechosExplotacion,
-      'RAW gastosAdministracion (PAGO)': correctedPayment.gastosAdministracion,
-      'RAW derechosExplotacion (COMPROMISO)': commitment?.derechosExplotacion,
-      'RAW gastosAdministracion (COMPROMISO)': commitment?.gastosAdministracion,
-      'RAW interesesDerechosExplotacion': correctedPayment.interesesDerechosExplotacion,
-      'RAW interesesGastosAdministracion': correctedPayment.interesesGastosAdministracion,
-      'TYPEOF derechosExplotacion': typeof correctedPayment.derechosExplotacion,
-      'TYPEOF gastosAdministracion': typeof correctedPayment.gastosAdministracion,
-      'IS UNDEFINED derechosExplotacion': correctedPayment.derechosExplotacion === undefined,
-      'IS NULL derechosExplotacion': correctedPayment.derechosExplotacion === null,
-      'IS ZERO derechosExplotacion': correctedPayment.derechosExplotacion === 0,
-      'IS UNDEFINED gastosAdministracion': correctedPayment.gastosAdministracion === undefined,
-      'IS NULL gastosAdministracion': correctedPayment.gastosAdministracion === null,
-      'IS ZERO gastosAdministracion': correctedPayment.gastosAdministracion === 0,
-      'FINAL VALUES USED': {
-        derechosExplotacion: correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0,
-        gastosAdministracion: correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0
-      },
-      formData: {
-        derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
-        gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
-        'FORMATTED derechosExplotacion': formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0),
-        'FORMATTED gastosAdministracion': formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0)
-      }
-    });
     
     // ðŸ”„ ACTUALIZACIÃ“N AUTOMÃTICA DE FIREBASE DESACTIVADA
     /*
     if (correctedPayment !== payment) {
       try {
-        console.log('ðŸ’¾ Aplicando correcciÃ³n automÃ¡tica a Firebase...');
         const paymentRef = doc(db, 'payments', payment.id);
         await updateDoc(paymentRef, {
           interesesDerechosExplotacion: correctedPayment.interesesDerechosExplotacion || 0,
@@ -313,7 +262,6 @@ const EditPaymentDialog = ({
           updatedAt: new Date()
         });
         
-        console.log('âœ… Pago actualizado automÃ¡ticamente en Firebase');
         showNotification('Datos de intereses corregidos automÃ¡ticamente', 'success');
       } catch (error) {
         console.error('âŒ Error al actualizar pago:', error);
@@ -463,7 +411,6 @@ const EditPaymentDialog = ({
         relatedToAmount: paymentAmount
       }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
-      console.log('âœ… Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
       return tax4x1000;
     } catch (error) {
       console.error('âŒ Error creando registro 4x1000:', error);
@@ -598,7 +545,6 @@ const EditPaymentDialog = ({
       // SUBIR COMPROBANTES SELECCIONADOS (SI LOS HAY)
       // =====================================================
       if (selectedFiles.length > 0) {
-        console.log('ðŸ“ Subiendo comprobantes seleccionados...');
         setUploadProgress(10);
         
         try {
@@ -609,7 +555,6 @@ const EditPaymentDialog = ({
             // Un solo archivo
             fileToUpload = selectedFiles[0].file;
             fileName = selectedFiles[0].name;
-            console.log('ðŸ“„ Subiendo archivo Ãºnico:', fileName);
           } else {
             // MÃºltiples archivos - combinar en PDF
             setUploadProgress(25);
@@ -618,7 +563,6 @@ const EditPaymentDialog = ({
             const combinedPdf = await combineFilesToPdf(selectedFiles);
             fileToUpload = combinedPdf;
             fileName = `comprobantes_editado_${Date.now()}.pdf`;
-            console.log('âœ… PDF combinado generado:', fileName);
           }
 
           // Subir a Firebase Storage
@@ -627,11 +571,9 @@ const EditPaymentDialog = ({
           const finalFileName = `payments/${timestamp}_${fileName}`;
           const storageRef = ref(storage, finalFileName);
           
-          console.log('â¬†ï¸ Subiendo a Firebase Storage:', finalFileName);
           const snapshot = await uploadBytes(storageRef, fileToUpload);
           const downloadURL = await getDownloadURL(snapshot.ref);
           
-          console.log('âœ… Comprobante subido exitosamente:', downloadURL);
           setUploadProgress(75);
 
           // Agregar URLs de comprobantes al updateData
@@ -692,7 +634,6 @@ const EditPaymentDialog = ({
           updateData.sourceAccount && 
           updateData.amount > 0) {
         
-        console.log('ðŸ’° Generando 4x1000 para', updateData.method, 'de:', formatCurrencyBalance(updateData.amount));
         
         const tax4x1000Amount = await create4x1000Record(
           updateData.amount,
@@ -703,13 +644,11 @@ const EditPaymentDialog = ({
         );
 
         if (tax4x1000Amount) {
-          console.log('â„¹ï¸ 4x1000 generado automÃ¡ticamente:', formatCurrencyBalance(tax4x1000Amount));
         }
       }
       
       setUploadProgress(100);
 
-      console.log('âœ… Pago actualizado exitosamente con comprobantes');
       showNotification(
         selectedFiles.length > 0 
           ? `Pago actualizado y ${selectedFiles.length > 1 ? 'comprobantes combinados' : 'comprobante'} subido exitosamente`
@@ -737,24 +676,18 @@ const EditPaymentDialog = ({
     let tax4x1000Records = [];
     
     try {
-      console.log('ðŸ—‘ï¸ Iniciando eliminaciÃ³n del pago:', paymentToDelete.id);
       
       // 1. Eliminar comprobantes de Firebase Storage si existen
       if (paymentToDelete.attachments && paymentToDelete.attachments.length > 0) {
-        console.log('ðŸ“Ž Eliminando comprobantes del storage...');
         for (const attachmentUrl of paymentToDelete.attachments) {
           try {
             const storageRef = ref(storage, attachmentUrl);
             await deleteObject(storageRef);
-            console.log('âœ… Comprobante eliminado del storage:', attachmentUrl);
           } catch (storageError) {
             // âœ… MEJORADO: Manejo especÃ­fico para diferentes tipos de errores
             if (storageError.code === 'storage/object-not-found') {
-              console.log('â„¹ï¸ Archivo ya no existe en storage (probablemente eliminado anteriormente):', attachmentUrl);
             } else if (storageError.code === 'storage/unauthorized') {
-              console.warn('âš ï¸ Sin permisos para eliminar archivo del storage:', attachmentUrl);
             } else {
-              console.warn('âš ï¸ Error eliminando comprobante del storage:', storageError.message, 'URL:', attachmentUrl);
             }
             // Continuar aunque falle eliminar el archivo - no es crÃ­tico
           }
@@ -762,7 +695,6 @@ const EditPaymentDialog = ({
       }
       
       // 2. Buscar y eliminar registros de 4x1000 asociados
-      console.log('ðŸ¦ Buscando registros de 4x1000 asociados...');
       try {
         // Buscar registros de 4x1000 que coincidan con el concepto y fecha del pago
         const paymentsQuery = query(
@@ -793,13 +725,10 @@ const EditPaymentDialog = ({
         
         // Eliminar registros de 4x1000 encontrados
         if (tax4x1000Records.length > 0) {
-          console.log(`ðŸ’° Eliminando ${tax4x1000Records.length} registros de 4x1000 asociados...`);
           for (const record of tax4x1000Records) {
             await deleteDoc(doc(db, 'payments', record.id));
-            console.log(`âœ… 4x1000 eliminado: ${record.data.concept} - $${record.data.amount.toLocaleString()}`);
           }
         } else {
-          console.log('â„¹ï¸ No se encontraron registros de 4x1000 asociados');
         }
         
       } catch (error) {
@@ -809,7 +738,6 @@ const EditPaymentDialog = ({
       
       // 3. Actualizar compromiso relacionado como no pagado
       if (paymentToDelete.commitmentId) {
-        console.log('ðŸ”„ Actualizando compromiso relacionado como no pagado...');
         try {
           // Verificar si existen otros pagos para este compromiso (excluyendo 4x1000)
           const otherPaymentsQuery = query(
@@ -845,7 +773,6 @@ const EditPaymentDialog = ({
                 }
               }
             } catch(readCommitmentErr) {
-              console.warn('âš ï¸ No se pudo leer el compromiso antes de revertir estado, se usarÃ¡ status pending por defecto:', readCommitmentErr);
             }
 
             await updateDoc(commitmentRef, {
@@ -871,9 +798,7 @@ const EditPaymentDialog = ({
               receiptMetadata: deleteField(),
               updatedAt: new Date()
             });
-            console.log('âœ… Compromiso marcado como no pagado y restablecido (status:', newStatus, ')');
           } else {
-            console.log('â„¹ï¸ El compromiso tiene otros pagos, mantiene estado pagado');
           }
           
         } catch (commitmentError) {
@@ -899,13 +824,11 @@ const EditPaymentDialog = ({
         performedByIsAdmin: isAdmin
       }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
-      console.log('âœ… Pago eliminado exitosamente');
       showNotification('Pago eliminado y compromiso actualizado correctamente', 'success');
       
       // 6. Limpiar cachÃ© de compromisos para forzar actualizaciÃ³n
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COMMITMENTS_CACHE' });
-        console.log('ðŸ§¹ Cache de compromisos limpiado');
       }
       
       // 7. Cerrar modal y limpiar estado

@@ -290,7 +290,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
     if (!files || files.length === 0) return [];
 
     try {
-      console.log(`📄 Procesando ${files.length} archivo(s) para evidencias...`);
 
       const imageFiles = files.filter(f => ['jpg', 'jpeg', 'png'].includes(f.name.split('.').pop().toLowerCase()));
       const pdfFiles = files.filter(f => f.name.split('.').pop().toLowerCase() === 'pdf');
@@ -300,7 +299,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
 
       // CASO 1: Solo imágenes → Convertir y combinar en PDF
       if (imageFiles.length > 0 && pdfFiles.length === 0 && otherFiles.length === 0) {
-        console.log('🖼️ Convirtiendo imágenes a PDF...');
         const pdfBuffers = [];
         
         for (const file of imageFiles) {
@@ -333,7 +331,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       }
       // CASO 2: PDFs + Imágenes → Combinar todo
       else if ((imageFiles.length > 0 || pdfFiles.length > 0) && otherFiles.length === 0) {
-        console.log('📄 Combinando PDFs e imágenes...');
         const pdfBuffers = [];
 
         for (const file of imageFiles) {
@@ -388,7 +385,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       }
       // CASO 4: Múltiples archivos mixtos → ZIP
       else {
-        console.log('📦 Comprimiendo archivos en ZIP...');
         const zip = new JSZip();
         
         for (const file of files) {
@@ -495,7 +491,6 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       const taskSnap = await getDoc(taskRef);
       
       if (!taskSnap.exists()) {
-        console.warn('La tarea no existe en Firestore, saltando actualización');
         // Continuar sin error ya que el log se creó correctamente
       } else {
         // Actualizar la tarea principal con el nuevo progreso y estado

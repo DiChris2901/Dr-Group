@@ -314,17 +314,33 @@ export default function AdminNovedadesScreen({ navigation }) {
                 const docData = docs[0];
                 const docId = docData.id;
 
-                // ❌ Lógica de "Gap" ELIMINADA a petición del usuario.
-                // Al reabrir, se asume que el tiempo transcurrido SÍ fue trabajado.
-                // Simplemente borramos la salida y dejamos que el contador siga corriendo.
+                // ✅ Calcular gap de inactividad y registrarlo como break automático
+                // Para que el timer descuente el tiempo entre cierre y reapertura
+                const salidaTime = docData.salida?.hora?.toDate ? docData.salida.hora.toDate() : 
+                                   docData.salida?.hora ? new Date(docData.salida.hora) : null;
+                const ahoraReapertura = new Date();
+                
+                // Preparar breaks actualizados (agregar gap como break de inactividad)
+                const breaksActuales = docData.breaks || [];
+                const breaksActualizados = [...breaksActuales];
+                
+                if (salidaTime) {
+                  // Agregar el gap como un "break de inactividad" para que el timer lo descuente
+                  breaksActualizados.push({
+                    inicio: docData.salida.hora, // Timestamp de Firestore original
+                    fin: Timestamp.now(),
+                    tipo: 'reapertura_gap',
+                    nota: 'Tiempo de inactividad entre cierre y reapertura'
+                  });
+                }
                 
                 await updateDoc(doc(db, 'asistencias', docId), {
                     salida: null,
                     horasTrabajadas: null,
-                    estadoActual: 'trabajando'
-                    // No tocamos los breaks
+                    estadoActual: 'trabajando',
+                    breaks: breaksActualizados
                 });
-                Alert.alert('Reapertura Exitosa', 'La jornada ha sido reabierta. El tiempo transcurrido contará como trabajado.');
+                Alert.alert('Reapertura Exitosa', 'La jornada ha sido reabierta. El tiempo de inactividad se descontó automáticamente.');
             } else {
                 throw new Error('No se encontró registro de asistencia para esta fecha');
             }

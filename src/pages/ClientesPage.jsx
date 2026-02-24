@@ -212,11 +212,9 @@ const ClientesPage = () => {
         return;
       }
 
-      console.log('📦 Exportando clientes spectacular...');
       const result = await exportarClientesSpectacular(clientes);
 
       if (result.success) {
-        console.log('✅ Exportación exitosa:', result);
         alert(`✅ Exportación exitosa\n\n📊 ${result.recordCount} clientes exportados\n📁 Archivo: ${result.filename}`);
       }
     } catch (error) {

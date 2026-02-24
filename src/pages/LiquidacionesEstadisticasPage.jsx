@@ -293,7 +293,6 @@ const LiquidacionesEstadisticasPage = () => {
           setSalaDetalleSeleccionada(cached.salaDetalleSeleccionada || '');
           setPeriodosLiquidacionIncluidos(cached.periodosLiquidacionIncluidos || []);
           setPeriodoLiquidacionUltimo(cached.periodoLiquidacionUltimo || '');
-          console.log('♻️ Cache hit (liquidaciones):', cacheKey);
           return;
         }
 
@@ -369,7 +368,6 @@ const LiquidacionesEstadisticasPage = () => {
           const snapMensual = await getDocs(qMensual);
           mensualDocs = snapMensual.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
         } catch (e) {
-          console.warn('⚠️ Query por empresa.normalizado falló, usando fallback por nombre:', e);
           const qFallback = query(
             collection(db, 'liquidaciones'),
             where('fechas.createdAt', '>=', hace24Meses),
@@ -436,7 +434,6 @@ const LiquidacionesEstadisticasPage = () => {
           setLiquidacionesPorSala([]);
           setSalasDisponibles([]);
           setSalaDetalleSeleccionada('');
-          console.log('ℹ️ Empresa sin periodos disponibles en ventana.');
           return;
         }
 

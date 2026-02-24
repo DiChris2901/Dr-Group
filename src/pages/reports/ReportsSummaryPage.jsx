@@ -347,7 +347,6 @@ const ReportsSummaryPage = () => {
           }))
         });
         
-        console.log('✅ Archivo Excel profesional generado exitosamente');
       }
       
     } catch (error) {
@@ -430,7 +429,6 @@ const ReportsSummaryPage = () => {
 
   // 📊 EXPORTAR A EXCEL AVANZADO CON FORMATO PROFESIONAL
   const exportToExcelAdvanced = async () => {
-    console.log('🚀 Generando Excel PREMIUM con formato empresarial...');
 
     // Crear workbook
     const wb = XLSX.utils.book_new();
@@ -775,12 +773,10 @@ const ReportsSummaryPage = () => {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
     XLSX.writeFile(wb, `DR-Group-Reporte-Premium-${timestamp}.xlsx`);
 
-    console.log('✨ Reporte Excel PREMIUM generado exitosamente con formato profesional');
   };
 
   // � EXPORTAR A PDF PROFESIONAL
   const exportToPDF = async () => {
-    console.log('�🚀 Generando PDF profesional...');
     
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -896,7 +892,6 @@ const ReportsSummaryPage = () => {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
     pdf.save(`DR-Group-Reporte-PDF-${timestamp}.pdf`);
     
-    console.log('✨ PDF profesional generado exitosamente');
   };
 
   // DEBUG: Información esencial sobre el estado de los datos

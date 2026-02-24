@@ -11,6 +11,7 @@ export default function FloatingActionBar({
   onPressEnd,
   onPressResume,
   breaksCount = 0,
+  lunchUsed = false,
   isLoading = false // 🔒 Estado de loading para deshabilitar botón
 }) {
   const theme = usePaperTheme();
@@ -132,13 +133,13 @@ export default function FloatingActionBar({
         <TouchableOpacity 
           style={[styles.actionButton, { 
             backgroundColor: theme.colors.tertiaryContainer,
-            opacity: actionLoading ? 0.5 : 1
+            opacity: (lunchUsed || actionLoading) ? 0.5 : 1
           }]}
           onPress={() => safeAction(onPressLunch, 'light')}
-          disabled={actionLoading}
+          disabled={lunchUsed || actionLoading}
         >
-          <Icon source="food" size={24} color={theme.colors.onTertiaryContainer} />
-          <Text variant="labelSmall" style={{ color: theme.colors.onTertiaryContainer, marginTop: 4, fontWeight: 'bold' }}>
+          <Icon source={lunchUsed ? "food-off" : "food"} size={24} color={lunchUsed ? theme.colors.onSurfaceDisabled : theme.colors.onTertiaryContainer} />
+          <Text variant="labelSmall" style={{ color: lunchUsed ? theme.colors.onSurfaceDisabled : theme.colors.onTertiaryContainer, marginTop: 4, fontWeight: 'bold' }}>
             Almuerzo
           </Text>
         </TouchableOpacity>

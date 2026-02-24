@@ -110,7 +110,6 @@ const LiquidacionesPorSalaPage = () => {
       const dias = new Date(añoNum, mesIndex + 1, 0).getDate();
       return dias || 30;
     } catch (e) {
-      console.warn('No se pudo calcular días del mes, usando 30.', e);
       return 30;
     }
   }, [dialogEdicion.liquidacion]);
@@ -333,17 +332,11 @@ const LiquidacionesPorSalaPage = () => {
                 ...doc.data()
               });
             } else {
-              console.warn('⚠️ Liquidación duplicada detectada y omitida:', doc.id);
             }
           });
 
-          console.log(`📡 Datos en tiempo real: ${liquidacionesRealTime.length} liquidaciones (TODAS)`);
-          console.log('🔍 Usuario actual:', currentUser?.uid);
-          console.log('🔍 Filtros aplicados:', filtrosAplicados);
-          console.log('ℹ️ Mostrando liquidaciones de TODOS los usuarios del sistema');
           
           if (liquidacionesRealTime.length > 0) {
-            console.log('🔍 Primera liquidación encontrada:', liquidacionesRealTime[0]);
           }
 
           // Verificar que las liquidaciones principales existen antes de mostrar las por sala
@@ -357,14 +350,12 @@ const LiquidacionesPorSalaPage = () => {
             if (liquidacion.liquidacionOriginalId) {
               // Detectar referencia circular (bug donde liquidacionOriginalId === id)
               if (liquidacion.liquidacionOriginalId === liquidacion.id) {
-                console.warn('⚠️ Referencia circular detectada, removiendo liquidación con bug:', liquidacion.id);
                 await deleteDoc(doc(db, 'liquidaciones_por_sala', liquidacion.id));
                 continue; // Saltar esta liquidación
               }
               
               const originalDoc = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacion.liquidacionOriginalId));
               if (!originalDoc.exists()) {
-                console.warn('⚠️ Liquidación original no existe, removiendo edición:', liquidacion.id);
                 // Eliminar automáticamente la liquidación huérfana
                 await deleteDoc(doc(db, 'liquidaciones_por_sala', liquidacion.id));
                 continue; // Saltar esta liquidación
@@ -373,7 +364,6 @@ const LiquidacionesPorSalaPage = () => {
               if (liquidacion.liquidacionId) {
                 const principalDoc = await getDoc(doc(db, 'liquidaciones', liquidacion.liquidacionId));
                 if (!principalDoc.exists()) {
-                  console.warn('⚠️ Liquidación principal no existe, removiendo por sala:', liquidacion.id);
                   // Eliminar automáticamente la liquidación huérfana
                   await deleteDoc(doc(db, 'liquidaciones_por_sala', liquidacion.id));
                   continue; // Saltar esta liquidación
@@ -383,14 +373,6 @@ const LiquidacionesPorSalaPage = () => {
               
               // Logging temporal para debug de ediciones
               if (liquidacion.esEdicion || liquidacion.liquidacionId || liquidacion.liquidacionOriginalId) {
-                console.log('🔍 LIQUIDACIÓN EDITADA DETECTADA:', {
-                  id: liquidacion.id,
-                  sala: liquidacion.sala?.nombre,
-                  esEdicion: liquidacion.esEdicion,
-                  liquidacionId: liquidacion.liquidacionId,
-                  liquidacionOriginalId: liquidacion.liquidacionOriginalId,
-                  maquinasEditadas: liquidacion.maquinasEditadas
-                });
               }
               
               // Agregar todas las liquidaciones sin validación automática
@@ -412,19 +394,15 @@ const LiquidacionesPorSalaPage = () => {
           const hayFiltrosValidos = filtrosAplicados && Object.values(filtrosAplicados).some(f => f && f.trim && f.trim());
           
           if (hayFiltrosValidos) {
-            console.log('🔧 Aplicando filtros localmente...');
             liquidacionesFiltradas = liquidacionesRealTime.filter(liquidacion => {
               const pasaEmpresa = !filtrosAplicados.empresa || !filtrosAplicados.empresa.trim() || liquidacion.empresa.nombre === filtrosAplicados.empresa;
               const pasaPeriodo = !filtrosAplicados.periodo || !filtrosAplicados.periodo.trim() || liquidacion.fechas.periodoLiquidacion === filtrosAplicados.periodo;
               const pasaSala = !filtrosAplicados.sala || !filtrosAplicados.sala.trim() || liquidacion.sala.nombre === filtrosAplicados.sala;
               
-              console.log(`🔍 Liquidación ${liquidacion.sala.nombre}: empresa=${pasaEmpresa}, periodo=${pasaPeriodo}, sala=${pasaSala}`);
               
               return pasaEmpresa && pasaPeriodo && pasaSala;
             });
-            console.log(`📊 Después de filtros: ${liquidacionesFiltradas.length} de ${liquidacionesRealTime.length}`);
           } else {
-            console.log('🔍 Sin filtros aplicados, mostrando tabla vacía');
             // Sin filtros = tabla vacía (requiere aplicar filtros para ver datos)
             liquidacionesFiltradas = [];
           }
@@ -475,7 +453,6 @@ const LiquidacionesPorSalaPage = () => {
 
     // Cleanup function
     return () => {
-      console.log('🔌 Desconectando listener de Firebase');
       unsubscribe();
     };
   }, [currentUser?.uid, filtrosAplicados]);
@@ -483,7 +460,6 @@ const LiquidacionesPorSalaPage = () => {
   // Función de carga manual (backup para casos especiales)
   const cargarDatos = async () => {
     try {
-      console.log('🔄 Recarga manual de datos...');
       // El listener en tiempo real se encargará de actualizar automáticamente
       // Esta función se mantiene para compatibilidad
     } catch (error) {
@@ -501,50 +477,26 @@ const LiquidacionesPorSalaPage = () => {
   const cargarDetallesSala = async (liquidacionSala) => {
     try {
       setCargandoDetalles(true);
-      console.log('🔍 Cargando detalles para sala:', liquidacionSala.sala.nombre);
-      console.log('📋 Datos de liquidación recibidos:', liquidacionSala);
       
       // Obtener el documento completo desde Firebase
       const liquidacionDoc = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacionSala.id));
       
       if (!liquidacionDoc.exists()) {
-        console.warn('❌ No se encontró el documento de liquidación');
         setDatosMaquinasSala([]);
         addNotification('No se encontró el documento de liquidación', 'warning');
         return;
       }
 
       const liquidacionData = liquidacionDoc.data();
-      console.log('📄 Documento completo cargado:', liquidacionData);
       
       // Verificar si tiene datosConsolidados
       if (liquidacionData.datosConsolidados && Array.isArray(liquidacionData.datosConsolidados)) {
         const datosConsolidados = liquidacionData.datosConsolidados;
-        console.log(`📊 Datos consolidados encontrados: ${datosConsolidados.length} máquinas`);
-        console.log('🔧 Muestra de datos:', datosConsolidados.slice(0, 2));
         
         // Procesar los datos para la tabla
         let maquinasData = datosConsolidados.map((maquina, index) => {
           if (index < 3) {
             try {
-              console.log('[DEBUG diasTx] Raw maquina keys:', Object.keys(maquina));
-              console.log('[DEBUG diasTx] Valores candidatos:', {
-                diasTransmitidos: maquina.diasTransmitidos,
-                dias_transmitidos: maquina.dias_transmitidos,
-                diasTx: maquina.diasTx,
-                dias_mes: maquina.dias_mes,
-                diasMes: maquina.diasMes,
-                dias: maquina.dias,
-                metrics: maquina.metrics && {
-                  diasTransmitidos: maquina.metrics.diasTransmitidos,
-                  dias_tx: maquina.metrics.dias_tx,
-                  dias: maquina.metrics.dias
-                },
-                detalle: maquina.detalle && {
-                  diasTransmitidos: maquina.detalle.diasTransmitidos,
-                  dias: maquina.detalle.dias
-                }
-              });
             } catch(e) { /* noop */ }
           }
           // Fallbacks extensivos para dias transmitidos (según distintos orígenes posibles)
@@ -586,7 +538,6 @@ const LiquidacionesPorSalaPage = () => {
         if (maquinasData.every(m => m.diasTransmitidos == null)) {
           const posibleGlobal = liquidacionData.diasTransmitidos || liquidacionData.diasMes || liquidacionData.dias || null;
           if (typeof posibleGlobal === 'number' && posibleGlobal > 0 && posibleGlobal <= 31) {
-            console.log('[INFO diasTx] Usando valor global inferido para diasTransmitidos:', posibleGlobal);
             maquinasData.forEach(m => { m.diasTransmitidos = posibleGlobal; });
           }
         }
@@ -594,7 +545,6 @@ const LiquidacionesPorSalaPage = () => {
         // Si seguimos sin valores y este documento es una EDICION (tiene liquidacionOriginalId), intentar fusionar desde el documento original
         if (maquinasData.every(m => m.diasTransmitidos == null) && liquidacionData.liquidacionOriginalId) {
           try {
-            console.log('[MERGE diasTx] Intentando obtener diasTransmitidos desde original:', liquidacionData.liquidacionOriginalId);
             const originalSnap = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacionData.liquidacionOriginalId));
             if (originalSnap.exists()) {
               const originalData = originalSnap.data();
@@ -616,25 +566,18 @@ const LiquidacionesPorSalaPage = () => {
                     }
                     return m;
                   });
-                  console.log(`[MERGE diasTx] Dias transmitidos aplicados desde original para ${Array.from(mapaOriginal.keys()).length} máquinas`);
                 } else {
-                  console.log('[MERGE diasTx] Original no contenía diasTransmitidos por máquina');
                 }
               }
             } else {
-              console.warn('[MERGE diasTx] No se encontró documento original');
             }
           } catch(mergeErr) {
-            console.warn('[MERGE diasTx] Error intentando fusionar diasTransmitidos desde original:', mergeErr);
           }
         }
         
-        console.log('✅ Datos procesados para la tabla:', maquinasData);
         setDatosMaquinasSala(maquinasData);
         
       } else {
-        console.warn('❌ No se encontraron datosConsolidados en el documento');
-        console.log('Estructura del documento:', Object.keys(liquidacionData));
         setDatosMaquinasSala([]);
         addNotification('No se encontraron datos consolidados de máquinas', 'warning');
       }
@@ -686,7 +629,6 @@ const LiquidacionesPorSalaPage = () => {
       // En caso de error, mostrar el actual para no bloquear la UI
       setDialogDetalles({ open: true, liquidacion });
       await cargarDetallesSala(liquidacion);
-      console.warn('Error abriendo detalles del original, se muestra el documento actual:', e);
     }
   };
 
@@ -702,7 +644,6 @@ const LiquidacionesPorSalaPage = () => {
 
   // Funciones para edición de liquidaciones
   const abrirModalEdicion = async (liquidacion) => {
-    console.log('🔧 Abriendo modal de edición para:', liquidacion);
 
     let baseParaEdicion = liquidacion;
 
@@ -713,11 +654,9 @@ const LiquidacionesPorSalaPage = () => {
           const docEd = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacion.edicionId));
           if (docEd.exists()) {
             baseParaEdicion = { id: docEd.id, ...docEd.data() };
-            console.log('🔄 Usando edición acumulada existente para nueva edición incremental');
           }
         }
       } catch (e) {
-        console.warn('No se pudo cargar edición acumulada, se usará original:', e);
       }
     }
 
@@ -764,10 +703,8 @@ const LiquidacionesPorSalaPage = () => {
       setOpcionesEdicion({ tarifaFija: false, maquinasNegativasCero: false });
     }
 
-    console.log('🔍 Cargando datos de máquinas para documento de edición con id:', baseParaEdicion.id);
     try {
       await cargarDetallesSala(baseParaEdicion);
-      console.log('✅ Datos de máquinas cargados exitosamente para edición');
     } catch (error) {
       console.error('❌ Error al cargar datos de máquinas (edición):', error);
     }
@@ -808,7 +745,6 @@ const LiquidacionesPorSalaPage = () => {
         }
       });
 
-      console.log('📄 Edición acumulativa aplicada. ID edición:', idEdicion);
       addNotification('Cambios aplicados. Edición acumulada actualizada.', 'success');
 
       setDialogEdicion({ open: false, liquidacion: null });
@@ -858,7 +794,6 @@ const LiquidacionesPorSalaPage = () => {
       });
       return map;
     } catch (e) {
-      console.warn('⚠️ No se pudieron cargar datos originales para historial:', e);
       return null;
     }
   };
@@ -974,7 +909,6 @@ const LiquidacionesPorSalaPage = () => {
     if (!confirmacion) return;
 
     try {
-      console.log('🗑️ Eliminando liquidación editada:', liquidacionEditada.id);
       
       // Eliminar el documento de Firestore
       await deleteDoc(doc(db, 'liquidaciones_por_sala', liquidacionEditada.id));
@@ -983,11 +917,9 @@ const LiquidacionesPorSalaPage = () => {
         try {
           await setDoc(doc(db, 'liquidaciones_por_sala', liquidacionEditada.liquidacionOriginalId), { tieneEdiciones: false, edicionId: null }, { merge: true });
         } catch (e) {
-          console.warn('No se pudieron limpiar flags en original:', e);
         }
       }
       
-      console.log('✅ Liquidación editada eliminada correctamente');
       
       // Actualizar la lista local de manera más inteligente
       setLiquidaciones(prevLiquidaciones => 
@@ -2381,7 +2313,6 @@ const LiquidacionesPorSalaPage = () => {
                     value={datosEdicion.motivoEdicion || ''}
                     onChange={(e) => {
                       const value = e.target.value;
-                      console.log('🔧 Motivo changed:', value, 'Length:', value.length);
                       setDatosEdicion(prev => ({ ...prev, motivoEdicion: value }));
                       // Marcar como sucio si cambia el motivo
                       if (!edicionDirty) setEdicionDirty(true);
@@ -2491,11 +2422,6 @@ const LiquidacionesPorSalaPage = () => {
             <Button
               variant="contained"
               onClick={() => {
-                console.log('🔧 Button state:', { 
-                  motivoEdicion: datosEdicion.motivoEdicion, 
-                  length: datosEdicion.motivoEdicion?.length,
-                  disabled: !datosEdicion.motivoEdicion 
-                });
                 guardarEdicionLiquidacion();
               }}
               // Ahora solo depende del motivo: si hay cambios pero el usuario no cambió producción y solo quiere documentar un ajuste, igual puede guardar

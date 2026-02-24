@@ -25,7 +25,6 @@ const BRAND_COLORS = {
  */
 export const exportarClientesSpectacular = async (clientes) => {
   try {
-    console.log('[ExcelExport] Iniciando exportacion formato Python...');
 
     if (!clientes || !Array.isArray(clientes) || clientes.length === 0) {
       throw new Error('No hay datos validos de clientes para exportar');
@@ -311,7 +310,6 @@ export const exportarClientesSpectacular = async (clientes) => {
     });
 
     // ========== HOJA 3: HISTORIAL DE CAMBIOS ==========
-    console.log('[ExcelExport] Generando Hoja 3: Historial de Cambios...');
     
     // Consultar cambios de Firebase
     const changesQuery = query(collection(db, 'sala_changes'), orderBy('timestamp', 'desc'));
@@ -497,8 +495,6 @@ export const exportarClientesSpectacular = async (clientes) => {
     link.click();
     URL.revokeObjectURL(link.href);
     
-    console.log('[ExcelExport] Completado:', filename);
-    console.log(`[ExcelExport] Hoja 1: ${clientes.length} clientes | Hoja 2: ${administradores.length} administradores | Hoja 3: ${cambios.length} cambios`);
     
     return { 
       success: true, 

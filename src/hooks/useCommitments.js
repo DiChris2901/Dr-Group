@@ -40,7 +40,6 @@ export const useCommitments = () => {
         setCommitments(commitmentsData);
         setError(null);
       } catch (err) {
-        console.warn('Error fetching commitments for calendar:', err);
         setError(err.message);
         // En caso de error, usar datos vacíos para no romper el calendario
         setCommitments([]);
