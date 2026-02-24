@@ -505,9 +505,9 @@ const MaquinasEnCeroStats = ({
   );
 
   const nivelTooltips = {
-    critico: 'Más de 90 días calendario sin generar ingresos. Requiere atención urgente: evaluar retiro, reubicación o mantenimiento mayor.',
-    alerta: 'Entre 30 y 90 días calendario en cero. Monitorear de cerca: puede necesitar mantenimiento o reubicación.',
-    reciente: 'Menos de 30 días en cero. Podría ser temporal (mantenimiento programado, baja estacional). Seguimiento normal.'
+    critico: 'Más de 180 días calendario sin generar ingresos. Requiere atención urgente: evaluar retiro, reubicación o mantenimiento mayor.',
+    alerta: 'Entre 60 y 179 días calendario en cero. Monitorear de cerca: puede necesitar mantenimiento o reubicación.',
+    reciente: 'Menos de 60 días en cero. Podría ser temporal (mantenimiento programado, baja estacional). Seguimiento normal.'
   };
 
   const NivelChip = ({ nivel }) => {
@@ -1043,14 +1043,14 @@ const MaquinasEnCeroStats = ({
         <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', whiteSpace: 'nowrap' }}>
           Distribución
         </Typography>
-        <MuiTooltip title="Más de 90 días en cero. Requiere acción urgente: retiro, reubicación o mantenimiento mayor." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.criticas} Críticas (>90d)`} color="error" variant={kpis.criticas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        <MuiTooltip title="Más de 180 días en cero. Requiere acción urgente: retiro, reubicación o mantenimiento mayor." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.criticas} Críticas (>180d)`} color="error" variant={kpis.criticas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
-        <MuiTooltip title="Entre 30 y 90 días en cero. Monitorear: puede necesitar mantenimiento o reubicación." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.alertas} Alertas (30-90d)`} color="warning" variant={kpis.alertas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        <MuiTooltip title="Entre 60 y 179 días en cero. Monitorear: puede necesitar mantenimiento o reubicación." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.alertas} Alertas (60-179d)`} color="warning" variant={kpis.alertas > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
-        <MuiTooltip title="Menos de 30 días en cero. Podría ser temporal (mantenimiento, baja estacional). Seguimiento normal." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
-          <Chip size="small" label={`${kpis.recientes} Recientes (<30d)`} color="info" variant={kpis.recientes > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
+        <MuiTooltip title="Menos de 60 días en cero. Podría ser temporal (mantenimiento, baja estacional). Seguimiento normal." arrow enterDelay={200} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260, lineHeight: 1.5 } } }}>
+          <Chip size="small" label={`${kpis.recientes} Recientes (<60d)`} color="info" variant={kpis.recientes > 0 ? 'filled' : 'outlined'} sx={{ fontSize: 11, cursor: 'help' }} />
         </MuiTooltip>
       </Box>
 
