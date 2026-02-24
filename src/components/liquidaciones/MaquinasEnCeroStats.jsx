@@ -1217,15 +1217,9 @@ const MaquinasEnCeroStats = ({
                                       {m.diasCalendario}
                                     </Typography>
                                   ) : (
-                                    // Recuperada: duración histórica del episodio (informativo)
-                                    <Box sx={{ textAlign: 'right' }}>
-                                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.disabled' }}>
-                                        {m.diasCalendario}
-                                      </Typography>
-                                      <Typography sx={{ fontSize: 9, color: 'text.disabled', lineHeight: 1 }}>
-                                        del episodio
-                                      </Typography>
-                                    </Box>
+                                    // Recuperada: no mostrar contador de días en la tabla
+                                    // (la duración del episodio ya aparece en las cards expandidas)
+                                    <Typography sx={{ fontSize: 14, color: 'text.disabled', fontWeight: 400 }}>—</Typography>
                                   )}
                                 </TableCell>
                                 <TableCell align="center">
@@ -1359,12 +1353,22 @@ const MaquinasEnCeroStats = ({
                                                 <PlayArrow sx={{ fontSize: 20, color: theme.palette.success.main }} />
                                                 <Box>
                                                   <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Se recuperó en</Typography>
-                                                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
-                                                    {m.ultimoEpisodio?.periodoRecuperacion
-                                                      ? formatPeriodoLabel(m.ultimoEpisodio.periodoRecuperacion)
-                                                      : 'Periodo siguiente'}
-                                                  </Typography>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Periodo sin cero</Typography>
+                                                  {(() => {
+                                                    const periodoRec = m.ultimoEpisodio?.periodoRecuperacion;
+                                                    const fechaRec = periodoRec ? periodoToDate(periodoRec) : null;
+                                                    return fechaRec ? (
+                                                      <>
+                                                        <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
+                                                          {fechaRec.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
+                                                          Primer periodo con producción
+                                                        </Typography>
+                                                      </>
+                                                    ) : (
+                                                      <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>Periodo siguiente</Typography>
+                                                    );
+                                                  })()}
                                                 </Box>
                                               </Box>
                                             </Grid>
