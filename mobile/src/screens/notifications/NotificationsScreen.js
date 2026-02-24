@@ -142,38 +142,54 @@ export default function NotificationsScreen({ navigation }) {
             try {
               setActionLoading(true);
               
-              // Query para todas las notificaciones del usuario
-              const q = query(
-                collection(db, 'notifications'),
-                where('uid', '==', user.uid)
-              );
+              // Query para todas las notificaciones del usuario (uid Y userId para cubrir ambos formatos)
+              const [snapUid, snapUserId] = await Promise.all([
+                getDocs(query(collection(db, 'notifications'), where('uid', '==', user.uid))),
+                getDocs(query(collection(db, 'notifications'), where('userId', '==', user.uid))),
+              ]);
+
+              // Combinar resultados evitando duplicados por ID
+              const seenIds = new Set();
+              const allDocs = [];
+              [...snapUid.docs, ...snapUserId.docs].forEach(d => {
+                if (!seenIds.has(d.id)) {
+                  seenIds.add(d.id);
+                  allDocs.push(d);
+                }
+              });
               
-              const snapshot = await getDocs(q);
-              
-              if (snapshot.empty) {
+              if (allDocs.length === 0) {
                 Alert.alert('Info', 'No tienes notificaciones para eliminar');
                 setActionLoading(false);
                 return;
               }
               
-              // Usar batch para eliminar múltiples documentos
-              const batch = writeBatch(db);
-              snapshot.docs.forEach((document) => {
-                batch.delete(document.ref);
-              });
-              
-              await batch.commit();
+              // Firestore batch: máximo 500 operaciones por batch
+              // Dividimos en chunks de 400 para tener margen de seguridad
+              const CHUNK_SIZE = 400;
+              const chunks = [];
+              for (let i = 0; i < allDocs.length; i += CHUNK_SIZE) {
+                chunks.push(allDocs.slice(i, i + CHUNK_SIZE));
+              }
+
+              await Promise.all(
+                chunks.map(chunk => {
+                  const batch = writeBatch(db);
+                  chunk.forEach(document => batch.delete(document.ref));
+                  return batch.commit();
+                })
+              );
               
               Alert.alert(
                 'Eliminadas',
-                `${snapshot.size} notificación${snapshot.size > 1 ? 'es' : ''} eliminada${snapshot.size > 1 ? 's' : ''}`,
+                `${allDocs.length} notificación${allDocs.length > 1 ? 'es' : ''} eliminada${allDocs.length > 1 ? 's' : ''}`,
                 [{ text: 'OK' }]
               );
               
               setActionLoading(false);
             } catch (error) {
               console.error('Error eliminando notificaciones:', error);
-              Alert.alert('Error', 'No se pudieron eliminar las notificaciones');
+              Alert.alert('Error', `No se pudieron eliminar las notificaciones: ${error.message}`);
               setActionLoading(false);
             }
           }
