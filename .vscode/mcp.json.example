@@ -7,17 +7,37 @@
         "firebase-tools@latest",
         "mcp",
         "--dir",
-        "c:\\Users\\darg1\\Desktop\\Dr-Group",
+        "/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group",
         "--only",
         "auth,firestore,storage,functions"
       ]
     },
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp",
-      "headers": {
-        "Authorization": "Bearer TU_TOKEN_AQUI"
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "TU_PAT_AQUI"
       }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "excel": {
+      "command": "npx",
+      "args": ["-y", "@negokaz/excel-mcp-server"]
     }
   }
 }

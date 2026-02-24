@@ -6,16 +6,17 @@
 
 ## 🔌 MCP SERVERS CONFIGURADOS
 
-Este proyecto tiene **dos servidores MCP activos** que permiten a Copilot acceder directamente a Firebase y Supabase desde el chat.
+Este proyecto tiene **6 servidores MCP activos** que permiten a Copilot acceder directamente a servicios externos, el sistema de archivos y herramientas de razonamiento desde el chat.
 
-### Configuración local (NO está en git — contiene token)
+### Configuración local (NO está en git — contiene tokens)
 El archivo real con credenciales está en `.vscode/mcp.json` (ignorado por `.gitignore`).
-El archivo de ejemplo sin token está en `.vscode/mcp.json.example`.
+El archivo de ejemplo sin tokens está en `.vscode/mcp.json.example`.
 
 ### Para configurar en una máquina nueva:
 1. Copiar `.vscode/mcp.json.example` → `.vscode/mcp.json`
-2. Reemplazar `TU_TOKEN_AQUI` con el Personal Access Token de Supabase (generarlo en https://supabase.com/dashboard/account/tokens)
-3. Recargar VS Code: `Ctrl+Shift+P` → **Developer: Reload Window**
+2. Reemplazar `/RUTA_ABSOLUTA_AL_PROYECTO/Dr-Group` con la ruta real del proyecto
+3. Reemplazar `TU_PAT_AQUI` con el Personal Access Token de GitHub (generarlo en https://github.com/settings/tokens)
+4. Recargar VS Code: `Cmd+Shift+P` → **Developer: Reload Window**
 
 ### 1. 🔥 Firebase MCP
 - **Proyecto activo:** `dr-group-cd21b`
@@ -24,18 +25,28 @@ El archivo de ejemplo sin token está en `.vscode/mcp.json.example`.
 - **Autenticación:** Firebase CLI global (`firebase login` — ya autenticado)
 - **Capacidades:** Consultar/escribir Firestore, leer Auth, logs de Functions, validar Security Rules
 
-### 2. 🟢 Supabase MCP
-- **Proyecto:** `Dr-Group` (ID: `qkbziogeveimkninbfyk` — región us-east-1)
-- **Organización:** `Dr-Group` (ID: `dqtbjoouqoipxtogolbh`)
-- **Autenticación:** Personal Access Token en header (OAuth no funcionó — usar token)
-- **Capacidades:** Ejecutar SQL, gestionar tablas PostgreSQL, Edge Functions, logs, tipos TypeScript
-- **⚠️ IMPORTANTE:** El token va SOLO en `.vscode/mcp.json` local. NUNCA en el repo.
+### 2. 🐙 GitHub MCP
+- **Paquete:** `@modelcontextprotocol/server-github`
+- **Autenticación:** Personal Access Token (PAT) en variable de entorno `GITHUB_PERSONAL_ACCESS_TOKEN`
+- **⚠️ IMPORTANTE:** El PAT va SOLO en `.vscode/mcp.json` local. NUNCA en el repo.
+- **Capacidades:** Ver PRs, issues, historial de commits, blame de archivos, crear issues, revisar código
 
-### 🎯 Estado de migración Firebase → Supabase
-- **EN PROGRESO:** Migración completa de Firebase a Supabase (objetivo: reemplazar 100%)
-- Supabase ya tiene: `commitments` (374 filas), `asistencias` (121), `salas` (100) + 32 tablas creadas
-- Firebase actual: 35 colecciones con datos de producción
-- **Meta final:** Supabase reemplaza Auth + Firestore + Storage + Cloud Functions
+### 3. 📁 Filesystem MCP
+- **Paquete:** `@modelcontextprotocol/server-filesystem`
+- **Raíz:** Workspace completo del proyecto
+- **Capacidades:** Leer/escribir archivos con mayor contexto, operaciones sobre múltiples archivos
+
+### 4. 🧠 Sequential Thinking MCP
+- **Paquete:** `@modelcontextprotocol/server-sequential-thinking`
+- **Capacidades:** Razonamiento estructurado paso a paso antes de implementar arquitecturas complejas
+
+### 5. 🎭 Playwright MCP
+- **Paquete:** `@playwright/mcp@latest`
+- **Capacidades:** QA visual del dashboard en `https://dr-group-dashboard.web.app`, verificar deploys, testing automatizado
+
+### 6. 📊 Excel MCP
+- **Paquete:** `@negokaz/excel-mcp-server`
+- **Capacidades:** Leer y analizar archivos `.xlsx` locales del proyecto (reportes, exportaciones)
 
 ---
 
