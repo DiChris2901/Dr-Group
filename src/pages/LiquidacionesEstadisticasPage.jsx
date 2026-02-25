@@ -1240,7 +1240,7 @@ const LiquidacionesEstadisticasPage = () => {
                     }}
                     label="Empresa"
                   >
-                    <MenuItem value="todas">Todas las empresas</MenuItem>
+                    <MenuItem value="todas">{contentTab === 1 ? 'Selecciona una empresa...' : 'Todas las empresas'}</MenuItem>
                     {empresas.map(emp => (
                       <MenuItem key={emp.id} value={emp.name}>
                         {emp.name || 'Sin nombre'}
