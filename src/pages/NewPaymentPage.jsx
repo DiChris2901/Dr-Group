@@ -47,6 +47,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
   useTheme
 } from '@mui/material';
 import { format } from 'date-fns';
@@ -87,7 +88,21 @@ const NewPaymentPage = () => {
   const borderRadius = settings?.theme?.borderRadius || 8;
   const animationsEnabled = settings?.theme?.animations !== false;
   const fontSize = settings?.theme?.fontSize || 14;
-  const compactMode = settings?.sidebar?.compactMode || false;
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // ---- Layout de navegación (sidebar / taskbar) ----
+  const navigationMode = settings?.navigation?.mode || 'sidebar';
+  const showSidebar = navigationMode === 'sidebar';
+  const isCompactSidebar = settings?.sidebar?.compactMode ?? false;
+  const sidebarSettingWidth = settings?.sidebar?.width || 280;
+  const sidebarPosition = settings?.sidebar?.position || 'left';
+  // Ancho real del sidebar en pantalla (igual que Sidebar.jsx y Taskbar.jsx)
+  const effectiveSidebarWidth = isCompactSidebar ? 80 : sidebarSettingWidth;
+
+  // Constantes de la Taskbar (deben coincidir con Taskbar.jsx)
+  const TASKBAR_BOTTOM = 16;
+  const TASKBAR_HEIGHT = 80; // altura desktop
+  const taskbarClearance = TASKBAR_BOTTOM + TASKBAR_HEIGHT; // 96px
 
   const getGradientBackground = () => {
     return `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
@@ -1511,7 +1526,7 @@ const NewPaymentPage = () => {
           sx={{
             background: getGradientBackground(),
             borderRadius: `${borderRadius}px`,
-            p: compactMode ? 3 : 4,
+            p: isCompactSidebar ? 3 : 4,
             mb: 3,
             color: 'white',
             position: 'relative',
@@ -2529,9 +2544,16 @@ const NewPaymentPage = () => {
                 elevation={8}
                 sx={{
                   position: 'fixed',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+                  // En modo taskbar la barra flota sobre la Taskbar; en modo sidebar va pegada al borde
+                  bottom: !isMobile && !showSidebar ? taskbarClearance : 0,
+                  // «left» respeta sidebar izquierdo en desktop
+                  left: !isMobile && showSidebar && sidebarPosition === 'left'
+                    ? `${effectiveSidebarWidth}px`
+                    : 0,
+                  // «right» respeta sidebar derecho en desktop
+                  right: !isMobile && showSidebar && sidebarPosition === 'right'
+                    ? `${effectiveSidebarWidth}px`
+                    : 0,
                   zIndex: 700,
                   bgcolor: alpha(theme.palette.background.paper, 0.97),
                   backdropFilter: 'blur(8px)',

@@ -5,9 +5,10 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "  VERSIONADO APK - DR GROUP" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
-# Rutas de archivos
-$appJsonPath = "..\..\app.json"
-$buildGradlePath = ".\build.gradle"
+# Rutas de archivos - Resolver a rutas ABSOLUTAS para evitar problemas con .NET
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$appJsonPath = (Resolve-Path (Join-Path $scriptDir "..\..\app.json")).Path
+$buildGradlePath = (Resolve-Path (Join-Path $scriptDir "build.gradle")).Path
 
 # Validar que existen los archivos
 if (-not (Test-Path $appJsonPath)) {
@@ -19,6 +20,10 @@ if (-not (Test-Path $buildGradlePath)) {
     Write-Host "ERROR: No se encontro build.gradle en $buildGradlePath" -ForegroundColor Red
     exit 1
 }
+
+Write-Host "Archivos detectados:" -ForegroundColor Gray
+Write-Host "   app.json:     $appJsonPath" -ForegroundColor Gray
+Write-Host "   build.gradle: $buildGradlePath" -ForegroundColor Gray
 
 # Leer version actual de app.json
 try {
@@ -157,7 +162,17 @@ try {
     $appJson.expo.android.versionCode = $newVersionCode
     
     $appJson | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
-    Write-Host "   OK app.json actualizado" -ForegroundColor Green
+    
+    # VERIFICACION POST-ESCRITURA
+    $verifyJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
+    if ($verifyJson.expo.version -eq $newVersion -and $verifyJson.expo.android.versionCode -eq $newVersionCode) {
+        Write-Host "   OK app.json actualizado y VERIFICADO" -ForegroundColor Green
+    } else {
+        Write-Host "   ERROR: app.json NO se actualizo correctamente!" -ForegroundColor Red
+        Write-Host "      - version: $($verifyJson.expo.version) (esperado: $newVersion)" -ForegroundColor Red
+        Write-Host "      - versionCode: $($verifyJson.expo.android.versionCode) (esperado: $newVersionCode)" -ForegroundColor Red
+        exit 1
+    }
 } catch {
     Write-Host "   ERROR actualizando app.json: $_" -ForegroundColor Red
     exit 1
@@ -167,29 +182,79 @@ try {
 try {
     $gradleContent = Get-Content $buildGradlePath -Raw
     
+    # Guardar contenido original para verificar cambios
+    $originalGradleContent = $gradleContent
+    
     # Actualizar versionCode
     $gradleContent = $gradleContent -replace "versionCode \d+", "versionCode $newVersionCode"
     
     # Actualizar versionName
     $gradleContent = $gradleContent -replace 'versionName "[\d\.]+"', "versionName `"$newVersion`""
     
-    # CRITICO: Usar UTF8NoBOM para evitar BOM que causa errores en Gradle
+    # Verificar que los reemplazos se aplicaron
+    if ($gradleContent -eq $originalGradleContent) {
+        Write-Host "   ADVERTENCIA: No se detectaron cambios en build.gradle" -ForegroundColor Yellow
+        Write-Host "   Contenido actual puede no coincidir con el patron esperado" -ForegroundColor Yellow
+    }
+    
+    # CRITICO: Usar ruta ABSOLUTA con UTF8NoBOM para evitar BOM que causa errores en Gradle
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($buildGradlePath, $gradleContent, $utf8NoBom)
-    Write-Host "   OK build.gradle actualizado" -ForegroundColor Green
+    
+    # VERIFICACION POST-ESCRITURA: Confirmar que los valores se escribieron correctamente
+    $verifyContent = Get-Content $buildGradlePath -Raw
+    $hasCorrectVersion = $verifyContent -match "versionName `"$newVersion`""
+    $hasCorrectCode = $verifyContent -match "versionCode $newVersionCode"
+    
+    if ($hasCorrectVersion -and $hasCorrectCode) {
+        Write-Host "   OK build.gradle actualizado y VERIFICADO" -ForegroundColor Green
+    } else {
+        Write-Host "   ERROR: build.gradle NO se actualizo correctamente!" -ForegroundColor Red
+        if (-not $hasCorrectVersion) {
+            Write-Host "      - versionName no coincide (esperado: $newVersion)" -ForegroundColor Red
+        }
+        if (-not $hasCorrectCode) {
+            Write-Host "      - versionCode no coincide (esperado: $newVersionCode)" -ForegroundColor Red
+        }
+        Write-Host "   Ruta usada: $buildGradlePath" -ForegroundColor Red
+        exit 1
+    }
 } catch {
     Write-Host "   ERROR actualizando build.gradle: $_" -ForegroundColor Red
     exit 1
 }
 
-# Resumen final
+# Resumen final con verificacion cruzada
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  VERSIONADO COMPLETADO" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "Nueva version: $newVersion (Build $newVersionCode)" -ForegroundColor White
-Write-Host "Archivos actualizados:" -ForegroundColor Yellow
-Write-Host "   - app.json" -ForegroundColor White
-Write-Host "   - build.gradle`n" -ForegroundColor White
+
+# Verificacion cruzada final: leer ambos archivos y confirmar que coinciden
+$finalJson = Get-Content $appJsonPath -Raw | ConvertFrom-Json
+$finalGradle = Get-Content $buildGradlePath -Raw
+
+$jsonVersion = $finalJson.expo.version
+$jsonCode = $finalJson.expo.android.versionCode
+$gradleVersionMatch = [regex]::Match($finalGradle, 'versionName "([^"]+)"')
+$gradleCodeMatch = [regex]::Match($finalGradle, 'versionCode (\d+)')
+$gradleVersion = $gradleVersionMatch.Groups[1].Value
+$gradleCode = [int]$gradleCodeMatch.Groups[1].Value
+
+Write-Host "`nVerificacion cruzada:" -ForegroundColor Yellow
+Write-Host "   app.json:     v$jsonVersion (Build $jsonCode)" -ForegroundColor White
+Write-Host "   build.gradle: v$gradleVersion (Build $gradleCode)" -ForegroundColor White
+
+if ($jsonVersion -eq $gradleVersion -and $jsonCode -eq $gradleCode) {
+    Write-Host "   SINCRONIZADOS CORRECTAMENTE" -ForegroundColor Green
+} else {
+    Write-Host "   DESINCRONIZADOS - Corregir manualmente!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`nArchivos actualizados:" -ForegroundColor Yellow
+Write-Host "   - $appJsonPath" -ForegroundColor White
+Write-Host "   - $buildGradlePath`n" -ForegroundColor White
 
 Write-Host "Siguiente paso:" -ForegroundColor Cyan
 Write-Host "   Compilar APK en Android Studio:" -ForegroundColor White
