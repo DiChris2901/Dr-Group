@@ -154,6 +154,10 @@ const MaquinasEnCeroStats = ({
   const [nuevoAlias, setNuevoAlias] = useState({ viejo: '', nuevo: '' });
   const [savingAlias, setSavingAlias] = useState(false);
 
+  // ===== ESTADOS DE VALIDACIÓN CONTRATO HOUNDOC =====
+  const [companies, setCompanies] = useState([]);
+  const [contratoWarning, setContratoWarning] = useState(null); // { contratoArchivo, empresaCorrecta, empresaSeleccionada }
+
   // ===== CARGAR DATOS PRE-COMPUTADOS =====
   useEffect(() => {
     if (empresaSeleccionada === 'todas' || !empresaSeleccionada) {
@@ -207,6 +211,22 @@ const MaquinasEnCeroStats = ({
     };
     loadAliases();
   }, [empresaSeleccionada]);
+
+  // ===== CARGAR COMPANIES (para validar contrato Houndoc) =====
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'companies'));
+        const list = [];
+        snap.forEach(d => {
+          const c = d.data();
+          list.push({ id: d.id, name: c.name || '', contractNumber: c.contractNumber || '' });
+        });
+        setCompanies(list);
+      } catch (_) { /* no-critical */ }
+    };
+    loadCompanies();
+  }, []);
 
   // ===== MIGRACIÓN INICIAL =====
   const handleMigrar = async () => {
@@ -278,11 +298,52 @@ const MaquinasEnCeroStats = ({
 
     setUploadFile(file);
     setUploadPreview(null);
+    setContratoWarning(null);
 
     try {
       const buffer = await file.arrayBuffer();
       const preview = parseHoundocFile(buffer, XLSX);
       setUploadPreview(preview);
+
+      // ===== VALIDAR CONTRATO vs EMPRESA SELECCIONADA =====
+      if (preview.contratoDetectado && companies.length > 0) {
+        const contratoNorm = preview.contratoDetectado.toString().trim().toUpperCase();
+        // Buscar qué empresa corresponde al contrato del archivo
+        const empresaArchivo = companies.find(c => {
+          if (!c.contractNumber) return false;
+          return c.contractNumber.toString().trim().toUpperCase() === contratoNorm;
+        });
+        // Buscar el contractNumber de la empresa seleccionada
+        const empresaActual = companies.find(c => {
+          if (!c.name) return false;
+          return c.name.trim().toLowerCase() === empresaSeleccionada.trim().toLowerCase();
+        });
+
+        if (empresaArchivo && empresaActual) {
+          // Ambas empresas identificadas — comparar
+          if (empresaArchivo.name.trim().toLowerCase() !== empresaActual.name.trim().toLowerCase()) {
+            setContratoWarning({
+              contratoArchivo: preview.contratoDetectado,
+              empresaCorrecta: empresaArchivo.name,
+              empresaSeleccionada: empresaSeleccionada
+            });
+          }
+        } else if (empresaArchivo && !empresaActual) {
+          // La empresa seleccionada no tiene contractNumber registrado, pero el archivo sí apunta a otra
+          setContratoWarning({
+            contratoArchivo: preview.contratoDetectado,
+            empresaCorrecta: empresaArchivo.name,
+            empresaSeleccionada: empresaSeleccionada
+          });
+        } else if (!empresaArchivo && contratoNorm) {
+          // Contrato no encontrado en ninguna empresa
+          setContratoWarning({
+            contratoArchivo: preview.contratoDetectado,
+            empresaCorrecta: null,
+            empresaSeleccionada: empresaSeleccionada
+          });
+        }
+      }
     } catch (err) {
       console.error('Error parseando archivo:', err);
       addNotification?.('Error al leer el archivo: ' + err.message, 'error');
@@ -935,7 +996,7 @@ const MaquinasEnCeroStats = ({
   const renderUploadModal = () => (
     <Dialog
       open={uploadModalOpen}
-      onClose={() => { if (!uploading) setUploadModalOpen(false); }}
+      onClose={() => { if (!uploading) { setUploadModalOpen(false); setContratoWarning(null); } }}
       maxWidth="sm"
       fullWidth
       PaperProps={{
@@ -943,14 +1004,16 @@ const MaquinasEnCeroStats = ({
           borderRadius: 2,
           background: theme.palette.background.paper,
           boxShadow: theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0,0,0,0.3)'
-            : '0 4px 20px rgba(0,0,0,0.08)',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            ? '0 4px 24px rgba(0,0,0,0.35)'
+            : '0 4px 24px rgba(0,0,0,0.10)',
+          border: `1px solid ${alpha(theme.palette.divider, 0.6)}`
         }
       }}
     >
       <DialogTitle sx={{
-        pb: 2,
+        pt: 2.5,
+        pb: 2.5,
+        px: 3,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -958,35 +1021,64 @@ const MaquinasEnCeroStats = ({
         borderBottom: `1px solid ${theme.palette.divider}`
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-            <UploadFile />
+          <Avatar sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.12),
+            color: 'primary.main',
+            width: 40,
+            height: 40
+          }}>
+            <UploadFile sx={{ fontSize: 20 }} />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.3, color: 'text.primary' }}>
               Actualizar con Houndoc
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400 }}>
               Sube un archivo Excel/CSV de liquidaciones
             </Typography>
           </Box>
         </Box>
       </DialogTitle>
-      <DialogContent sx={{ p: 3, pt: 4 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Sube el archivo de liquidaciones descargado de Houndoc. El periodo se detecta automáticamente
-          de la última fecha registrada en el archivo.
-        </Typography>
+
+      <DialogContent sx={{ p: 3, pt: 4.5 }}>
+        {/* Descripción */}
+        <Box sx={{
+          mb: 3,
+          p: 1.5,
+          borderRadius: 1,
+          backgroundColor: alpha(theme.palette.info.main, 0.04),
+          border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`
+        }}>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            Sube el archivo de liquidaciones descargado de Houndoc. El periodo se detecta automáticamente
+            de la última fecha registrada en el archivo.
+          </Typography>
+        </Box>
 
         {/* File picker */}
         <Button
           variant="outlined"
           fullWidth
-          startIcon={<CloudUpload />}
+          startIcon={<CloudUpload sx={{ fontSize: 18 }} />}
           onClick={() => fileInputRef.current?.click()}
-          sx={{ mb: 2, borderRadius: 1, borderStyle: 'dashed', py: 2 }}
+          sx={{
+            mb: 2.5,
+            borderRadius: 1,
+            borderStyle: 'dashed',
+            borderColor: alpha(theme.palette.primary.main, 0.4),
+            py: 1.75,
+            color: uploadFile ? 'text.primary' : 'text.secondary',
+            fontWeight: uploadFile ? 500 : 400,
+            textTransform: 'none',
+            fontSize: '0.875rem',
+            '&:hover': {
+              borderColor: theme.palette.primary.main,
+              backgroundColor: alpha(theme.palette.primary.main, 0.04)
+            }
+          }}
           disabled={uploading}
         >
-          {uploadFile ? uploadFile.name : 'Seleccionar archivo Excel/CSV'}
+          {uploadFile ? uploadFile.name : 'Seleccionar archivo Excel o CSV'}
         </Button>
         <input
           ref={fileInputRef}
@@ -1001,15 +1093,15 @@ const MaquinasEnCeroStats = ({
           <Box sx={{
             display: 'flex', alignItems: 'center', gap: 1.5, mb: 2,
             p: 1.5, borderRadius: 1,
-            backgroundColor: alpha(theme.palette.success.main, 0.08),
-            border: `1px solid ${alpha(theme.palette.success.main, 0.35)}`
+            backgroundColor: alpha(theme.palette.success.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`
           }}>
-            <DateRange sx={{ fontSize: 20, color: theme.palette.success.main }} />
+            <DateRange sx={{ fontSize: 18, color: theme.palette.success.main, flexShrink: 0 }} />
             <Box sx={{ flex: 1 }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 10 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 0.6, fontSize: 10, display: 'block' }}>
                 Periodo detectado automáticamente
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.success.main }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.dark || theme.palette.success.main }}>
                 {uploadPreview.periodoDetectado.label}
               </Typography>
               {uploadPreview.periodoDetectado.fechaISO && (
@@ -1026,34 +1118,85 @@ const MaquinasEnCeroStats = ({
           </Alert>
         )}
 
-        {/* Preview */}
+        {/* Alerta de contrato incorrecto */}
+        {contratoWarning && (
+          <Box sx={{
+            display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2,
+            p: 1.5, borderRadius: 1,
+            backgroundColor: alpha(theme.palette.error.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`
+          }}>
+            <ErrorIcon sx={{ fontSize: 18, color: theme.palette.error.main, flexShrink: 0, mt: 0.15 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: 0.6, fontSize: 10, display: 'block' }}>
+                Contrato no coincide con la empresa seleccionada
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.dark || theme.palette.error.main, mt: 0.25 }}>
+                Contrato <strong>{contratoWarning.contratoArchivo}</strong>
+                {contratoWarning.empresaCorrecta
+                  ? <> → <strong>{contratoWarning.empresaCorrecta}</strong></>
+                  : ' — No registrado en ninguna empresa'
+                }
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.4, lineHeight: 1.5 }}>
+                Empresa actualmente seleccionada: <strong>{contratoWarning.empresaSeleccionada}</strong>
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        {/* Preview — resumen sobrio en grid */}
         {uploadPreview && (
-          <Alert severity="info" sx={{ borderRadius: 1 }} icon={<Info />}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Vista previa del archivo:
-            </Typography>
-            <Typography variant="body2">
-              Total máquinas: {uploadPreview.summary.totalMaquinas}
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.error.main, fontWeight: 600 }}>
-              En cero: {uploadPreview.summary.enCero}
-            </Typography>
-            <Typography variant="body2">
-              Con producción: {uploadPreview.summary.conProduccion}
-            </Typography>
-            <Typography variant="body2">
-              Salas detectadas: {uploadPreview.summary.salasDetectadas}
-            </Typography>
-          </Alert>
+          <Box sx={{
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
+            overflow: 'hidden'
+          }}>
+            <Box sx={{
+              px: 2, py: 1,
+              backgroundColor: alpha(theme.palette.primary.main, 0.06),
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}`
+            }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.6, fontSize: 10, color: 'text.secondary' }}>
+                Vista previa del archivo
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+              {[
+                { label: 'Total máquinas', value: uploadPreview.summary.totalMaquinas, color: 'text.primary' },
+                { label: 'En cero', value: uploadPreview.summary.enCero, color: 'error.main', bold: true },
+                { label: 'Con producción', value: uploadPreview.summary.conProduccion, color: 'success.main' },
+                { label: 'Salas detectadas', value: uploadPreview.summary.salasDetectadas, color: 'text.primary' }
+              ].map((item, i) => (
+                <Box key={i} sx={{
+                  px: 2, py: 1.25,
+                  borderRight: i % 2 === 0 ? `1px solid ${alpha(theme.palette.divider, 0.6)}` : 'none',
+                  borderBottom: i < 2 ? `1px solid ${alpha(theme.palette.divider, 0.4)}` : 'none'
+                }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    {item.label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: item.bold ? 700 : 600, color: item.color }}>
+                    {item.value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
         )}
       </DialogContent>
-      <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
-        <Typography variant="caption" color="text.secondary">
+
+      <DialogActions sx={{
+        px: 3, py: 2.5,
+        justifyContent: 'space-between',
+        borderTop: `1px solid ${theme.palette.divider}`
+      }}>
+        <Typography variant="caption" color="text.disabled">
           Datos actualizados en tiempo real
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
           <Button
-            onClick={() => { setUploadModalOpen(false); setUploadFile(null); setUploadPreview(null); }}
+            onClick={() => { setUploadModalOpen(false); setUploadFile(null); setUploadPreview(null); setContratoWarning(null); }}
             disabled={uploading}
             variant="outlined"
             sx={{ borderRadius: 1, fontWeight: 500, textTransform: 'none', px: 3 }}
@@ -1063,7 +1206,7 @@ const MaquinasEnCeroStats = ({
           <Button
             variant="contained"
             onClick={handleConfirmUpload}
-            disabled={!uploadFile || !uploadPreview || !uploadPreview?.periodoDetectado || uploading}
+            disabled={!uploadFile || !uploadPreview || !uploadPreview?.periodoDetectado || uploading || !!contratoWarning}
             startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <Save />}
             sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
           >

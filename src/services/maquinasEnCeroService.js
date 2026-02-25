@@ -789,6 +789,31 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
     }
   }
 
+  // ===== DETECCIÓN DE CONTRATO (columna 0) =====
+  // Escanear las primeras filas buscando el número de contrato en la primera columna
+  let contratoDetectado = null;
+  const CONTRATO_SCAN_ROWS = 15;
+  const contratoIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo', 'serial', 'nuc', 'nuid'];
+  for (let i = 0; i < Math.min(CONTRATO_SCAN_ROWS, data.length); i++) {
+    const fila = data[i];
+    if (fila && fila[0] != null && fila[0] !== '') {
+      const posibleContrato = String(fila[0]).trim();
+      const posibleContratoLower = posibleContrato.toLowerCase();
+      // Ignorar filas que sean encabezados
+      const esHeader = contratoIgnorados.some(
+        p => posibleContratoLower === p || posibleContratoLower.startsWith(p + ' ')
+      );
+      if (esHeader) continue;
+      // Ignorar filas que parecen títulos largos (más de 40 chars)
+      if (posibleContrato.length > 40) continue;
+      // Aceptar si tiene al menos un dígito (los números de contrato siempre tienen dígitos)
+      if (/\d/.test(posibleContrato)) {
+        contratoDetectado = posibleContrato;
+        break;
+      }
+    }
+  }
+
   // Detect header row
   const columnasClave = ['serial', 'nuc', 'nuid', 'establecimiento', 'sala', 'base', 'liquidacion', 'produccion', 'fecha'];
   let headerRow = -1;
@@ -958,6 +983,7 @@ export const parseHoundocFile = (fileBuffer, XLSX) => {
     machines,
     ultimaFecha,
     periodoDetectado,
+    contratoDetectado,
     summary: {
       totalMaquinas,
       enCero,
