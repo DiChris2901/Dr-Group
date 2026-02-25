@@ -775,7 +775,7 @@ const MaquinasEnCeroStats = ({
 
       // Fila 3 — Métricas consolidadas
       const metricsText = kpis
-        ? `Total en Cero: ${kpis.totalEnCero} | Activas: ${kpis.activasEnCero} | Recuperadas: ${kpis.totalEnCero - kpis.activasEnCero} | Días Promedio: ${kpis.diasPromedio} | % Flota: ${kpis.porcentajeEnCero}%`
+        ? `Total en Cero: ${kpis.totalEnCero} | Activas: ${kpis.activasEnCero} | Transmitiendo: ${kpis.totalEnCero - kpis.activasEnCero} | Días Promedio: ${kpis.diasPromedio} | % Flota: ${kpis.porcentajeEnCero}%`
         : 'Sin datos de KPIs';
       applyHeaderRow(ws, COLS1, 3, metricsText, BRAND_COLORS.metricsBg, 10, true, 22);
 
@@ -833,7 +833,7 @@ const MaquinasEnCeroStats = ({
           m.esActualmenteEnCero ? m.mesesConsecutivos : '—',
           m.esActualmenteEnCero ? m.diasCalendario : '—',
           m.esActualmenteEnCero ? (m.nivel === 'critico' ? 'Crítico' : m.nivel === 'alerta' ? 'Alerta' : 'Reciente') : '—',
-          m.esActualmenteEnCero ? 'En Cero' : 'Recuperada',
+          m.esActualmenteEnCero ? 'En Cero' : 'Transmitiendo',
           fechaUltimoEstado,
         ];
         values.forEach((val, ci) => {
@@ -1505,7 +1505,7 @@ const MaquinasEnCeroStats = ({
                 <Select value={filtroEstado} label="Estado" onChange={(e) => { setFiltroEstado(e.target.value); setPage(0); }}>
                   <MenuItem value="todos">Todos</MenuItem>
                   <MenuItem value="activo">Actualmente en Cero</MenuItem>
-                  <MenuItem value="recuperada">Recuperadas</MenuItem>
+                  <MenuItem value="recuperada">Transmitiendo</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1571,7 +1571,7 @@ const MaquinasEnCeroStats = ({
                         <MuiTooltip title="Severidad según días en cero: Crítico (>180d), Alerta (60-179d), Reciente (<60d)" arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
                           <TableCell align="center" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', cursor: 'help' }}>Nivel</TableCell>
                         </MuiTooltip>
-                        <MuiTooltip title="'En Cero' = sin ingresos en el último periodo. 'Recuperada' = volvió a generar ingresos." arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
+                        <MuiTooltip title="'En Cero' = sin ingresos en el último periodo. 'Transmitiendo' = volvió a generar ingresos." arrow enterDelay={300} slotProps={{ tooltip: { sx: { fontSize: 12, maxWidth: 260 } } }}>
                           <TableCell align="center" sx={{ fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', cursor: 'help' }}>Estado</TableCell>
                         </MuiTooltip>
                       </TableRow>
@@ -1643,7 +1643,7 @@ const MaquinasEnCeroStats = ({
                                   >
                                     <Chip
                                       size="small"
-                                      label={m.esActualmenteEnCero ? 'En Cero' : 'Recuperada'}
+                                      label={m.esActualmenteEnCero ? 'En Cero' : 'Transmitiendo'}
                                       color={m.esActualmenteEnCero ? 'error' : 'success'}
                                       variant="outlined"
                                       sx={{ fontSize: 11, height: 24, cursor: 'help' }}
@@ -1748,7 +1748,7 @@ const MaquinasEnCeroStats = ({
                                           /* ===== MÁQUINA RECUPERADA: narración cronológica del episodio ===== */
                                           <Grid container spacing={2} alignItems="stretch">
                                             {/* C1: Cuándo empezó el episodio */}
-                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                            <Grid item xs={12} sm={4} sx={{ display: 'flex' }}>
                                               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.warning.main, 0.06), border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}` }}>
                                                 <Stop sx={{ fontSize: 20, color: theme.palette.warning.main }} />
                                                 <Box>
@@ -1773,7 +1773,7 @@ const MaquinasEnCeroStats = ({
                                               </Box>
                                             </Grid>
                                             {/* C2: Cuándo se recuperó */}
-                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                            <Grid item xs={12} sm={4} sx={{ display: 'flex' }}>
                                               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.success.main, 0.06), border: `1px solid ${alpha(theme.palette.success.main, 0.4)}` }}>
                                                 <PlayArrow sx={{ fontSize: 20, color: theme.palette.success.main }} />
                                                 <Box>
@@ -1797,21 +1797,8 @@ const MaquinasEnCeroStats = ({
                                                 </Box>
                                               </Box>
                                             </Grid>
-                                            {/* C3: Duración del episodio */}
-                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
-                                              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.info.main, 0.06), border: `1px solid ${alpha(theme.palette.info.main, 0.4)}` }}>
-                                                <CalendarMonth sx={{ fontSize: 20, color: theme.palette.info.main }} />
-                                                <Box>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary' }}>Duración del episodio</Typography>
-                                                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.info.main }}>
-                                                    {m.diasCalendario} días
-                                                  </Typography>
-                                                  <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>Aprox. {m.mesesConsecutivos} mes{m.mesesConsecutivos !== 1 ? 'es' : ''}</Typography>
-                                                </Box>
-                                              </Box>
-                                            </Grid>
-                                            {/* C4: Producción más reciente registrada */}
-                                            <Grid item xs={12} sm={3} sx={{ display: 'flex' }}>
+                                            {/* C3: Producción más reciente registrada */}
+                                            <Grid item xs={12} sm={4} sx={{ display: 'flex' }}>
                                               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: 1, width: '100%', backgroundColor: alpha(theme.palette.success.main, 0.06), border: `1px solid ${alpha(theme.palette.success.main, 0.4)}` }}>
                                                 <DateRange sx={{ fontSize: 20, color: theme.palette.success.main }} />
                                                 <Box>
@@ -1821,8 +1808,10 @@ const MaquinasEnCeroStats = ({
                                                       ? new Date(m.ultimoEpisodio.ultimaFechaConProduccion + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
                                                       : 'Sin datos'}
                                                   </Typography>
-                                                  {m.ultimoEpisodio?.produccionAntesDeCero > 0 && (
-                                                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>${m.ultimoEpisodio.produccionAntesDeCero.toLocaleString('es-CO')}</Typography>
+                                                  {m.ultimoEpisodio?.produccionAntesDeCero != null && Math.abs(m.ultimoEpisodio.produccionAntesDeCero) > 0 && (
+                                                    <Typography variant="caption" sx={{ fontSize: 10, color: m.ultimoEpisodio.produccionAntesDeCero < 0 ? theme.palette.error.main : 'text.disabled' }}>
+                                                      {m.ultimoEpisodio.produccionAntesDeCero < 0 ? '-' : ''}${Math.abs(m.ultimoEpisodio.produccionAntesDeCero).toLocaleString('es-CO')}
+                                                    </Typography>
                                                   )}
                                                 </Box>
                                               </Box>

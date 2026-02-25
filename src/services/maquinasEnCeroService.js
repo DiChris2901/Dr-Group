@@ -1213,7 +1213,9 @@ export const extraerProduccionPorMaquina = (allDailyRows) => {
     if (rowDate < md.firstKnownDate) md.firstKnownDate = new Date(rowDate);
     if (rowDate > md.lastKnownDate) md.lastKnownDate = new Date(rowDate);
 
-    if (row.produccion > ZERO_THRESHOLD) {
+    // Usar Math.abs para considerar producción negativa (jackpots, correcciones)
+    // como actividad real. La máquina estuvo activa ese día aunque el valor sea negativo.
+    if (Math.abs(row.produccion) > ZERO_THRESHOLD) {
       if (!md.lastProductiveDay || rowDate > md.lastProductiveDay) {
         md.lastProductiveDay = new Date(rowDate);
         md.lastProductiveAmount = row.produccion;
