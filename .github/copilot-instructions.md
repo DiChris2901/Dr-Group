@@ -307,9 +307,12 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **NUNCA** usar patrones inconsistentes con el proyecto
 - **NUNCA** omitir error handling o loading states
 - **NUNCA** hardcodear valores que deberían ser configurables
-- **NUNCA** ejecutar servidores de desarrollo con run_in_terminal:
-  - ❌ **MAL:** `npx expo start`, `npm run dev` directamente en terminal
-  - ✅ **BIEN:** Usar run_task con el nombre de la tarea apropiada
+- **NUNCA** ejecutar **servidores de desarrollo** con run_in_terminal (se cierran al ejecutar otro comando):
+  - ❌ **MAL:** `npx expo start`, `npm run dev` en run_in_terminal
+  - ✅ **BIEN:** Usar `run_task` → tarea "dev" (Dashboard) o "Start Mobile App (Background)" (Expo)
+- **SIEMPRE** usar `run_in_terminal` para comandos únicos: `git`, `npm run build`, `firebase deploy`
+  - ⚠️ **NUNCA** usar `run_task` para build/deploy — las tareas de VS Code pueden tener prefijos de macOS (`source ~/.zshrc &&`) que rompen en Windows
+  - ✅ **CORRECTO en deployment:** `run_in_terminal` con `npm run build` y `firebase deploy --only hosting`
 - **NUNCA** ejecutar comandos de Expo/npm sin `Set-Location mobile;` primero (Windows PowerShell)
 - **NUNCA** ejecutar comandos de Expo/npm sin `cd mobile &&` primero (Linux/macOS)
 - **NUNCA** hardcodear colores en la APK (usar getPrimaryColor(), getSecondaryColor())
@@ -328,13 +331,12 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
   - **Dashboard Web:** Tarea "dev" (npm run dev) - NUNCA ejecutar directamente
   - **App Móvil:** Tarea "Start Mobile App (Background)" - NUNCA ejecutar directamente
   - **Razón:** Los comandos en terminal se cierran al ejecutar otro comando, las tareas permanecen activas
+- **SIEMPRE** usar `run_in_terminal` para comandos únicos: `git`, `npm run build`, `firebase deploy`
+  - ⚠️ **NUNCA** usar `run_task` para build/deploy — las tareas de VS Code pueden tener prefijos de macOS (`source ~/.zshrc &&`) que rompen en Windows
+  - ✅ **CORRECTO en deployment:** `run_in_terminal` con `npm run build` y `firebase deploy --only hosting`
 - **SIEMPRE** usar comandos apropiados según el OS:
   - **Windows PowerShell:** `Set-Location mobile;` para APK
   - **Linux/macOS bash/sh:** `cd mobile &&` para APK
-- **SIEMPRE** seguir diseño sobrio en APK (SobrioCard, DetailRow, OverlineText)
-- **SIEMPRE** usar campo 'name' como displayName principal (fallback: displayName → email)
-- **SIEMPRE** calcular duraciones desde timestamps (inicio/fin), NO desde campo 'duracion'
-- **SIEMPRE** usar tareas de VS Code para iniciar servidor de desarrollo (run_task, no npm run dev)
 - **SIEMPRE** eliminar console.log/console.error de debugging una vez solucionado el problema
 - **SIEMPRE** explicar el razonamiento detrás de decisiones técnicas
 - **SIEMPRE** proponer mejoras cuando sea apropiado
@@ -456,16 +458,19 @@ Versión:** 3.5.0 (Enero 2026)  →  Versión:** 3.6.0 (Enero 2026)
 - ✅ Si no estás seguro del tipo, preguntar al usuario
 
 #### **PASO 3: DEPLOYMENT AUTOMÁTICO (Solo tras confirmación)**
-Una vez que el usuario confirme que **NO hay errores**, ejecutar automáticamente:
+Una vez que el usuario confirme que **NO hay errores**, ejecutar automáticamente con **`run_in_terminal`** (NUNCA `run_task` para build/deploy):
 
-```bash
-# SECUENCIA DE DEPLOYMENT COMPLETA:
+```
+# SECUENCIA DE DEPLOYMENT COMPLETA (run_in_terminal, 1 comando por llamada):
 1. git add .
 2. git commit -m "[Mensaje descriptivo del cambio]"
 3. git push origin main
-4. npm run build
-5. firebase deploy --only hosting
+4. npm run build                     ← run_in_terminal, NO run_task
+5. firebase deploy --only hosting   ← run_in_terminal, NO run_task
 ```
+
+> **¿Por qué run_in_terminal y no run_task para build/deploy?**
+> Las tareas de VS Code (`tasks.json`) pueden tener configuraciones específicas de macOS (`source ~/.zshrc &&`) que fallan silenciosamente en Windows con exit code 1. Los comandos directos en terminal siempre funcionan en ambos OS.
 
 **IMPORTANTE**: 
 - ❌ **NUNCA hacer deployment sin confirmación explícita del usuario**
@@ -2531,9 +2536,19 @@ Cambio nativo → APK completo directamente (no OTA)
 
 ### **🚨 DETECCIÓN AUTOMÁTICA DEL SISTEMA OPERATIVO:**
 
-Al recibir una petición del usuario, **PRIMERO verificar el OS**:
-- **Windows:** Comandos PowerShell, rutas con `\`, scripts `.ps1`
-- **Linux/macOS:** Comandos bash/sh, rutas con `/`, scripts `.sh`
+**FUENTE PRIMARIA (automática):** VS Code inyecta la etiqueta `<environment_info>` al inicio de cada mensaje con el OS del usuario:
+```
+<environment_info>
+The user's current OS is: Windows   ← LEER ESTO PRIMERO
+</environment_info>
+```
+**ACCIÓN:** Leer este tag ANTES de ejecutar cualquier comando. Es la fuente de verdad definitiva.
+
+**FUENTE SECUNDARIA (inferida por contexto)** si el tag no está disponible:
+- **Windows:** Rutas con `C:\`, `D:\`, backslashes `\`, archivos `.ps1`, `.bat`
+- **Linux/macOS:** Rutas con `/home/`, `/usr/`, archivos `.sh`, `chmod +x`
+
+> **REGLA DE ORO:** Si `<environment_info>` dice `Windows` → PowerShell. Si dice `Mac` o `Linux` → bash/zsh.
 
 ### **📋 COMANDOS EQUIVALENTES POR OS:**
 
