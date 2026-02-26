@@ -268,7 +268,7 @@ export default function AsistenciasScreen({ navigation }) {
           where('fecha', '>=', startDateStr),
           where('fecha', '<=', endDateStr),
           orderBy('fecha', 'desc'),
-          limit(200) // Puede ver más registros
+          limit(100) // Admin: maximo 100 registros por consulta
         );
       } else if (puedeVerPropias) {
         // PERMISO: asistencias.propias → Ver SOLO sus registros

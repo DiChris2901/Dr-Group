@@ -48,9 +48,10 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
-import { 
-  collection, 
-  query, 
+import {
+  collection,
+  query,
+  where,
   onSnapshot,
   getDocs,
   doc,
@@ -254,31 +255,27 @@ const ClientesPage = () => {
     setUpdatingCliente(true);
 
     try {
-      // 1. Obtener todas las salas
-      const salasSnapshot = await getDocs(collection(db, 'salas'));
+      // 1. Buscar solo las salas donde aparece este cliente (server-side filter)
+      const salasSnapshot = await getDocs(
+        query(collection(db, 'salas'), where('contactoAutorizado', '==', clienteToEdit.nombre))
+      );
       const batch = writeBatch(db);
       let salasActualizadas = 0;
 
-      // 2. Actualizar todas las salas donde aparece este cliente (contactoAutorizado)
+      // 2. Actualizar las salas encontradas
       salasSnapshot.docs.forEach((salaDoc) => {
-        const salaData = salaDoc.data();
-        
-        // Normalizar nombres para comparación
-        const clienteOriginal = clienteToEdit.nombre.toLowerCase().trim();
-        const contactoEnSala = (salaData.contactoAutorizado || '').toLowerCase().trim();
-        
-        if (contactoEnSala === clienteOriginal) {
-          batch.update(doc(db, 'salas', salaDoc.id), {
-            contactoAutorizado: editClienteForm.nombre.trim(),
-            contactEmail: editClienteForm.email.trim(),
-            contactPhone: editClienteForm.telefono.trim()
-          });
-          salasActualizadas++;
-        }
+        batch.update(doc(db, 'salas', salaDoc.id), {
+          contactoAutorizado: editClienteForm.nombre.trim(),
+          contactEmail: editClienteForm.email.trim(),
+          contactPhone: editClienteForm.telefono.trim()
+        });
+        salasActualizadas++;
       });
 
       // 3. Ejecutar actualización en batch
-      await batch.commit();
+      if (salasActualizadas > 0) {
+        await batch.commit();
+      }
 
       alert(`✅ Cliente actualizado exitosamente\n\n📊 ${salasActualizadas} sala(s) sincronizada(s)`);
       handleCloseEditClienteDialog();
@@ -319,31 +316,27 @@ const ClientesPage = () => {
     setUpdatingAdmin(true);
 
     try {
-      // 1. Obtener todas las salas
-      const salasSnapshot = await getDocs(collection(db, 'salas'));
+      // 1. Buscar solo las salas donde aparece este administrador (server-side filter)
+      const salasSnapshot = await getDocs(
+        query(collection(db, 'salas'), where('contactoAutorizado2', '==', adminToEdit.nombre))
+      );
       const batch = writeBatch(db);
       let salasActualizadas = 0;
 
-      // 2. Actualizar todas las salas donde aparece este administrador (contactoAutorizado2)
+      // 2. Actualizar las salas encontradas
       salasSnapshot.docs.forEach((salaDoc) => {
-        const salaData = salaDoc.data();
-        
-        // Normalizar nombres para comparación
-        const adminOriginal = adminToEdit.nombre.toLowerCase().trim();
-        const contactoEnSala = (salaData.contactoAutorizado2 || '').toLowerCase().trim();
-        
-        if (contactoEnSala === adminOriginal) {
-          batch.update(doc(db, 'salas', salaDoc.id), {
-            contactoAutorizado2: editAdminForm.nombre.trim(),
-            contactEmail2: editAdminForm.email.trim(),
-            contactPhone2: editAdminForm.telefono.trim()
-          });
-          salasActualizadas++;
-        }
+        batch.update(doc(db, 'salas', salaDoc.id), {
+          contactoAutorizado2: editAdminForm.nombre.trim(),
+          contactEmail2: editAdminForm.email.trim(),
+          contactPhone2: editAdminForm.telefono.trim()
+        });
+        salasActualizadas++;
       });
 
       // 3. Ejecutar actualización en batch
-      await batch.commit();
+      if (salasActualizadas > 0) {
+        await batch.commit();
+      }
 
       alert(`✅ Administrador actualizado exitosamente\n\n📊 ${salasActualizadas} sala(s) sincronizada(s)`);
       handleCloseEditAdminDialog();

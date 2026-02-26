@@ -355,6 +355,22 @@ exports.checkCustomCalendarEvents = onSchedule({
       });
     }
 
+    // Pre-cargar notificaciones recientes de eventos custom para dedup en memoria (1 query en vez de N)
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const existingNotifsSnapshot = await db.collection('notifications')
+      .where('type', '==', 'calendar')
+      .where('createdAt', '>=', twentyFourHoursAgo)
+      .get();
+
+    const existingNotifKeys = new Set();
+    existingNotifsSnapshot.docs.forEach(doc => {
+      const d = doc.data();
+      if (d.data?.calendarEventId && d.data?.notificationTime !== undefined && d.data?.notificationUnit) {
+        existingNotifKeys.add(`${d.data.calendarEventId}_${d.data.notificationTime}_${d.data.notificationUnit}`);
+      }
+    });
+    console.log(`📋 ${existingNotifKeys.size} notificaciones recientes pre-cargadas para dedup`);
+
     for (const eventDoc of eventsSnapshot.docs) {
       const calendarEvent = eventDoc.data();
 
@@ -385,14 +401,9 @@ exports.checkCustomCalendarEvents = onSchedule({
         // Ventana de 30 minutos (ajustada al nuevo intervalo)
         if (minutesUntilNotification >= 0 && minutesUntilNotification < 30) {
 
-          // Verificar duplicados
-          const existingNotifQuery = await db.collection('notifications')
-            .where('data.calendarEventId', '==', eventDoc.id)
-            .where('data.notificationTime', '==', notif.time)
-            .where('data.notificationUnit', '==', notif.unit)
-            .get();
-
-          if (!existingNotifQuery.empty) {
+          // Verificar duplicados en memoria (0 reads en vez de 1 query por evento)
+          const dedupKey = `${eventDoc.id}_${notif.time}_${notif.unit}`;
+          if (existingNotifKeys.has(dedupKey)) {
             console.log(`⏭️ Notificación ya existe para evento ${eventDoc.id}`);
             continue;
           }
@@ -443,6 +454,7 @@ exports.checkCustomCalendarEvents = onSchedule({
             data: customData
           });
           await sendPushToUser(creatorId, { title: customTitle, message: customMessage, type: 'calendar', data: customData });
+          existingNotifKeys.add(dedupKey); // Evitar duplicados intra-ejecucion
           notificationsCreated++;
           console.log(`✅ Notificación creada para ${calendarEvent.title} (${timeMessage})`);
         }

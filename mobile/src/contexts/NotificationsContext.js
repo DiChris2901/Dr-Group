@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { collection, query, where, onSnapshot, orderBy, limit, doc, setDoc, getDoc } from 'firebase/firestore';
@@ -103,12 +103,25 @@ export const NotificationsProvider = ({ children }) => {
     }
   }, [user]);
 
-  // ✅ NUEVO: Registrar token de dispositivo al iniciar sesión
+  // Registrar token de dispositivo al iniciar sesion
   useEffect(() => {
     if (user && userProfile) {
       registerForPushNotifications();
     }
   }, [user, userProfile]);
+
+  // Re-registrar token cuando la app vuelve a foreground (previene tokens expirados)
+  useEffect(() => {
+    if (!user || !userProfile) return;
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        registerForPushNotifications();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [user, userProfile, registerForPushNotifications]);
 
   // ✅ Listener de Firestore para contar no leídas y detectar nuevas
   useEffect(() => {
@@ -125,7 +138,7 @@ export const NotificationsProvider = ({ children }) => {
       where('uid', '==', user.uid),
       where('read', '==', false),
       orderBy('createdAt', 'desc'),
-      limit(100) // ✅ Protección: máximo 100 notificaciones no leídas escuchadas
+      limit(30) // Maximo 30 unread escuchadas (con cleanup a 2 dias nunca se acumulan mas)
     );
 
     const unsubscribe = onSnapshot(

@@ -133,9 +133,6 @@ export const AuthProvider = ({ children }) => {
     return null;
   };
   
-  // Activar sistema de presencia para el usuario actual
-  useUserPresence(currentUser?.uid);
-
   // Función para iniciar sesión
   const login = async (email, password) => {
     try {

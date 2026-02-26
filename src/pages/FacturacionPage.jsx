@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -64,6 +64,16 @@ import festivosColombianos from 'festivos-colombianos';
 import { parseISO } from 'date-fns';
 
 const FacturacionPage = () => {
+  // Cache de salas (se carga 1 vez, evita 3 getDocs redundantes)
+  const salasCacheRef = useRef(null);
+  const loadSalasCache = useCallback(async () => {
+    if (salasCacheRef.current) return salasCacheRef.current;
+    const salasSnapshot = await getDocs(collection(db, 'salas'));
+    const salas = salasSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    salasCacheRef.current = salas;
+    return salas;
+  }, []);
+
   // Estados principales
   const [liquidaciones, setLiquidaciones] = useState([]);
   const [todasLasLiquidaciones, setTodasLasLiquidaciones] = useState([]); // Para opciones de filtros
@@ -352,17 +362,13 @@ const FacturacionPage = () => {
       const liquidacionesSnapshot = await getDocs(liquidacionesQuery);
       
       
-      // 2. Cargar todas las salas una vez
-      const salasSnapshot = await getDocs(collection(db, 'salas'));
+      // 2. Cargar salas desde cache (1 read o 0 si ya esta cargado)
+      const salasArray = await loadSalasCache();
       const salasMap = new Map();
-      
-      salasSnapshot.forEach(salaDoc => {
-        const salaData = salaDoc.data();
-        const nombreNormalizado = normalizarTexto(salaData.nombre || salaData.name || '');
-        salasMap.set(nombreNormalizado, {
-          id: salaDoc.id,
-          ...salaData
-        });
+
+      salasArray.forEach(sala => {
+        const nombreNormalizado = normalizarTexto(sala.nombre || sala.name || '');
+        salasMap.set(nombreNormalizado, sala);
       });
       
       
@@ -631,24 +637,22 @@ const FacturacionPage = () => {
               };
             }
           } else {
-            // Si no hay ID, buscar por nombre con similitud
-            const salasSnapshot = await getDocs(collection(db, 'salas'));
-            
+            // Si no hay ID, buscar por nombre con similitud (usando cache)
+            const salasParaBusqueda = await loadSalasCache();
+
             let mejorCoincidencia = null;
             let mejorSimilitud = 0;
-            
-            salasSnapshot.forEach((doc) => {
-              const salaData = doc.data();
-              const nombreSalaDB = salaData.nombre || salaData.name || '';
-              
+
+            salasParaBusqueda.forEach((sala) => {
+              const nombreSalaDB = sala.nombre || sala.name || '';
+
               if (nombreSalaDB) {
                 const similitud = calcularSimilitud(nombreSalaOriginal, nombreSalaDB);
-                
-                
+
                 // Si la similitud es mayor al 75%, considerarla candidata
                 if (similitud > mejorSimilitud && similitud >= 75) {
                   mejorSimilitud = similitud;
-                  mejorCoincidencia = { id: doc.id, ...salaData };
+                  mejorCoincidencia = sala;
                 }
               }
             });
@@ -1321,17 +1325,16 @@ const FacturacionPage = () => {
           
           if (nombreSala) {
             try {
-              // Cargar todas las salas y buscar por nombre normalizado
-              const salasSnapshot = await getDocs(collection(db, 'salas'));
+              // Buscar sala por nombre normalizado (usando cache)
+              const salasParaPreview = await loadSalasCache();
               const nombreSalaNormalizado = normalizarTexto(nombreSala);
-              
+
               let salaEncontrada = null;
-              salasSnapshot.forEach(salaDoc => {
-                const salaData = salaDoc.data();
-                const nombreNormalizado = normalizarTexto(salaData.nombre || salaData.name || '');
-                
+              salasParaPreview.forEach(sala => {
+                const nombreNormalizado = normalizarTexto(sala.nombre || sala.name || '');
+
                 if (nombreNormalizado === nombreSalaNormalizado) {
-                  salaEncontrada = { id: salaDoc.id, ...salaData };
+                  salaEncontrada = sala;
                 }
               });
               

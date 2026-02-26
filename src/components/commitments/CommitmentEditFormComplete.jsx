@@ -56,8 +56,6 @@ import {
   serverTimestamp,
   collection,
   query,
-  orderBy,
-  onSnapshot,
   where,
   getDocs,
   getDoc,
@@ -71,6 +69,7 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useCompaniesContext } from '../../context/CompaniesContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import { generateRecurringCommitments, saveRecurringCommitments } from '../../utils/recurringCommitments';
@@ -110,12 +109,12 @@ const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
 const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => {
   const theme = useTheme();
   const { currentUser, userProfile } = useAuth();
+  const { companies } = useCompaniesContext();
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
 
   // Estados principales
   const [saving, setSaving] = useState(false);
-  const [companies, setCompanies] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalData, setOriginalData] = useState({});
 
@@ -242,25 +241,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       }));
     }
   }, [formData.beneficiary]);
-
-  // Cargar empresas
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const q = query(collection(db, 'companies'), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const companiesData = [];
-      snapshot.forEach((doc) => {
-        companiesData.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
-      setCompanies(companiesData);
-    });
-
-    return () => unsubscribe();
-  }, [currentUser]);
 
   // Llenar formulario cuando se abre O cuando commitment cambia
   useEffect(() => {

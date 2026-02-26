@@ -2,7 +2,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 
 // Inicializar Firebase Admin
@@ -198,452 +198,11 @@ exports.storageProxy = onRequest(async (req, res) => {
 
 
 // ===================================================================
-// 🎯 SISTEMA DE CONTADORES OPTIMIZADO - REDUCCIÓN DE 20,000 → 1 READ
+// PRE-COMPUTED STATS: ELIMINADOS en v3.16.2
+// Los 13 triggers (commitments, payments, incomes, liquidaciones, asistencias)
+// y 4 funciones de recalculo escribian a system_stats/ pero NINGUN componente
+// del frontend leia esos datos. Se eliminaron para ahorrar ~300K reads/mes.
 // ===================================================================
-
-const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted, onDocumentWritten } = require('firebase-functions/v2/firestore');
-
-/**
- * Helper: Recalcular estadísticas completas del dashboard
- * Solo se ejecuta cuando hay cambios en compromisos o pagos
- */
-async function recalculateDashboardStats() {
-  const db = getFirestore();
-  
-  console.log('📊 Iniciando recálculo de estadísticas...');
-  
-  try {
-    // Obtener TODOS los compromisos (una sola vez)
-    const commitmentsSnapshot = await db.collection('commitments').get();
-    const commitments = commitmentsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    console.log(`📋 Compromisos encontrados: ${commitments.length}`);
-    
-    // Obtener TODOS los pagos (una sola vez)
-    const paymentsSnapshot = await db.collection('payments').get();
-    const allPayments = paymentsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    console.log(`💳 Pagos encontrados: ${allPayments.length}`);
-    
-    // Indexar pagos por commitmentId para búsqueda O(1)
-    const paymentsByCommitment = {};
-    allPayments.forEach(payment => {
-      if (payment.commitmentId && !payment.is4x1000Tax) {
-        if (!paymentsByCommitment[payment.commitmentId]) {
-          paymentsByCommitment[payment.commitmentId] = [];
-        }
-        paymentsByCommitment[payment.commitmentId].push(payment);
-      }
-    });
-    
-    // Inicializar contadores
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    const stats = {
-      // Compromisos
-      totalCommitments: 0,
-      activeCommitments: 0,
-      pendingCommitments: 0,
-      overDueCommitments: 0,
-      completedCommitments: 0,
-      
-      // Montos
-      totalAmount: 0,
-      paidAmount: 0,
-      pendingAmount: 0,
-      
-      // Empresas
-      totalCompanies: 0,
-      
-      // Pagos del mes
-      currentMonthPayments: 0,
-      currentMonthPaymentAmount: 0,
-      
-      // Metadata
-      lastUpdated: FieldValue.serverTimestamp(),
-      calculatedAt: new Date().toISOString()
-    };
-    
-    const uniqueCompanies = new Set();
-    
-    // Procesar cada compromiso
-    commitments.forEach(commitment => {
-      stats.totalCommitments++;
-      
-      const originalAmount = parseFloat(commitment.amount) || 0;
-      stats.totalAmount += originalAmount;
-      
-      // Contar empresas únicas
-      if (commitment.companyId) {
-        uniqueCompanies.add(commitment.companyId);
-      }
-      
-      // Obtener pagos de este compromiso
-      const paymentsForCommitment = paymentsByCommitment[commitment.id] || [];
-      const totalPaidForCommitment = paymentsForCommitment.reduce((sum, p) => 
-        sum + (parseFloat(p.amount) || 0), 0
-      );
-      
-      // Calcular saldo restante
-      const remainingAmount = Math.max(0, originalAmount - totalPaidForCommitment);
-      const tolerance = originalAmount * 0.01;
-      const isCompletelyPaid = Math.abs(remainingAmount) <= tolerance || 
-                               totalPaidForCommitment >= originalAmount;
-      
-      // Verificar fecha de vencimiento
-      const dueDate = commitment.dueDate?.toDate ? 
-        commitment.dueDate.toDate() : 
-        new Date(commitment.dueDate);
-      const isOverdue = dueDate && dueDate < now;
-      
-      // Verificar si está marcado como pagado
-      const isMarkedAsPaid = commitment.status === 'completed' || 
-                            commitment.status === 'paid' || 
-                            commitment.paid === true ||
-                            commitment.isPaid === true;
-      
-      const isPaid = isCompletelyPaid || isMarkedAsPaid;
-      
-      // Contar pagos del mes actual
-      paymentsForCommitment.forEach(payment => {
-        let paymentDate = null;
-        
-        if (payment.date?.toDate) {
-          paymentDate = payment.date.toDate();
-        } else if (payment.createdAt?.toDate) {
-          paymentDate = payment.createdAt.toDate();
-        } else if (payment.paymentDate?.toDate) {
-          paymentDate = payment.paymentDate.toDate();
-        } else {
-          paymentDate = now;
-        }
-        
-        if (paymentDate.getMonth() === currentMonth && 
-            paymentDate.getFullYear() === currentYear) {
-          stats.currentMonthPayments++;
-          stats.currentMonthPaymentAmount += parseFloat(payment.amount) || 0;
-        }
-      });
-      
-      // Clasificar compromiso
-      if (isPaid) {
-        stats.completedCommitments++;
-        stats.paidAmount += originalAmount;
-      } else {
-        stats.activeCommitments++;
-        stats.pendingCommitments++;
-        stats.pendingAmount += remainingAmount;
-        
-        if (isOverdue) {
-          stats.overDueCommitments++;
-        }
-      }
-    });
-    
-    stats.totalCompanies = uniqueCompanies.size;
-    
-    // Guardar en Firestore
-    await db.collection('system_stats').doc('dashboard').set(stats, { merge: true });
-    
-    console.log('✅ Estadísticas actualizadas:', {
-      compromisos: stats.totalCommitments,
-      pendientes: stats.pendingCommitments,
-      vencidos: stats.overDueCommitments,
-      pagados: stats.completedCommitments,
-      pagosMes: stats.currentMonthPayments
-    });
-    
-    return stats;
-    
-  } catch (error) {
-    console.error('❌ Error recalculando estadísticas:', error);
-    throw error;
-  }
-}
-
-/**
- * Trigger: Cuando se crea un compromiso
- */
-exports.onCommitmentCreated = onDocumentCreated('commitments/{commitmentId}', async (event) => {
-  console.log('🆕 Nuevo compromiso creado:', event.params.commitmentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Trigger: Cuando se actualiza un compromiso
- */
-exports.onCommitmentUpdated = onDocumentUpdated('commitments/{commitmentId}', async (event) => {
-  console.log('✏️ Compromiso actualizado:', event.params.commitmentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Trigger: Cuando se elimina un compromiso
- */
-exports.onCommitmentDeleted = onDocumentDeleted('commitments/{commitmentId}', async (event) => {
-  console.log('🗑️ Compromiso eliminado:', event.params.commitmentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Trigger: Cuando se crea un pago
- */
-exports.onPaymentCreated = onDocumentCreated('payments/{paymentId}', async (event) => {
-  console.log('🆕 Nuevo pago registrado:', event.params.paymentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Trigger: Cuando se actualiza un pago
- */
-exports.onPaymentUpdated = onDocumentUpdated('payments/{paymentId}', async (event) => {
-  console.log('✏️ Pago actualizado:', event.params.paymentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Trigger: Cuando se elimina un pago
- */
-exports.onPaymentDeleted = onDocumentDeleted('payments/{paymentId}', async (event) => {
-  console.log('🗑️ Pago eliminado:', event.params.paymentId);
-  await recalculateDashboardStats();
-});
-
-/**
- * Callable Function: Forzar recálculo manual
- * Útil para inicializar el sistema o reparar inconsistencias
- */
-exports.forceRecalculateStats = onCall(async (request) => {
-  console.log('🔄 Recálculo manual iniciado por:', request.auth?.uid);
-  
-  try {
-    const stats = await recalculateDashboardStats();
-    return { 
-      success: true, 
-      message: 'Estadísticas recalculadas exitosamente',
-      stats 
-    };
-  } catch (error) {
-    console.error('❌ Error en recálculo manual:', error);
-    throw new HttpsError('internal', `Error: ${error.message}`);
-  }
-});
-
-// ===================================================================
-// 📊 PRE-COMPUTED STATS: INGRESOS
-// ===================================================================
-
-async function recalculateIngresosStats() {
-  const db = getFirestore();
-  console.log('📊 Recalculando estadísticas de ingresos...');
-
-  try {
-    const snapshot = await db.collection('incomes').get();
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const stats = {
-      totalCount: 0,
-      totalAmount: 0,
-      currentMonthCount: 0,
-      currentMonthAmount: 0,
-      byPaymentMethod: {},
-      lastUpdated: FieldValue.serverTimestamp(),
-      calculatedAt: new Date().toISOString()
-    };
-
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const amount = parseFloat(data.amount) || 0;
-      stats.totalCount++;
-      stats.totalAmount += amount;
-
-      // Método de pago
-      const method = data.paymentMethod || 'otro';
-      if (!stats.byPaymentMethod[method]) {
-        stats.byPaymentMethod[method] = { count: 0, amount: 0 };
-      }
-      stats.byPaymentMethod[method].count++;
-      stats.byPaymentMethod[method].amount += amount;
-
-      // Ingreso del mes actual
-      let incomeDate = null;
-      if (data.date?.toDate) incomeDate = data.date.toDate();
-      else if (data.createdAt?.toDate) incomeDate = data.createdAt.toDate();
-      else if (data.date) incomeDate = new Date(data.date);
-
-      if (incomeDate &&
-          incomeDate.getMonth() === currentMonth &&
-          incomeDate.getFullYear() === currentYear) {
-        stats.currentMonthCount++;
-        stats.currentMonthAmount += amount;
-      }
-    });
-
-    await db.collection('system_stats').doc('ingresos').set(stats, { merge: true });
-    console.log('✅ Stats ingresos actualizadas:', { total: stats.totalCount, monto: stats.totalAmount });
-    return stats;
-  } catch (error) {
-    console.error('❌ Error recalculando stats ingresos:', error);
-    throw error;
-  }
-}
-
-exports.onIncomeCreated = onDocumentCreated('incomes/{docId}', async () => {
-  await recalculateIngresosStats();
-});
-exports.onIncomeUpdated = onDocumentUpdated('incomes/{docId}', async () => {
-  await recalculateIngresosStats();
-});
-exports.onIncomeDeleted = onDocumentDeleted('incomes/{docId}', async () => {
-  await recalculateIngresosStats();
-});
-
-// ===================================================================
-// 📊 PRE-COMPUTED STATS: LIQUIDACIONES POR SALA
-// ===================================================================
-
-async function recalculateLiquidacionesStats() {
-  const db = getFirestore();
-  console.log('📊 Recalculando estadísticas de liquidaciones...');
-
-  try {
-    const snapshot = await db.collection('liquidaciones_por_sala').get();
-
-    const stats = {
-      totalCount: 0,
-      pendientes: 0,
-      facturadas: 0,
-      pagadas: 0,
-      vencidas: 0,
-      montoTotal: 0,
-      montoPendiente: 0,
-      montoCobrado: 0,
-      lastUpdated: FieldValue.serverTimestamp(),
-      calculatedAt: new Date().toISOString()
-    };
-
-    const now = new Date();
-
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      stats.totalCount++;
-
-      const impuestos = parseFloat(data.metricas?.totalImpuestos) || 0;
-      stats.montoTotal += impuestos;
-
-      const estado = (data.estado || 'pendiente').toLowerCase();
-      if (estado === 'pagada' || estado === 'pagado') {
-        stats.pagadas++;
-        stats.montoCobrado += impuestos;
-      } else if (estado === 'facturada' || estado === 'facturado') {
-        stats.facturadas++;
-        stats.montoPendiente += impuestos;
-      } else {
-        stats.pendientes++;
-        stats.montoPendiente += impuestos;
-      }
-
-      // Vencidas
-      let fechaVencimiento = null;
-      if (data.fechaVencimiento?.toDate) fechaVencimiento = data.fechaVencimiento.toDate();
-      else if (data.fechaVencimiento) fechaVencimiento = new Date(data.fechaVencimiento);
-      if (fechaVencimiento && fechaVencimiento < now && estado !== 'pagada' && estado !== 'pagado') {
-        stats.vencidas++;
-      }
-    });
-
-    await db.collection('system_stats').doc('liquidaciones').set(stats, { merge: true });
-    console.log('✅ Stats liquidaciones actualizadas:', { total: stats.totalCount, pendientes: stats.pendientes });
-    return stats;
-  } catch (error) {
-    console.error('❌ Error recalculando stats liquidaciones:', error);
-    throw error;
-  }
-}
-
-exports.onLiquidacionPorSalaCreated = onDocumentCreated('liquidaciones_por_sala/{docId}', async () => {
-  await recalculateLiquidacionesStats();
-});
-exports.onLiquidacionPorSalaUpdated = onDocumentUpdated('liquidaciones_por_sala/{docId}', async () => {
-  await recalculateLiquidacionesStats();
-});
-exports.onLiquidacionPorSalaDeleted = onDocumentDeleted('liquidaciones_por_sala/{docId}', async () => {
-  await recalculateLiquidacionesStats();
-});
-
-// ===================================================================
-// 📊 PRE-COMPUTED STATS: ASISTENCIAS (resumen del día)
-// ===================================================================
-
-async function recalculateAsistenciasStats() {
-  const db = getFirestore();
-  const today = new Date();
-  const fechaHoy = today.toISOString().split('T')[0]; // YYYY-MM-DD
-  console.log('📊 Recalculando estadísticas de asistencias para:', fechaHoy);
-
-  try {
-    const snapshot = await db.collection('asistencias')
-      .where('fecha', '==', fechaHoy)
-      .get();
-
-    const usersSnapshot = await db.collection('users')
-      .where('isActive', '!=', false)
-      .get();
-    const totalEmployees = usersSnapshot.size;
-
-    const stats = {
-      fecha: fechaHoy,
-      totalEmployees,
-      presentes: 0,
-      trabajando: 0,
-      enBreak: 0,
-      enAlmuerzo: 0,
-      finalizados: 0,
-      ausentes: 0,
-      lastUpdated: FieldValue.serverTimestamp(),
-      calculatedAt: new Date().toISOString()
-    };
-
-    const presentUids = new Set();
-
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const estado = (data.estadoActual || '').toLowerCase();
-      presentUids.add(data.uid);
-
-      if (estado === 'trabajando') stats.trabajando++;
-      else if (estado === 'break') stats.enBreak++;
-      else if (estado === 'almuerzo') stats.enAlmuerzo++;
-      else if (estado === 'finalizado') stats.finalizados++;
-    });
-
-    stats.presentes = presentUids.size;
-    stats.ausentes = Math.max(0, totalEmployees - presentUids.size);
-
-    await db.collection('system_stats').doc('asistencias').set(stats, { merge: true });
-    console.log('✅ Stats asistencias actualizadas:', {
-      presentes: stats.presentes, ausentes: stats.ausentes, trabajando: stats.trabajando
-    });
-    return stats;
-  } catch (error) {
-    console.error('❌ Error recalculando stats asistencias:', error);
-    throw error;
-  }
-}
-
-exports.onAsistenciaWritten = onDocumentWritten('asistencias/{docId}', async () => {
-  await recalculateAsistenciasStats();
-});
 
 // ============================================
 // 📅 FUNCIONES SCHEDULED DE NOTIFICACIONES
@@ -751,10 +310,11 @@ exports.cleanupOldActivityLogs = onSchedule({
 
 /**
  * OPT-5: Limpieza de notificaciones antiguas
- * Ejecuta 1x/día — elimina notificaciones leídas >30 días y todas >60 días
+ * Ejecuta 1x/dia — elimina notificaciones leidas >2 dias y todas >7 dias
+ * Las notificaciones moviles son efimeras: si no se vio en 2 dias, ya no es relevante
  */
 exports.cleanupOldNotifications = onSchedule({
-  schedule: '0 1 * * *', // 1 AM todos los días
+  schedule: '0 1 * * *', // 1 AM todos los dias
   timeZone: 'America/Bogota',
   memory: '256MiB',
   timeoutSeconds: 120
@@ -763,18 +323,18 @@ exports.cleanupOldNotifications = onSchedule({
   console.log('🧹 Ejecutando cleanupOldNotifications...');
 
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     let totalDeleted = 0;
 
-    // 1. Eliminar notificaciones leídas con más de 30 días
+    // 1. Eliminar notificaciones leidas con mas de 2 dias
     const readOldSnapshot = await db.collection('notifications')
       .where('read', '==', true)
-      .where('createdAt', '<', thirtyDaysAgo)
+      .where('createdAt', '<', twoDaysAgo)
       .limit(500)
       .get();
 
@@ -785,9 +345,9 @@ exports.cleanupOldNotifications = onSchedule({
       totalDeleted += readOldSnapshot.size;
     }
 
-    // 2. Eliminar TODAS las notificaciones con más de 60 días (leídas o no)
+    // 2. Eliminar TODAS las notificaciones con mas de 7 dias (leidas o no)
     const allOldSnapshot = await db.collection('notifications')
-      .where('createdAt', '<', sixtyDaysAgo)
+      .where('createdAt', '<', sevenDaysAgo)
       .limit(500)
       .get();
 
