@@ -46,6 +46,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { useCommitments } from '../../hooks/useFirestore';
 import useCompanies from '../../hooks/useCompanies';
 import { useSettings } from '../../context/SettingsContext';
+import PageSkeleton from '../../components/common/PageSkeleton';
 
 const ReportsSummaryPage = () => {
   const theme = useTheme();
@@ -1747,8 +1748,10 @@ const ReportsSummaryPage = () => {
     }
   };
 
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
+
   return (
-    <Box sx={{ 
+    <Box sx={{
       p: { xs: 2, sm: 3, md: 4 },
       maxWidth: '1400px',
       mx: 'auto',
@@ -1757,11 +1760,6 @@ const ReportsSummaryPage = () => {
         '100%': { transform: 'rotate(360deg)' }
       }
     }}>
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <LinearProgress sx={{ width: '50%' }} />
-        </Box>
-      ) : (
         <>
       {/* HEADER GRADIENT SOBRIO */}
       <Paper 
@@ -2281,7 +2279,6 @@ const ReportsSummaryPage = () => {
       </Grid>
       )}
         </>
-      )}
     </Box>
   );
 };

@@ -71,6 +71,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import SalaDetallePorMesModal from '../components/modals/SalaDetallePorMesModal';
 import MaquinaDetallePorMesModal from '../components/modals/MaquinaDetallePorMesModal';
 import MaquinasEnCeroStats from '../components/liquidaciones/MaquinasEnCeroStats';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 // ===== PÁGINA DE ESTADÍSTICAS DE LIQUIDACIONES =====
 // Comparativas por rangos de meses (3, 6 y 12 meses)
@@ -1119,21 +1120,7 @@ const LiquidacionesEstadisticasPage = () => {
   };
 
   // ===== RENDERIZADO =====
-  if (loading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Skeleton variant="rectangular" height={100} sx={{ mb: 2, borderRadius: 2 }} />
-        <Grid container spacing={2}>
-          {[1, 2, 3, 4].map(i => (
-            <Grid item xs={12} sm={6} md={3} key={i}>
-              <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
-            </Grid>
-          ))}
-        </Grid>
-        <Skeleton variant="rectangular" height={300} sx={{ mt: 2, borderRadius: 2 }} />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
 
   return (
     <Box sx={{ p: 3 }}>

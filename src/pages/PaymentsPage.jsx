@@ -103,6 +103,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import PaymentsFilters from '../components/payments/PaymentsFilters';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
 import { useNavigate } from 'react-router-dom';
 
@@ -1128,17 +1129,10 @@ useEffect(() => {
 
 
 
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
+
   return (
     <Box sx={{ p: 2, pb: 4, display:'flex', flexDirection:'column', gap: 2 }}>
-      {/* Mostrar indicador de carga */}
-      {loading && (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress size={32} />
-          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
-            Cargando pagos...
-          </Typography>
-        </Box>
-      )}
 
       {/* Mostrar error si existe */}
       {error && (

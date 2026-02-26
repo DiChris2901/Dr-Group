@@ -59,6 +59,7 @@ import { es } from 'date-fns/locale';
 import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import TaskDialog from '../components/tasks/TaskDialog';
+import PageSkeleton from '../components/common/PageSkeleton';
 import TaskDetailDialog from '../components/tasks/TaskDetailDialog';
 import TaskReassignDialog from '../components/tasks/TaskReassignDialog';
 import TaskProgressDialog from '../components/tasks/TaskProgressDialog';
@@ -355,13 +356,7 @@ const TasksPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography>Cargando tareas...</Typography>
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="cards" kpiCount={4} />;
 
   return (
     <Box sx={{ 

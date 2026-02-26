@@ -2,12 +2,17 @@
   // 🚀 OPTIMIZACIONES DE RENDIMIENTO VS CODE
   
   // Configuración de archivos y búsqueda
+  "git.ignoredRepositories": [
+    ".claude/worktrees/flamboyant-benz"
+  ],
+
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/dist/**": true,
     "**/build/**": true,
     "**/.git/**": true,
     "**/backup/**": true,
+    "**/.claude/**": true,
     "**/*.log": true,
     "**/coverage/**": true,
     "**/tmp/**": true,

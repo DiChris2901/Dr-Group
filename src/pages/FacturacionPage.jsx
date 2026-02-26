@@ -54,6 +54,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { usePermissions } from '../hooks/usePermissions';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import jsPDF from 'jspdf';
@@ -1539,13 +1540,7 @@ const FacturacionPage = () => {
     </Card>
   );
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   if (error) {
     return (

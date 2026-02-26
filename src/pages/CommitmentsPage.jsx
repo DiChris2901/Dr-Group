@@ -18,6 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -249,16 +250,7 @@ const CommitmentsPage = () => {
   };
 
   // Verificación de autenticación
-  if (authLoading) {
-    return (
-      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="50vh">
-        <CircularProgress size={40} />
-        <Typography variant="h6" sx={{ mt: 2 }}>
-          Verificando autenticación...
-        </Typography>
-      </Box>
-    );
-  }
+  if (authLoading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   if (!currentUser) {
     return (

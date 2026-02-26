@@ -71,6 +71,7 @@ import { isAdminUser } from '../utils/permissions';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -912,9 +913,7 @@ const EmpleadosPage = () => {
 
       {/* Contenido principal */}
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <CircularProgress />
-        </Box>
+        <PageSkeleton variant="table" kpiCount={0} rows={8} />
       ) : error ? (
         <Alert severity="error" sx={{ borderRadius: 2 }}>
           {error}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
+import PageSkeleton from '../common/PageSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import useActivityLogs from '../../hooks/useActivityLogs';
@@ -54,21 +55,7 @@ const ProtectedRoute = ({
   
   // 1. Mostrar loading mientras se autentica O se carga el perfil
   if (authLoading || (currentUser && !userProfile)) {
-    return (
-      <Box 
-        display="flex" 
-        flexDirection="column"
-        justifyContent="center" 
-        alignItems="center" 
-        minHeight="400px"
-        gap={2}
-      >
-        <CircularProgress size={48} />
-        <Typography variant="body1" color="text.secondary">
-          {authLoading ? 'Autenticando...' : 'Cargando permisos...'}
-        </Typography>
-      </Box>
-    );
+    return <PageSkeleton variant="default" kpiCount={4} />;
   }
 
   // 2. Si no hay usuario autenticado

@@ -54,6 +54,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getDocs, limit } from 'firebase/firestore';
@@ -1417,13 +1418,7 @@ const LiquidacionesPorSalaPage = () => {
     </Card>
   );
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   if (error) {
     return (

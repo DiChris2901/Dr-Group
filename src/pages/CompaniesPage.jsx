@@ -77,6 +77,7 @@ import { useAuth } from '../context/AuthContext';
 import { isAdminUser } from '../utils/permissions';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { useNotifications } from '../context/NotificationsContext';
 import { formatDocumentType, formatFileSize } from './companies/companyHelpers';
 
@@ -918,13 +919,7 @@ const CompaniesPage = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="cards" kpiCount={4} />;
 
   if (error) {
     return (

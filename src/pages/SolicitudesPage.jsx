@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../context/ToastContext';
 import SolicitudesRRHH from '../components/rrhh/SolicitudesRRHH';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { Description } from '@mui/icons-material';
 
 const SolicitudesPage = () => {
@@ -103,15 +104,7 @@ const SolicitudesPage = () => {
     );
   }
 
-  if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={3} />;
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>

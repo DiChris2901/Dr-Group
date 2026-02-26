@@ -67,6 +67,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { storage, db, auth as firebaseAuth } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { 
@@ -503,8 +504,10 @@ const ProfilePage = () => {
     setErrors({});
   };
 
+  if (loading) return <PageSkeleton variant="form" kpiCount={0} rows={5} />;
+
   return (
-    <Box sx={{ 
+    <Box sx={{
       p: { xs: 2, sm: 3, md: 4 },
       maxWidth: '1400px',
       mx: 'auto'

@@ -62,6 +62,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { db } from '../config/firebase';
 import {
   collection,
@@ -472,16 +473,7 @@ const BankAccountsPage = () => {
     setSelectedAccountName('');
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Cuentas Bancarias
-        </Typography>
-        <LinearProgress />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={3} />;
 
   const bankAccounts = getBankAccounts();
 

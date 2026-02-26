@@ -74,6 +74,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useToast } from '../context/ToastContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import IncomeDetailModal from '../components/incomes/IncomeDetailModal';
 import DateRangeFilter, { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
 import { isValid } from 'date-fns';
@@ -684,13 +685,7 @@ const IncomeHistoryPage = () => {
     return colors[method] || 'default';
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Typography>Cargando histórico de ingresos...</Typography>
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   if (error) {
     return (

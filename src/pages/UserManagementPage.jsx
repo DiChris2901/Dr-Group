@@ -110,6 +110,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { getRoleChipColor } from './companies/companyHelpers';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 const UserManagementPage = () => {
   const theme = useTheme();
@@ -892,13 +893,7 @@ const UserManagementPage = () => {
 
   // getRoleChipColor imported from companyHelpers
 
-  if (loading && users.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading && users.length === 0) return <PageSkeleton variant="table" kpiCount={4} />;
 
   return (
     <Box sx={{ 

@@ -28,7 +28,8 @@ import {
     TableRow,
     TextField,
     Typography,
-    alpha
+    alpha,
+    Skeleton
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1345,8 +1346,16 @@ const LiquidacionesHistorialPage = () => {
           </Box>
           
           {loading ? (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography>Cargando historial...</Typography>
+            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1 }}>
+                  <Skeleton variant="circular" width={32} height={32} animation="wave" />
+                  <Skeleton variant="text" width="30%" animation="wave" />
+                  <Skeleton variant="text" width="20%" animation="wave" />
+                  <Skeleton variant="text" width="15%" animation="wave" />
+                  <Skeleton variant="rounded" width={80} height={24} sx={{ ml: 'auto' }} animation="wave" />
+                </Box>
+              ))}
             </Box>
           ) : !filtersApplied ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>

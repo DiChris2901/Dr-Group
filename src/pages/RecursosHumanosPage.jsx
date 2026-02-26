@@ -31,6 +31,7 @@ import ModuleCard from '../components/rrhh/ModuleCard';
 import DashboardRRHH from '../components/rrhh/DashboardRRHH';
 import SolicitudesRRHH from '../components/rrhh/SolicitudesRRHH';
 import LiquidacionesRRHH from '../components/rrhh/LiquidacionesRRHH';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 const RecursosHumanosPage = () => {
   const theme = useTheme();
@@ -279,6 +280,8 @@ const RecursosHumanosPage = () => {
       </Box>
     );
   }
+
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
 
   return (
     <Box sx={{ p: 3 }}>

@@ -64,6 +64,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
+import PageSkeleton from '../components/common/PageSkeleton';
 import {
   calculateNextDueDates,
   generateRecurringCommitments,
@@ -1437,16 +1438,7 @@ const NewCommitmentPage = () => {
     years.push({ value: i, label: i.toString() });
   }
 
-  if (loadingCompanies) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress size={40} />
-        <Typography variant="body1" sx={{ ml: 2 }}>
-          Cargando empresas...
-        </Typography>
-      </Box>
-    );
-  }
+  if (loadingCompanies) return <PageSkeleton variant="form" kpiCount={0} rows={6} />;
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: 2 }}>

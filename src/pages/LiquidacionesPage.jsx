@@ -62,6 +62,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import useLiquidacionExport from '../hooks/useLiquidacionExport';
 import useCompanies from '../hooks/useCompanies';
+import PageSkeleton from '../components/common/PageSkeleton';
 import * as XLSX from 'xlsx';
 import {
   LOG_COLORS_BY_TYPE,
@@ -1960,6 +1961,10 @@ export default function LiquidacionesPage() {
   }, [searchParams, currentUser?.uid, companies, companiesLoading, addLog]);
   // ⚠️ NO incluir cargarLiquidacion en las dependencias para evitar loop infinito
   // ===================== FIN CARGA DESDE HISTORIAL =====================
+
+  if (processing && (!originalData || !originalData.length)) {
+    return <PageSkeleton variant="table" kpiCount={4} />;
+  }
 
   return (
     <>

@@ -54,6 +54,7 @@ import { es } from 'date-fns/locale';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
 import { useCommitments } from '../../hooks/useFirestore';
 import useCompanies from '../../hooks/useCompanies';
+import PageSkeleton from '../../components/common/PageSkeleton';
 import { useSettings } from '../../context/SettingsContext';
 import { motion } from 'framer-motion';
 import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
@@ -997,19 +998,14 @@ const ReportsConceptPage = () => {
     );
   };
 
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
+
   return (
-    <Box sx={{ 
+    <Box sx={{
       p: { xs: 2, sm: 3, md: 4 },
       maxWidth: '1400px',
       mx: 'auto'
     }}>
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <Typography variant="h6" color="text.secondary">
-            Cargando y categorizando compromisos...
-          </Typography>
-        </Box>
-      ) : (
         <>
           {/* HEADER GRADIENT SOBRIO SIMPLIFICADO */}
           <Paper 
@@ -1528,7 +1524,6 @@ const ReportsConceptPage = () => {
         </CardContent>
       </Card>
         </>
-      )}
     </Box>
   );
 };

@@ -76,6 +76,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { exportarAsistenciasExcel } from '../utils/asistenciasExcelExport';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 const AsistenciasPage = () => {
   const theme = useTheme();
@@ -1092,9 +1093,7 @@ const AsistenciasPage = () => {
           }}
         >
           {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-              <CircularProgress />
-            </Box>
+            <PageSkeleton variant="table" kpiCount={0} rows={8} />
           ) : error ? (
             <Alert severity="error" sx={{ m: 2 }}>
               {error}

@@ -106,6 +106,7 @@ import { logSalaChange, logSalaCreation } from '../utils/salaChangeLogger';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AddSalaModal from '../components/modals/AddSalaModal';
@@ -972,13 +973,7 @@ const SalasPage = () => {
     }).format(price);
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={48} />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="cards" kpiCount={4} />;
 
   if (error) {
     return (

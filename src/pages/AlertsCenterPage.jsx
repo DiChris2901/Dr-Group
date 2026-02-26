@@ -51,6 +51,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAlertsCenter } from '../hooks/useAlertsCenter';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 // Componente de tarjeta de alerta
 const AlertCard = ({ alert, onDismiss, onToggleStatus, onClick, delay = 0 }) => {
@@ -415,6 +416,8 @@ const AlertsCenterPage = () => {
       default: return true;
     }
   });
+
+  if (alertsLoading) return <PageSkeleton variant="table" kpiCount={3} />;
 
   return (
     <Box sx={{ p: 0 }}>

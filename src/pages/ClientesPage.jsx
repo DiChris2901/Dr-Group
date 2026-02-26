@@ -60,6 +60,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { exportarClientesSpectacular } from '../utils/clientesExcelExportSpectacular';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 const ClientesPage = () => {
   const theme = useTheme();
@@ -348,13 +349,7 @@ const ClientesPage = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>

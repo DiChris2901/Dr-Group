@@ -63,6 +63,7 @@ import useActivityLogs from '../hooks/useActivityLogs';
 import { isAdminUser } from '../utils/permissions';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { db, storage } from '../config/firebase';
 // 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
 import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
@@ -733,13 +734,7 @@ const IncomePage = () => {
     return icons[category] || <AttachMoneyIcon />;
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Typography>Cargando ingresos...</Typography>
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="table" kpiCount={4} />;
 
   if (error) {
     return (

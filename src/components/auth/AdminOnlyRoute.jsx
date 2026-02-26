@@ -2,7 +2,8 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Box, Typography, Alert, Paper, CircularProgress } from '@mui/material';
+import { Box, Typography, Alert, Paper } from '@mui/material';
+import PageSkeleton from '../common/PageSkeleton';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 /**
@@ -16,23 +17,7 @@ const AdminOnlyRoute = ({ children }) => {
   const { hasPermission } = usePermissions();
 
   // Mostrar loading mientras se autentica
-  if (loading) {
-    return (
-      <Box 
-        display="flex" 
-        flexDirection="column"
-        justifyContent="center" 
-        alignItems="center" 
-        minHeight="400px"
-        gap={2}
-      >
-        <CircularProgress size={48} />
-        <Typography variant="body1" color="text.secondary">
-          Verificando permisos de auditoría...
-        </Typography>
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
 
   // Si no hay usuario autenticado, redirigir al login
   if (!currentUser) {

@@ -16,6 +16,7 @@ import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import LoginForm from './components/auth/LoginForm';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
+import PageSkeleton from './components/common/PageSkeleton';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
@@ -66,11 +67,7 @@ const DashboardLayout = () => {
 
   return (
     <ErrorBoundary>
-    <Suspense fallback={
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    }>
+    <Suspense fallback={<PageSkeleton variant="default" kpiCount={4} />}>
     <Routes>
       <Route 
         path="/" 
@@ -433,19 +430,7 @@ const DashboardLayout = () => {
 const AppContent = () => {
   const { currentUser, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
-        minHeight="100vh"
-        bgcolor="background.default"
-      >
-        <div>Cargando...</div>
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
 
   return (
     <Router>

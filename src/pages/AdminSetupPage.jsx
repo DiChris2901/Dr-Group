@@ -5,6 +5,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import AdminSetupComponent from '../components/admin/AdminSetupComponent';
+import PageSkeleton from '../components/common/PageSkeleton';
 import { Navigate } from 'react-router-dom';
 
 const AdminSetupPage = () => {
@@ -54,20 +55,7 @@ const AdminSetupPage = () => {
     setNeedsSetup(false);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        background: backgroundGradient,
-        color: theme.palette.text.primary
-      }}>
-        Verificando configuración...
-      </Box>
-    );
-  }
+  if (loading) return <PageSkeleton variant="form" kpiCount={0} />;
 
   // Si ya es admin, redirigir al dashboard
   if (isAdmin && !needsSetup) {

@@ -39,6 +39,7 @@ import systemConfigService from '../services/systemConfigService';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
+import PageSkeleton from '../components/common/PageSkeleton';
 
 // Componentes
 import ActivityLogTable from '../components/admin/ActivityLogTable';
@@ -297,6 +298,8 @@ const ActivityLogsPage = () => {
       </Box>
     );
   }
+
+  if (loading && !refreshing) return <PageSkeleton variant="table" kpiCount={3} />;
 
   return (
     <Box sx={{ p: 3 }}>

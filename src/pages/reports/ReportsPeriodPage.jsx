@@ -24,6 +24,7 @@ import {
 import { useCommitments } from '../../hooks/useFirestore';
 import useCompanies from '../../hooks/useCompanies';
 import { useSettings } from '../../context/SettingsContext';
+import PageSkeleton from '../../components/common/PageSkeleton';
 import {
   DateRange,
   GetApp,
@@ -1419,30 +1420,15 @@ const ReportsPeriodPage = () => {
     hasFiltersChanged
   ]);
 
+  if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
+
   return (
-    <Box sx={{ 
+    <Box sx={{
       p: { xs: 2, sm: 3, md: 4 },
       maxWidth: '1400px',
       mx: 'auto'
     }}>
-      {loading ? (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '60vh',
-          gap: 2
-        }}>
-          <CircularProgress size={60} thickness={4} />
-          <Typography variant="h6" color="text.secondary">
-            🔄 Cargando datos temporales desde Firebase...
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-            Analizando compromisos y clasificando por período
-          </Typography>
-        </Box>
-      ) : currentData.length === 0 ? (
+      {currentData.length === 0 ? (
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column',
