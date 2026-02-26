@@ -154,7 +154,7 @@ export const useNotifications = (userId) => {
       collection(db, 'notifications'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
-      limit(100)
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

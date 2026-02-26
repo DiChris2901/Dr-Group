@@ -1,26 +1,34 @@
 ﻿import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, serverTimestamp as rtdbServerTimestamp, set } from 'firebase/database';
-import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { auth, database, db } from '../config/firebase';
 import { useUserPresence } from '../hooks/useUserPresence';
 import { clearAllListeners } from '../utils/listenerManager';
 
 // Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
+// Escribe a activity_logs (colección principal de auditoría, snake_case)
 const logAuthActivity = async (action, userId, details = {}) => {
   try {
-    await addDoc(collection(db, 'activityLogs'), {
+    await addDoc(collection(db, 'activity_logs'), {
       action,
       entityType: 'authentication',
       entityId: userId || 'anonymous',
       userId: userId || 'system',
+      userName: details.email || 'Sistema',
+      userEmail: details.email || 'system',
+      userRole: null,
       details: {
         userAgent: navigator.userAgent,
         deviceType: getDeviceType(),
         deviceInfo: getBrowserInfo(),
         ...details
       },
-      timestamp: new Date()
+      timestamp: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      userAgent: navigator.userAgent,
+      ipAddress: null,
+      sessionId: sessionStorage.getItem('sessionId') || 'anonymous'
     });
   } catch (error) {
     console.error('❌ Error creating audit log:', error);
@@ -509,17 +517,17 @@ export const AuthProvider = ({ children }) => {
     };
   }, [currentUser?.uid]); // ✅ Solo se ejecuta cuando cambia el UID, no el objeto completo
 
-  // 🆕 Actualizar actividad de la sesión cada 5 minutos
+  // 🆕 Actualizar actividad de la sesión cada 15 minutos
   useEffect(() => {
     if (!currentUser?.uid) return;
 
     // Actualizar inmediatamente
     updateSessionActivity();
 
-    // Configurar intervalo para actualizar cada 5 minutos
+    // Configurar intervalo para actualizar cada 15 minutos (reduce ~66% reads/writes vs 5min)
     const interval = setInterval(() => {
       updateSessionActivity();
-    }, 5 * 60 * 1000); // 5 minutos
+    }, 15 * 60 * 1000); // 15 minutos
 
     return () => clearInterval(interval);
   }, [currentUser?.uid]); // ✅ Usar uid primitivo en lugar del objeto completo

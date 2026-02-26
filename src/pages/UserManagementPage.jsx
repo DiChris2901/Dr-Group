@@ -59,7 +59,6 @@ import {
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
-  Notifications as NotificationsIcon,
   Dashboard as DashboardIcon,
   AccountBalance,
   Receipt,
@@ -109,8 +108,6 @@ import {
 import { db, auth, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
-import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
-import { useEmailNotifications } from '../hooks/useEmailNotifications';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { getRoleChipColor } from './companies/companyHelpers';
 
@@ -119,16 +116,7 @@ const UserManagementPage = () => {
   const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
-  
-  // 📧 Hook de notificaciones por email
-  const { 
-    sendUserCreatedNotification, 
-    sendUserUpdatedNotification, 
-    sendRoleChangedNotification,
-    sendCriticalPermissionChangeNotification,
-    sending: sendingEmail 
-  } = useEmailNotifications();
-  
+
   // Estados principales
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,10 +130,6 @@ const UserManagementPage = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0); // 0: Info, 1: Permisos, 2: Resumen
   
-  // Estados del modal de notificaciones
-  const [openNotificationsModal, setOpenNotificationsModal] = useState(false);
-  const [selectedUserForNotifications, setSelectedUserForNotifications] = useState(null);
-
   // Estados para empresas y archivos
   const [companies, setCompanies] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -324,16 +308,6 @@ const UserManagementPage = () => {
   };
 
   // Funciones para manejar el modal de notificaciones
-  const handleOpenNotificationsModal = (user) => {
-    setSelectedUserForNotifications(user);
-    setOpenNotificationsModal(true);
-  };
-
-  const handleCloseNotificationsModal = () => {
-    setOpenNotificationsModal(false);
-    setSelectedUserForNotifications(null);
-  };
-
   // Función para detectar cambios en el formulario
   const checkForChanges = (newFormData) => {
     // Función para comparar arrays sin importar el orden
@@ -711,42 +685,6 @@ const UserManagementPage = () => {
           if (JSON.stringify(editingUser.companies) !== JSON.stringify(formData.companies)) updatedFields.push('Empresas asignadas');
           if (JSON.stringify(editingUser.permissions) !== JSON.stringify(formData.permissions)) updatedFields.push('Permisos');
           
-          // Si cambió el rol, enviar notificación específica de cambio de rol
-          if (editingUser.role !== formData.role) {
-            
-            await sendRoleChangedNotification(formData.email, {
-              displayName: formData.displayName,
-              email: formData.email,
-              oldRole: editingUser.role,
-              newRole: formData.role,
-              changedBy: userProfile?.name || userProfile?.displayName || currentUser.email
-            });
-            
-            // Si el nuevo rol es Admin o Super Admin, enviar alerta de seguridad crítica
-            if (formData.role === 'ADMIN' || formData.role === 'admin' || formData.role === 'SUPER_ADMIN' || formData.role === 'super_admin') {
-              
-              await sendCriticalPermissionChangeNotification(formData.email, {
-                targetUserName: formData.displayName,
-                targetUserId: editingUser.id,
-                oldRole: editingUser.role,
-                newRole: formData.role,
-                changedById: currentUser.uid,
-                changedByName: userProfile?.name || userProfile?.displayName || currentUser.email,
-                timestamp: new Date().toLocaleString('es-CO')
-              });
-            }
-            
-          } else {
-            // Solo actualización de información sin cambio de rol
-            await sendUserUpdatedNotification(formData.email, {
-              displayName: formData.displayName,
-              email: formData.email,
-              updatedFields: updatedFields.join(', ') || 'Información general',
-              updatedBy: userProfile?.name || userProfile?.displayName || currentUser.email
-            });
-            
-          }
-          
           // Registrar en Activity Logs
           await logActivity(
             'update_user',
@@ -779,43 +717,25 @@ const UserManagementPage = () => {
           icon: 'person_add'
         });
         
-        // 📧 ENVIAR EMAIL DE BIENVENIDA
+        // Registrar en Activity Logs
         try {
-          
-          await sendUserCreatedNotification(formData.email, {
-            displayName: formData.displayName,
-            email: formData.email,
-            role: formData.role,
-            createdBy: userProfile?.name || userProfile?.displayName || currentUser.email
-          });
-          
-          
-          // Registrar en Activity Logs
           await logActivity(
             'create_user',
             'user',
-            formData.email, // Usamos email como ID temporal
+            formData.email,
             {
               userName: formData.displayName,
               userEmail: formData.email,
               role: formData.role,
               companies: formData.companies?.length || 0,
-              permissions: formData.permissions?.length || 0,
-              emailSent: true
+              permissions: formData.permissions?.length || 0
             },
             currentUser.uid,
             userProfile?.name || userProfile?.displayName || currentUser.email,
             currentUser.email
           );
-          
-        } catch (emailError) {
-          console.error('⚠️ Error enviando email de bienvenida:', emailError);
-          addNotification({
-            type: 'warning',
-            title: 'Usuario Creado (Email no enviado)',
-            message: 'El usuario fue creado pero no se pudo enviar el email de bienvenida.',
-            icon: 'warning'
-          });
+        } catch (logError) {
+          console.error('⚠️ Error registrando actividad:', logError);
         }
       }
       
@@ -1309,15 +1229,6 @@ const UserManagementPage = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        <Tooltip title="Configurar notificaciones">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenNotificationsModal(user)}
-                            sx={{ color: 'warning.main' }}
-                          >
-                            <NotificationsIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Editar usuario">
                           <IconButton
                             size="small"
@@ -2378,13 +2289,6 @@ const UserManagementPage = () => {
           </Box>
         </DialogActions>
       </Dialog>
-
-      {/* Modal de configuración de notificaciones */}
-      <NotificationSettingsModal
-        open={openNotificationsModal}
-        onClose={handleCloseNotificationsModal}
-        user={selectedUserForNotifications}
-      />
 
       {/* 🔐 Modal de Credenciales Creadas - Diseño Sobrio */}
       <Dialog

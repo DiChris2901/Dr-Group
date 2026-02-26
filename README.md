@@ -11,7 +11,6 @@ Dashboard empresarial completo para gestión de compromisos financieros y liquid
 - Control de asistencias con geolocalización
 - Gestión multi-empresa con permisos granulares
 - Exportación Excel con formato profesional (ExcelJS)
-- Sistema de chat en tiempo real
 - Recursos Humanos completo
 
 ---
@@ -66,17 +65,9 @@ Dashboard empresarial completo para gestión de compromisos financieros y liquid
 - **Auditoría completa** con activity logs
 - **Validación de acceso** en frontend y backend
 
-### 💬 **Chat Empresarial**
-- **Mensajería en tiempo real** con Firestore
-- **Grupos de chat** predefinidos
-- **Compartir archivos** y documentos
-- **Indicadores de escritura** y presencia
-- **Notificaciones** de mensajes no leídos
-
 ### 📊 **Reportes y Exportación**
 - **Exportación Excel** con formato Python profesional
 - **Generación PDF** con jsPDF
-- **Envío por email** con EmailJS
 - **Estadísticas consolidadas** por empresa
 - **Gráficos de tendencias** operativas
 
@@ -113,7 +104,6 @@ Dashboard empresarial completo para gestión de compromisos financieros y liquid
 ### **Utilidades y Herramientas**
 - **ExcelJS 4.4.0** - Exportación Excel profesional
 - **jsPDF 3.0.3** - Generación de PDFs
-- **EmailJS 4.4.1** - Envío de correos
 - **Google Generative AI 0.24.1** - IA integrada
 - **ESLint + Prettier** - Código limpio
 
@@ -128,7 +118,6 @@ Dr-Group/
 │   │   ├── admin/                         # Herramientas de administración
 │   │   ├── auth/                          # Autenticación
 │   │   ├── charts/                        # Gráficos y visualizaciones
-│   │   ├── chat/                          # Sistema de chat
 │   │   ├── commitments/                   # Gestión de compromisos
 │   │   ├── common/                        # Componentes reutilizables
 │   │   ├── companies/                     # Gestión de empresas
@@ -449,7 +438,6 @@ firestore/
 │       └── salida: { hora }
 ├── activity_logs/                  // Auditoría del sistema
 ├── notifications/                  // Notificaciones
-├── chat_messages/                  // Mensajes de chat
 └── userSettings/                   // Configuraciones de usuario
     └── {uid}/theme/
 ```
@@ -496,7 +484,6 @@ firestore/
 - [ ] Notificaciones push nativas
 - [ ] Modo offline con sincronización
 - [ ] Solicitud de permisos (vacaciones, días libres)
-- [ ] Chat integrado en la app
 - [ ] Perfil de usuario editable
 - [ ] Biometría para login
 

@@ -63,7 +63,6 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
-import { useTelegramNotifications } from '../hooks/useTelegramNotifications';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
 import {
   calculateNextDueDates,
@@ -96,7 +95,6 @@ const NewCommitmentPage = () => {
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
-  const telegram = useTelegramNotifications(); // 🆕 Hook de Telegram
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1327,30 +1325,6 @@ const NewCommitmentPage = () => {
             duration: 8000
           });
 
-          // 📱 TELEGRAM: Notificar compromiso creado
-          if (settings?.notificationSettings?.telegramEnabled && settings?.notificationSettings?.telegramChatId) {
-            try {
-              // Convertir amount correctamente - usar totalAmount o baseAmount
-              const rawAmount = formData.totalAmount || formData.baseAmount || '0';
-              const amountValue = typeof rawAmount === 'string' 
-                ? parseFloat(rawAmount.replace(/[^0-9.-]/g, ''))
-                : parseFloat(rawAmount);
-              
-              const formattedAmount = !isNaN(amountValue) && amountValue > 0
-                ? `$${amountValue.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                : 'Monto no especificado';
-              
-              await telegram.sendHighValueCommitmentNotification(settings.notificationSettings.telegramChatId, {
-                companyName: formData.companyName || formData.beneficiary || 'Sin empresa',
-                beneficiary: formData.beneficiary || 'Sin beneficiario',
-                concept: formData.concept || 'Sin concepto',
-                amount: formattedAmount,
-                dueDate: format(new Date(formData.dueDate), 'dd/MM/yyyy', { locale: es }),
-                threshold: 'Nuevo compromiso registrado'
-              });
-            } catch (telegramError) {
-            }
-          }
         }
         
         // 🧹 Limpiar formulario después del éxito

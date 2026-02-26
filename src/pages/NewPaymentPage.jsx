@@ -63,7 +63,6 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
-import { useTelegramNotifications } from '../hooks/useTelegramNotifications';
 // 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
 import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
 import AttachmentPreviewDialog from '../components/common/AttachmentPreviewDialog';
@@ -78,7 +77,6 @@ const NewPaymentPage = () => {
   const { user } = useAuth();
   const { settings } = useSettings();
   const { logActivity } = useActivityLogs();
-  const telegram = useTelegramNotifications();
 
   // ============================================================
   // 🎨 CONFIGURACIÓN VISUAL (idéntica a NewCommitmentPage)
@@ -1200,26 +1198,6 @@ const NewPaymentPage = () => {
         icon: 'success'
       });
 
-      // Telegram
-      if (settings?.notificationSettings?.telegramEnabled && settings?.notificationSettings?.telegramChatId) {
-        try {
-          const amountValue = parseFloat(formData.finalAmount);
-          const formattedAmount = !isNaN(amountValue) && amountValue > 0
-            ? `$${amountValue.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-            : 'Monto no especificado';
-
-          await telegram.sendPaymentRegisteredNotification(settings.notificationSettings.telegramChatId, {
-            companyName: selectedCommitment.companyName || 'Sin empresa',
-            beneficiary: selectedCommitment.beneficiary || selectedCommitment.companyName || 'Sin beneficiario',
-            amount: formattedAmount,
-            paymentDate: format(new Date(formData.date), 'dd/MM/yyyy', { locale: es }),
-            concept: selectedCommitment.concept || 'Pago registrado',
-            registeredBy: user?.displayName || user?.email || 'Usuario',
-            receiptURL: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null
-          });
-        } catch (telegramError) {
-        }
-      }
 
       // Limpiar formulario para permitir otro pago
       setSelectedCommitment(null);

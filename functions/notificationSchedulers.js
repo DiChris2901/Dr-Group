@@ -21,6 +21,29 @@ const differenceInDays = (date1, date2) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
+/**
+ * Helper: Carga TODOS los usuarios con sus preferencias de notificación en una sola pasada.
+ * Reduce N+1 queries (1 getDoc por usuario) a 1 query de usuarios + 1 batch de settings.
+ * @returns {Array<{id, data, prefs}>} Lista de usuarios con sus preferencias
+ */
+async function loadUsersWithPreferences() {
+  const usersSnapshot = await db.collection('users').get();
+  const users = usersSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+
+  // Batch read de todas las preferencias de notificación (máximo 10 por batch en getAll)
+  const settingsRefs = users.map(u =>
+    db.collection('users').doc(u.id).collection('settings').doc('notificationPreferences')
+  );
+
+  // getAll soporta hasta 200 refs en una sola llamada
+  const settingsDocs = await db.getAll(...settingsRefs);
+
+  return users.map((user, index) => ({
+    ...user,
+    prefs: settingsDocs[index].exists ? settingsDocs[index].data() : null
+  }));
+}
+
 // ============================================
 // 1️⃣ RECORDATORIO DE SALIDA (6 PM Lunes-Viernes)
 // ============================================
@@ -31,58 +54,49 @@ exports.checkExitReminder = onSchedule({
   timeoutSeconds: 60
 }, async (event) => {
   console.log('🕐 Ejecutando checkExitReminder...');
-  
+
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     const asistenciasSnapshot = await db.collection('asistencias')
       .where('fecha', '==', today)
       .where('estadoActual', 'in', ['trabajando', 'break', 'almuerzo'])
       .get();
 
+    // Cargar usuarios + preferencias en una sola pasada (batch read)
+    const usersWithPrefs = await loadUsersWithPreferences();
+    const eligibleUsers = usersWithPrefs.filter(u =>
+      u.prefs?.attendance?.enabled && u.prefs?.attendance?.exitReminder
+    );
+
     let notificationsCreated = 0;
 
     for (const doc of asistenciasSnapshot.docs) {
       const session = doc.data();
-      
-      // Calcular horas trabajadas
       const entrada = session.entrada.hora.toDate();
       const now = new Date();
       const horasTrabajadas = (now - entrada) / 1000 / 60 / 60;
 
-      // Si lleva más de 8 horas trabajando
       if (horasTrabajadas >= 8) {
-        // Obtener usuarios con exitReminder habilitado
-        const usersSnapshot = await db.collection('users').get();
-
-        for (const userDoc of usersSnapshot.docs) {
-          const userSettings = await db.collection('users').doc(userDoc.id)
-            .collection('settings').doc('notificationPreferences').get();
-
-          if (userSettings.exists) {
-            const prefs = userSettings.data();
-            if (prefs?.attendance?.enabled && prefs?.attendance?.exitReminder) {
-              const exitTitle = '🏠 Recordatorio de Salida';
-              const exitMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin registrar salida`;
-              const exitData = {
-                sessionUserId: session.uid,
-                horasTrabajadas: horasTrabajadas.toFixed(2),
-                fecha: formatDate(now)
-              };
-              await db.collection('notifications').add({
-                uid: userDoc.id,
-                type: 'attendance',
-                subType: 'exitReminder',
-                title: exitTitle,
-                message: exitMessage,
-                createdAt: Timestamp.now(),
-                read: false,
-                data: exitData
-              });
-              // ✅ Push notification real
-              await sendPushToUser(userDoc.id, { title: exitTitle, message: exitMessage, type: 'attendance', data: exitData });
-              notificationsCreated++;
-            }
-          }
+        for (const user of eligibleUsers) {
+          const exitTitle = '🏠 Recordatorio de Salida';
+          const exitMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin registrar salida`;
+          const exitData = {
+            sessionUserId: session.uid,
+            horasTrabajadas: horasTrabajadas.toFixed(2),
+            fecha: formatDate(now)
+          };
+          await db.collection('notifications').add({
+            uid: user.id,
+            type: 'attendance',
+            subType: 'exitReminder',
+            title: exitTitle,
+            message: exitMessage,
+            createdAt: Timestamp.now(),
+            read: false,
+            data: exitData
+          });
+          await sendPushToUser(user.id, { title: exitTitle, message: exitMessage, type: 'attendance', data: exitData });
+          notificationsCreated++;
         }
       }
     }
@@ -105,7 +119,7 @@ exports.checkBreakReminder = onSchedule({
   timeoutSeconds: 60
 }, async (event) => {
   console.log('☕ Ejecutando checkBreakReminder...');
-  
+
   try {
     const today = new Date().toISOString().split('T')[0];
     const asistenciasSnapshot = await db.collection('asistencias')
@@ -113,49 +127,41 @@ exports.checkBreakReminder = onSchedule({
       .where('estadoActual', '==', 'trabajando')
       .get();
 
+    // Cargar usuarios + preferencias en una sola pasada (batch read)
+    const usersWithPrefs = await loadUsersWithPreferences();
+    const eligibleUsers = usersWithPrefs.filter(u =>
+      u.prefs?.attendance?.enabled && u.prefs?.attendance?.breakReminder
+    );
+
     let notificationsCreated = 0;
 
     for (const doc of asistenciasSnapshot.docs) {
       const session = doc.data();
-      
-      // Calcular tiempo desde entrada
       const entrada = session.entrada.hora.toDate();
       const now = new Date();
       const horasTrabajadas = (now - entrada) / 1000 / 60 / 60;
 
-      // Si lleva más de 4h sin break
       if (horasTrabajadas >= 4 && (!session.breaks || session.breaks.length === 0)) {
-        const usersSnapshot = await db.collection('users').get();
-
-        for (const userDoc of usersSnapshot.docs) {
-          const userSettings = await db.collection('users').doc(userDoc.id)
-            .collection('settings').doc('notificationPreferences').get();
-
-          if (userSettings.exists) {
-            const prefs = userSettings.data();
-            if (prefs?.attendance?.enabled && prefs?.attendance?.breakReminder) {
-              const breakTitle = '☕ Recordatorio de Break';
-              const breakMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin descanso`;
-              const breakData = {
-                sessionUserId: session.uid,
-                horasTrabajadas: horasTrabajadas.toFixed(2),
-                fecha: formatDate(now)
-              };
-              await db.collection('notifications').add({
-                uid: userDoc.id,
-                type: 'attendance',
-                subType: 'breakReminder',
-                title: breakTitle,
-                message: breakMessage,
-                createdAt: Timestamp.now(),
-                read: false,
-                data: breakData
-              });
-              // ✅ Push notification real
-              await sendPushToUser(userDoc.id, { title: breakTitle, message: breakMessage, type: 'attendance', data: breakData });
-              notificationsCreated++;
-            }
-          }
+        for (const user of eligibleUsers) {
+          const breakTitle = '☕ Recordatorio de Break';
+          const breakMessage = `${session.userName} lleva ${horasTrabajadas.toFixed(1)}h trabajando sin descanso`;
+          const breakData = {
+            sessionUserId: session.uid,
+            horasTrabajadas: horasTrabajadas.toFixed(2),
+            fecha: formatDate(now)
+          };
+          await db.collection('notifications').add({
+            uid: user.id,
+            type: 'attendance',
+            subType: 'breakReminder',
+            title: breakTitle,
+            message: breakMessage,
+            createdAt: Timestamp.now(),
+            read: false,
+            data: breakData
+          });
+          await sendPushToUser(user.id, { title: breakTitle, message: breakMessage, type: 'attendance', data: breakData });
+          notificationsCreated++;
         }
       }
     }
@@ -178,7 +184,7 @@ exports.checkLunchReminder = onSchedule({
   timeoutSeconds: 60
 }, async (event) => {
   console.log('🍽️ Ejecutando checkLunchReminder...');
-  
+
   try {
     const today = new Date().toISOString().split('T')[0];
     const asistenciasSnapshot = await db.collection('asistencias')
@@ -186,43 +192,37 @@ exports.checkLunchReminder = onSchedule({
       .where('estadoActual', 'in', ['trabajando', 'break'])
       .get();
 
+    // Cargar usuarios + preferencias en una sola pasada (batch read)
+    const usersWithPrefs = await loadUsersWithPreferences();
+    const eligibleUsers = usersWithPrefs.filter(u =>
+      u.prefs?.attendance?.enabled && u.prefs?.attendance?.lunchReminder
+    );
+
     let notificationsCreated = 0;
 
     for (const doc of asistenciasSnapshot.docs) {
       const session = doc.data();
-      
-      // Si no ha tomado almuerzo
+
       if (!session.almuerzo || !session.almuerzo.inicio) {
-        const usersSnapshot = await db.collection('users').get();
-
-        for (const userDoc of usersSnapshot.docs) {
-          const userSettings = await db.collection('users').doc(userDoc.id)
-            .collection('settings').doc('notificationPreferences').get();
-
-          if (userSettings.exists) {
-            const prefs = userSettings.data();
-            if (prefs?.attendance?.enabled && prefs?.attendance?.lunchReminder) {
-              const lunchTitle = '🍽️ Hora de Almuerzo';
-              const lunchMessage = `${session.userName} aún no ha registrado su almuerzo`;
-              const lunchData = {
-                sessionUserId: session.uid,
-                fecha: formatDate(new Date())
-              };
-              await db.collection('notifications').add({
-                uid: userDoc.id,
-                type: 'attendance',
-                subType: 'lunchReminder',
-                title: lunchTitle,
-                message: lunchMessage,
-                createdAt: Timestamp.now(),
-                read: false,
-                data: lunchData
-              });
-              // ✅ Push notification real
-              await sendPushToUser(userDoc.id, { title: lunchTitle, message: lunchMessage, type: 'attendance', data: lunchData });
-              notificationsCreated++;
-            }
-          }
+        for (const user of eligibleUsers) {
+          const lunchTitle = '🍽️ Hora de Almuerzo';
+          const lunchMessage = `${session.userName} aún no ha registrado su almuerzo`;
+          const lunchData = {
+            sessionUserId: session.uid,
+            fecha: formatDate(new Date())
+          };
+          await db.collection('notifications').add({
+            uid: user.id,
+            type: 'attendance',
+            subType: 'lunchReminder',
+            title: lunchTitle,
+            message: lunchMessage,
+            createdAt: Timestamp.now(),
+            read: false,
+            data: lunchData
+          });
+          await sendPushToUser(user.id, { title: lunchTitle, message: lunchMessage, type: 'attendance', data: lunchData });
+          notificationsCreated++;
         }
       }
     }
@@ -245,76 +245,64 @@ exports.checkCalendarEvents = onSchedule({
   timeoutSeconds: 120
 }, async (event) => {
   console.log('📅 Ejecutando checkCalendarEvents...');
-  
+
   try {
     const now = new Date();
-    const in7Days = addDays(now, 7);
-    
-    // Query commitments próximos a vencer (pendientes)
+
     const commitmentsSnapshot = await db.collection('commitments')
       .where('status', '==', 'pendiente')
       .get();
+
+    // Cargar usuarios + preferencias en una sola pasada (batch read)
+    const usersWithPrefs = await loadUsersWithPreferences();
 
     let notificationsCreated = 0;
 
     for (const doc of commitmentsSnapshot.docs) {
       const commitment = doc.data();
-      
       if (!commitment.dueDate) continue;
-      
+
       const dueDate = commitment.dueDate.toDate();
       const daysLeft = differenceInDays(dueDate, now);
-
-      // Solo notificar a 7, 3 y 1 día antes
       if (![7, 3, 1].includes(daysLeft)) continue;
 
-      // Determinar tipo de evento basado en el nombre
       let eventType = 'custom';
       const commitmentTitle = (commitment.name || '').toLowerCase();
-      
       if (commitmentTitle.includes('parafiscal')) eventType = 'parafiscales';
       else if (commitmentTitle.includes('coljuegos')) eventType = 'coljuegos';
       else if (commitmentTitle.includes('uiaf')) eventType = 'uiaf';
       else if (commitmentTitle.includes('contrato')) eventType = 'contratos';
       else if (commitmentTitle.includes('festivo')) eventType = 'festivos';
 
-      // Obtener usuarios con este tipo de evento habilitado
-      const usersSnapshot = await db.collection('users').get();
+      const eligibleUsers = usersWithPrefs.filter(u =>
+        u.prefs?.calendar?.enabled && u.prefs?.calendar?.events?.[eventType]
+      );
 
-      for (const userDoc of usersSnapshot.docs) {
-        const userSettings = await db.collection('users').doc(userDoc.id)
-          .collection('settings').doc('notificationPreferences').get();
+      for (const user of eligibleUsers) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const dueDateStr = `${pad(dueDate.getDate())}/${pad(dueDate.getMonth() + 1)}/${dueDate.getFullYear()}`;
 
-        if (userSettings.exists) {
-          const prefs = userSettings.data();
-          if (prefs?.calendar?.enabled && prefs?.calendar?.events?.[eventType]) {
-            const pad = (n) => String(n).padStart(2, '0');
-            const dueDateStr = `${pad(dueDate.getDate())}/${pad(dueDate.getMonth() + 1)}/${dueDate.getFullYear()}`;
-            
-            const calTitle = `📅 Recordatorio: ${commitment.name}`;
-            const calMessage = `Vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (${dueDateStr})${commitment.amount ? ` - $${commitment.amount.toLocaleString()}` : ''}`;
-            const calData = {
-              commitmentId: doc.id,
-              daysLeft: daysLeft,
-              dueDate: dueDateStr,
-              amount: commitment.amount || 0,
-              empresa: commitment.empresa || 'N/A'
-            };
-            await db.collection('notifications').add({
-              uid: userDoc.id,
-              type: 'calendar',
-              subType: eventType,
-              title: calTitle,
-              message: calMessage,
-              createdAt: Timestamp.now(),
-              read: false,
-              data: calData
-            });
-            // ✅ Push notification real
-            await sendPushToUser(userDoc.id, { title: calTitle, message: calMessage, type: 'calendar', data: calData });
-            notificationsCreated++;
-          }
-        }
+        const calTitle = `📅 Recordatorio: ${commitment.name}`;
+        const calMessage = `Vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (${dueDateStr})${commitment.amount ? ` - $${commitment.amount.toLocaleString()}` : ''}`;
+        const calData = {
+          commitmentId: doc.id,
+          daysLeft: daysLeft,
+          dueDate: dueDateStr,
+          amount: commitment.amount || 0,
+          empresa: commitment.empresa || 'N/A'
+        };
+        await db.collection('notifications').add({
+          uid: user.id,
+          type: 'calendar',
+          subType: eventType,
+          title: calTitle,
+          message: calMessage,
+          createdAt: Timestamp.now(),
+          read: false,
+          data: calData
+        });
+        await sendPushToUser(user.id, { title: calTitle, message: calMessage, type: 'calendar', data: calData });
+        notificationsCreated++;
       }
     }
 
@@ -330,39 +318,55 @@ exports.checkCalendarEvents = onSchedule({
 // NOTIFICACIONES DE EVENTOS PERSONALIZADOS DEL CALENDARIO
 // ======================================
 exports.checkCustomCalendarEvents = onSchedule({
-  schedule: '*/15 * * * *', // Cada 15 minutos
+  schedule: '*/30 * * * *', // Cada 30 minutos (antes: cada 15 — reduce 50% de ejecuciones)
   timeZone: 'America/Bogota',
   memory: '512MiB',
   timeoutSeconds: 180
 }, async (event) => {
   console.log('📅 Ejecutando checkCustomCalendarEvents...');
-  
+
   try {
     const now = new Date();
     let notificationsCreated = 0;
 
-    // Query eventos personalizados activos
     const eventsSnapshot = await db.collection('calendar_events')
       .where('type', '==', 'custom')
       .get();
 
     console.log(`📊 Encontrados ${eventsSnapshot.size} eventos personalizados`);
 
+    // Pre-cargar preferencias de usuarios que son creadores de eventos (batch)
+    const creatorIds = new Set();
     for (const eventDoc of eventsSnapshot.docs) {
       const calendarEvent = eventDoc.data();
-      
+      if (calendarEvent.createdBy) creatorIds.add(calendarEvent.createdBy);
+    }
+
+    // Cargar settings de creadores en batch (1 llamada getAll en vez de N getDoc)
+    const creatorPrefsMap = {};
+    if (creatorIds.size > 0) {
+      const settingsRefs = [...creatorIds].map(uid =>
+        db.collection('users').doc(uid).collection('settings').doc('notificationPreferences')
+      );
+      const settingsDocs = await db.getAll(...settingsRefs);
+      const creatorIdsArray = [...creatorIds];
+      settingsDocs.forEach((doc, index) => {
+        creatorPrefsMap[creatorIdsArray[index]] = doc.exists ? doc.data() : null;
+      });
+    }
+
+    for (const eventDoc of eventsSnapshot.docs) {
+      const calendarEvent = eventDoc.data();
+
       if (!calendarEvent.date || !calendarEvent.notifications) continue;
-      
+
       const eventDate = calendarEvent.date.toDate();
       const notifications = calendarEvent.notifications || [];
-      
-      // Procesar cada notificación configurada
+
       for (const notif of notifications) {
         if (!notif.enabled) continue;
 
-        // Calcular el tiempo de la notificación
         let notificationTime = new Date(eventDate);
-        
         switch (notif.unit) {
           case 'minutes':
             notificationTime.setMinutes(notificationTime.getMinutes() - notif.time);
@@ -375,14 +379,13 @@ exports.checkCustomCalendarEvents = onSchedule({
             break;
         }
 
-        // Verificar si debe notificarse AHORA (dentro de los próximos 15 minutos)
         const timeDiff = notificationTime - now;
         const minutesUntilNotification = timeDiff / (1000 * 60);
 
-        // Si la notificación debe dispararse en los próximos 15 minutos
-        if (minutesUntilNotification >= 0 && minutesUntilNotification < 15) {
-          
-          // Verificar si ya se creó esta notificación (evitar duplicados)
+        // Ventana de 30 minutos (ajustada al nuevo intervalo)
+        if (minutesUntilNotification >= 0 && minutesUntilNotification < 30) {
+
+          // Verificar duplicados
           const existingNotifQuery = await db.collection('notifications')
             .where('data.calendarEventId', '==', eventDoc.id)
             .where('data.notificationTime', '==', notif.time)
@@ -394,67 +397,54 @@ exports.checkCustomCalendarEvents = onSchedule({
             continue;
           }
 
-          // Crear notificación para el creador del evento
           const creatorId = calendarEvent.createdBy;
-          
-          if (creatorId) {
-            // Verificar preferencias del usuario
-            const userSettings = await db.collection('users').doc(creatorId)
-              .collection('settings').doc('notificationPreferences').get();
+          if (!creatorId) continue;
 
-            if (userSettings.exists) {
-              const prefs = userSettings.data();
-              
-              // Verificar si tiene habilitadas notificaciones de calendario custom
-              if (prefs?.calendar?.enabled && prefs?.calendar?.events?.custom) {
-                
-                // Formatear mensaje según el tiempo
-                let timeMessage = '';
-                if (notif.time === 0) {
-                  timeMessage = '¡Ahora!';
-                } else if (notif.unit === 'minutes') {
-                  timeMessage = `en ${notif.time} minuto${notif.time > 1 ? 's' : ''}`;
-                } else if (notif.unit === 'hours') {
-                  timeMessage = `en ${notif.time} hora${notif.time > 1 ? 's' : ''}`;
-                } else if (notif.unit === 'days') {
-                  timeMessage = `en ${notif.time} día${notif.time > 1 ? 's' : ''}`;
-                }
+          // Usar preferencias pre-cargadas (sin getDoc individual)
+          const prefs = creatorPrefsMap[creatorId];
+          if (!prefs?.calendar?.enabled || !prefs?.calendar?.events?.custom) continue;
 
-                const pad = (n) => String(n).padStart(2, '0');
-                const eventDateStr = `${pad(eventDate.getDate())}/${pad(eventDate.getMonth() + 1)}/${eventDate.getFullYear()}`;
-                const eventTimeStr = calendarEvent.allDay 
-                  ? 'Todo el día' 
-                  : `${pad(eventDate.getHours())}:${pad(eventDate.getMinutes())}`;
-
-                const customTitle = `📅 ${calendarEvent.title}`;
-                const customMessage = `${timeMessage} - ${eventDateStr} ${eventTimeStr}`;
-                const customData = {
-                  calendarEventId: eventDoc.id,
-                  eventDate: eventDateStr,
-                  eventTime: eventTimeStr,
-                  notificationTime: notif.time,
-                  notificationUnit: notif.unit,
-                  priority: calendarEvent.priority || 'medium',
-                  description: calendarEvent.description || ''
-                };
-                await db.collection('notifications').add({
-                  uid: creatorId,
-                  type: 'calendar',
-                  subType: 'custom',
-                  title: customTitle,
-                  message: customMessage,
-                  createdAt: Timestamp.now(),
-                  read: false,
-                  data: customData
-                });
-                // ✅ Push notification real
-                await sendPushToUser(creatorId, { title: customTitle, message: customMessage, type: 'calendar', data: customData });
-                
-                notificationsCreated++;
-                console.log(`✅ Notificación creada para ${calendarEvent.title} (${timeMessage})`);
-              }
-            }
+          let timeMessage = '';
+          if (notif.time === 0) {
+            timeMessage = '¡Ahora!';
+          } else if (notif.unit === 'minutes') {
+            timeMessage = `en ${notif.time} minuto${notif.time > 1 ? 's' : ''}`;
+          } else if (notif.unit === 'hours') {
+            timeMessage = `en ${notif.time} hora${notif.time > 1 ? 's' : ''}`;
+          } else if (notif.unit === 'days') {
+            timeMessage = `en ${notif.time} día${notif.time > 1 ? 's' : ''}`;
           }
+
+          const pad = (n) => String(n).padStart(2, '0');
+          const eventDateStr = `${pad(eventDate.getDate())}/${pad(eventDate.getMonth() + 1)}/${eventDate.getFullYear()}`;
+          const eventTimeStr = calendarEvent.allDay
+            ? 'Todo el día'
+            : `${pad(eventDate.getHours())}:${pad(eventDate.getMinutes())}`;
+
+          const customTitle = `📅 ${calendarEvent.title}`;
+          const customMessage = `${timeMessage} - ${eventDateStr} ${eventTimeStr}`;
+          const customData = {
+            calendarEventId: eventDoc.id,
+            eventDate: eventDateStr,
+            eventTime: eventTimeStr,
+            notificationTime: notif.time,
+            notificationUnit: notif.unit,
+            priority: calendarEvent.priority || 'medium',
+            description: calendarEvent.description || ''
+          };
+          await db.collection('notifications').add({
+            uid: creatorId,
+            type: 'calendar',
+            subType: 'custom',
+            title: customTitle,
+            message: customMessage,
+            createdAt: Timestamp.now(),
+            read: false,
+            data: customData
+          });
+          await sendPushToUser(creatorId, { title: customTitle, message: customMessage, type: 'calendar', data: customData });
+          notificationsCreated++;
+          console.log(`✅ Notificación creada para ${calendarEvent.title} (${timeMessage})`);
         }
       }
 
@@ -462,10 +452,8 @@ exports.checkCustomCalendarEvents = onSchedule({
       if (calendarEvent.recurrence?.enabled && calendarEvent.recurrence.endDate) {
         const recurrence = calendarEvent.recurrence;
         const endDate = recurrence.endDate.toDate();
-        
-        // Calcular próxima ocurrencia
         let nextOccurrence = new Date(eventDate);
-        
+
         switch (recurrence.frequency) {
           case 'daily':
             nextOccurrence.setDate(nextOccurrence.getDate() + 1);
@@ -481,10 +469,8 @@ exports.checkCustomCalendarEvents = onSchedule({
             break;
         }
 
-        // Si la próxima ocurrencia está dentro del rango y no ha pasado el endDate
         if (nextOccurrence <= endDate && nextOccurrence > now) {
           console.log(`🔄 Evento recurrente: ${calendarEvent.title} - Próxima: ${nextOccurrence}`);
-          // Las notificaciones se crearán en la próxima ejecución
         }
       }
     }

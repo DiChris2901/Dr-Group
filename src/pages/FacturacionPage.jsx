@@ -1264,8 +1264,7 @@ const FacturacionPage = () => {
     try {
       addNotification('Enviando documento por email...', 'info');
       
-      // TODO: Implementar envío por email con EmailJS o similar
-      // Por ahora solo muestra el mensaje
+      // TODO: Implementar envío por email
       
       setTimeout(() => {
         addNotification('📧 Funcionalidad de email pendiente de implementar', 'info');

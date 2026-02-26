@@ -525,19 +525,19 @@ const SettingsProvider = ({ children }) => {
   // ======================================================================
   
   // Helper: Merge settings de Firestore con defaults y colores del usuario
-  const mergeSettings = (firebaseSettings, userTheme, notificationSettings) => {
+  const mergeSettings = (firebaseSettings, userTheme) => {
     return {
       ...defaultSettings,
       ...firebaseSettings,
-      theme: { 
+      theme: {
         ...defaultSettings.theme,
         ...firebaseSettings.theme,
         primaryColor: userTheme.primaryColor || firebaseSettings.theme?.primaryColor || defaultSettings.theme.primaryColor,
         secondaryColor: userTheme.secondaryColor || firebaseSettings.theme?.secondaryColor || defaultSettings.theme.secondaryColor
       },
       sidebar: { ...defaultSettings.sidebar, ...firebaseSettings.sidebar },
-      dashboard: { 
-        ...defaultSettings.dashboard, 
+      dashboard: {
+        ...defaultSettings.dashboard,
         ...firebaseSettings.dashboard,
         layout: { ...defaultSettings.dashboard.layout, ...firebaseSettings.dashboard?.layout },
         widgets: { ...defaultSettings.dashboard.widgets, ...firebaseSettings.dashboard?.widgets },
@@ -545,8 +545,7 @@ const SettingsProvider = ({ children }) => {
         behavior: { ...defaultSettings.dashboard.behavior, ...firebaseSettings.dashboard?.behavior },
         appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
       },
-      notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications },
-      notificationSettings: notificationSettings || {}
+      notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications }
     };
   };
 
@@ -559,13 +558,12 @@ const SettingsProvider = ({ children }) => {
     const userSettingsRef = doc(db, 'userSettings', user.uid);
     const userRef = doc(db, 'users', user.uid);
 
-    // LISTENER 1: users/{uid} - Colores del tema y notificaciones
+    // LISTENER 1: users/{uid} - Colores del tema
     const unsubUser = onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         userColorsRef.current = {
-          theme: data.theme || {},
-          notificationSettings: data.notificationSettings || {}
+          theme: data.theme || {}
         };
         setSettings(prev => ({
           ...prev,
@@ -573,8 +571,7 @@ const SettingsProvider = ({ children }) => {
             ...prev.theme,
             primaryColor: data.theme?.primaryColor || prev.theme.primaryColor,
             secondaryColor: data.theme?.secondaryColor || prev.theme.secondaryColor
-          },
-          notificationSettings: data.notificationSettings || prev.notificationSettings || {}
+          }
         }));
       }
     }, (err) => {
@@ -586,9 +583,8 @@ const SettingsProvider = ({ children }) => {
       if (snap.exists()) {
         const firebaseSettings = snap.data();
         const userTheme = userColorsRef.current.theme || {};
-        const notifs = userColorsRef.current.notificationSettings || {};
-        
-        const merged = mergeSettings(firebaseSettings, userTheme, notifs);
+
+        const merged = mergeSettings(firebaseSettings, userTheme);
         setSettings(merged);
         
         try { localStorage.setItem('drgroup-settings', JSON.stringify(merged)); } catch (e) { /* ignore */ }

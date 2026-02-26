@@ -8,12 +8,6 @@ Esta carpeta contiene **documentación técnica de implementaciones específicas
 
 ### **Implementaciones Completadas:**
 
-#### **`IMPLEMENTACION_EMAIL_TELEGRAM.md`**
-- Sistema de notificaciones Email + Telegram
-- Integración con EmailJS y Telegram Bot API
-- Estado de implementación y configuración
-- **Estado**: 🔄 En implementación/parcial
-
 #### **`PROMPT_CONTINUACION.md`**
 - Prompts para asistentes de IA
 - Continuación del desarrollo con contexto
@@ -46,7 +40,7 @@ Esta documentación es **temporal y referencial**.
 Para documentación oficial y actualizada del sistema:
 - **Diseño**: `docs/MODAL_DESIGN_SYSTEM.md`, `docs/EXCEL_EXPORT_DESIGN_SYSTEM.md`, etc.
 - **Especificaciones**: `docs/permissions/`, `docs/firestore-structure.md`
-- **Guías**: `docs/EMAILJS_SETUP_GUIDE.md`, etc.
+- **Guías**: `docs/` (guías de configuración)
 
 ---
 
