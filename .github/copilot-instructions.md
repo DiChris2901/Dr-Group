@@ -274,6 +274,19 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **Verificar comandos apropiados**: Dashboard (raíz) vs APK (Set-Location mobile;)
 - **Crear mapa mental completo** de la arquitectura antes de proceder
 
+#### **PASO 0.5: IMPLEMENTACIONES PENDIENTES (PREGUNTAR AL USUARIO)**
+> **📋 React Query (Caching)** — Existe un plan completo en `docs/REACT_QUERY_IMPLEMENTATION.md` con 8 fases para reducir ~75% de lecturas a Firestore. **React Query NO está instalado aún.** Al iniciar sesión, informar al usuario:
+> ```
+> 📌 IMPLEMENTACIÓN PENDIENTE: React Query (Caching)
+> Existe un plan completo en docs/REACT_QUERY_IMPLEMENTATION.md (8 fases).
+> Beneficio: ~75% reducción de lecturas Firestore, eliminación de 10 listeners duplicados.
+> Estado: NO instalado — pendiente de aprobación.
+>
+> ¿Deseas avanzar con la implementación de React Query en esta sesión?
+> ```
+> - **Si el usuario dice SÍ** → Leer `docs/REACT_QUERY_IMPLEMENTATION.md` completo y ejecutar las fases en orden
+> - **Si el usuario dice NO** → Continuar con el flujo normal del prompt inicial y quedar atento a las instrucciones del usuario
+
 #### **PASO 1: ANÁLISIS PROFUNDO (30 segundos de reflexión)**
 - ¿Qué está pidiendo exactamente el usuario?
 - ¿Qué archivos necesito leer para entender el contexto completo?
@@ -953,36 +966,39 @@ Como Arquitecto Senior, **ME COMPROMETO** a:
 Este es un dashboard para control de compromisos financieros empresariales desarrollado para DR Group. El sistema permite gestionar compromisos fijos mensuales, pagos, comprobantes y generar reportes con control de acceso basado en roles.
 
 ## Stack Tecnológico
-- **Frontend**: React 18 + Vite
-- **UI Library**: Material-UI (MUI) v5 con diseño sobrio empresarial
-- **Backend**: Firebase (Firestore + Storage + Authentication)
-- **Animaciones**: Framer Motion con efectos visuales avanzados
-- **Routing**: React Router DOM
-- **Fechas**: date-fns
+- **Frontend**: React 18.3.1 + Vite 5.4.11
+- **UI Library**: Material-UI (MUI) v5.15.0 con diseño sobrio empresarial
+- **Backend**: Firebase 10.7.1 (Firestore + Storage + Authentication + Functions)
+- **Animaciones**: Framer Motion 11.15.0
+- **Routing**: React Router DOM 6.20.1
+- **Fechas**: date-fns 4.1.0
 - **Estilos**: Emotion (styled-components de MUI)
+- **Excel**: ExcelJS 4.4.0
+- **PDF**: jsPDF 3.0.3 + pdfjs-dist 5.4.624
+- **Gráficos**: Recharts 2.12.7 + Chart.js 4.5.0
+- **Búsqueda**: Fuse.js 7.1.0
 
 ## Estructura del Proyecto
 - `src/components/admin/` - Herramientas de administración avanzada
 - `src/components/auth/` - Componentes de autenticación
-- `src/components/charts/` - Gráficos y visualizaciones de datos
 - `src/components/commitments/` - Gestión de compromisos financieros
 - `src/components/common/` - Componentes reutilizables
 - `src/components/companies/` - Gestión de empresas
 - `src/components/dashboard/` - Componentes del dashboard principal
-- `src/components/debug/` - Herramientas de depuración y desarrollo
 - `src/components/incomes/` - Gestión de ingresos
-- `src/components/layout/` - Componentes de layout y navegación
+- `src/components/layout/` - Componentes de layout y navegación (Sidebar, Taskbar, Header)
+- `src/components/liquidaciones/` - Componentes de liquidaciones por sala
 - `src/components/modals/` - Modales especializados del sistema
 - `src/components/notes/` - Sistema de notas y comentarios
 - `src/components/notifications/` - Sistema de notificaciones
 - `src/components/payments/` - Gestión de pagos
-- `src/components/reports/` - Reportes y análisis
+- `src/components/rrhh/` - Componentes de Recursos Humanos (empleados, asistencias)
 - `src/components/settings/` - Configuraciones del sistema
 - `src/components/storage/` - Gestión de archivos y almacenamiento
 - `src/components/tasks/` - Gestión de tareas
 - `src/config/` - Configuración de Firebase y otras
-- `src/hooks/` - Custom hooks especializados
-- `src/context/` - Context providers (Auth, Theme, Settings, etc.)
+- `src/hooks/` - Custom hooks especializados (22 hooks)
+- `src/context/` - Context providers (Auth, Theme, Settings, Companies, Notifications, Toast)
 - `src/utils/` - Utilidades y helpers
 - `src/theme/` - Configuración de tema MUI
 
@@ -991,8 +1007,14 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 ### 📋 DOCUMENTOS DE REFERENCIA OBLIGATORIOS
 - **`docs/DISENO_SOBRIO_NOTAS.md`** - Sistema minimalista empresarial
 - **`docs/MODAL_DESIGN_SYSTEM.md`** - Patrones completos para modales
+- **`docs/MODAL_CRUD_DESIGN_SYSTEM.md`** - Patrones para modales CRUD
 - **`docs/MODAL_PDF_VIEWER_DESIGN.md`** - Implementación avanzada de visores PDF
 - **`docs/EXCEL_EXPORT_DESIGN_SYSTEM.md`** - Formato Python profesional para exportación Excel (ExcelJS, BRAND_COLORS, estructura 7 filas, freeze panes)
+- **`docs/DESIGN_SYSTEM_COMPLETE.md`** - Sistema de diseño completo
+- **`docs/TASKS_MEJORAS_TECNICAS.md`** - Mejoras técnicas pendientes
+- **`docs/REACT_QUERY_IMPLEMENTATION.md`** - Guía de implementación de React Query (caching)
+- **`docs/firestore-structure.md`** - Estructura detallada de Firestore
+- **`docs/permissions/`** - Documentación del sistema de permisos
 
 ### 🚫 PROHIBIDO: Documentación de Cambios
 - **NUNCA crear archivos de documentación de cambios** como "CHAT_OPTIMIZATIONS.md", "FEATURE_CHANGELOG.md", "IMPLEMENTATION_NOTES.md", etc.
@@ -1078,29 +1100,70 @@ fontWeight: 600  // Headers importantes
 - Seguir principios de accesibilidad (a11y)
 
 ## Hooks Especializados Principales
-- `useOptimizedColorPicker` - Selector de color con optimización de performance
 - `useActivityLogs` - Sistema de registro de actividades y auditoría
 - `useAlertsCenter` - Centro de alertas y notificaciones inteligentes
-- `useOrphanFileDetector` - Detección y limpieza de archivos huérfanos
+- `useColombianHolidays` - Festivos colombianos para cálculos de días hábiles
 - `useCommitmentAlerts` - Alertas específicas de compromisos
-- `useDashboardStats` - Métricas y estadísticas del dashboard ejecutivo
+- `useCommitmentPaymentStatus` - Estado de pago de compromisos
+- `useCommitments` - CRUD y listeners de compromisos financieros
+- `useCompanies` - Gestión de empresas con listeners real-time
+- `useContractExpirationAlerts` - Alertas de vencimiento de contratos
+- `useDelegatedTasks` - Tareas delegadas entre usuarios
+- `useFavorites` - Favoritos del usuario en taskbar
+- `useFirestore` - Operaciones genéricas de Firestore
+- `useLiquidacionExport` - Exportación Excel de liquidaciones
+- `useNotes` - Sistema de notas y comentarios
+- `useNotificationSystem` - Sistema de notificaciones push y en-app
+- `useOptimizedColorPicker` - Selector de color con optimización de performance
+- `useOrphanFileDetector` - Detección y limpieza de archivos huérfanos
+- `usePermissions` - Sistema granular de permisos por usuario
+- `useProgressLogs` - Logs de progreso en tareas
 - `useStorageStats` - Estadísticas de uso del storage de Firebase
-- `useSystemMonitoring` - Monitoreo del sistema y performance
+- `useTasks` - CRUD de tareas con estados y asignaciones
+- `useTokens` - Gestión de tokens de notificaciones push
+- `useUserPresence` - Presencia online/offline de usuarios
 
 ## Firebase Collections Structure
+
+### Collections Principales
 - `users` - Información de usuarios, roles y permisos
 - `companies` - Datos de empresas
 - `commitments` - Compromisos financieros
 - `payments` - Pagos realizados
-- `files` - Metadatos de archivos/comprobantes
+- `incomes` / `income` - Registro de ingresos empresariales
 - `notifications` - Sistema de notificaciones
 - `activity_logs` - Logs de auditoría y actividad del sistema
-- `liquidaciones` - Liquidaciones por salas y cálculos
-- `incomes` - Registro de ingresos empresariales
-- `alerts` - Alertas y notificaciones personalizadas
 - `notes` - Sistema de notas y comentarios
-- `storage_stats` - Estadísticas de uso del storage
-- `system_monitoring` - Métricas de monitoreo del sistema
+- `alerts` / `alertsConfig` - Alertas y configuración de alertas
+- `tasks` - Sistema de tareas con subcollection `progressLogs`
+- `delegated_tasks` - Tareas delegadas entre usuarios
+
+### Collections de Liquidaciones
+- `liquidaciones` - Liquidaciones generales
+- `liquidaciones_por_sala` / `liquidacionesPorSala` - Liquidaciones por sala
+- `salas` - Datos de salas
+- `sala_aliases` - Alias de nombres de salas
+- `sala_changes` - Historial de cambios en salas
+- `providers` - Proveedores de salas
+
+### Collections de RRHH
+- `empleados` - Datos de empleados
+- `asistencias` - Registros de asistencia (APK móvil)
+- `novedades` - Novedades de empleados
+- `calendar_events` - Eventos del calendario
+- `solicitudes` - Solicitudes de empleados
+
+### Collections de Configuración
+- `userSettings` - Configuraciones de usuario (tema, preferencias)
+- `userProfileSettings` - Ajustes de perfil de usuario
+- `settings` - Configuraciones globales del sistema
+- `system_config` - Configuración del sistema
+- `deviceTokens` - Tokens de notificaciones push
+- `loginHistory` - Historial de inicios de sesión
+- `activeSessions` - Sesiones activas de usuarios
+- `pending_auth_users` - Usuarios pendientes de autorización
+- `personal_accounts` - Cuentas bancarias personales
+- `PermissionsApp` - Permisos de la app móvil
 
 ---
 
@@ -1904,21 +1967,75 @@ mobile/
 ├── src/
 │   ├── screens/
 │   │   ├── auth/
-│   │   │   └── LoginScreen.js          ← Login con auto-registro de entrada
-│   │   └── dashboard/
-│   │       └── DashboardScreen.js      ← Control de jornada laboral
+│   │   │   └── LoginScreen.js              ← Login con auto-registro de entrada
+│   │   ├── dashboard/
+│   │   │   ├── DashboardScreen.js          ← Control de jornada laboral
+│   │   │   └── AdminDashboardScreen.js     ← Dashboard administrativo
+│   │   ├── admin/
+│   │   │   ├── AdminSettingsScreen.js      ← Configuración admin
+│   │   │   ├── AdminNotificationControlScreen.js ← Control de notificaciones
+│   │   │   ├── AdminCreateAlertScreen.js   ← Creación de alertas
+│   │   │   ├── AdminNovedadesScreen.js     ← Gestión de novedades
+│   │   │   └── UsersScreen.js              ← Gestión de usuarios
+│   │   ├── asistencias/
+│   │   │   ├── AsistenciasScreen.js        ← Lista de asistencias
+│   │   │   └── AsistenciaDetailScreen.js   ← Detalle de asistencia
+│   │   ├── empleados/
+│   │   │   ├── EmpleadosScreen.js          ← Lista de empleados
+│   │   │   └── EmpleadoDetailScreen.js     ← Detalle de empleado
+│   │   ├── empresas/
+│   │   │   ├── EmpresasScreen.js           ← Lista de empresas
+│   │   │   └── EmpresaDetailScreen.js      ← Detalle de empresa
+│   │   ├── calendario/
+│   │   │   └── CalendarioScreen.js         ← Calendario de eventos
+│   │   ├── novedades/
+│   │   │   └── NovedadesScreen.js          ← Novedades de empleados
+│   │   ├── notifications/
+│   │   │   └── NotificationsScreen.js      ← Centro de notificaciones
+│   │   ├── reportes/
+│   │   │   └── ReportesScreen.js           ← Reportes y estadísticas
+│   │   └── settings/
+│   │       ├── SettingsScreen.js           ← Configuraciones
+│   │       ├── EditProfileScreen.js        ← Edición de perfil
+│   │       └── NotificationPreferencesScreen.js ← Preferencias de notificaciones
 │   ├── contexts/
 │   │   ├── AuthContext.js              ← Autenticación + Asistencias
-│   │   └── ThemeContext.js             ← Colores dinámicos + Foto persistida
+│   │   ├── ThemeContext.js             ← Colores dinámicos + Foto persistida
+│   │   └── NotificationsContext.js     ← Gestión de notificaciones push
 │   ├── components/
-│   │   ├── SobrioCard.js               ← Card con diseño sobrio
+│   │   ├── AppLogo.js                  ← Logo de la aplicación
+│   │   ├── DashboardWrapper.js         ← Wrapper del dashboard
 │   │   ├── DetailRow.js                ← Fila de información con ícono
+│   │   ├── EmployeeDetailSheet.js      ← Bottom sheet de empleados
+│   │   ├── ErrorBoundary.js            ← Manejo de errores
+│   │   ├── ExpressiveCard.js           ← Card Material You Expressive
+│   │   ├── FloatingActionBar.js        ← Barra de acciones flotante
+│   │   ├── NovedadesSheet.js           ← Bottom sheet de novedades
 │   │   ├── OverlineText.js             ← Títulos de sección uppercase
+│   │   ├── ProtectedButton.js          ← Botón con validación de permisos
+│   │   ├── RingChart.js                ← Gráfico circular
+│   │   ├── SobrioCard.js               ← Card con diseño sobrio
+│   │   ├── UpdateBanner.js             ← Banner de actualizaciones OTA
+│   │   ├── shared/                     ← Componentes compartidos
 │   │   └── index.js                    ← Exportaciones centralizadas
+│   ├── hooks/
+│   │   ├── useAppDistribution.js       ← Distribución de APK
+│   │   ├── useColombianHolidays.js     ← Festivos colombianos
+│   │   ├── useEmpleados.js             ← Gestión de empleados
+│   │   ├── useEmpresas.js              ← Gestión de empresas
+│   │   ├── useNotificationPreferences.js ← Preferencias de notificaciones
+│   │   ├── usePermissionChangeNotifier.js ← Notificador de cambios de permisos
+│   │   └── usePermissions.js           ← Sistema RBAC de permisos
 │   ├── services/
-│   │   └── firebase.js                 ← Configuración Firebase
+│   │   ├── firebase.js                 ← Configuración Firebase
+│   │   ├── NotificationService.js      ← Servicio de notificaciones push
+│   │   ├── offlineSync.js              ← Sincronización offline
+│   │   ├── PDFExportService.js         ← Exportación de PDF
+│   │   └── UpdateService.js            ← Servicio de actualizaciones OTA
+│   ├── constants/                      ← Constantes de la app
+│   ├── utils/                          ← Utilidades
 │   └── navigation/
-│       └── AppNavigator.js             ← Stack Navigator
+│       └── AppNavigator.js             ← Stack + Bottom Tab Navigator
 ├── App.js                              ← Entry point
 ├── app.json                            ← Configuración Expo
 └── package.json                        ← Dependencias
@@ -2630,41 +2747,44 @@ The user's current OS is: Windows   ← LEER ESTO PRIMERO
 
 ### 🌐 DASHBOARD WEB (React + Vite)
 **Core:**
-- React 18.2.0
-- Vite 5.0.8
+- React 18.3.1
+- Vite 5.4.11
 - React Router DOM 6.20.1
 
 **UI & Estilos:**
-- Material-UI (MUI) v5 (@mui/material, @mui/icons-material)
+- Material-UI (MUI) v5.15.0 (@mui/material, @mui/icons-material, @mui/x-date-pickers)
 - Emotion (@emotion/react, @emotion/styled)
-- Framer Motion 10.16.16 (Animaciones)
+- Framer Motion 11.15.0 (Animaciones)
 - Recharts 2.12.7 (Gráficos)
 - Chart.js 4.5.0 (Gráficos alternativos)
 
 **Funcionalidades:**
-- Firebase 10.7.1 (Auth, Firestore, Storage)
+- Firebase 10.7.1 (Auth, Firestore, Storage, Functions)
 - Date-fns 4.1.0 (Manejo de fechas)
 - ExcelJS 4.4.0 (Exportación Excel profesional)
-- JSPDF 3.0.3 + AutoTable (Generación PDF)
-- EmailJS 4.4.1 (Envío de correos)
-- Twilio 5.9.0 (SMS/WhatsApp)
-- Google Generative AI 0.24.1 (IA)
+- jsPDF 3.0.3 + AutoTable (Generación PDF)
+- pdfjs-dist 5.4.624 (Visor PDF)
+- Fuse.js 7.1.0 (Búsqueda fuzzy)
+- react-window 1.8.11 (Virtualización de listas)
+- festivos-colombianos 1.1.0 (Días festivos)
 
 ### 📱 APP MÓVIL (React Native + Expo)
 **Core:**
 - React Native 0.81.5
 - Expo 54.0.23
+- React 19.1.0
 - React Navigation 7.x (Native Stack, Bottom Tabs)
 
 **UI & Componentes:**
-- React Native Paper v5 (Material Design 3)
-- @expo/vector-icons (Ionicons - Estándar Oficial)
+- React Native Paper v5.14.5 (Material Design 3)
+- @expo/vector-icons 15.0.3 (MaterialCommunityIcons, MaterialIcons)
 - React Native Safe Area Context
 - Expo Linear Gradient (Fondos)
 - Expo Blur (Efectos visuales)
-- React Native SVG (Gráficos vectoriales)
-- React Native Chart Kit (Gráficos móviles)
-- React Native Maps (Mapas)
+- React Native SVG 15.12.1 (Gráficos vectoriales)
+- React Native Chart Kit 6.12.0 (Gráficos móviles)
+- React Native Maps 1.20.1 (Mapas)
+- Expo Haptics 15.0.8 (Feedback táctil)
 
 **Funcionalidades:**
 - Firebase 12.5.0 (Auth, Firestore, Storage)
@@ -2675,4 +2795,6 @@ The user's current OS is: Windows   ← LEER ESTO PRIMERO
 - Expo Secure Store (Almacenamiento seguro)
 - Expo Notifications (Notificaciones push)
 - Expo Keep Awake (Mantener pantalla encendida)
+- Expo Updates (Actualizaciones OTA)
 - Date-fns 4.1.0 (Manejo de fechas)
+- festivos-colombianos 1.1.0 (Días festivos)

@@ -37,6 +37,9 @@ SETUP_LINUX.md
 *.swo
 *~
 
+# Claude AI worktrees
+.claude/
+
 # OS generated files
 .DS_Store
 .DS_Store?
