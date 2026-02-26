@@ -32,6 +32,7 @@ SETUP_LINUX.md
 .vscode/chrome-debug-profile/
 .vscode/*.log
 .vscode/mcp.json
+.mcp.json
 .idea/
 *.swp
 *.swo
