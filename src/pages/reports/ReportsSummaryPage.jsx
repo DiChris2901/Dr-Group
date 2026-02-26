@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
-import { fCurrency, fShortenNumber } from '../../utils/formatNumber';
+import { fCurrency, fShortenNumber } from '../../utils/formatUtils';
 import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
 import { isWithinInterval, isValid } from 'date-fns';
 import {

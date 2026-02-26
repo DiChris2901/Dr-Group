@@ -19,7 +19,7 @@ import {
   AttachMoney
 } from '@mui/icons-material';
 import { useFirestore } from '../../hooks/useFirestore';
-import { fCurrency } from '../../utils/formatNumber';
+import { fCurrency } from '../../utils/formatUtils';
 import { useSettings } from '../../context/SettingsContext';
 
 // Estilos CSS para animaciones spectacular

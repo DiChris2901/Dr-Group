@@ -28,7 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fCurrency } from '../../utils/formatNumber';
+import { fCurrency } from '../../utils/formatUtils';
 import { db } from '../../config/firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useTokens } from '../../hooks/useTokens';

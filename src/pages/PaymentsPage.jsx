@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { isValid } from 'date-fns';
-import { fCurrency } from '../utils/formatNumber';
+import { fCurrency } from '../utils/formatUtils';
 import { calculateMonthlyAccountBalance } from '../utils/monthlyBalanceUtils';
 import {
   createLocalDate,

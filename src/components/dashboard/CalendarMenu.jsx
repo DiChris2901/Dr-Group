@@ -28,7 +28,7 @@ import { useTheme } from '@mui/material/styles';
 import { doc, getDoc, collection, query, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useFirestore } from '../../hooks/useFirestore';
-import { fCurrency } from '../../utils/formatNumber';
+import { fCurrency } from '../../utils/formatUtils';
 import { useSettings } from '../../context/SettingsContext';
 import { useColombianHolidays } from '../../hooks/useColombianHolidays';
 import { format } from 'date-fns';
