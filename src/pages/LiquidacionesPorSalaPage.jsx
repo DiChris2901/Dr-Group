@@ -1435,7 +1435,7 @@ const LiquidacionesPorSalaPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       <GlobalStyles styles={{
         '@keyframes pulse': {
           '0%': { opacity: 1 },
@@ -2209,7 +2209,7 @@ const LiquidacionesPorSalaPage = () => {
                               }}>
                                 <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
                                   <Box display="flex" alignItems="center" gap={1}>
-                                    <span>{maquina.serial || 'N/A'}</span>
+                                    <Typography variant="body2" component="span">{maquina.serial || 'N/A'}</Typography>
                                     {maquina.fueEditada && (
                                       <Chip label="EDITADA" size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 600 }} />
                                     )}
@@ -2632,7 +2632,7 @@ const LiquidacionesPorSalaPage = () => {
                                             }} 
                                           />
                                         )}
-                                        <span>{maquina.serial || 'N/A'}</span>
+                                        <Typography variant="body2" component="span">{maquina.serial || 'N/A'}</Typography>
                                       </Box>
                                     </TableCell>
                                     <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>

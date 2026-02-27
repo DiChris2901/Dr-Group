@@ -2292,7 +2292,7 @@ export default function LiquidacionesPage() {
         background: theme.palette.mode === 'dark' 
           ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
           : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        borderRadius: 0.6,
+        borderRadius: 1,
         overflow: 'hidden',
         boxShadow: theme.palette.mode === 'dark'
           ? '0 4px 20px rgba(0, 0, 0, 0.3)'

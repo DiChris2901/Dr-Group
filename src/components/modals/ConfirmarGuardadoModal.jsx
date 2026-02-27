@@ -105,13 +105,14 @@ const ConfirmarGuardadoModal = ({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle sx={{ 
+      <DialogTitle sx={{
         pb: 2,
         pt: 2.5,
         px: 3,
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
+        position: 'relative',
         borderBottom: `1px solid ${theme.palette.divider}`
       }}>
         <SaveIcon sx={{ color: 'primary.main', fontSize: 28 }} />
@@ -128,6 +129,9 @@ const ConfirmarGuardadoModal = ({
             Revisa el período antes de guardar
           </Typography>
         </Box>
+        <IconButton onClick={onClose} disabled={loading} sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       
       <DialogContent sx={{ px: 3, pt: 3, pb: 3.5 }}>
@@ -242,7 +246,7 @@ const ConfirmarGuardadoModal = ({
 
       <Divider />
       
-      <DialogActions sx={{ px: 3, py: 2.5, gap: 1.5, bgcolor: alpha(theme.palette.background.default, 0.4) }}>
+      <DialogActions sx={{ p: 3, gap: 1, bgcolor: alpha(theme.palette.background.default, 0.4) }}>
         <Button
           onClick={onClose}
           disabled={loading || editando}

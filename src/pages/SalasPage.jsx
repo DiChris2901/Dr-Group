@@ -984,17 +984,17 @@ const SalasPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Paper sx={{ 
-          p: 3, 
-          mb: 3, 
-          borderRadius: 2,
+        <Paper sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 1,
           overflow: 'hidden',
           background: theme.palette.mode === 'dark'
             ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`

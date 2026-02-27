@@ -544,9 +544,9 @@ const ProfilePage = () => {
       )}
 
       {/* Header con gradiente - Diseño sobrio */}
-      <Box sx={{ 
-        mb: 4,
-        borderRadius: 2,
+      <Box sx={{
+        mb: 3,
+        borderRadius: 1,
         overflow: 'hidden',
         background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'

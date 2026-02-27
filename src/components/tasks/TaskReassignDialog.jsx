@@ -332,7 +332,7 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, gap: 1.5 }}>
+      <DialogActions sx={{ p: 3, gap: 1 }}>
         <Button
           onClick={onClose}
           variant="outlined"

@@ -185,7 +185,7 @@ const OrphanFilesPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header sobrio simplificado */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

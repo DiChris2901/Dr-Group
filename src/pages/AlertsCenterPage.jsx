@@ -420,24 +420,24 @@ const AlertsCenterPage = () => {
   if (alertsLoading) return <PageSkeleton variant="table" kpiCount={3} />;
 
   return (
-    <Box sx={{ p: 0 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          mb: 4,
+          mb: 3,
           p: 3,
-          background: theme.palette.mode === 'dark' 
+          background: theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
             : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
           backdropFilter: 'blur(20px)',
-          borderRadius: '16px',
+          borderRadius: 1,
           border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
           boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
         }}>
@@ -559,8 +559,8 @@ const AlertsCenterPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: '16px',
-            background: theme.palette.mode === 'dark' 
+            borderRadius: 2,
+            background: theme.palette.mode === 'dark'
               ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
               : 'linear-gradient(135deg, #ffffff, #f8f9fa)',
             backdropFilter: 'blur(20px)',

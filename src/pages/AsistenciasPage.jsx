@@ -775,7 +775,7 @@ const AsistenciasPage = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header Sobrio con Gradiente Simplificado */}
       <Paper
         elevation={0}

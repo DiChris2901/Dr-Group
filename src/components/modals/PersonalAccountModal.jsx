@@ -14,7 +14,8 @@ import {
   MenuItem,
   Grid,
   Alert,
-  Chip
+  Chip,
+  IconButton
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -90,22 +91,26 @@ const PersonalAccountModal = ({ open, onClose, onSave, editingAccount = null }) 
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: 2,
           boxShadow: theme.shadows[24],
         }
       }}
     >
-      <DialogTitle sx={{ 
-        pb: 1, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <DialogTitle sx={{
+        pb: 1,
+        display: 'flex',
+        alignItems: 'center',
         gap: 2,
+        position: 'relative',
         background: `linear-gradient(135deg, ${theme.palette.secondary.main}15 0%, ${theme.palette.primary.main}15 100%)`
       }}>
         <PersonIcon sx={{ color: 'secondary.main' }} />
         <Typography variant="h6" fontWeight="bold">
           {editingAccount ? 'Editar Cuenta Personal' : 'Agregar Cuenta Personal'}
         </Typography>
+        <IconButton onClick={handleClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>

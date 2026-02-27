@@ -5,7 +5,6 @@ import {
     Card,
     CardContent,
     Chip,
-    Container,
     Dialog,
     DialogActions,
     DialogContent,
@@ -838,13 +837,13 @@ const LiquidacionesHistorialPage = () => {
     periodoMes?.getTime?.() !== appliedFilters.periodoMes?.getTime?.();
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header Sobrio Simplificado */}
       <Paper sx={{
         background: theme.palette.mode === 'dark' 
           ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
           : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        borderRadius: 0.6,
+        borderRadius: 1,
         overflow: 'hidden',
         boxShadow: theme.palette.mode === 'dark'
           ? '0 4px 20px rgba(0, 0, 0, 0.3)'
@@ -930,7 +929,7 @@ const LiquidacionesHistorialPage = () => {
                 onChange={(e) => handleSearchChange(e.target.value)}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 0.6,
+                    borderRadius: 1,
                     backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
@@ -972,7 +971,7 @@ const LiquidacionesHistorialPage = () => {
                 fullWidth
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 0.6,
+                    borderRadius: 1,
                     backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
@@ -1158,7 +1157,7 @@ const LiquidacionesHistorialPage = () => {
             textAlign: 'center',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 0.6,
+            borderRadius: 1,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
@@ -1195,7 +1194,7 @@ const LiquidacionesHistorialPage = () => {
             textAlign: 'center',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 0.6,
+            borderRadius: 1,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
@@ -1232,7 +1231,7 @@ const LiquidacionesHistorialPage = () => {
             textAlign: 'center',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 0.6,
+            borderRadius: 1,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
@@ -1269,7 +1268,7 @@ const LiquidacionesHistorialPage = () => {
             textAlign: 'center',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 0.6,
+            borderRadius: 1,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
@@ -1303,7 +1302,7 @@ const LiquidacionesHistorialPage = () => {
 
       {/* Tabla de Liquidaciones Sobrio */}
       <Card sx={{ 
-        borderRadius: 0.6,
+        borderRadius: 1,
         border: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
         '&:hover': {
@@ -1335,7 +1334,7 @@ const LiquidacionesHistorialPage = () => {
                 startIcon={<Add />}
                 href="/liquidaciones"
                 sx={{ 
-                  borderRadius: 0.6,
+                  borderRadius: 1,
                   textTransform: 'none',
                   fontWeight: 600
                 }}
@@ -1408,7 +1407,7 @@ const LiquidacionesHistorialPage = () => {
               </Box>
 
               <TableContainer component={Paper} sx={{ 
-                borderRadius: 0.6,
+                borderRadius: 1,
                 border: 'none',
                 boxShadow: 'none',
                 backgroundColor: 'transparent'
@@ -2139,7 +2138,7 @@ const LiquidacionesHistorialPage = () => {
       </Dialog>
 
       {/* Dialog para compartir al chat */}
-    </Container>
+    </Box>
   );
 };
 

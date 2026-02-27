@@ -126,15 +126,19 @@ const AddSalaModal = ({
         }
       }}
     >
-      <DialogTitle 
-        sx={{ 
+      <DialogTitle
+        sx={{
           background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           color: 'white',
           textAlign: 'center',
           py: 2.5,
+          position: 'relative',
           borderBottom: `3px solid ${theme.palette.primary.main}`,
         }}
       >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+          <CloseIcon />
+        </IconButton>
         <Box display="flex" alignItems="center" justifyContent="center">
           <Avatar
             sx={{

@@ -1704,15 +1704,15 @@ const ReportsSummaryPage = () => {
                   const data = payload[0].payload;
                   return (
                     <div style={commonTooltipStyle}>
-                      <p style={{ margin: 0, fontWeight: 600, marginBottom: '8px' }}>
+                      <Typography variant="body2" sx={{ margin: 0, fontWeight: 600, marginBottom: '8px' }}>
                         📊 {data.name}
-                      </p>
-                      <p style={{ margin: 0, color: colors[0] }}>
+                      </Typography>
+                      <Typography variant="body2" sx={{ margin: 0, color: colors[0] }}>
                         💰 Monto: {fCurrency(data.x * 1000000)}
-                      </p>
-                      <p style={{ margin: 0, color: colors[1] }}>
+                      </Typography>
+                      <Typography variant="body2" sx={{ margin: 0, color: colors[1] }}>
                         📋 Compromisos: {data.y}
-                      </p>
+                      </Typography>
                     </div>
                   );
                 }
@@ -1772,13 +1772,13 @@ const ReportsSummaryPage = () => {
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'
             : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          mb: 4
+          mb: 3
         }}
       >
-        <Box sx={{ 
-          p: 3, 
-          display: 'flex', 
-          flexDirection: { xs: 'column', md: 'row' }, 
+        <Box sx={{
+          p: 3,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
           justifyContent: 'space-between',
           alignItems: { xs: 'flex-start', md: 'center' },
           gap: 2,

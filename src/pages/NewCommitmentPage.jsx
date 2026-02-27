@@ -2675,7 +2675,7 @@ const NewCommitmentPage = () => {
                                     }}>
                                       <FileIcon sx={{ fontSize: 18 }} />
                                       {formData.invoiceFiles.length} archivo{formData.invoiceFiles.length !== 1 ? 's' : ''} adjunto{formData.invoiceFiles.length !== 1 ? 's' : ''} 
-                                      {formData.invoiceFiles.length > 1 && <span style={{ color: theme.palette.primary.main, fontWeight: 600 }}>→ Se combinarán</span>}
+                                      {formData.invoiceFiles.length > 1 && <Typography variant="body2" component="span" sx={{ color: theme.palette.primary.main, fontWeight: 600 }}>→ Se combinarán</Typography>}
                                     </Typography>
                                     
                                     {formData.invoiceFiles.length > 1 && (

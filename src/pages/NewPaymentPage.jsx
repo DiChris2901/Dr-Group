@@ -2737,7 +2737,7 @@ const NewPaymentPage = () => {
                     const parts = text.split(regex);
                     return parts.map((part, index) =>
                       part.toLowerCase() === searchText.toLowerCase() ? (
-                        <span key={index} style={{
+                        <Typography key={index} variant="body2" component="span" sx={{
                           backgroundColor: alpha(primaryColor, 0.12),
                           color: primaryColor,
                           fontWeight: 600,
@@ -2745,7 +2745,7 @@ const NewPaymentPage = () => {
                           padding: '0 2px'
                         }}>
                           {part}
-                        </span>
+                        </Typography>
                       ) : part
                     );
                   } catch {

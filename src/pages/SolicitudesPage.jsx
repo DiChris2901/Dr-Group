@@ -107,7 +107,7 @@ const SolicitudesPage = () => {
   if (loading) return <PageSkeleton variant="table" kpiCount={3} />;
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* Header */}
       <Paper
         elevation={0}
@@ -120,7 +120,7 @@ const SolicitudesPage = () => {
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'
             : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          mb: 4
+          mb: 3
         }}
       >
         <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
@@ -171,7 +171,7 @@ const SolicitudesPage = () => {
         showToast={showToast}
         loading={loading}
       />
-    </Container>
+    </Box>
   );
 };
 

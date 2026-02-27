@@ -364,7 +364,7 @@ const ClientesPage = () => {
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'
             : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          mb: 4
+          mb: 3
         }}
       >
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

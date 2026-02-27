@@ -284,7 +284,7 @@ const RecursosHumanosPage = () => {
   if (loading) return <PageSkeleton variant="default" kpiCount={4} />;
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1400px', mx: 'auto' }}>
       {/* HEADER SOBRIO CON GRADIENTE DINÁMICO */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
