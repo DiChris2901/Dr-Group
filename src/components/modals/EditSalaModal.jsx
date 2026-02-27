@@ -179,7 +179,7 @@ const EditSalaModal = ({
             >
               <WarningIcon sx={{ fontSize: 32, color: 'white' }} />
             </Avatar>
-            <Typography variant="h5" component="div" fontWeight="700">
+            <Typography variant="h6" component="div" fontWeight={600}>
               Cámara de Comercio Requerida
             </Typography>
           </Box>
@@ -210,22 +210,21 @@ const EditSalaModal = ({
               </Typography>
             </Paper>
             <Typography variant="body1" sx={{ fontSize: '1rem', lineHeight: 1.6 }}>
-              Debes <strong>cargar una Cámara de Comercio actualizada</strong> para guardar estos cambios.
+              Debes <Box component="span" sx={{ fontWeight: 700 }}>cargar una Cámara de Comercio actualizada</Box> para guardar estos cambios.
             </Typography>
           </Box>
         </DialogContent>
         
-        <DialogActions sx={{ p: 2.5, pt: 0 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button
             onClick={() => setShowWarningDialog(false)}
             variant="contained"
             fullWidth
-            sx={{ 
-              borderRadius: 1.5,
+            sx={{
+              borderRadius: 1,
               py: 1.2,
               fontWeight: 600,
-              textTransform: 'none',
-              fontSize: '1rem'
+              textTransform: 'none'
             }}
           >
             Entendido
@@ -250,15 +249,19 @@ const EditSalaModal = ({
         }
       }}
     >
-      <DialogTitle 
-        sx={{ 
+      <DialogTitle
+        sx={{
           background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.error.main} 100%)`,
           color: 'white',
           textAlign: 'center',
           py: 2.5,
+          position: 'relative',
           borderBottom: `3px solid ${theme.palette.warning.main}`,
         }}
       >
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+          <CloseIcon />
+        </IconButton>
         <Box display="flex" alignItems="center" justifyContent="center">
           <Avatar
             sx={{
@@ -272,7 +275,7 @@ const EditSalaModal = ({
             <EditIcon sx={{ fontSize: 22, color: 'white' }} />
           </Avatar>
           <Box textAlign="left">
-            <Typography variant="h5" component="div" fontWeight="600" color="white">
+            <Typography variant="h6" component="div" fontWeight={600} color="white">
               Editar Sala
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.85rem', color: 'white' }}>
@@ -313,7 +316,7 @@ const EditSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'primary.main',
                     lineHeight: 1.2
                   }}>
@@ -770,7 +773,7 @@ const EditSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'warning.main',
                     lineHeight: 1.2
                   }}>
@@ -859,7 +862,7 @@ const EditSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'info.main',
                     lineHeight: 1.2
                   }}>
@@ -948,7 +951,7 @@ const EditSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'warning.main',
                     lineHeight: 1.2
                   }}>
@@ -1354,7 +1357,7 @@ const EditSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'success.main',
                     lineHeight: 1.2
                   }}>
@@ -1406,11 +1409,11 @@ const EditSalaModal = ({
         </Grid>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+      <DialogActions sx={{ p: 3, borderTop: `1px solid ${theme.palette.divider}`, gap: 1 }}>
         <Button
           onClick={onClose}
           disabled={saving || uploadingFiles}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           Cancelar
         </Button>
@@ -1419,7 +1422,7 @@ const EditSalaModal = ({
           variant="contained"
           disabled={saving || uploadingFiles}
           startIcon={<SaveIcon />}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           {uploadingFiles ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

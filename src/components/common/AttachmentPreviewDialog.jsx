@@ -70,7 +70,7 @@ const AttachmentPreviewDialog = ({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: 2,
           height: '80vh',
           border: `1px solid ${alpha(primaryColor, 0.2)}`,
         }

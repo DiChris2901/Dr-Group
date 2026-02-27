@@ -747,7 +747,7 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
             <HistoryIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'text.primary' }}>
               Historial de Cambios
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1060,16 +1060,15 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-        <Button 
-          onClick={onClose} 
-          variant="outlined" 
-          sx={{ 
-            borderRadius: 1, 
-            textTransform: 'none', 
+      <DialogActions sx={{ p: 3, gap: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          sx={{
+            borderRadius: 1,
+            textTransform: 'none',
             fontWeight: 600,
-            px: 3,
-            py: 1
+            px: 3
           }}
         >
           Cerrar

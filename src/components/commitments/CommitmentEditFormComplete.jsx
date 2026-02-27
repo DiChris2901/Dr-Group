@@ -1137,10 +1137,10 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
             <EditIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700,  // EXACTO
-              mb: 0,           // EXACTO
-              color: 'text.primary' 
+            <Typography variant="h6" sx={{
+              fontWeight: 600,
+              mb: 0,
+              color: 'text.primary'
             }}>
               Editar Compromiso
             </Typography>
@@ -1862,8 +1862,8 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       </DialogContent>
 
       {/* Actions con estructura exacta del Design System */}
-      <DialogActions sx={{ 
-        p: 3, 
+      <DialogActions sx={{
+        p: 3, gap: 1,
         borderTop: `1px solid ${theme.palette.divider}`,
         background: theme.palette.mode === 'dark' 
           ? theme.palette.grey[900]

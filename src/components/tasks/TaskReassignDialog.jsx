@@ -139,8 +139,8 @@ const TaskReassignDialog = ({ open, onClose, task }) => {
             <SwapHorizIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700,
+            <Typography variant="h6" sx={{
+              fontWeight: 600,
               mb: 0.25
             }}>
               Reasignar Tarea

@@ -232,9 +232,9 @@ const PDFCompressionPreview = ({
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        sx: { 
+        sx: {
           minHeight: compactMode ? '60vh' : '70vh',
-          borderRadius: `${borderRadius}px`,
+          borderRadius: 2,
           overflow: 'hidden',
           backgroundColor: theme.palette.background.default,
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)'
@@ -251,7 +251,6 @@ const PDFCompressionPreview = ({
         px: 3,
         fontSize: compactMode ? '1.1rem' : '1.25rem',
         fontWeight: 600,
-        borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
         minHeight: compactMode ? '60px' : '70px'
       }}>
         <CompareIcon sx={{ fontSize: compactMode ? '1.5rem' : '2rem' }} />
@@ -629,13 +628,9 @@ const PDFCompressionPreview = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ 
-        p: 4, 
-        background: theme.palette.mode === 'dark' 
-          ? 'linear-gradient(135deg, #1a202c 0%, #2d3748 100%)'
-          : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+      <DialogActions sx={{
+        p: 3, gap: 1,
         borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`,
-        gap: 2,
         justifyContent: 'center'
       }}>
         <Button 
@@ -647,7 +642,7 @@ const PDFCompressionPreview = ({
             minWidth: 180,
             py: 1.5,
             px: 3,
-            borderRadius: `${borderRadius}px`,
+            borderRadius: 1,
             borderWidth: 1,
             fontWeight: 600,
             textTransform: 'none',
@@ -673,7 +668,7 @@ const PDFCompressionPreview = ({
               minWidth: 160,
               py: 1.5,
               px: 3,
-              borderRadius: `${borderRadius}px`,
+              borderRadius: 1,
               borderWidth: 1,
               fontWeight: 600,
               textTransform: 'none',
@@ -698,8 +693,7 @@ const PDFCompressionPreview = ({
             minWidth: 180,
             py: 1.5,
             px: 3,
-            borderRadius: `${borderRadius}px`,
-            fontSize: compactMode ? '0.9rem' : '1rem',
+            borderRadius: 1,
             fontWeight: 600,
             textTransform: 'none',
             background: getGradientBackground(),

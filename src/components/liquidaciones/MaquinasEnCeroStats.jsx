@@ -1011,14 +1011,13 @@ const MaquinasEnCeroStats = ({
       }}
     >
       <DialogTitle sx={{
-        pt: 2.5,
-        pb: 2.5,
-        px: 3,
+        p: 3,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
-        borderBottom: `1px solid ${theme.palette.divider}`
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        position: 'relative'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar sx={{
@@ -1038,9 +1037,12 @@ const MaquinasEnCeroStats = ({
             </Typography>
           </Box>
         </Box>
+        <IconButton onClick={() => { if (!uploading) { setUploadModalOpen(false); setContratoWarning(null); } }} sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 4.5 }}>
+      <DialogContent sx={{ p: 3, pt: 2 }}>
         {/* Descripción */}
         <Box sx={{
           mb: 3,
@@ -1132,14 +1134,14 @@ const MaquinasEnCeroStats = ({
                 Contrato no coincide con la empresa seleccionada
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.error.dark || theme.palette.error.main, mt: 0.25 }}>
-                Contrato <strong>{contratoWarning.contratoArchivo}</strong>
+                Contrato <Box component="span" sx={{ fontWeight: 700 }}>{contratoWarning.contratoArchivo}</Box>
                 {contratoWarning.empresaCorrecta
-                  ? <> → <strong>{contratoWarning.empresaCorrecta}</strong></>
+                  ? <> → <Box component="span" sx={{ fontWeight: 700 }}>{contratoWarning.empresaCorrecta}</Box></>
                   : ' — No registrado en ninguna empresa'
                 }
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.4, lineHeight: 1.5 }}>
-                Empresa actualmente seleccionada: <strong>{contratoWarning.empresaSeleccionada}</strong>
+                Empresa actualmente seleccionada: <Box component="span" sx={{ fontWeight: 700 }}>{contratoWarning.empresaSeleccionada}</Box>
               </Typography>
             </Box>
           </Box>
@@ -1187,14 +1189,14 @@ const MaquinasEnCeroStats = ({
       </DialogContent>
 
       <DialogActions sx={{
-        px: 3, py: 2.5,
+        p: 3, gap: 1,
         justifyContent: 'space-between',
         borderTop: `1px solid ${theme.palette.divider}`
       }}>
         <Typography variant="caption" color="text.disabled">
           Datos actualizados en tiempo real
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             onClick={() => { setUploadModalOpen(false); setUploadFile(null); setUploadPreview(null); setContratoWarning(null); }}
             disabled={uploading}
@@ -1208,7 +1210,7 @@ const MaquinasEnCeroStats = ({
             onClick={handleConfirmUpload}
             disabled={!uploadFile || !uploadPreview || !uploadPreview?.periodoDetectado || uploading || !!contratoWarning}
             startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <Save />}
-            sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+            sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', px: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
           >
             {uploading ? 'Procesando...' : 'Guardar'}
           </Button>
@@ -1247,7 +1249,7 @@ const MaquinasEnCeroStats = ({
     const existingAliases = Object.entries(salaAliases);
     return (
       <Dialog open={aliasModalOpen} onClose={() => setAliasModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>
+        <DialogTitle sx={{ fontWeight: 600, pb: 0, position: 'relative' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <SwapHoriz color="primary" />
             Aliases de Sala
@@ -1255,8 +1257,11 @@ const MaquinasEnCeroStats = ({
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400, mt: 0.5 }}>
             Fusiona histórico de una sala que cambió de nombre. Las máquinas del nombre antiguo se consolidan bajo el nombre canónico.
           </Typography>
+          <IconButton onClick={() => setAliasModalOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: '16px !important' }}>
+        <DialogContent sx={{ pt: 2 }}>
           {existingAliases.length > 0 ? (
             <Box sx={{ mb: 2 }}>
               <Typography variant="overline" sx={{ fontWeight: 600, letterSpacing: 0.8, color: 'text.secondary' }}>Aliases activos</Typography>
@@ -1291,7 +1296,7 @@ const MaquinasEnCeroStats = ({
             </FormControl>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2.5, justifyContent: 'space-between' }}>
+        <DialogActions sx={{ p: 3, gap: 1, justifyContent: 'space-between' }}>
           <Button onClick={() => setAliasModalOpen(false)} variant="outlined" sx={{ borderRadius: 1, textTransform: 'none' }}>Cerrar</Button>
           <Button
             variant="contained"

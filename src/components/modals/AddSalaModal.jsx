@@ -152,7 +152,7 @@ const AddSalaModal = ({
             <AddIcon sx={{ fontSize: 22, color: 'white' }} />
           </Avatar>
           <Box textAlign="left">
-            <Typography variant="h5" component="div" fontWeight="600" color="white">
+            <Typography variant="h6" component="div" fontWeight={600} color="white">
               Agregar Nueva Sala
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.85rem', color: 'white' }}>
@@ -193,7 +193,7 @@ const AddSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'primary.main',
                     lineHeight: 1.2
                   }}>
@@ -668,7 +668,7 @@ const AddSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'warning.main',
                     lineHeight: 1.2
                   }}>
@@ -793,7 +793,7 @@ const AddSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'info.main',
                     lineHeight: 1.2
                   }}>
@@ -918,7 +918,7 @@ const AddSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'warning.main',
                     lineHeight: 1.2
                   }}>
@@ -1153,7 +1153,7 @@ const AddSalaModal = ({
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 'bold',
+                    fontWeight: 600,
                     color: 'success.main',
                     lineHeight: 1.2
                   }}>
@@ -1209,11 +1209,11 @@ const AddSalaModal = ({
         </Grid>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+      <DialogActions sx={{ p: 3, borderTop: `1px solid ${theme.palette.divider}`, gap: 1 }}>
         <Button
           onClick={onClose}
           disabled={saving}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           Cancelar
         </Button>
@@ -1222,7 +1222,7 @@ const AddSalaModal = ({
           variant="contained"
           disabled={saving || uploadingFiles}
           startIcon={<SaveIcon />}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           {uploadingFiles ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

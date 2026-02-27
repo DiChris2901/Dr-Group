@@ -263,7 +263,7 @@ const ExtendCommitmentsModal = ({
               ease: [0.4, 0, 0.2, 1] 
             } : { duration: 0 },
             sx: {
-              borderRadius: 4,
+              borderRadius: 2,
               background: theme.palette.mode === 'dark' 
                 ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.default, 0.98)} 100%)`
                 : paperGradient(theme),
@@ -312,9 +312,9 @@ const ExtendCommitmentsModal = ({
                   <RepeatIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography 
-                    variant="h5" 
-                    fontWeight="800"
+                  <Typography
+                    variant="h6"
+                    fontWeight="600"
                     sx={{
                       background: gradients.text,
                       backgroundClip: 'text',
@@ -382,8 +382,8 @@ const ExtendCommitmentsModal = ({
                       border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
                     }}
                   >
-                    Se encontraron <strong>{commitmentsToExtend.total}</strong> grupos de compromisos recurrentes. 
-                    <strong> {commitmentsToExtend.needsExtension}</strong> necesitan extensión.
+                    Se encontraron <Box component="span" sx={{ fontWeight: 700 }}>{commitmentsToExtend.total}</Box> grupos de compromisos recurrentes.
+                    <Box component="span" sx={{ fontWeight: 700 }}> {commitmentsToExtend.needsExtension}</Box> necesitan extensión.
                   </Alert>
                 </Grid>
 
@@ -677,7 +677,7 @@ const ExtendCommitmentsModal = ({
             </motion.div>
           </DialogContent>
 
-          <DialogActions sx={{ p: 3, gap: 2 }}>
+          <DialogActions sx={{ p: 3, gap: 1 }}>
             <Button
               onClick={onClose}
               disabled={extending}
@@ -701,10 +701,10 @@ const ExtendCommitmentsModal = ({
                 background: extending 
                   ? gradients.warning
                   : gradients.primary,
-                px: 4,
+                px: 3,
                 py: 1.5,
-                borderRadius: 3,
-                fontWeight: 700,
+                borderRadius: 1,
+                fontWeight: 600,
                 boxShadow: selectedCount > 0 && !extending 
                   ? '0 8px 25px rgba(102, 126, 234, 0.4)'
                   : 'none'

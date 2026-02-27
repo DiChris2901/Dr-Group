@@ -44,17 +44,18 @@ const PDFViewerSimple = ({ url, onClose }) => {
   const theme = useTheme();
   
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+    <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        position: 'relative'
       }}>
         <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
           Vista Previa de Documento
         </Typography>
-        <IconButton onClick={onClose} size="small">
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -234,17 +235,18 @@ const ZipFileViewer = ({ open, onClose, zipUrl, zipFileName }) => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 1,
+            borderRadius: 2,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          p: 2
+          p: 3,
+          position: 'relative'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <ZipIcon sx={{ color: '#ff9800', fontSize: 28 }} />
@@ -383,9 +385,9 @@ const ZipFileViewer = ({ open, onClose, zipUrl, zipFileName }) => {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ 
+        <DialogActions sx={{
           borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          p: 2 
+          p: 3, gap: 1
         }}>
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
             {files.length} {files.length === 1 ? 'archivo' : 'archivos'}

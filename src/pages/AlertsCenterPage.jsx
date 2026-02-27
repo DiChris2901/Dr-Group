@@ -47,7 +47,8 @@ import {
   PriorityHigh,
   Visibility,
   VisibilityOff,
-  Person
+  Person,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAlertsCenter } from '../hooks/useAlertsCenter';
@@ -570,9 +571,10 @@ const AlertsCenterPage = () => {
       >
         {selectedAlert && (
           <>
-            <DialogTitle sx={{ pb: 1 }}>
+            <DialogTitle variant="h6" sx={{ fontWeight: 600, pb: 1 }}>
+              <IconButton onClick={() => setDetailDialogOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h5" fontWeight="bold">
+                <Typography variant="h6" fontWeight={600}>
                   {selectedAlert.title}
                 </Typography>
                 <Chip 
@@ -587,7 +589,7 @@ const AlertsCenterPage = () => {
                 />
               </Box>
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ p: 3 }}>
               <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -673,15 +675,16 @@ const AlertsCenterPage = () => {
                 </Grid>
               </Box>
             </DialogContent>
-            <DialogActions sx={{ p: 2 }}>
-              <Button onClick={() => setDetailDialogOpen(false)}>Cerrar</Button>
-              <Button 
-                variant="contained" 
+            <DialogActions sx={{ p: 3, gap: 1 }}>
+              <Button onClick={() => setDetailDialogOpen(false)} sx={{ borderRadius: 1, px: 3 }}>Cerrar</Button>
+              <Button
+                variant="contained"
                 color={selectedAlert.status === 'active' ? 'primary' : 'inherit'}
                 onClick={() => {
                   handleToggleAlertStatus(selectedAlert.id);
                   setDetailDialogOpen(false);
                 }}
+                sx={{ borderRadius: 1, px: 3 }}
               >
                 {selectedAlert.status === 'active' ? 'Marcar como Resuelta' : 'Reactivar Alerta'}
               </Button>
@@ -691,15 +694,18 @@ const AlertsCenterPage = () => {
       </Dialog>
 
       {/* Dialog para nueva alerta */}
-      <Dialog open={newAlertDialog} onClose={() => setNewAlertDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Crear Nueva Alerta</DialogTitle>
-        <DialogContent>
+      <Dialog open={newAlertDialog} onClose={() => setNewAlertDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle variant="h6" sx={{ fontWeight: 600 }}>
+          Crear Nueva Alerta
+          <IconButton onClick={() => setNewAlertDialog(false)} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Alert severity="info" sx={{ mb: 2 }}>
             Funcionalidad en desarrollo. Próximamente podrás crear alertas personalizadas.
           </Alert>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setNewAlertDialog(false)}>Cerrar</Button>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setNewAlertDialog(false)} sx={{ borderRadius: 1, px: 3 }}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>

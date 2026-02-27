@@ -123,7 +123,7 @@ const TasksGuideModal = ({ open, onClose, userPermissions }) => {
             <HelpIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Guía de Uso: Gestión de Tareas
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -145,7 +145,7 @@ const TasksGuideModal = ({ open, onClose, userPermissions }) => {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ px: 4, pt: 0, pb: 4, maxHeight: '70vh', overflowY: 'auto' }}>
+      <DialogContent sx={{ px: 3, pt: 0, pb: 3, maxHeight: '70vh', overflowY: 'auto' }}>
         {/* ¿QUÉ SON LAS TAREAS? */}
         <Paper 
           elevation={0}
@@ -184,7 +184,7 @@ const TasksGuideModal = ({ open, onClose, userPermissions }) => {
             </Box>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8, pl: 0.5 }}>
-            Las tareas son actividades o trabajos que se pueden <strong>asignar a diferentes personas</strong> del equipo. 
+            Las tareas son actividades o trabajos que se pueden <Box component="span" sx={{ fontWeight: 700 }}>asignar a diferentes personas</Box> del equipo.
             Puedes hacer seguimiento del avance, agregar comentarios, adjuntar archivos y ver el progreso en tiempo real.
           </Typography>
         </Paper>

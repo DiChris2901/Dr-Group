@@ -666,8 +666,8 @@ const TaskDialog = ({ open, onClose, task = null }) => {
             {task ? <EditIcon /> : <AddIcon />}
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700,
+            <Typography variant="h6" sx={{
+              fontWeight: 600,
               mb: 0,
               color: 'text.primary'
             }}>

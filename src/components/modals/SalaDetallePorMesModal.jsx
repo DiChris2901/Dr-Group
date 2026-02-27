@@ -259,7 +259,7 @@ const SalaDetallePorMesModal = ({
             <VisibilityIcon />
           </Avatar>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
               Detalle por mes de la sala
             </Typography>
             <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -284,7 +284,7 @@ const SalaDetallePorMesModal = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 5 }}>
+      <DialogContent sx={{ p: 3, pt: 2 }}>
         <Box sx={{ mt: 3 }}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
@@ -538,7 +538,7 @@ const SalaDetallePorMesModal = ({
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+      <DialogActions sx={{ p: 3, gap: 1, justifyContent: 'space-between' }}>
         <Typography variant="caption" color="text.secondary">
           {rows.length ? `Períodos en rango: ${rows.length}` : 'Sin períodos en rango'}
         </Typography>
@@ -546,7 +546,7 @@ const SalaDetallePorMesModal = ({
           onClick={onClose}
           variant="contained"
           color="primary"
-          sx={{ borderRadius: 1, fontWeight: 600, px: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+          sx={{ borderRadius: 1, fontWeight: 600, px: 3, textTransform: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
         >
           Cerrar
         </Button>

@@ -193,8 +193,8 @@ const TaskDetailDialog = ({ open, onClose, task }) => {
             <AssignmentIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ 
-              fontWeight: 700,
+            <Typography variant="h6" sx={{
+              fontWeight: 600,
               mb: 0.25
             }}>
               Detalle de la Tarea

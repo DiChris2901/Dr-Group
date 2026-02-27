@@ -48,6 +48,7 @@ import {
   InsertDriveFile as FileIcon,
   Business as CompanyIcon,
   Info as InfoIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -1068,10 +1069,11 @@ const EditPaymentDialog = ({
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
           pb: 3,
           pt: 3,
           px: 3,
+          fontWeight: 600,
           backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : '#ffffff',
           borderBottom: 'none'
         }}>
@@ -1095,10 +1097,12 @@ const EditPaymentDialog = ({
               Editar Pago
             </Typography>
           </Box>
+          <IconButton onClick={handleCloseDialog} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ 
-          pt: 2.5, 
-          pb: 0, 
+        <DialogContent sx={{
+          p: 3,
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(145deg, rgba(18, 18, 18, 0.95) 0%, rgba(30, 30, 30, 0.9) 100%)'
             : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
@@ -1987,8 +1991,8 @@ const EditPaymentDialog = ({
                     mb: 2,
                     transition: 'all 0.3s ease'
                   }}>
-                    <UploadIcon sx={{ 
-                      fontSize: 28, 
+                    <UploadIcon sx={{
+                      fontSize: 24,
                       color: dragActive 
                         ? theme.palette.success.main 
                         : theme.palette.primary.main,
@@ -2332,10 +2336,9 @@ const EditPaymentDialog = ({
           </Box>
         )}
 
-        <DialogActions sx={{ 
-          p: 2, 
-          pt: 1.5, 
-          gap: 1.5,
+        <DialogActions sx={{
+          p: 3,
+          gap: 1,
           background: theme.palette.mode === 'dark' 
             ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
             : 'linear-gradient(145deg, rgba(248, 250, 252, 0.6) 0%, rgba(255, 255, 255, 0.8) 100%)',
@@ -2350,9 +2353,9 @@ const EditPaymentDialog = ({
             color="error"
             size="medium"
             startIcon={<DeleteIcon sx={{ fontSize: 18 }} />}
-            sx={{ 
-              borderRadius: 1.5,
-              px: 2.5,
+            sx={{
+              borderRadius: 1,
+              px: 3,
               py: 1,
               fontWeight: 500,
               transition: 'all 0.2s ease',
@@ -2373,9 +2376,9 @@ const EditPaymentDialog = ({
               variant="outlined"
               size="medium"
               startIcon={<CancelIcon sx={{ fontSize: 18 }} />}
-              sx={{ 
-                borderRadius: 1.5,
-                px: 2.5,
+              sx={{
+                borderRadius: 1,
+                px: 3,
                 py: 1,
                 fontWeight: 500,
                 transition: 'all 0.2s ease',
@@ -2393,9 +2396,9 @@ const EditPaymentDialog = ({
               size="medium"
               startIcon={uploadingFile ? <CircularProgress size={18} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
               disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
-              sx={{ 
-                borderRadius: 1.5,
-                px: 2.5,
+              sx={{
+                borderRadius: 1,
+                px: 3,
                 py: 1,
                 fontWeight: 600,
                 fontSize: '1rem',
@@ -2438,19 +2441,22 @@ const EditPaymentDialog = ({
           }
         }}
       >
-        <DialogTitle sx={{ 
-          pb: 1, 
-          display: 'flex', 
-          alignItems: 'center', 
+        <DialogTitle variant="h6" sx={{
+          pb: 1,
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           color: 'error.main',
           fontWeight: 600
         }}>
           <DeleteIcon />
           Eliminar Pago
+          <IconButton onClick={handleCloseDeletePayment} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        
-        <DialogContent>
+
+        <DialogContent sx={{ p: 3 }}>
           <Typography variant="body1" sx={{ mb: 2 }}>
             Â¿EstÃ¡s seguro de que deseas eliminar este pago? Esta acciÃ³n no se puede deshacer.
           </Typography>
@@ -2466,17 +2472,17 @@ const EditPaymentDialog = ({
                 Detalles del pago:
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                <strong>Concepto:</strong> {paymentToDelete.concept || 'Sin concepto'}
+                <Box component="span" sx={{ fontWeight: 600 }}>Concepto:</Box> {paymentToDelete.concept || 'Sin concepto'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                <strong>Monto:</strong> ${paymentToDelete.amount?.toLocaleString('es-MX')}
+                <Box component="span" sx={{ fontWeight: 600 }}>Monto:</Box> ${paymentToDelete.amount?.toLocaleString('es-MX')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                <strong>Empresa:</strong> {paymentToDelete.companyName || 'Sin empresa'}
+                <Box component="span" sx={{ fontWeight: 600 }}>Empresa:</Box> {paymentToDelete.companyName || 'Sin empresa'}
               </Typography>
               {paymentToDelete.attachments?.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  <strong>Comprobantes:</strong> {paymentToDelete.attachments.length} archivo(s)
+                  <Box component="span" sx={{ fontWeight: 600 }}>Comprobantes:</Box> {paymentToDelete.attachments.length} archivo(s)
                 </Typography>
               )}
             </Paper>
@@ -2487,7 +2493,7 @@ const EditPaymentDialog = ({
           </Typography>
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, gap: 2 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button
             onClick={handleCloseDeletePayment}
             variant="outlined"

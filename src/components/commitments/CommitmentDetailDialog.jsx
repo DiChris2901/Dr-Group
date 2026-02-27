@@ -345,10 +345,10 @@ const CommitmentDetailDialog = ({
                 <AssignmentIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ 
-                  fontWeight: 700,  // EXACTO - 700 no 600 o 'bold'
-                  mb: 0,           // EXACTO - 0 margin bottom
-                  color: 'text.primary' 
+                <Typography variant="h6" sx={{
+                  fontWeight: 600,
+                  mb: 0,
+                  color: 'text.primary'
                 }}>
                   Detalle del Compromiso
                 </Typography>
@@ -693,11 +693,11 @@ const CommitmentDetailDialog = ({
           </DialogContent>
 
           {/* DIALOG ACTIONS - Modal de Solo Vista */}
-          <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+          <DialogActions sx={{ p: 3, gap: 1, justifyContent: 'space-between' }}>
             <Typography variant="caption" color="text.secondary">
               ID: {selectedCommitment.id}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               {extractInvoiceUrl && extractInvoiceUrl(selectedCommitment) && (
                 <Button
                   variant="outlined"
@@ -725,15 +725,15 @@ const CommitmentDetailDialog = ({
               >
                 Cerrar
               </Button>
-              <Button 
+              <Button
                 onClick={onEdit}
-                variant="contained" 
-                color="primary" 
+                variant="contained"
+                color="primary"
                 startIcon={<EditIcon />}
-                sx={{ 
-                  borderRadius: 1, 
+                sx={{
+                  borderRadius: 1,
                   fontWeight: 600,
-                  px: 4,
+                  px: 3,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
                 }}
               >

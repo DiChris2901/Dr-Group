@@ -1087,8 +1087,9 @@ const ClientesPage = () => {
       </Card>
 
       {/* DIALOG DE DETALLES */}
-      <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{
+      <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle variant="h6" sx={{
+          fontWeight: 600,
           background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           color: 'white',
           display: 'flex',
@@ -1099,12 +1100,13 @@ const ClientesPage = () => {
             {selectedCliente?.nombre?.charAt(0)?.toUpperCase()}
           </Avatar>
           Detalles del Cliente
+          <IconButton onClick={() => setViewDialogOpen(false)} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}><CloseIcon /></IconButton>
         </DialogTitle>
-        <DialogContent sx={{ mt: 3 }}>
+        <DialogContent sx={{ p: 3 }}>
           {selectedCliente && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   {selectedCliente.nombre}
                 </Typography>
                 <Divider />
@@ -1173,8 +1175,8 @@ const ClientesPage = () => {
             </Grid>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setViewDialogOpen(false)} variant="contained">
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setViewDialogOpen(false)} variant="contained" sx={{ borderRadius: 1, px: 3 }}>
             Cerrar
           </Button>
         </DialogActions>
@@ -1199,7 +1201,8 @@ const ClientesPage = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
+          fontWeight: 600,
           background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark} 100%)`,
           color: 'white',
           display: 'flex',
@@ -1209,10 +1212,11 @@ const ClientesPage = () => {
         }}>
           <EditIcon />
           Editar Cliente
+          <IconButton onClick={handleCloseEditClienteDialog} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}><CloseIcon /></IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3 }}>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Los cambios se sincronizarán automáticamente en <strong>todas las salas</strong> donde aparece este cliente.
+            Los cambios se sincronizarán automáticamente en <Box component="span" sx={{ fontWeight: 600 }}>todas las salas</Box> donde aparece este cliente.
           </Alert>
           
           <TextField
@@ -1264,24 +1268,26 @@ const ClientesPage = () => {
 
           {clienteToEdit && (
             <Alert severity="warning" sx={{ mt: 3 }}>
-              Se actualizarán <strong>{clienteToEdit.salas?.length || 0} sala(s)</strong> donde aparece "{clienteToEdit.nombre}"
+              Se actualizarán <Box component="span" sx={{ fontWeight: 600 }}>{clienteToEdit.salas?.length || 0} sala(s)</Box> donde aparece "{clienteToEdit.nombre}"
             </Alert>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button 
+          <Button
             onClick={handleCloseEditClienteDialog}
             startIcon={<CloseIcon />}
             disabled={updatingCliente}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleUpdateCliente}
             variant="contained"
             color="warning"
             startIcon={updatingCliente ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             disabled={updatingCliente || !editClienteForm.nombre.trim()}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             {updatingCliente ? 'Guardando...' : 'Guardar Cambios'}
           </Button>
@@ -1305,7 +1311,8 @@ const ClientesPage = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
+          fontWeight: 600,
           background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
           color: 'white',
           display: 'flex',
@@ -1315,10 +1322,11 @@ const ClientesPage = () => {
         }}>
           <EditIcon />
           Editar Administrador/Encargado
+          <IconButton onClick={handleCloseEditAdminDialog} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}><CloseIcon /></IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
+        <DialogContent sx={{ p: 3 }}>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Los cambios se sincronizarán automáticamente en <strong>todas las salas</strong> donde trabaja este administrador.
+            Los cambios se sincronizarán automáticamente en <Box component="span" sx={{ fontWeight: 600 }}>todas las salas</Box> donde trabaja este administrador.
           </Alert>
           
           <TextField
@@ -1370,24 +1378,26 @@ const ClientesPage = () => {
 
           {adminToEdit && adminToEdit.salasAsociadas && (
             <Alert severity="warning" sx={{ mt: 3 }}>
-              Se actualizarán las salas donde trabaja "{adminToEdit.nombre}": <strong>{adminToEdit.salasAsociadas.join(', ')}</strong>
+              Se actualizarán las salas donde trabaja "{adminToEdit.nombre}": <Box component="span" sx={{ fontWeight: 600 }}>{adminToEdit.salasAsociadas.join(', ')}</Box>
             </Alert>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button 
+          <Button
             onClick={handleCloseEditAdminDialog}
             startIcon={<CloseIcon />}
             disabled={updatingAdmin}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleUpdateAdmin}
             variant="contained"
             color="secondary"
             startIcon={updatingAdmin ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             disabled={updatingAdmin || !editAdminForm.nombre.trim()}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             {updatingAdmin ? 'Guardando...' : 'Guardar Cambios'}
           </Button>

@@ -1972,7 +1972,7 @@ const SolicitudesRRHH = ({
               <AddIcon />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'text.primary' }}>
                 {editingSolicitudId ? 'Editar Solicitud' : 'Nueva Solicitud'}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -2139,7 +2139,7 @@ const SolicitudesRRHH = ({
                     }}
                   >
                     <Typography variant="body2">
-                      <strong>Días solicitados:</strong> {formSolicitud.dias} día{formSolicitud.dias !== 1 ? 's' : ''}
+                      <Box component="span" sx={{ fontWeight: 700 }}>Días solicitados:</Box> {formSolicitud.dias} día{formSolicitud.dias !== 1 ? 's' : ''}
                     </Typography>
                   </Alert>
                 </Grid>
@@ -2371,7 +2371,7 @@ const SolicitudesRRHH = ({
                         }}
                       >
                         <Typography variant="body2">
-                          <strong>Duración de la licencia:</strong> {formSolicitud.dias} días ({formSolicitud.tipoLicencia === 'maternidad' ? '18 semanas' : '2 semanas'})
+                          <Box component="span" sx={{ fontWeight: 700 }}>Duración de la licencia:</Box> {formSolicitud.dias} días ({formSolicitud.tipoLicencia === 'maternidad' ? '18 semanas' : '2 semanas'})
                         </Typography>
                         {formSolicitud.tipoLicencia === 'maternidad' && (
                           <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
@@ -2831,7 +2831,7 @@ const SolicitudesRRHH = ({
                 <Grid item xs={12}>
                   <Alert severity="warning" sx={{ borderRadius: 1 }}>
                     <Typography variant="body2">
-                      <strong>Importante:</strong> El monto será descontado según la fecha indicada. Verifica tu disponibilidad presupuestal.
+                      <Box component="span" sx={{ fontWeight: 700 }}>Importante:</Box> El monto será descontado según la fecha indicada. Verifica tu disponibilidad presupuestal.
                     </Typography>
                   </Alert>
                 </Grid>
@@ -2863,7 +2863,7 @@ const SolicitudesRRHH = ({
                 <Grid item xs={12}>
                   <Alert severity="info" sx={{ borderRadius: 1 }}>
                     <Typography variant="body2">
-                      <strong>Recuerda:</strong> Debes mantener la misma disponibilidad y productividad que en oficina. Se requiere conexión estable a internet y herramientas de comunicación.
+                      <Box component="span" sx={{ fontWeight: 700 }}>Recuerda:</Box> Debes mantener la misma disponibilidad y productividad que en oficina. Se requiere conexión estable a internet y herramientas de comunicación.
                     </Typography>
                   </Alert>
                 </Grid>
@@ -3009,16 +3009,16 @@ const SolicitudesRRHH = ({
           </Box>
         </DialogContent>
         <Divider />
-        <DialogActions sx={{ p: 3, gap: 1.5 }}>
-          <Button 
-            onClick={handleCloseModal} 
-            variant="outlined" 
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button
+            onClick={handleCloseModal}
+            variant="outlined"
             color="secondary"
-            sx={{ 
-              borderRadius: 1, 
-              fontWeight: 500, 
-              textTransform: 'none', 
-              px: 3 
+            sx={{
+              borderRadius: 1,
+              fontWeight: 500,
+              textTransform: 'none',
+              px: 3
             }}
           >
             Cancelar
@@ -3031,7 +3031,7 @@ const SolicitudesRRHH = ({
               borderRadius: 1,
               fontWeight: 600,
               textTransform: 'none',
-              px: 4,
+              px: 3,
               backgroundColor: theme.palette.success.main,
               color: 'white',
               boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
@@ -3077,7 +3077,7 @@ const SolicitudesRRHH = ({
               {confirmAction === 'aprobar' ? <CheckIcon /> : <CloseIcon />}
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'text.primary' }}>
                 {confirmAction === 'aprobar' ? 'Aprobar Solicitud' : 'Rechazar Solicitud'}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -3117,7 +3117,7 @@ const SolicitudesRRHH = ({
           />
         </DialogContent>
         <Divider />
-        <DialogActions sx={{ p: 3, gap: 1.5 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button
             onClick={handleCloseConfirmDialog}
             variant="outlined"
@@ -3138,7 +3138,7 @@ const SolicitudesRRHH = ({
               borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
-              px: 4,
+              px: 3,
               bgcolor: confirmAction === 'aprobar' 
                 ? theme.palette.primary.main 
                 : theme.palette.error.main,
@@ -3736,7 +3736,7 @@ const SolicitudesRRHH = ({
         </DialogContent>
 
         <Divider />
-        <DialogActions sx={{ p: 3 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button
             onClick={handleCloseDetalles}
             variant="contained"
@@ -3744,7 +3744,7 @@ const SolicitudesRRHH = ({
               borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
-              px: 4
+              px: 3
             }}
           >
             Cerrar
@@ -4070,7 +4070,7 @@ const SolicitudesRRHH = ({
         </DialogContent>
 
         <Divider />
-        <DialogActions sx={{ p: 3, gap: 1.5, flexWrap: 'wrap' }}>
+        <DialogActions sx={{ p: 3, gap: 1, flexWrap: 'wrap' }}>
           <Button
             onClick={handleCancelarPassword}
             variant="outlined"
@@ -4110,7 +4110,7 @@ const SolicitudesRRHH = ({
               borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
-              px: 4,
+              px: 3,
               bgcolor: theme.palette.warning.main,
               color: '#fff',
               '&:hover': {

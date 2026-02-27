@@ -512,38 +512,31 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
           pb: 2,
+          fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: `1px solid ${theme.palette.divider}`
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ 
+            <Avatar sx={{
               bgcolor: alpha(theme.palette.primary.main, 0.15),
               color: 'primary.main'
             }}>
               <TaskIcon />
             </Avatar>
-            <Typography variant="h6" fontWeight="600" sx={{ letterSpacing: '-0.01em' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}>
               {editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
             </Typography>
           </Box>
-          <IconButton
-            onClick={handleCloseTaskModal}
-            sx={{ 
-              '&:hover': { 
-                bgcolor: alpha(theme.palette.error.main, 0.08),
-                color: 'error.main'
-              }
-            }}
-          >
+          <IconButton onClick={handleCloseTaskModal} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        
-        <DialogContent sx={{ p: 3, pt: 2 }}>
+
+        <DialogContent sx={{ p: 3 }}>
           <Box sx={{ mt: 2 }}>
             <TextField
               autoFocus
@@ -615,21 +608,20 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ 
-          p: 3, 
-          pt: 2,
-          background: theme.palette.mode === 'dark' 
+        <DialogActions sx={{
+          p: 3,
+          gap: 1,
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
-          borderTop: `1px solid ${theme.palette.divider}`,
-          gap: 1.5
+          borderTop: `1px solid ${theme.palette.divider}`
         }}>
-          <Button 
+          <Button
             onClick={handleCloseTaskModal}
             sx={{
               textTransform: 'none',
               fontWeight: 500,
-              borderRadius: 2,
+              borderRadius: 1,
               px: 3
             }}
           >
@@ -643,7 +635,7 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
             sx={{
               textTransform: 'none',
               fontWeight: 600,
-              borderRadius: 2,
+              borderRadius: 1,
               px: 3,
               boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
               '&:hover': {
@@ -666,7 +658,7 @@ const TasksMenu = ({ anchorEl, open, onClose }) => {
           sx: { borderRadius: 2, height: '85vh' }
         }}
       >
-        <DialogTitle>
+        <DialogTitle variant="h6" sx={{ fontWeight: 600 }}>
           Gestión de Tareas
           <IconButton
             onClick={() => setAllTasksModalOpen(false)}

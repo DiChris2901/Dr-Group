@@ -487,7 +487,7 @@ const AccountMovementsModal = ({
           sx={{
             borderRadius: 1,
             fontWeight: 600,
-            px: 4,
+            px: 3,
             textTransform: 'none'
           }}
         >

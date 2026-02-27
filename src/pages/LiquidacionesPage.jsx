@@ -1976,7 +1976,7 @@ export default function LiquidacionesPage() {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 1,
+            borderRadius: 2,
             background: theme.palette.background.paper,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
@@ -1984,8 +1984,10 @@ export default function LiquidacionesPage() {
         }}
       >
         <DialogTitle
+          variant="h6"
           sx={{
             pb: 2,
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -2006,9 +2008,12 @@ export default function LiquidacionesPage() {
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={cancelarValidacion} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <Close />
+          </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 3, pt: 4 }}>
+        <DialogContent sx={{ p: 3 }}>
           <input
             ref={validationTarifasInputRef}
             type="file"
@@ -2252,7 +2257,7 @@ export default function LiquidacionesPage() {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+        <DialogActions sx={{ p: 3, gap: 1, justifyContent: 'space-between' }}>
           <Typography variant="caption" color="text.secondary">
             Validación de liquidación
           </Typography>

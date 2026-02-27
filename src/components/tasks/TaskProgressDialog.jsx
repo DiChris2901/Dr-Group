@@ -1063,7 +1063,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                       Tarea en revisión - Esperando aprobación
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
-                      No puedes cambiar el estado hasta que <strong>{task.creadoPor?.displayName || task.creadoPor?.nombre || 'el creador'}</strong> apruebe o rechace tu trabajo.
+                      No puedes cambiar el estado hasta que <Box component="span" sx={{ fontWeight: 700 }}>{task.creadoPor?.displayName || task.creadoPor?.nombre || 'el creador'}</Box> apruebe o rechace tu trabajo.
                     </Typography>
                   </Box>
                 </Box>
@@ -1552,11 +1552,10 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ 
-        p: 3, 
-        gap: 1.5, 
-        borderTop: `1px solid ${theme.palette.divider}`,
-        bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.5) : theme.palette.grey[50]
+      <DialogActions sx={{
+        p: 3,
+        gap: 1,
+        borderTop: `1px solid ${theme.palette.divider}`
       }}>
         {tabValue === 0 ? (
           <>
@@ -1597,7 +1596,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
                 borderRadius: 1,
                 fontWeight: 600,
                 textTransform: 'none',
-                px: 4,
+                px: 3,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
             >
@@ -1984,7 +1983,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
           )}
         </Box>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem' }}>
             {approvalAction === 'approve' ? 'Aprobar tarea' : 'Rechazar tarea'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
@@ -2042,7 +2041,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
         />
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 3, pt: 2, gap: 1.5 }}>
+      <DialogActions sx={{ p: 3, gap: 1 }}>
         <Button
           onClick={() => {
             setApprovalDialogOpen(false);

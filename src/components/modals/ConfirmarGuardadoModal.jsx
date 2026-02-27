@@ -115,7 +115,7 @@ const ConfirmarGuardadoModal = ({
         position: 'relative',
         borderBottom: `1px solid ${theme.palette.divider}`
       }}>
-        <SaveIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+        <SaveIcon sx={{ color: 'primary.main', fontSize: 24 }} />
         <Box>
           <Typography variant="h6" sx={{ 
             fontSize: '1.125rem',
@@ -134,7 +134,7 @@ const ConfirmarGuardadoModal = ({
         </IconButton>
       </DialogTitle>
       
-      <DialogContent sx={{ px: 3, pt: 3, pb: 3.5 }}>
+      <DialogContent sx={{ px: 3, pt: 3, pb: 3 }}>
         <Box sx={{ 
           p: 2.5,
           mt: 2.5,
@@ -246,7 +246,7 @@ const ConfirmarGuardadoModal = ({
 
       <Divider />
       
-      <DialogActions sx={{ p: 3, gap: 1, bgcolor: alpha(theme.palette.background.default, 0.4) }}>
+      <DialogActions sx={{ p: 3, gap: 1 }}>
         <Button
           onClick={onClose}
           disabled={loading || editando}

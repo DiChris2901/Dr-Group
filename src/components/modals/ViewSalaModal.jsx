@@ -108,7 +108,7 @@ const ViewSalaModal = ({
             <VisibilityIcon />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'text.primary' }}>
               Detalles de la Sala
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
@@ -133,7 +133,7 @@ const ViewSalaModal = ({
               border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="h5" fontWeight={700} color="text.primary">
+                <Typography variant="h6" fontWeight={600} color="text.primary">
                   {selectedSala.name}
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
@@ -739,10 +739,10 @@ const ViewSalaModal = ({
         )}
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+      <DialogActions sx={{ p: 3, gap: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
         <Button
           onClick={onClose}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           Cerrar
         </Button>
@@ -750,7 +750,7 @@ const ViewSalaModal = ({
           onClick={onEdit}
           variant="contained"
           startIcon={<EditIcon />}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
         >
           Editar Sala
         </Button>

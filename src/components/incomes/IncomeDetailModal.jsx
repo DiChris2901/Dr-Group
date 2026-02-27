@@ -105,7 +105,7 @@ const IncomeDetailModal = ({
               <ReceiptIcon />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0, color: 'text.primary' }}>
                 Detalle del Ingreso
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -306,18 +306,18 @@ const IncomeDetailModal = ({
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+        <DialogActions sx={{ p: 3, gap: 1, justifyContent: 'space-between' }}>
           <Typography variant="caption" color="text.secondary">
             ID: {income.id}
           </Typography>
-          <Button 
-            onClick={onClose} 
-            variant="contained" 
-            color="primary" 
-            sx={{ 
-              borderRadius: 1, 
+          <Button
+            onClick={onClose}
+            variant="contained"
+            color="primary"
+            sx={{
+              borderRadius: 1,
               fontWeight: 600,
-              px: 4,
+              px: 3,
               boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
             }}
           >
@@ -357,7 +357,7 @@ const IncomeDetailModal = ({
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PdfIcon sx={{ color: 'primary.main' }} />
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 Comprobante - {income.client}
               </Typography>
             </Box>

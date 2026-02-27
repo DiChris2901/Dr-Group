@@ -1735,17 +1735,17 @@ const FacturacionPage = () => {
       </Card>
 
       {/* Dialog Vista Previa */}
-      <Dialog open={dialogVistaPrevia.open} onClose={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Dialog open={dialogVistaPrevia.open} onClose={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle variant="h6" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box display="flex" alignItems="center" gap={1}>
-            <ReceiptIcon />
-            <Typography variant="h6">Vista Previa - Cuenta de Cobro</Typography>
+            <ReceiptIcon sx={{ fontSize: 24 }} />
+            Vista Previa - Cuenta de Cobro
           </Box>
-          <IconButton onClick={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })}>
+          <IconButton onClick={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 3 }}>
           {dialogVistaPrevia.liquidacion && (() => {
             const metricas = dialogVistaPrevia.liquidacion.metricas || {};
             const datosAdicionales = dialogVistaPrevia.datosAdicionales || {};
@@ -1870,10 +1870,10 @@ const FacturacionPage = () => {
             );
           })()}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })}>Cerrar</Button>
-          <Button 
-            variant="contained" 
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} })} sx={{ borderRadius: 1, px: 3 }}>Cerrar</Button>
+          <Button
+            variant="contained"
             startIcon={<PdfIcon />}
             onClick={() => {
               if (dialogVistaPrevia.liquidacion) {
@@ -1881,6 +1881,7 @@ const FacturacionPage = () => {
                 setDialogVistaPrevia({ open: false, liquidacion: null, datosAdicionales: {} });
               }
             }}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             Generar PDF
           </Button>
@@ -1888,22 +1889,25 @@ const FacturacionPage = () => {
       </Dialog>
 
       {/* Dialog Registrar Pago */}
-      <Dialog open={dialogRegistrarPago.open} onClose={() => setDialogRegistrarPago({ open: false, liquidacion: null })} maxWidth="sm" fullWidth>
-        <DialogTitle>Registrar Pago Recibido</DialogTitle>
-        <DialogContent>
+      <Dialog open={dialogRegistrarPago.open} onClose={() => setDialogRegistrarPago({ open: false, liquidacion: null })} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle variant="h6" sx={{ fontWeight: 600 }}>
+          Registrar Pago Recibido
+          <IconButton onClick={() => setDialogRegistrarPago({ open: false, liquidacion: null })} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             Confirma que has recibido el pago de esta cuenta de cobro.
           </Typography>
           {dialogRegistrarPago.liquidacion && (
             <Box>
-              <Typography variant="body2"><strong>Sala:</strong> {dialogRegistrarPago.liquidacion.sala?.nombre}</Typography>
-              <Typography variant="body2"><strong>Monto:</strong> {formatearMonto(dialogRegistrarPago.liquidacion.metricas?.totalImpuestos)}</Typography>
+              <Typography variant="body2"><Box component="span" sx={{ fontWeight: 600 }}>Sala:</Box> {dialogRegistrarPago.liquidacion.sala?.nombre}</Typography>
+              <Typography variant="body2"><Box component="span" sx={{ fontWeight: 600 }}>Monto:</Box> {formatearMonto(dialogRegistrarPago.liquidacion.metricas?.totalImpuestos)}</Typography>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogRegistrarPago({ open: false, liquidacion: null })}>Cancelar</Button>
-          <Button variant="contained" color="success" onClick={registrarPago} startIcon={<CheckCircleIcon />}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setDialogRegistrarPago({ open: false, liquidacion: null })} sx={{ borderRadius: 1, px: 3 }}>Cancelar</Button>
+          <Button variant="contained" color="success" onClick={registrarPago} startIcon={<CheckCircleIcon />} sx={{ borderRadius: 1, px: 3 }}>
             Confirmar Pago
           </Button>
         </DialogActions>

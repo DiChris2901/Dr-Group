@@ -2250,7 +2250,8 @@ const SalasPage = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
+          fontWeight: 600,
           pb: 3,
           pt: 3,
           px: 3,
@@ -2258,9 +2259,9 @@ const SalasPage = () => {
           background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
         }}>
           <Box display="flex" alignItems="center" gap={2}>
-            <Box sx={{ 
-              width: 48, 
-              height: 48, 
+            <Box sx={{
+              width: 48,
+              height: 48,
               borderRadius: '50%',
               background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)} 0%, ${alpha(theme.palette.error.main, 0.05)} 100%)`,
               display: 'flex',
@@ -2274,21 +2275,22 @@ const SalasPage = () => {
               <Typography variant="h6" fontWeight="600">
                 Eliminar Sala
               </Typography>
-              <Typography variant="body2" sx={{ 
+              <Typography variant="body2" sx={{
                 color: alpha(theme.palette.text.secondary, 0.8),
-                mt: 0.5 
+                mt: 0.5
               }}>
                 Esta acción no se puede deshacer
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={() => { setDeleteDialogOpen(false); setSelectedSala(null); }} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ p: 3 }}>
           {selectedSala && (
             <Box>
               <Typography variant="body1" gutterBottom>
-                ¿Está seguro que desea eliminar la sala <strong>"{selectedSala.name}"</strong>?
+                ¿Está seguro que desea eliminar la sala <Box component="span" sx={{ fontWeight: 600 }}>"{selectedSala.name}"</Box>?
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Esta acción eliminará permanentemente:
@@ -2311,13 +2313,14 @@ const SalasPage = () => {
           )}
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button
             onClick={() => {
               setDeleteDialogOpen(false);
               setSelectedSala(null);
             }}
             disabled={saving}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             Cancelar
           </Button>
@@ -2327,6 +2330,7 @@ const SalasPage = () => {
             color="error"
             disabled={saving}
             startIcon={saving ? <CircularProgress size={20} /> : <DeleteIcon />}
+            sx={{ borderRadius: 1, px: 3 }}
           >
             {saving ? 'Eliminando...' : 'Eliminar Sala'}
           </Button>

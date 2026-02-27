@@ -9,8 +9,10 @@ import {
   DialogActions,
   FormControlLabel,
   Radio,
+  IconButton,
   alpha
 } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { exportarLiquidacionPythonFormat } from '../../utils/liquidacionExcelExportPythonFormat';
 
@@ -82,8 +84,8 @@ const ExportarPorSalaModal = ({
       }}
     >
       {/* Header sobrio con gradiente controlado */}
-      <Box sx={{ 
-        background: theme => theme.palette.mode === 'dark' 
+      <Box sx={{
+        background: theme => theme.palette.mode === 'dark'
           ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
           : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
         color: 'white',
@@ -91,9 +93,12 @@ const ExportarPorSalaModal = ({
         position: 'relative',
         zIndex: 1
       }}>
+        <IconButton onClick={handleClose} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+          <CloseIcon />
+        </IconButton>
         <Typography variant="overline" sx={{
-          fontWeight: 600, 
-          fontSize: '0.8rem', 
+          fontWeight: 600,
+          fontSize: '0.75rem',
           color: 'rgba(255, 255, 255, 0.8)',
           letterSpacing: 1.2,
           display: 'block',
@@ -101,15 +106,14 @@ const ExportarPorSalaModal = ({
         }}>
           SELECTOR • EXPORTAR POR SALA
         </Typography>
-        <Typography variant="h4" sx={{
-          fontWeight: 700, 
+        <Typography variant="h6" sx={{
+          fontWeight: 600,
           color: 'white',
           display: 'flex',
           alignItems: 'center',
-          gap: 1,
-          fontSize: '1.75rem'
+          gap: 1
         }}>
-          📊 Establecimientos
+          Establecimientos
         </Typography>
         <Typography variant="body1" sx={{ 
           color: 'rgba(255, 255, 255, 0.9)',
@@ -159,16 +163,16 @@ const ExportarPorSalaModal = ({
                 gap: 1.5,
                 ml: 'auto'
               }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  sx={{ 
+                <Button
+                  size="small"
+                  variant="contained"
+                  sx={{
                     minWidth: 'auto',
                     px: 2,
                     py: 0.5,
-                    fontSize: '0.75rem',
                     fontWeight: 600,
                     borderRadius: 1,
+                    textTransform: 'none',
                     background: theme => theme.palette.success.main,
                     '&:hover': {
                       background: theme => theme.palette.success.dark
@@ -179,16 +183,16 @@ const ExportarPorSalaModal = ({
                 >
                   Seleccionar Todos
                 </Button>
-                <Button 
-                  size="small" 
+                <Button
+                  size="small"
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     minWidth: 'auto',
                     px: 2,
                     py: 0.5,
-                    fontSize: '0.75rem',
                     fontWeight: 600,
                     borderRadius: 1,
+                    textTransform: 'none',
                     borderColor: theme => alpha(theme.palette.primary.main, 0.6),
                     color: 'text.primary',
                     '&:hover': {
@@ -492,11 +496,11 @@ const ExportarPorSalaModal = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ 
-        p: 3, 
+      <DialogActions sx={{
+        p: 3,
         background: 'background.paper',
         borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        gap: 1.5
+        gap: 1
       }}>
         <Button 
           onClick={handleClose} 

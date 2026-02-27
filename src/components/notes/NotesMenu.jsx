@@ -358,20 +358,21 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
           pb: 2,
-          display: 'flex', 
-          alignItems: 'center', 
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
           borderBottom: `1px solid ${theme.palette.divider}`,
           color: 'text.primary'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ 
-              bgcolor: 'primary.main', 
+            <Avatar sx={{
+              bgcolor: 'primary.main',
               color: 'primary.contrastText',
               width: 40,
               height: 40
@@ -380,10 +381,10 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
             </Avatar>
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h6" sx={{ 
-                  fontWeight: 700,
+                <Typography variant="h6" sx={{
+                  fontWeight: 600,
                   mb: 0,
-                  color: 'text.primary' 
+                  color: 'text.primary'
                 }}>
                   {editingNote ? 'Editar Nota' : 'Nueva Nota'}
                 </Typography>
@@ -410,15 +411,12 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
           </Box>
-          <IconButton 
-            onClick={handleAttemptClose} 
-            sx={{ color: 'text.secondary' }}
-          >
+          <IconButton onClick={handleAttemptClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        
-        <DialogContent sx={{ p: 3, pt: 4 }}>
+
+        <DialogContent sx={{ p: 3 }}>
           <Box sx={{ mt: 2 }}>
             <Grid container spacing={3}>
               {/* COLUMNA IZQUIERDA - Título y Color */}
@@ -615,15 +613,15 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ 
-          p: 3, 
-          pt: 2,
-          background: theme.palette.mode === 'dark' 
+        <DialogActions sx={{
+          p: 3,
+          gap: 1,
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
           borderTop: `1px solid ${theme.palette.divider}`
         }}>
-          <Button 
+          <Button
             onClick={handleAttemptClose}
             sx={{
               borderRadius: 1,
@@ -669,19 +667,20 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
           pb: 2,
-          display: 'flex', 
+          fontWeight: 600,
+          display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
           borderBottom: `1px solid ${theme.palette.divider}`,
           color: 'text.primary'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ 
+            <Avatar sx={{
               bgcolor: alpha(theme.palette.warning.main, 0.15),
               color: 'warning.main',
               width: 40,
@@ -690,8 +689,8 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               ⚠️
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 700, 
+              <Typography variant="h6" sx={{
+                fontWeight: 600,
                 mb: 0,
                 color: 'text.primary'
               }}>
@@ -702,6 +701,9 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={handleCancelClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         
         <DialogContent sx={{ p: 3, pt: 3 }}>
@@ -748,16 +750,15 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ 
-          p: 3, 
-          pt: 2,
-          background: theme.palette.mode === 'dark' 
+        <DialogActions sx={{
+          p: 3,
+          gap: 1,
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
-          borderTop: `1px solid ${theme.palette.divider}`,
-          gap: 1.5
+          borderTop: `1px solid ${theme.palette.divider}`
         }}>
-          <Button 
+          <Button
             onClick={handleCancelClose}
             sx={{
               borderRadius: 1,
@@ -807,20 +808,21 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle variant="h6" sx={{
           pb: 2,
-          display: 'flex', 
-          alignItems: 'center', 
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
+          background: theme.palette.mode === 'dark'
             ? theme.palette.grey[900]
             : theme.palette.grey[50],
           borderBottom: `1px solid ${theme.palette.divider}`,
           color: 'text.primary'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ 
-              bgcolor: 'primary.main', 
+            <Avatar sx={{
+              bgcolor: 'primary.main',
               color: 'primary.contrastText',
               width: 40,
               height: 40
@@ -828,10 +830,10 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               <AllNotesIcon />
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 700,
+              <Typography variant="h6" sx={{
+                fontWeight: 600,
                 mb: 0,
-                color: 'text.primary' 
+                color: 'text.primary'
               }}>
                 Todas mis notas
               </Typography>
@@ -840,15 +842,12 @@ const NotesMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
           </Box>
-          <IconButton 
-            onClick={() => setAllNotesModalOpen(false)}
-            sx={{ color: 'text.secondary' }}
-          >
+          <IconButton onClick={() => setAllNotesModalOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        
-        <DialogContent sx={{ p: 3, pt: 3 }}>
+
+        <DialogContent sx={{ p: 3 }}>
           {notes.length > 0 ? (
             <Box sx={{ 
               display: 'grid', 

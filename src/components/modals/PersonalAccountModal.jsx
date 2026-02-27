@@ -105,7 +105,7 @@ const PersonalAccountModal = ({ open, onClose, onSave, editingAccount = null }) 
         background: `linear-gradient(135deg, ${theme.palette.secondary.main}15 0%, ${theme.palette.primary.main}15 100%)`
       }}>
         <PersonIcon sx={{ color: 'secondary.main' }} />
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="h6" fontWeight={600}>
           {editingAccount ? 'Editar Cuenta Personal' : 'Agregar Cuenta Personal'}
         </Typography>
         <IconButton onClick={handleClose} sx={{ position: 'absolute', right: 8, top: 8 }}>

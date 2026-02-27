@@ -44,7 +44,8 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   Receipt as ReceiptIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -532,12 +533,17 @@ const LiquidacionesRRHH = ({
         <DialogTitle sx={{
           background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           color: 'white',
-          fontWeight: 700
+          position: 'relative'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <ReceiptIcon />
-            Nueva Liquidación
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'inherit' }}>
+              Nueva Liquidación
+            </Typography>
           </Box>
+          <IconButton onClick={handleCloseModal} sx={{ position: 'absolute', right: 8, top: 8, color: 'inherit' }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <Divider />
         <DialogContent sx={{ pt: 3 }}>
@@ -685,17 +691,17 @@ const LiquidacionesRRHH = ({
                 sx={{ borderRadius: 1 }}
               >
                 <Typography variant="body2">
-                  <strong>Total Devengado:</strong> {formatCurrency(calcularTotales(formLiquidacion).devengado)}
+                  <Box component="span" sx={{ fontWeight: 700 }}>Total Devengado:</Box> {formatCurrency(calcularTotales(formLiquidacion).devengado)}
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  <strong>Total Neto a Pagar:</strong> {formatCurrency(calcularTotales(formLiquidacion).neto)}
+                  <Box component="span" sx={{ fontWeight: 700 }}>Total Neto a Pagar:</Box> {formatCurrency(calcularTotales(formLiquidacion).neto)}
                 </Typography>
               </Alert>
             </Grid>
           </Grid>
         </DialogContent>
         <Divider />
-        <DialogActions sx={{ p: 2.5 }}>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
           <Button onClick={handleCloseModal} color="inherit">
             Cancelar
           </Button>
