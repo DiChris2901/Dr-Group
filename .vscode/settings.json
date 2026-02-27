@@ -196,6 +196,10 @@
   "chat.tools.terminal.autoApprove": {
     "git commit": true,
     "git push": true,
-    "firebase": true
+    "firebase": true,
+    "Add-Type": true,
+    "New-Object": true,
+    "Out-File": true,
+    "ForEach-Object": true
   }
 }
