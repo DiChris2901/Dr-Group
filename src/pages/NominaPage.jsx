@@ -3,7 +3,7 @@ import {
   Box, Typography, Grid, Paper, Button, TextField, Select, MenuItem,
   FormControl, InputLabel, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Tabs, Tab, Chip, IconButton,
-  Alert, Tooltip, Card, CardContent, Collapse, Divider, CircularProgress,
+  Alert, Tooltip, Collapse, Divider, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, alpha, useTheme
 } from '@mui/material';
 import {
@@ -985,7 +985,7 @@ const NominaPage = () => {
           p: 2.5,
           mb: 3,
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}
       >
@@ -1020,7 +1020,7 @@ const NominaPage = () => {
             <Box sx={{
               px: 2, py: 1,
               borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
               backgroundColor: alpha(theme.palette.primary.main, 0.04)
             }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -1103,7 +1103,7 @@ const NominaPage = () => {
           p: 2,
           mb: 3,
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           display: 'flex',
           flexWrap: 'wrap',
@@ -1195,25 +1195,46 @@ const NominaPage = () => {
               {/* Resumen rápido */}
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {[
-                  { label: 'Total Devengado', value: totales.totalDevengado, color: 'success.main', icon: <TrendingUpIcon /> },
-                  { label: 'Total Deducciones', value: totales.totalDeducciones, color: 'error.main', icon: <ReceiptIcon /> },
-                  { label: 'Total Neto', value: totales.totalNeto, color: 'primary.main', icon: <MoneyIcon /> },
-                  { label: 'Provisiones Empleador', value: totales.totalProvEmpleador, color: 'info.main', icon: <InfoIcon /> }
+                  { label: 'Total Devengado',     value: totales.totalDevengado,    color: theme.palette.success.main, icon: <TrendingUpIcon /> },
+                  { label: 'Total Deducciones',   value: totales.totalDeducciones,  color: theme.palette.error.main,   icon: <ReceiptIcon /> },
+                  { label: 'Total Neto',          value: totales.totalNeto,         color: theme.palette.primary.main, icon: <MoneyIcon /> },
+                  { label: 'Provisiones Empleador', value: totales.totalProvEmpleador, color: theme.palette.info.main,  icon: <InfoIcon /> }
                 ].map((kpi, i) => (
                   <Grid item xs={6} md={3} key={i}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.15)}` }}>
-                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                          <Box sx={{ color: kpi.color, display: 'flex' }}>{kpi.icon}</Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.7rem' }}>
-                            {kpi.label}
-                          </Typography>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        height: '100%',
+                        border: `1px solid ${alpha(kpi.color, 0.25)}`,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: alpha(kpi.color, 0.5),
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        }
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Box sx={{
+                          p: 0.75,
+                          borderRadius: 1,
+                          backgroundColor: alpha(kpi.color, 0.1),
+                          color: kpi.color,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          {kpi.icon}
                         </Box>
-                        <Typography variant="h6" sx={{ fontWeight: 600, color: kpi.color, fontSize: { xs: '0.9rem', md: '1.1rem' } }}>
-                          {fmtCOP(kpi.value)}
+                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5, fontSize: '0.7rem', lineHeight: 1.3 }}>
+                          {kpi.label}
                         </Typography>
-                      </CardContent>
-                    </Card>
+                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: kpi.color, fontSize: { xs: '0.95rem', md: '1.1rem' } }}>
+                        {fmtCOP(kpi.value)}
+                      </Typography>
+                    </Paper>
                   </Grid>
                 ))}
               </Grid>
@@ -1328,7 +1349,7 @@ const NominaPage = () => {
                           <TableRow key={`${linea.empleadoId}-prov`}>
                             <TableCell colSpan={tipoLiquidacion === 'quincenal-2' ? 16 : 15} sx={{ py: 0, borderBottom: expandedRows[linea.empleadoId] ? undefined : 'none' }}>
                               <Collapse in={expandedRows[linea.empleadoId]} timeout="auto">
-                                <Box sx={{ p: 2, backgroundColor: alpha(theme.palette.info.main, 0.03), borderRadius: 1, my: 1 }}>
+                                <Box sx={{ p: 2, backgroundColor: alpha(theme.palette.info.main, 0.05), border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`, borderRadius: 1, my: 1 }}>
                                   <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: 'info.main', fontSize: '0.78rem' }}>
                                     Aportes Empleador y Provisiones Prestacionales
                                   </Typography>
@@ -1524,7 +1545,7 @@ const NominaPage = () => {
               </Paper>
 
               {/* Info legal */}
-              <Paper elevation={0} sx={{ p: 2, mt: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, backgroundColor: alpha(theme.palette.info.main, 0.03) }}>
+              <Paper elevation={0} sx={{ p: 2, mt: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`, backgroundColor: alpha(theme.palette.info.main, 0.04) }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                   <InfoIcon sx={{ fontSize: 16, color: 'info.main', mt: 0.3 }} />
                   <Box>
@@ -1552,26 +1573,47 @@ const NominaPage = () => {
           {/* KPI Cards */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             {[
-              { label: 'Total Neto Pagado (YTD)', value: kpis.totalPagadoYTD, color: 'success.main', icon: <TrendingUpIcon />, sub: `Año ${year} — Acumulado` },
-              { label: 'Total Neto Mes', value: kpis.totalMes, color: 'primary.main', icon: <MoneyIcon />, sub: `${MESES[month - 1]} ${year}` },
-              { label: 'Costo Empleador Mes', value: kpis.costoEmpleadorMes, color: 'warning.main', icon: <ReceiptIcon />, sub: 'Neto + Provisiones' },
-              { label: 'Empleados Activos', value: null, count: kpis.empleadosActivos, color: 'info.main', icon: <PeopleIcon />, sub: 'En nómina actual' }
+              { label: 'Total Neto Pagado (YTD)', value: kpis.totalPagadoYTD,      color: theme.palette.success.main,  icon: <TrendingUpIcon />, sub: `Año ${year} — Acumulado` },
+              { label: 'Total Neto Mes',          value: kpis.totalMes,            color: theme.palette.primary.main,  icon: <MoneyIcon />,      sub: `${MESES[month - 1]} ${year}` },
+              { label: 'Costo Empleador Mes',     value: kpis.costoEmpleadorMes,   color: theme.palette.warning.main,  icon: <ReceiptIcon />,    sub: 'Neto + Provisiones' },
+              { label: 'Empleados Activos',       value: null, count: kpis.empleadosActivos, color: theme.palette.info.main, icon: <PeopleIcon />, sub: 'En nómina actual' }
             ].map((kpi, i) => (
               <Grid item xs={6} md={3} key={i}>
-                <Card variant="outlined" sx={{ borderRadius: 2, height: '100%', border: `1px solid ${alpha(theme.palette.divider, 0.15)}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                      <Box sx={{ color: kpi.color, display: 'flex' }}>{kpi.icon}</Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.7rem' }}>
-                        {kpi.label}
-                      </Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    height: '100%',
+                    border: `1px solid ${alpha(kpi.color, 0.25)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: alpha(kpi.color, 0.5),
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Box sx={{
+                      p: 0.75,
+                      borderRadius: 1,
+                      backgroundColor: alpha(kpi.color, 0.1),
+                      color: kpi.color,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      {kpi.icon}
                     </Box>
-                    <Typography variant="h5" sx={{ fontWeight: 600, color: kpi.color }}>
-                      {kpi.count != null ? kpi.count : fmtCOP(kpi.value)}
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5, fontSize: '0.7rem', lineHeight: 1.3 }}>
+                      {kpi.label}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">{kpi.sub}</Typography>
-                  </CardContent>
-                </Card>
+                  </Box>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: kpi.color }}>
+                    {kpi.count != null ? kpi.count : fmtCOP(kpi.value)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">{kpi.sub}</Typography>
+                </Paper>
               </Grid>
             ))}
           </Grid>
