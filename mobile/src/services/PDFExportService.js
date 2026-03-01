@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale';
 
 /**
  * Servicio para generar y compartir reportes PDF de asistencias
- * Utiliza HTML/CSS para crear PDF profesional con branding DR Group
+ * Utiliza HTML/CSS para crear PDF profesional con branding Organización RDJ
  */
 class PDFExportService {
   /**
@@ -214,7 +214,7 @@ class PDFExportService {
     <!-- Header -->
     <div class="header">
       <h1>ðŸ“Š Reporte de Asistencias</h1>
-      <p>${month} ${year} - DR Group</p>
+      <p>${month} ${year} - Organización RDJ</p>
     </div>
     
     <!-- Info Empleado -->
@@ -281,7 +281,7 @@ class PDFExportService {
     
     <!-- Footer -->
     <div class="footer">
-      <p>Generado automÃ¡ticamente por <strong>DR Group Asistencia App</strong></p>
+      <p>Generado automÃ¡ticamente por <strong>RDJ Asistencia App</strong></p>
       <p style="margin-top: 8px; font-size: 12px; opacity: 0.8;">Este documento es solo para fines informativos</p>
     </div>
   </div>

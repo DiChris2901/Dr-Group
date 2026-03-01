@@ -115,7 +115,7 @@ const ReportsPeriodPage = () => {
   const generateFileName = () => {
     const dateStr = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
     const timeStr = new Date().toLocaleTimeString('es-ES', { hour12: false }).replace(/:/g, '-');
-    return `DR-Group-Analisis-Temporal-${dateStr}-${timeStr}.xlsx`;
+    return `RDJ-Analisis-Temporal-${dateStr}-${timeStr}.xlsx`;
   };
 
   // Memoizar fecha actual para evitar recálculos constantes
@@ -741,8 +741,8 @@ const ReportsPeriodPage = () => {
 
       // 🔥 CREAR WORKBOOK DE EXCEL
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'DR Group Dashboard';
-      workbook.lastModifiedBy = 'Sistema DR Group';
+      workbook.creator = 'Organización RDJ';
+      workbook.lastModifiedBy = 'Sistema Organización RDJ';
       workbook.created = new Date();
       workbook.modified = new Date();
 
@@ -759,7 +759,7 @@ const ReportsPeriodPage = () => {
       // FILA 1: Título principal
       summarySheet.mergeCells(1, 1, 1, totalColumns);
       const titleCell = summarySheet.getCell('A1');
-      titleCell.value = 'DR GROUP';
+      titleCell.value = 'ORGANIZACIÓN RDJ';
       titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -903,7 +903,7 @@ const ReportsPeriodPage = () => {
       // FILA 1: Título principal
       timeSeriesSheet.mergeCells(1, 1, 1, totalColumns);
       const tsTitle = timeSeriesSheet.getCell('A1');
-      tsTitle.value = 'DR GROUP';
+      tsTitle.value = 'ORGANIZACIÓN RDJ';
       tsTitle.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
       tsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
       tsTitle.alignment = { horizontal: 'center', vertical: 'middle' };

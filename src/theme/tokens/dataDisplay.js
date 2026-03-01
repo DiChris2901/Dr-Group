@@ -1,5 +1,5 @@
 /**
- * 🎨 DR Group Design System 3.0 - Data Display Tokens
+ * 🎨 Organizaci�n RDJ Design System 3.0 - Data Display Tokens
  * Tokens especializados para componentes de visualización de datos empresariales
  */
 

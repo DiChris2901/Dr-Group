@@ -1,5 +1,5 @@
 // ========================================
-// 🎬 ANIMATION TOKENS — DR GROUP DASHBOARD  
+// 🎬 ANIMATION TOKENS — ORGANIZACI�N RDJ DASHBOARD  
 // ========================================
 // Configuraciones Framer Motion empresariales tokenizadas
 // Fecha: 12 de Agosto, 2025 - Design System 3.0

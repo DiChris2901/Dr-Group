@@ -19,7 +19,7 @@ export const NotificationsProvider = ({ children }) => {
   // Cargar alertas resueltas desde localStorage al inicializar
   useEffect(() => {
     try {
-      const savedResolvedAlerts = localStorage.getItem('dr_group_resolved_alerts');
+      const savedResolvedAlerts = localStorage.getItem('rdj_resolved_alerts');
       if (savedResolvedAlerts) {
         setResolvedAlerts(new Set(JSON.parse(savedResolvedAlerts)));
       }
@@ -30,7 +30,7 @@ export const NotificationsProvider = ({ children }) => {
   // Cargar notificaciones descartadas desde localStorage al inicializar
   useEffect(() => {
     try {
-      const savedDismissed = localStorage.getItem('dr_group_dismissed_notifications');
+      const savedDismissed = localStorage.getItem('rdj_dismissed_notifications');
       if (savedDismissed) {
         setDismissedNotifications(new Set(JSON.parse(savedDismissed)));
       }
@@ -41,7 +41,7 @@ export const NotificationsProvider = ({ children }) => {
   // Guardar alertas resueltas en localStorage cuando cambien
   useEffect(() => {
     try {
-      localStorage.setItem('dr_group_resolved_alerts', JSON.stringify([...resolvedAlerts]));
+      localStorage.setItem('rdj_resolved_alerts', JSON.stringify([...resolvedAlerts]));
     } catch (error) {
     }
   }, [resolvedAlerts]);
@@ -49,7 +49,7 @@ export const NotificationsProvider = ({ children }) => {
   // Guardar notificaciones descartadas en localStorage cuando cambien
   useEffect(() => {
     try {
-      localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify([...dismissedNotifications]));
+      localStorage.setItem('rdj_dismissed_notifications', JSON.stringify([...dismissedNotifications]));
     } catch (error) {
     }
   }, [dismissedNotifications]);
@@ -173,20 +173,20 @@ export const NotificationsProvider = ({ children }) => {
   // Función para restablecer alertas resueltas (útil para desarrollo/testing)
   const resetResolvedAlerts = () => {
     setResolvedAlerts(new Set());
-    localStorage.removeItem('dr_group_resolved_alerts');
+    localStorage.removeItem('rdj_resolved_alerts');
   };
 
   // Limpiar notificaciones descartadas antiguas (más de 7 días)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       try {
-        const savedDismissed = localStorage.getItem('dr_group_dismissed_notifications');
+        const savedDismissed = localStorage.getItem('rdj_dismissed_notifications');
         if (savedDismissed) {
           const dismissed = JSON.parse(savedDismissed);
           // Mantener solo los últimos 500 IDs
           if (dismissed.length > 500) {
             const recent = dismissed.slice(-500);
-            localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify(recent));
+            localStorage.setItem('rdj_dismissed_notifications', JSON.stringify(recent));
             setDismissedNotifications(new Set(recent));
           }
         }

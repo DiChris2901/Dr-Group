@@ -1,5 +1,5 @@
 /**
- * 📊 DR Group Design System 3.0 - Tables Tokens
+ * 📊 Organizaci�n RDJ Design System 3.0 - Tables Tokens
  * Tokens de tablas extraídos de la pestaña establecida
  */
 

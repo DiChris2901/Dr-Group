@@ -123,7 +123,7 @@ const LoginForm = () => {
           email: emailValue,
           name: realUser.name || realUser.displayName,
           position: realUser.position || realUser.role || 'Usuario del Sistema',
-          department: realUser.department || 'DR Group',
+          department: realUser.department || 'Organización RDJ',
           photoURL: realUser.photoURL,
           lastLogin: realUser.lastLogin || new Date().toISOString(),
           accountType: realUser.role === 'ADMIN' ? 'Administrador' : 
@@ -138,7 +138,7 @@ const LoginForm = () => {
         const emailUser = emailValue.toLowerCase();
         const knownUsers = {
           'admin@drgroup.com': {
-            name: 'Administrador DR Group',
+            name: 'Administrador del Sistema',
             position: 'Administrador del Sistema',
             department: 'Tecnología',
             photoURL: null,
@@ -229,10 +229,10 @@ const LoginForm = () => {
       
       switch (err.code) {
         case 'auth/user-not-found':
-          setError('Usuario no encontrado. Verifica tu correo electrónico.');
-          break;
         case 'auth/wrong-password':
-          setError('Contraseña incorrecta.');
+        case 'auth/invalid-credential':
+        case 'auth/invalid-login-credentials':
+          setError('Correo o contraseña incorrectos. Verifica tus credenciales.');
           break;
         case 'auth/invalid-email':
           setError('Formato de correo electrónico inválido.');
@@ -243,8 +243,11 @@ const LoginForm = () => {
         case 'auth/user-disabled':
           setError('Esta cuenta ha sido deshabilitada.');
           break;
+        case 'auth/network-request-failed':
+          setError('Error de red. Verifica tu conexión a internet.');
+          break;
         default:
-          setError('Error al iniciar sesión. Verifica tus credenciales.');
+          setError(`Error al iniciar sesión: ${err.message || 'Verifica tus credenciales.'}`);
       }
     } finally {
       setLoading(false);

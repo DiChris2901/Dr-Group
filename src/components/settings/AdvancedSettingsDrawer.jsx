@@ -1,6 +1,6 @@
 /**
  * Professional Settings Drawer with Tabs
- * Complete configuration system for DR Group Dashboard
+ * Complete configuration system for Organizaci�n RDJ Dashboard
  * Design System 3.0 - Diseño Sobrio Empresarial
  */
 
@@ -1763,7 +1763,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               fontWeight: 600,
                               mb: 1 
                             }}>
-                              DR Group Dashboard
+                              Organización RDJ
                             </Typography>
                             <Typography variant="body1" sx={{ 
                               fontFamily: 'inherit',

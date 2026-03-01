@@ -1,7 +1,7 @@
-﻿{
+{
     "expo":  {
-                 "name":  "DR Group Asistencia",
-                 "slug":  "drgroup-mobile",
+                 "name":  "RDJ Asistencia",
+                 "slug":  "rdj-mobile",
                  "version":  "3.9.0",
                  "orientation":  "default",
                  "icon":  "./assets/icon.png",
@@ -14,7 +14,7 @@
                             },
                  "ios":  {
                              "supportsTablet":  true,
-                             "bundleIdentifier":  "com.drgroup.asistencia"
+                             "bundleIdentifier":  "com.orgrdj.asistencia"
                          },
                  "android":  {
                                  "versionCode":  33,
@@ -22,7 +22,7 @@
                                                       "foregroundImage":  "./assets/adaptive-icon.png",
                                                       "backgroundColor":  "#004A98"
                                                   },
-                                 "package":  "com.drgroup.asistencia",
+                                 "package":  "com.orgrdj.asistencia",
                                  "permissions":  [
                                                      "ACCESS_FINE_LOCATION",
                                                      "ACCESS_COARSE_LOCATION",

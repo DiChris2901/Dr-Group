@@ -92,11 +92,11 @@ const RecursosHumanosPage = () => {
         });
       });
       setEmpleados(empleadosData);
-      if (empleadosData.length > 0) {
-      }
+      setLoading(false);
     }, (error) => {
       console.error('❌ Error al cargar empleados:', error);
       showToast('Error al cargar empleados: ' + error.message, 'error');
+      setLoading(false);
     });
 
     return () => {
@@ -128,7 +128,6 @@ const RecursosHumanosPage = () => {
         });
       });
       setAsistencias(asistenciasData);
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -270,7 +269,7 @@ const RecursosHumanosPage = () => {
             p: 3,
             borderRadius: 1,
             border: `1px solid ${theme.palette.error.main}`,
-            bgcolor: `rgba(${theme.palette.error.main}, 0.05)`
+            bgcolor: alpha(theme.palette.error.main, 0.05)
           }}
         >
           <Typography variant="h6" color="error.main">

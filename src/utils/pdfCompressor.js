@@ -1,4 +1,4 @@
-// 📄 Sistema de Compresión PDF Inteligente - DR Group
+// 📄 Sistema de Compresión PDF Inteligente - Organización RDJ
 // Garantiza legibilidad manteniendo optimización
 
 import { PDFDocument } from 'pdf-lib';
@@ -110,8 +110,8 @@ export class EnterprisePDFCompressor {
     // TÉCNICA 1: Limpiar metadatos innecesarios
     pdfDoc.setCreationDate(new Date());
     pdfDoc.setModificationDate(new Date());
-    pdfDoc.setProducer('DR Group Compressor');
-    pdfDoc.setCreator('DR Group Dashboard');
+    pdfDoc.setProducer('RDJ Compressor');
+    pdfDoc.setCreator('Organización RDJ');
     
     // Limpiar metadatos adicionales si está en modo agresivo
     if (this.settings.aggressiveOptimization) {
@@ -215,8 +215,8 @@ export class EnterprisePDFCompressor {
       // Limpiar metadatos para reducir tamaño
       pdfDoc.setCreationDate(new Date());
       pdfDoc.setModificationDate(new Date());
-      pdfDoc.setProducer('DR Group');
-      pdfDoc.setCreator('DR Group Dashboard');
+      pdfDoc.setProducer('Organización RDJ');
+      pdfDoc.setCreator('Organización RDJ');
       
       // Si es agresivo, limpiar más metadatos
       if (level === 'aggressive') {
@@ -338,7 +338,7 @@ export class EnterprisePDFCompressor {
   }
 }
 
-// 🎯 CONFIGURACIONES PREDEFINIDAS PARA DR GROUP
+// 🎯 CONFIGURACIONES PREDEFINIDAS PARA ORGANIZACI�N RDJ
 
 /**
  * Configuración CONSERVADORA (máxima legibilidad)
@@ -352,7 +352,7 @@ export const CONSERVATIVE_COMPRESSION = {
 };
 
 /**
- * Configuración BALANCEADA (recomendada para DR Group)
+ * Configuración BALANCEADA (recomendada para Organizaci�n RDJ)
  */
 export const BALANCED_COMPRESSION = {
   imageQuality: 0.85,      // 85% calidad

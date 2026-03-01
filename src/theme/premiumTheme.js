@@ -1,5 +1,5 @@
 /**
- * 🎨 DR Group Dashboard - Theme Configuration
+ * 🎨 Organizaci�n RDJ Dashboard - Theme Configuration
  * Configuración centralizada del sistema de temas premium
  */
 

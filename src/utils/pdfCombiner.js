@@ -1,4 +1,4 @@
-// 📄 Sistema de Combinación PDF - DR Group
+// 📄 Sistema de Combinación PDF - Organización RDJ
 // Combina múltiples archivos (PDF, JPG, PNG) en un solo PDF
 
 import { PDFDocument, rgb } from 'pdf-lib';
@@ -17,9 +17,9 @@ export class EnterprisePDFCombiner {
       maxImageHeight: options.maxImageHeight || 700,
       
       // 📋 METADATOS
-      title: options.title || 'Documento Combinado - DR Group',
-      author: options.author || 'DR Group Dashboard',
-      creator: options.creator || 'DR Group System',
+      title: options.title || 'Documento Combinado - Organización RDJ',
+      author: options.author || 'Organización RDJ',
+      creator: options.creator || 'Sistema Organización RDJ',
       
       // 🎯 CONFIGURACIÓN DE COMBINACIÓN
       addPageNumbers: options.addPageNumbers !== false,

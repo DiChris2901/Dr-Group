@@ -1,7 +1,7 @@
 /**
  * usePermissions Hook - Sistema Centralizado de Validaci贸n de Permisos
  * 
- * Centraliza toda la l贸gica de validaci贸n de permisos del sistema DR Group.
+ * Centraliza toda la l贸gica de validaci贸n de permisos del sistema Organizaci髇 RDJ.
  * Reemplaza las implementaciones distribuidas en Sidebar, Taskbar y p谩ginas individuales.
  * 
  * Soporta:

@@ -1,7 +1,7 @@
 {
-  "name": "dr-group-dashboard",
+  "name": "org-rdj-dashboard",
   "version": "3.17.2",
-  "description": "Dashboard de Control de Compromisos Financieros para DR Group",
+  "description": "Plataforma de Gestión Operativa y Administrativa para Organización RDJ",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

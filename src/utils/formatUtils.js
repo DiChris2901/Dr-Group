@@ -1,6 +1,6 @@
 /**
  * Format number utilities
- * Adapted from Minimal template for DR Group Dashboard
+ * Adapted from Minimal template for Organización RDJ Dashboard
  */
 
 /**

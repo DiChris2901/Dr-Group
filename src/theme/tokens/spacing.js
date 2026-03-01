@@ -1,5 +1,5 @@
 /**
- * 📐 DR Group Design System 3.0 - Spacing Tokens  
+ * 📐 Organizaci�n RDJ Design System 3.0 - Spacing Tokens  
  * Tokens de espaciado extraídos del sistema establecido
  */
 

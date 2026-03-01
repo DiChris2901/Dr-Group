@@ -1,5 +1,5 @@
 /**
- * 🔄 Recurring Commitments Generator - DR Group Dashboard
+ * 🔄 Recurring Commitments Generator - Organizaci�n RDJ Dashboard
  * Utilidad para generar compromisos recurrentes según periodicidad
  * Design System Spectacular aplicado
  */

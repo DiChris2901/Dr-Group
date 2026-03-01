@@ -24,7 +24,8 @@ import {
     Receipt,
     Search,
     Timeline,
-    TrendingUp
+    TrendingUp,
+    Payments
 } from '@mui/icons-material';
 import {
     Box,
@@ -82,7 +83,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
     
     // Intentar desde caché localStorage
     try {
-      const cached = localStorage.getItem('drgroup-userProfile');
+      const cached = localStorage.getItem('rdj-userProfile');
       if (cached) {
         const parsedProfile = JSON.parse(cached);
         if (parsedProfile?.photoURL) {
@@ -376,6 +377,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
         { title: 'Empleados', icon: Person, path: '/empleados', permission: 'empleados' },
         { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'asistencias' },
+        { title: 'Nómina', icon: Payments, path: '/nomina', permission: 'rrhh.nomina' },
       ]
     }
   ];
@@ -1365,7 +1367,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 fontWeight: 600,
                 letterSpacing: 0.5
               }}>
-                DR Group Dashboard
+                Organización RDJ
               </Typography>
               
               {/* Versión del sistema */}

@@ -4,7 +4,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
-const CACHE_KEY = 'drgroup-storage-stats';
+const CACHE_KEY = 'rdj-storage-stats';
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
 
 const defaultStats = {

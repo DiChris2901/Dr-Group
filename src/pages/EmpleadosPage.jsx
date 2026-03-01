@@ -31,7 +31,8 @@ import {
   Tooltip,
   FormControlLabel,
   Checkbox,
-  Autocomplete
+  Autocomplete,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -59,7 +60,9 @@ import {
   CalendarToday as CalendarIcon,
   Work as WorkIcon,
   CreditCard as CardIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  AttachMoney as AttachMoneyIcon,
+  LocalHospital as LocalHospitalIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -107,6 +110,40 @@ const BANCOS_COLOMBIA = [
   'Lulo Bank'
 ].sort();
 
+// ===== CONSTANTES PARA NÓMINA Y SEGURIDAD SOCIAL =====
+
+const EPS_COLOMBIA = [
+  'Aliansalud', 'Asmet Salud', 'Capital Salud', 'Compensar EPS', 'Coomeva EPS',
+  'Coosalud', 'Emssanar', 'Famisanar', 'Medimás', 'Mutual Ser',
+  'Nueva EPS', 'Salud Total', 'Sanitas', 'SOS EPS', 'Sura EPS'
+];
+
+const FONDOS_PENSION = [
+  'Colfondos', 'Colpensiones (RPM)', 'Old Mutual (Skandia)', 'Porvenir', 'Protección'
+];
+
+const FONDOS_CESANTIAS = [
+  'Colfondos', 'FNA (Fondo Nacional del Ahorro)', 'Porvenir', 'Protección'
+];
+
+const CAJAS_COMPENSACION = [
+  'Cafam', 'Colsubsidio', 'Combarranquilla', 'Comfaboy', 'Comfama',
+  'Comfandi', 'Comfenalco', 'Compensar'
+];
+
+const ARL_COLOMBIA = [
+  'Alfa ARL', 'Bolívar ARL', 'Colmena ARL', 'Colpatria ARL',
+  'Equidad ARL', 'Liberty ARL', 'Positiva ARL', 'Sura ARL'
+];
+
+const NIVELES_RIESGO_ARL = [
+  { value: 'I', label: 'Nivel I - Riesgo Mínimo', porcentaje: 0.522 },
+  { value: 'II', label: 'Nivel II - Riesgo Bajo', porcentaje: 1.044 },
+  { value: 'III', label: 'Nivel III - Riesgo Medio', porcentaje: 2.436 },
+  { value: 'IV', label: 'Nivel IV - Riesgo Alto', porcentaje: 4.350 },
+  { value: 'V', label: 'Nivel V - Riesgo Máximo', porcentaje: 6.960 }
+];
+
 const EmpleadosPage = () => {
   const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
@@ -150,7 +187,18 @@ const EmpleadosPage = () => {
     documentoIdentidadURL: '',
     retirado: false,
     fechaRetiro: '',
-    motivoRetiro: ''
+    motivoRetiro: '',
+    // Información de Nómina
+    salarioBase: '',
+    cargo: '',
+    tipoNomina: 'mensual',
+    // Seguridad Social
+    eps: '',
+    fondoPension: '',
+    fondoCesantias: '',
+    arl: '',
+    nivelRiesgoArl: 'I',
+    cajaCompensacion: ''
   });
 
   const [contratoFile, setContratoFile] = useState(null);
@@ -374,6 +422,16 @@ const EmpleadosPage = () => {
       return;
     }
 
+    // Formatear salario con separador de miles
+    if (field === 'salarioBase') {
+      const salarioFormateado = formatearNumeroDocumento(value);
+      setFormData(prev => ({
+        ...prev,
+        [field]: salarioFormateado
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -485,7 +543,16 @@ const EmpleadosPage = () => {
       tipoCuenta: 'Ahorros',
       numeroCuenta: '',
       certificadoBancarioURL: '',
-      documentoIdentidadURL: ''
+      documentoIdentidadURL: '',
+      salarioBase: '',
+      cargo: '',
+      tipoNomina: 'mensual',
+      eps: '',
+      fondoPension: '',
+      fondoCesantias: '',
+      arl: '',
+      nivelRiesgoArl: 'I',
+      cajaCompensacion: ''
     });
     setContratoFile(null);
     setCertificadoFile(null);
@@ -542,6 +609,7 @@ const EmpleadosPage = () => {
       const docRef = await addDoc(collection(db, 'empleados'), {
         ...formData,
         numeroDocumento: numeroDocumentoSinPuntos,
+        salarioBase: parseInt(formData.salarioBase.replace(/\./g, '')) || 0,
         edad: parseInt(formData.edad) || 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -649,6 +717,7 @@ const EmpleadosPage = () => {
       await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
         ...formData,
         numeroDocumento: numeroDocumentoSinPuntos,
+        salarioBase: parseInt(formData.salarioBase.replace(/\./g, '')) || 0,
         edad: parseInt(formData.edad) || 0,
         contratoURL: contratoURL,
         certificadoBancarioURL: certificadoURL,
@@ -765,7 +834,16 @@ const EmpleadosPage = () => {
       documentoIdentidadURL: empleado.documentoIdentidadURL || '',
       retirado: empleado.retirado || false,
       fechaRetiro: empleado.fechaRetiro || '',
-      motivoRetiro: empleado.motivoRetiro || ''
+      motivoRetiro: empleado.motivoRetiro || '',
+      salarioBase: empleado.salarioBase ? formatearNumeroDocumento(String(empleado.salarioBase)) : '',
+      cargo: empleado.cargo || '',
+      tipoNomina: empleado.tipoNomina || 'mensual',
+      eps: empleado.eps || '',
+      fondoPension: empleado.fondoPension || '',
+      fondoCesantias: empleado.fondoCesantias || '',
+      arl: empleado.arl || '',
+      nivelRiesgoArl: empleado.nivelRiesgoArl || 'I',
+      cajaCompensacion: empleado.cajaCompensacion || ''
     });
     setEditDialogOpen(true);
   };
@@ -1235,7 +1313,7 @@ const EmpleadosPage = () => {
                 type="email"
                 value={formData.emailCorporativo}
                 onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
-                placeholder="ejemplo@drgroup.com"
+                placeholder="ejemplo@org-rdj.com"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Grid>
@@ -1541,6 +1619,161 @@ const EmpleadosPage = () => {
               </Paper>
             </Grid>
 
+            {/* Información de Nómina */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'success.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
+              }}>
+                <AttachMoneyIcon />
+                Información de Nómina
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Salario Base"
+                value={formData.salarioBase}
+                onChange={(e) => handleFormChange('salarioBase', e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                helperText="Salario mensual"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Cargo"
+                value={formData.cargo}
+                onChange={(e) => handleFormChange('cargo', e.target.value)}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Periodicidad de Nómina</InputLabel>
+                <Select
+                  value={formData.tipoNomina}
+                  onChange={(e) => handleFormChange('tipoNomina', e.target.value)}
+                  label="Periodicidad de Nómina"
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="mensual">Mensual</MenuItem>
+                  <MenuItem value="quincenal">Quincenal</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Seguridad Social y Parafiscales */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
+              }}>
+                <LocalHospitalIcon />
+                Seguridad Social y Parafiscales
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={EPS_COLOMBIA}
+                value={formData.eps}
+                onChange={(event, newValue) => handleFormChange('eps', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('eps', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="EPS" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={FONDOS_PENSION}
+                value={formData.fondoPension}
+                onChange={(event, newValue) => handleFormChange('fondoPension', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('fondoPension', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fondo de Pensión" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={FONDOS_CESANTIAS}
+                value={formData.fondoCesantias}
+                onChange={(event, newValue) => handleFormChange('fondoCesantias', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('fondoCesantias', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fondo de Cesantías" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={CAJAS_COMPENSACION}
+                value={formData.cajaCompensacion}
+                onChange={(event, newValue) => handleFormChange('cajaCompensacion', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('cajaCompensacion', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Caja de Compensación" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={ARL_COLOMBIA}
+                value={formData.arl}
+                onChange={(event, newValue) => handleFormChange('arl', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('arl', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="ARL" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Nivel de Riesgo ARL</InputLabel>
+                <Select
+                  value={formData.nivelRiesgoArl}
+                  onChange={(e) => handleFormChange('nivelRiesgoArl', e.target.value)}
+                  label="Nivel de Riesgo ARL"
+                  sx={{ borderRadius: 2 }}
+                >
+                  {NIVELES_RIESGO_ARL.map(nivel => (
+                    <MenuItem key={nivel.value} value={nivel.value}>
+                      {nivel.label} ({nivel.porcentaje}%)
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
             {/* Información Bancaria */}
             <Grid item xs={12} sx={{ mt: 2 }}>
               <Typography variant="h6" sx={{ 
@@ -1832,7 +2065,7 @@ const EmpleadosPage = () => {
                 type="email"
                 value={formData.emailCorporativo}
                 onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
-                placeholder="ejemplo@drgroup.com"
+                placeholder="ejemplo@org-rdj.com"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Grid>
@@ -2218,6 +2451,161 @@ const EmpleadosPage = () => {
                   </Box>
                 )}
               </Paper>
+            </Grid>
+
+            {/* Información de Nómina */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'success.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
+              }}>
+                <AttachMoneyIcon />
+                Información de Nómina
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Salario Base"
+                value={formData.salarioBase}
+                onChange={(e) => handleFormChange('salarioBase', e.target.value)}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                helperText="Salario mensual"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Cargo"
+                value={formData.cargo}
+                onChange={(e) => handleFormChange('cargo', e.target.value)}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Periodicidad de Nómina</InputLabel>
+                <Select
+                  value={formData.tipoNomina}
+                  onChange={(e) => handleFormChange('tipoNomina', e.target.value)}
+                  label="Periodicidad de Nómina"
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="mensual">Mensual</MenuItem>
+                  <MenuItem value="quincenal">Quincenal</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Seguridad Social y Parafiscales */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
+              }}>
+                <LocalHospitalIcon />
+                Seguridad Social y Parafiscales
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={EPS_COLOMBIA}
+                value={formData.eps}
+                onChange={(event, newValue) => handleFormChange('eps', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('eps', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="EPS" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={FONDOS_PENSION}
+                value={formData.fondoPension}
+                onChange={(event, newValue) => handleFormChange('fondoPension', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('fondoPension', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fondo de Pensión" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={FONDOS_CESANTIAS}
+                value={formData.fondoCesantias}
+                onChange={(event, newValue) => handleFormChange('fondoCesantias', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('fondoCesantias', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fondo de Cesantías" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={CAJAS_COMPENSACION}
+                value={formData.cajaCompensacion}
+                onChange={(event, newValue) => handleFormChange('cajaCompensacion', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('cajaCompensacion', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Caja de Compensación" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={ARL_COLOMBIA}
+                value={formData.arl}
+                onChange={(event, newValue) => handleFormChange('arl', newValue || '')}
+                onInputChange={(event, newInputValue) => handleFormChange('arl', newInputValue)}
+                renderInput={(params) => (
+                  <TextField {...params} label="ARL" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Nivel de Riesgo ARL</InputLabel>
+                <Select
+                  value={formData.nivelRiesgoArl}
+                  onChange={(e) => handleFormChange('nivelRiesgoArl', e.target.value)}
+                  label="Nivel de Riesgo ARL"
+                  sx={{ borderRadius: 2 }}
+                >
+                  {NIVELES_RIESGO_ARL.map(nivel => (
+                    <MenuItem key={nivel.value} value={nivel.value}>
+                      {nivel.label} ({nivel.porcentaje}%)
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             {/* Estado de Retiro */}
@@ -2888,6 +3276,132 @@ const EmpleadosPage = () => {
                   </Grid>
                 )}
               </Grid>
+
+              {/* Información de Nómina */}
+              {(selectedEmpleado.salarioBase > 0 || selectedEmpleado.cargo) && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'success.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AttachMoneyIcon />
+                    Información de Nómina
+                  </Typography>
+                  
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    {selectedEmpleado.salarioBase > 0 && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="success" gutterBottom>
+                            Salario Base
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            $ {formatearNumeroDocumento(String(selectedEmpleado.salarioBase))}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedEmpleado.cargo && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="success" gutterBottom>
+                            Cargo
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.cargo}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    <Grid item xs={12} md={4}>
+                      <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                        <Typography variant="subtitle2" color="success" gutterBottom>
+                          Periodicidad
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedEmpleado.tipoNomina === 'quincenal' ? 'Quincenal' : 'Mensual'}
+                        </Typography>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </>
+              )}
+
+              {/* Seguridad Social */}
+              {(selectedEmpleado.eps || selectedEmpleado.fondoPension || selectedEmpleado.arl) && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, mt: 1, color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalHospitalIcon />
+                    Seguridad Social y Parafiscales
+                  </Typography>
+                  
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    {selectedEmpleado.eps && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                            EPS
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.eps}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedEmpleado.fondoPension && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                            Fondo de Pensión
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.fondoPension}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedEmpleado.fondoCesantias && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                            Fondo de Cesantías
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.fondoCesantias}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedEmpleado.arl && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                            ARL
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.arl} — Nivel {selectedEmpleado.nivelRiesgoArl || 'I'} ({(NIVELES_RIESGO_ARL.find(n => n.value === (selectedEmpleado.nivelRiesgoArl || 'I'))?.porcentaje || 0.522)}%)
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedEmpleado.cajaCompensacion && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                            Caja de Compensación
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedEmpleado.cajaCompensacion}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+                  </Grid>
+                </>
+              )}
 
               {/* Estado Laboral (si está retirado) */}
               {selectedEmpleado.retirado && (

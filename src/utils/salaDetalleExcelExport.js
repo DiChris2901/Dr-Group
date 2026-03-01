@@ -89,7 +89,7 @@ const applyHeader7Rows = (ws, { title, metrics, totalColumns }) => {
 
   ws.mergeCells(1, 1, 1, totalColumns);
   const titleCell = ws.getCell(1, 1);
-  titleCell.value = 'DR GROUP';
+  titleCell.value = 'ORGANIZACIÓN RDJ';
   titleCell.style = fmtTitle;
   ws.getRow(1).height = 30;
 
@@ -315,7 +315,7 @@ export const exportarDetalleSalaExcel = async ({
     const totalImpuestosMaquinas = maquinasRango.reduce((acc, r) => acc + toNumber(r.impuestosRango), 0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'DR Group Dashboard';
+    wb.creator = 'Organizaci�n RDJ Dashboard';
     wb.created = new Date();
 
     // ===== Hoja 1: Sala (histórico) =====

@@ -1,5 +1,5 @@
 /**
- * Sistema de logging condicional para DR Group Mobile
+ * Sistema de logging condicional para RDJ Organizaci�n
  * En desarrollo: Muestra todos los logs
  * En producción: Solo muestra errores críticos
  */

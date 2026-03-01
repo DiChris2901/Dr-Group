@@ -1,4 +1,4 @@
-Ôªøimport React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -39,7 +39,7 @@ export default function LoginScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ‚úÖ Verificar soporte biom√©trico y credenciales guardadas
+  // ? Verificar soporte biomÈtrico y credenciales guardadas
   useEffect(() => {
     (async () => {
       const compatible = await LocalAuthentication.hasHardwareAsync();
@@ -50,7 +50,7 @@ export default function LoginScreen() {
       setHasStoredCredentials(!!credentials);
     })();
 
-    // Iniciar animaci√≥n de entrada
+    // Iniciar animaciÛn de entrada
     Animated.parallel([
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -66,10 +66,10 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  // ‚úÖ Efecto para buscar avatar din√°mico al escribir email
+  // ? Efecto para buscar avatar din·mico al escribir email
   useEffect(() => {
     const fetchAvatar = async () => {
-      // Validaciones b√°sicas para no saturar
+      // Validaciones b·sicas para no saturar
       if (!email || !email.includes('@') || email.length < 6) {
         setDynamicAvatar(null);
         return;
@@ -87,7 +87,7 @@ export default function LoginScreen() {
           const userData = snapshot.docs[0].data();
           if (userData.photoURL) {
             setDynamicAvatar(userData.photoURL);
-            // Feedback t√°ctil sutil al encontrar usuario
+            // Feedback t·ctil sutil al encontrar usuario
             Haptics.selectionAsync();
           } else {
             setDynamicAvatar(null);
@@ -97,7 +97,7 @@ export default function LoginScreen() {
         }
       } catch (error) {
         console.log('Error fetching dynamic avatar:', error);
-        // Fallar silenciosamente (puede ser por permisos si no est√° logueado)
+        // Fallar silenciosamente (puede ser por permisos si no est· logueado)
       }
     };
 
@@ -109,8 +109,8 @@ export default function LoginScreen() {
   const handleBiometricLogin = async () => {
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Autenticaci√≥n Biom√©trica',
-        fallbackLabel: 'Usar contrase√±a',
+        promptMessage: 'AutenticaciÛn BiomÈtrica',
+        fallbackLabel: 'Usar contraseÒa',
       });
 
       if (result.success) {
@@ -125,8 +125,8 @@ export default function LoginScreen() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (error) {
-      console.error('Error biom√©trico:', error);
-      Alert.alert('Error', 'Fall√≥ la autenticaci√≥n biom√©trica');
+      console.error('Error biomÈtrico:', error);
+      Alert.alert('Error', 'FallÛ la autenticaciÛn biomÈtrica');
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!email || !password) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert('Error', 'Por favor ingresa email y contrase√±a');
+      Alert.alert('Error', 'Por favor ingresa email y contraseÒa');
       return;
     }
 
@@ -144,18 +144,18 @@ export default function LoginScreen() {
       await signIn(email, password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      // ‚úÖ Preguntar si desea guardar credenciales para biometr√≠a
+      // ? Preguntar si desea guardar credenciales para biometrÌa
       if (isBiometricSupported) {
         Alert.alert(
-          'Habilitar Biometr√≠a',
-          '¬øDeseas usar tu huella/rostro para iniciar sesi√≥n la pr√≥xima vez?',
+          'Habilitar BiometrÌa',
+          'øDeseas usar tu huella/rostro para iniciar sesiÛn la prÛxima vez?',
           [
             { text: 'No', style: 'cancel' },
             { 
-              text: 'S√≠', 
+              text: 'SÌ', 
               onPress: async () => {
                 await SecureStore.setItemAsync('user_credentials', JSON.stringify({ email, password }));
-                Alert.alert('√âxito', 'Biometr√≠a habilitada');
+                Alert.alert('…xito', 'BiometrÌa habilitada');
               }
             }
           ]
@@ -164,12 +164,12 @@ export default function LoginScreen() {
     } catch (error) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       console.error('Error en login:', error);
-      let errorMessage = 'Error al iniciar sesi√≥n';
+      let errorMessage = 'Error al iniciar sesiÛn';
       
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        errorMessage = 'Email o contrase√±a incorrectos';
+        errorMessage = 'Email o contraseÒa incorrectos';
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email inv√°lido';
+        errorMessage = 'Email inv·lido';
       } else if (error.code === 'auth/user-disabled') {
         errorMessage = 'Usuario deshabilitado';
       }
@@ -216,7 +216,7 @@ export default function LoginScreen() {
               Bienvenido
             </Text>
             <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.secondary }]}>
-              Dr Group Mobile
+              RDJ OrganizaciÛn
             </Text>
           </Animated.View>
 
@@ -231,7 +231,7 @@ export default function LoginScreen() {
             ]}
           >
             <TextInput
-              label="Correo Electr√≥nico"
+              label="Correo ElectrÛnico"
               value={email}
               onChangeText={setEmail}
               mode="outlined"
@@ -244,7 +244,7 @@ export default function LoginScreen() {
             />
 
             <TextInput
-              label="Contrase√±a"
+              label="ContraseÒa"
               value={password}
               onChangeText={setPassword}
               mode="outlined"
@@ -273,7 +273,7 @@ export default function LoginScreen() {
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
             >
-              INICIAR SESI√ìN
+              INICIAR SESI”N
             </Button>
 
             {/* Biometric Button */}
@@ -285,7 +285,7 @@ export default function LoginScreen() {
                 style={styles.biometricButton}
                 icon="fingerprint"
               >
-                Ingresar con Biometr√≠a
+                Ingresar con BiometrÌa
               </Button>
             )}
 
@@ -297,7 +297,7 @@ export default function LoginScreen() {
               elevation={0}
             >
               <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, textAlign: 'center', lineHeight: 18 }}>
-                üìç Al iniciar se registra tu hora y ubicaci√≥n (para identificar trabajo remoto u oficina) para control de asistencias
+                ?? Al iniciar se registra tu hora y ubicaciÛn (para identificar trabajo remoto u oficina) para control de asistencias
               </Text>
             </Surface>
 
@@ -310,7 +310,7 @@ export default function LoginScreen() {
                 color: theme.colors.onSurfaceVariant,
                 opacity: 0.6
               }}>
-                DR Group Mobile
+                RDJ OrganizaciÛn
               </Text>
               <Text style={{ 
                 fontSize: 13, 
@@ -318,7 +318,7 @@ export default function LoginScreen() {
                 color: theme.colors.primary,
                 opacity: 0.8
               }}>
-                Versi√≥n {Constants.expoConfig?.version ?? '1.0.0'} (Build {Constants.expoConfig?.android?.versionCode ?? '1'})
+                VersiÛn {Constants.expoConfig?.version ?? '1.0.0'} (Build {Constants.expoConfig?.android?.versionCode ?? '1'})
               </Text>
             </View>
 

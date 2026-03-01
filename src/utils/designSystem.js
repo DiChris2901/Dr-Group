@@ -1,4 +1,4 @@
-// 🎨 DR Group Dashboard - Design System v2.0
+// 🎨 Organizaci�n RDJ Dashboard - Design System v2.0
 // Sistema de diseño unificado siguiendo las especificaciones del DESIGN_SYSTEM.md
 
 import { useTheme } from '@mui/material/styles';

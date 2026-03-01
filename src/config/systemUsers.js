@@ -1,10 +1,10 @@
-// 🎯 DR Group - Configuración Centralizada de Usuarios del Sistema
+// 🎯 Organización RDJ - Configuración Centralizada de Usuarios del Sistema
 // Este archivo contiene la configuración de usuarios conocidos del sistema
 // para evitar redundancia y mantener datos consistentes
 
 export const SYSTEM_USERS = {
   'admin@drgroup.com': {
-    name: 'Administrador DR Group',
+    name: 'Administrador del Sistema',
     position: 'Administrador del Sistema',
     department: 'Tecnología',
     photoURL: null,

@@ -86,7 +86,7 @@ const fmtDataMoney = { ...fmtDataBase, alignment: { horizontal: 'right', vertica
 const fmtTotalsLabel = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF0B3040' } }, alignment: { horizontal: 'right', vertical: 'middle' } };
 const fmtTotalsNumber = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF0B3040' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '"$"#,##0', fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }, border: { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF64748B' } } } };
 
-export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'DR GROUP', options = {}) => {
+export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'ORGANIZACIÓN RDJ', options = {}) => {
   try {
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error('No hay datos para exportar');
@@ -100,7 +100,7 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
     // 2. De lo contrario toma la primera empresa válida de mapped.
     // 3. Si ninguna válida, 'SIN EMPRESA'.
     let empresa = (empresaFallback && empresaFallback.trim()) ? empresaFallback.trim() : '';
-    const esGenerico = ['DR GROUP', 'GENERAL'].includes(empresa.toUpperCase?.() || empresa);
+    const esGenerico = ['ORGANIZACIÓN RDJ', 'GENERAL'].includes(empresa.toUpperCase?.() || empresa);
     if (!empresa || esGenerico) {
       const firstValid = mapped.find(r => r.empresa && r.empresa !== 'SIN EMPRESA' && r.empresa.trim() !== '');
       if (firstValid) empresa = firstValid.empresa;
@@ -118,7 +118,7 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
     const totalImpuestos = mapped.reduce((s, r) => s + r.totalImpuestos, 0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'DR Group Dashboard';
+    wb.creator = 'Organización RDJ';
     wb.created = new Date();
     const ws = wb.addWorksheet('Liquidación Consolidada', { views: [{ state: 'frozen', ySplit: 7 }] });
 

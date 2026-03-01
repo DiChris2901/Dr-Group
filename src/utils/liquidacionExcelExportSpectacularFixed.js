@@ -1,5 +1,5 @@
 /**
- * DR Group - Excel Export Spectacular Clean
+ * Organizaci�n RDJ - Excel Export Spectacular Clean
  * Exportador de liquidación consolidada con diseño corporativo
  * Basado en la lógica del archivo Python original
  */
@@ -19,7 +19,7 @@ const mapearDatosConsolidados = (data) => {
   return data.map((item, index) => {
     
     // Mapear campos con diferentes posibles nombres
-    const empresa = item.empresa || item.Empresa || item.EMPRESA || 'DR GROUP';
+    const empresa = item.empresa || item.Empresa || item.EMPRESA || 'ORGANIZACI�N RDJ';
     const serial = item.serial || item.Serial || item.SERIAL || item['Serial de máquina'] || `S${String(index + 1).padStart(3, '0')}`;
     const nuc = item.nuc || item.NUC || item.Nuc || item['NUC'] || `NUC${String(index + 1).padStart(3, '0')}`;
     const establecimiento = item.establecimiento || item.Establecimiento || item.ESTABLECIMIENTO || 
@@ -95,7 +95,7 @@ const crearDatosExcel = (datosConsolidados) => {
     return acc + ((nv.includes('retiro') || nv.includes('adición') || nv.includes('adicion')) ? 1 : 0);
   }, 0);
   
-  const empresa = datosConsolidados[0]?.empresa || 'DR GROUP';
+  const empresa = datosConsolidados[0]?.empresa || 'ORGANIZACIÓN RDJ';
   const fechaActual = new Date().toLocaleDateString('es-ES', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -115,13 +115,13 @@ const crearDatosExcel = (datosConsolidados) => {
     [`🏢 ${empresa} | 📊 Reporte Ejecutivo de Liquidación por Máquinas`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILA 3: Fecha y sistema (merged A:P)
-    [`📅 ${fechaActual} | 🎰 ${totalMaquinas} máquinas procesadas | 💎 Sistema DR Group Spectacular`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    [`📅 ${fechaActual} | 🎰 ${totalMaquinas} máquinas procesadas | 💎 Sistema Organizaci�n RDJ Spectacular`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILA 4: Métricas generales (merged A:P)
   [`📊 MÉTRICAS GENERALES | 🎰 ${totalMaquinas} máquinas | 📈 Producción: $${totalProduccion.toLocaleString('es-CO')} | ⚖️ Derechos: $${totalDerechos.toLocaleString('es-CO')} | 💸 Gastos: $${totalGastos.toLocaleString('es-CO')} | 💰 Total Impuestos: $${totalImpuestos.toLocaleString('es-CO')} | ✅ Sin cambios: ${sinCambios} | 🔄 Retiro/Adición: ${retiroAdicion}`,'', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILA 5: Descripción reporte (merged A:P)
-    [`💎 Reporte consolidado de liquidación por máquinas de juego | Sistema DR Group | Fecha de generación: ${fechaActual}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+    [`💎 Reporte consolidado de liquidación por máquinas de juego | Sistema Organizaci�n RDJ | Fecha de generación: ${fechaActual}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILAS 6-9: Espacios vacíos
     ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
@@ -311,7 +311,7 @@ const aplicarEstilosSpectacular = (workbook, worksheet, datosConsolidados) => {
 /**
  * Exportar liquidación spectacular
  */
-export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP') => {
+export const exportarLiquidacionSpectacular = async (data, empresa = 'ORGANIZACI�N RDJ') => {
   try {
 
     // Validar datos
@@ -364,7 +364,7 @@ export const exportarLiquidacionSpectacular = async (data, empresa = 'DR GROUP')
 /**
  * Exportar liquidación simple (fallback)
  */
-export const exportarLiquidacionSimple = (data, empresa = 'DR GROUP') => {
+export const exportarLiquidacionSimple = (data, empresa = 'ORGANIZACI�N RDJ') => {
   try {
     
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -373,7 +373,7 @@ export const exportarLiquidacionSimple = (data, empresa = 'DR GROUP') => {
 
     // Crear estructura simple
     const simpleData = [
-      ['🏢 DR GROUP - LIQUIDACIÓN SIMPLE'],
+      ['🏢 ORGANIZACIÓN RDJ - LIQUIDACIÓN SIMPLE'],
       [''],
       ['Empresa', 'Serial', 'NUC', 'Establecimiento', 'Producción', 'Derechos', 'Gastos', 'Total'],
       ...data.map(item => [

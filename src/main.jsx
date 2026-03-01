@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-// Aplicación principal del DR Group Dashboard
+// Aplicación principal del Dashboard Organizaci�n RDJ
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

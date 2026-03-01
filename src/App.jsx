@@ -57,6 +57,7 @@ const AsistenciasPage = lazy(() => import('./pages/AsistenciasPage'));
 const RecursosHumanosPage = lazy(() => import('./pages/RecursosHumanosPage'));
 const SolicitudesPage = lazy(() => import('./pages/SolicitudesPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
+const NominaPage = lazy(() => import('./pages/NominaPage'));
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -375,6 +376,18 @@ const DashboardLayout = () => {
         }
       />
       
+      {/* ===== RUTAS PROTEGIDAS - NÓMINA ===== */}
+      <Route 
+        path="/nomina" 
+        element={
+          <ProtectedRoute requiredPermission="rrhh.nomina">
+            <MainLayout title="Nómina" breadcrumbs={['RRHH', 'Nómina']}>
+              <NominaPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* ===== RUTAS PROTEGIDAS - TAREAS DELEGADAS ===== */}
       <Route 
         path="/tasks" 

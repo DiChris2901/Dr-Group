@@ -1,7 +1,7 @@
 {
-  "name": "DR Group Dashboard - Control de Compromisos Financieros",
-  "short_name": "DR Group",
-  "description": "Sistema empresarial para control de compromisos financieros y gestión de usuarios",
+  "name": "Organización RDJ - Gestión Operativa y Administrativa",
+  "short_name": "Org. RDJ",
+  "description": "Sistema de Gestión Operativa y Administrativa para Organización RDJ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1976d2",
@@ -126,7 +126,7 @@
   },
   "protocol_handlers": [
     {
-      "protocol": "web+drgroup",
+      "protocol": "web+rdj",
       "url": "/?handler=%s"
     }
   ]

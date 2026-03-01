@@ -1,5 +1,5 @@
 /**
- * 🎭 DR Group Design System 3.0 - Shadow Tokens
+ * 🎭 Organizaci�n RDJ Design System 3.0 - Shadow Tokens
  * Tokens de sombras extraídos del sistema establecido
  */
 

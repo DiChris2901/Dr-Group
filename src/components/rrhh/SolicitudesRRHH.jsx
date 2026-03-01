@@ -296,8 +296,8 @@ const SolicitudesRRHH = ({
 
         try {
           const outputDoc = await PDFDocument.create();
-          outputDoc.setCreator('DR Group System');
-          outputDoc.setProducer('DR Group PDF Sanitizer');
+          outputDoc.setCreator('Sistema RDJ');
+          outputDoc.setProducer('RDJ PDF Sanitizer');
 
           for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
             const page = await pdf.getPage(pageNumber);
@@ -382,8 +382,8 @@ const SolicitudesRRHH = ({
       // Esto garantiza eliminar cualquier rastro de encriptación o metadata restrictiva
       // Copiamos las páginas a un documento nuevo y limpio
       const newPdfDoc = await PDFDocument.create();
-      newPdfDoc.setCreator('DR Group System');
-      newPdfDoc.setProducer('DR Group PDF Sanitizer');
+      newPdfDoc.setCreator('Sistema RDJ');
+      newPdfDoc.setProducer('RDJ PDF Sanitizer');
       
       const pageCount = pdfDoc.getPageCount();
       

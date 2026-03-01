@@ -126,7 +126,7 @@ const PWAInstallPrompt = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {deviceType === 'mobile' ? <Smartphone /> : <Computer />}
             <Typography variant="h6">
-              Instalar DR Group Dashboard
+              Instalar Organización RDJ
             </Typography>
           </Box>
           <IconButton onClick={() => setShowDialog(false)}>

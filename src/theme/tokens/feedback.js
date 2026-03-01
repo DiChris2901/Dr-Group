@@ -1,5 +1,5 @@
 // ========================================
-// 📢 FEEDBACK TOKENS — DR GROUP DASHBOARD  
+// 📢 FEEDBACK TOKENS — ORGANIZACI�N RDJ DASHBOARD  
 // ========================================
 // Sistema completo de feedback: Alerts, Snackbars, Tooltips, Chips, Badges, Progress
 // Fecha: 12 de Agosto, 2025 - Design System 3.0

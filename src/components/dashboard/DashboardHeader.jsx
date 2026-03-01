@@ -117,7 +117,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
   // User profile data from Firebase Auth y Firestore
   const userProfile = {
     name: firestoreProfile?.name || currentUser?.displayName || 'Diego Rueda',
-    email: firestoreProfile?.email || currentUser?.email || 'diego@drgroup.com',
+    email: firestoreProfile?.email || currentUser?.email || 'admin@org-rdj.com',
     photoURL: firestoreProfile?.photoURL || currentUser?.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&h=256&q=80', // Prioridad: Firestore -> Auth -> Prueba
     role: firestoreProfile?.role || 'admin'
   };

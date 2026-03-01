@@ -795,7 +795,7 @@ const FacturacionPage = () => {
       // Crear documento PDF
       const pdf = new jsPDF();
       
-      // 🎨 PALETA DE COLORES CORPORATIVA - FORMATO PYTHON (DR Group)
+      // 🎨 PALETA DE COLORES CORPORATIVA - FORMATO PYTHON (Organizaci�n RDJ)
       const BRAND_COLORS = {
         titleBg: [11, 48, 64],        // #0B3040 - Azul oscuro corporativo
         subtitleBg: [26, 95, 122],    // #1A5F7A - Azul medio
@@ -1165,7 +1165,7 @@ const FacturacionPage = () => {
         leftY += 5;
         pdf.text(`Número de Cuenta: ${datosEmpresa.bankAccount}`, 18, leftY);
         leftY += 5;
-        pdf.text(`Titular: ${datosEmpresa.nombre || 'DR Group SAS'}`, 18, leftY);
+        pdf.text(`Titular: ${datosEmpresa.nombre || 'Organización RDJ'}`, 18, leftY);
       } else {
       }
       
@@ -1218,14 +1218,14 @@ const FacturacionPage = () => {
         pdf.setTextColor(...BRAND_COLORS.textDark);
         pdf.setFontSize(8);
         pdf.setFont('helvetica', 'normal');
-        pdf.text(`Documento generado por ${datosEmpresa.nombre || datosEmpresa.name || 'DR Group'}`, 105, currentPageHeight - 14, { align: 'center' });
+        pdf.text(`Documento generado por ${datosEmpresa.nombre || datosEmpresa.name || 'Organización RDJ'}`, 105, currentPageHeight - 14, { align: 'center' });
         pdf.setFontSize(7);
         pdf.text(`Fecha de generación: ${new Date().toLocaleString('es-CO')}`, 105, currentPageHeight - 10, { align: 'center' });
         
         // Marca de agua corporativa y número de página
         pdf.setTextColor(150, 150, 150);
         pdf.setFontSize(6);
-        pdf.text('DR Group Dashboard - Sistema de Facturación', 105, currentPageHeight - 6, { align: 'center' });
+        pdf.text('Organización RDJ - Sistema de Facturación', 105, currentPageHeight - 6, { align: 'center' });
         pdf.text(`Página ${i} de ${totalPages}`, 195, currentPageHeight - 6, { align: 'right' });
       }
       
