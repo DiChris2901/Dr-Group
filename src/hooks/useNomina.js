@@ -32,19 +32,20 @@ const PORCENTAJES = {
   }
 };
 
-// SMMLV y Auxilio de Transporte (valores 2025 - configurables)
+// SMMLV y Auxilio de Transporte (valores 2026 - actualizados desde configuracion_nomina/{year})
 const DEFAULTS = {
-  SMMLV: 1423500,
-  AUX_TRANSPORTE: 200000
+  SMMLV: 1750905,
+  AUX_TRANSPORTE: 249095
 };
 
 /**
  * Calcula la línea de nómina para un empleado en un período
  */
-const calcularLineaNomina = (empleado, diasTrabajados, bono, bonoDescripcion, smmlv, auxTransporte, tipoNomina, esPrimeraQuincena) => {
+const calcularLineaNomina = (empleado, diasTrabajados, bono, bonoDescripcion, smmlv, auxTransporte, tipoNomina, esPrimeraQuincena, pagosAdicionales = [], tasas = null) => {
+  const P = tasas || PORCENTAJES; // Tasas desde Firestore; PORCENTAJES del código como fallback
   const salarioBase = empleado.salarioBase || 0;
   const nivelArl = empleado.nivelRiesgoArl || 'I';
-  const arlPorcentaje = PORCENTAJES.ARL[nivelArl] || 0.522;
+  const arlPorcentaje = P.ARL[nivelArl] || 0.522;
   const dias = diasTrabajados ?? 30;
 
   // === DEVENGADOS ===
@@ -105,12 +106,13 @@ const calcularLineaNomina = (empleado, diasTrabajados, bono, bonoDescripcion, sm
 
   // Bonos (no constituyen factor salarial según acuerdo con usuario)
   const bonosTotal = bono || 0;
+  const totalPagosAdicionales = (pagosAdicionales || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
 
-  const totalDevengado = salarioDevengado + auxTransporteCalculado + bonosTotal;
+  const totalDevengado = salarioDevengado + auxTransporteCalculado + bonosTotal + totalPagosAdicionales;
 
   // === DEDUCCIONES EMPLEADO ===
-  const saludEmpleado = Math.round(ibc * PORCENTAJES.SALUD_EMPLEADO / 100);
-  const pensionEmpleado = Math.round(ibc * PORCENTAJES.PENSION_EMPLEADO / 100);
+  const saludEmpleado = Math.round(ibc * P.SALUD_EMPLEADO / 100);
+  const pensionEmpleado = Math.round(ibc * P.PENSION_EMPLEADO / 100);
   const totalDeducciones = saludEmpleado + pensionEmpleado;
 
   // === NETO A PAGAR ===
@@ -124,19 +126,19 @@ const calcularLineaNomina = (empleado, diasTrabajados, bono, bonoDescripcion, sm
   }
 
   // === APORTES EMPLEADOR ===
-  const saludEmpleador = Math.round(ibc * PORCENTAJES.SALUD_EMPLEADOR / 100);
-  const pensionEmpleador = Math.round(ibc * PORCENTAJES.PENSION_EMPLEADOR / 100);
+  const saludEmpleador = Math.round(ibc * P.SALUD_EMPLEADOR / 100);
+  const pensionEmpleador = Math.round(ibc * P.PENSION_EMPLEADOR / 100);
   const arlMonto = Math.round(ibc * arlPorcentaje / 100);
-  const cajaMonto = Math.round(ibc * PORCENTAJES.CAJA_COMPENSACION / 100);
+  const cajaMonto = Math.round(ibc * P.CAJA_COMPENSACION / 100);
 
   // === PROVISIONES PRESTACIONALES ===
   // Base prestacional = salario devengado + aux transporte (CST Art. 127)
   const basePrestacional = salarioDevengado + auxTransporteCalculado;
-  const cesantias = Math.round(basePrestacional * PORCENTAJES.CESANTIAS / 100);
-  const interesesCesantias = Math.round(cesantias * PORCENTAJES.INTERESES_CESANTIAS / 100);
-  const prima = Math.round(basePrestacional * PORCENTAJES.PRIMA / 100);
+  const cesantias = Math.round(basePrestacional * P.CESANTIAS / 100);
+  const interesesCesantias = Math.round(cesantias * P.INTERESES_CESANTIAS / 100);
+  const prima = Math.round(basePrestacional * P.PRIMA / 100);
   // Vacaciones se calculan solo sobre salario (CST Art. 186)
-  const vacaciones = Math.round(salarioDevengado * PORCENTAJES.VACACIONES / 100);
+  const vacaciones = Math.round(salarioDevengado * P.VACACIONES / 100);
 
   const totalProvisionesEmpleador = saludEmpleador + pensionEmpleador + arlMonto + cajaMonto + cesantias + interesesCesantias + prima + vacaciones;
 
@@ -159,6 +161,7 @@ const calcularLineaNomina = (empleado, diasTrabajados, bono, bonoDescripcion, sm
     totalDeducciones,
     netoAPagar,
     anticipo,
+    pagosAdicionales: pagosAdicionales || [],
     // Provisiones empleador
     saludEmpleador,
     pensionEmpleador,
@@ -198,7 +201,8 @@ const useNomina = () => {
   // Configuración editable
   const [config, setConfig] = useState({
     smmlv: DEFAULTS.SMMLV,
-    auxTransporte: DEFAULTS.AUX_TRANSPORTE
+    auxTransporte: DEFAULTS.AUX_TRANSPORTE,
+    tasas: null,
   });
 
   // Cargar empleados activos
@@ -276,7 +280,9 @@ const useNomina = () => {
           config.smmlv,
           config.auxTransporte,
           tipo === 'quincenal-1' || tipo === 'quincenal-2' ? 'quincenal' : 'mensual',
-          esPrimeraQuincena
+          esPrimeraQuincena,
+          editable.pagosAdicionales ?? [],
+          config.tasas
         );
       });
   }, [empleados, config]);

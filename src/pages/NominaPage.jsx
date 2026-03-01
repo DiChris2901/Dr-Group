@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box, Typography, Grid, Paper, Button, TextField, Select, MenuItem,
-  FormControl, InputLabel, InputAdornment, Table, TableBody, TableCell,
+  FormControl, InputLabel, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Tabs, Tab, Chip, IconButton,
   Alert, Tooltip, Card, CardContent, Collapse, Divider, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, alpha, useTheme
@@ -25,9 +25,13 @@ import {
   Info as InfoIcon,
   Receipt as ReceiptIcon,
   Lock as LockIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import useNomina from '../hooks/useNomina';
+import useConfigNomina from '../hooks/useConfigNomina';
+import useCompanies from '../hooks/useCompanies';
 import { useToast } from '../context/ToastContext';
 
 // ===== CONSTANTES =====
@@ -48,7 +52,8 @@ const formatNumber = (value) => {
   return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
-const parseNum = (str) => parseInt(String(str).replace(/\./g, '')) || 0;
+const parseNum = (str) => parseInt(String(str).replace(/\./g, '').replace(/,/g, '')) || 0;
+
 
 // Convertir número a letras (español colombiano)
 const numeroALetras = (num) => {
@@ -96,6 +101,7 @@ const numeroALetras = (num) => {
 const NominaPage = () => {
   const theme = useTheme();
   const { showToast } = useToast();
+  const { companies } = useCompanies();
   const {
     nominas, empleados, loading, saving, error,
     config, setConfig, PORCENTAJES, DEFAULTS,
@@ -115,8 +121,8 @@ const NominaPage = () => {
   const [nominaCargada, setNominaCargada] = useState(null);
   const [novedades, setNovedades] = useState([]);
   const [loadingPeriodo, setLoadingPeriodo] = useState(false);
-  const [smmlvInput, setSmmlvInput] = useState(formatNumber(DEFAULTS.SMMLV));
-  const [auxTransInput, setAuxTransInput] = useState(formatNumber(DEFAULTS.AUX_TRANSPORTE));
+  // Config anual desde Firestore — cargada por año seleccionado
+  const { config: configNomina, loading: loadingConfig } = useConfigNomina(year);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', action: null });
 
   const periodo = `${year}-${String(month).padStart(2, '0')}`;
@@ -132,13 +138,16 @@ const NominaPage = () => {
         setLineas(existente.lineas || []);
         const editables = {};
         (existente.lineas || []).forEach(l => {
-          editables[l.empleadoId] = { diasTrabajados: l.diasTrabajados || 30, bonos: l.bonos || 0, bonoDescripcion: l.bonoDescripcion || '' };
+          editables[l.empleadoId] = {
+          diasTrabajados: l.diasTrabajados || 30,
+          bonos: l.bonos || 0,
+          bonoDescripcion: l.bonoDescripcion || '',
+          pagosAdicionales: l.pagosAdicionales || []
+        };
         });
         setDatosEditables(editables);
         if (existente.smmlv) {
           setConfig(prev => ({ ...prev, smmlv: existente.smmlv, auxTransporte: existente.auxTransporte }));
-          setSmmlvInput(formatNumber(existente.smmlv));
-          setAuxTransInput(formatNumber(existente.auxTransporte));
         }
       } else {
         setNominaCargada(null);
@@ -204,11 +213,49 @@ const NominaPage = () => {
     setLineas(prev => prev.map(l => l.empleadoId === empId ? { ...l, bonoDescripcion: value } : l));
   };
 
+  // === CONCEPTOS ADICIONALES (intereses cesantías, prima, vacaciones, etc.) ===
+  const recalcularLineaConEd = (empId, updatedEd) => {
+    const emp = empleados.find(e => e.id === empId);
+    if (!emp) return;
+    const tipoNom = tipoLiquidacion.startsWith('quincenal') ? 'quincenal' : 'mensual';
+    const nueva = calcularLineaNomina(emp, updatedEd.diasTrabajados ?? 30, updatedEd.bonos ?? 0, updatedEd.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, tipoNom, tipoLiquidacion === 'quincenal-1', updatedEd.pagosAdicionales ?? [], config.tasas);
+    setLineas(prev => prev.map(l => l.empleadoId === empId ? nueva : l));
+  };
+
+  const handleAddConcepto = (empId, concepto = '', monto = 0) => {
+    setDatosEditables(prev => {
+      const old = prev[empId]?.pagosAdicionales || [];
+      const updated = { ...prev, [empId]: { ...prev[empId], pagosAdicionales: [...old, { concepto, monto }] } };
+      recalcularLineaConEd(empId, updated[empId]);
+      return updated;
+    });
+  };
+
+  const handleUpdateConcepto = (empId, idx, field, value) => {
+    setDatosEditables(prev => {
+      const old = [...(prev[empId]?.pagosAdicionales || [])];
+      old[idx] = { ...old[idx], [field]: field === 'monto' ? (parseNum(value) || 0) : value };
+      const updated = { ...prev, [empId]: { ...prev[empId], pagosAdicionales: old } };
+      recalcularLineaConEd(empId, updated[empId]);
+      return updated;
+    });
+  };
+
+  const handleRemoveConcepto = (empId, idx) => {
+    setDatosEditables(prev => {
+      const old = [...(prev[empId]?.pagosAdicionales || [])];
+      old.splice(idx, 1);
+      const updated = { ...prev, [empId]: { ...prev[empId], pagosAdicionales: old } };
+      recalcularLineaConEd(empId, updated[empId]);
+      return updated;
+    });
+  };
+
   const recalcularLinea = (empId, editable) => {
     const emp = empleados.find(e => e.id === empId);
     if (!emp) return;
     const tipoNom = tipoLiquidacion.startsWith('quincenal') ? 'quincenal' : 'mensual';
-    const nueva = calcularLineaNomina(emp, editable.diasTrabajados ?? 30, editable.bonos ?? 0, editable.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, tipoNom, tipoLiquidacion === 'quincenal-1');
+    const nueva = calcularLineaNomina(emp, editable.diasTrabajados ?? 30, editable.bonos ?? 0, editable.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, tipoNom, tipoLiquidacion === 'quincenal-1', editable.pagosAdicionales ?? [], config.tasas);
     setLineas(prev => prev.map(l => l.empleadoId === empId ? nueva : l));
   };
 
@@ -217,24 +264,12 @@ const NominaPage = () => {
     setLineas(newLineas);
   }, [generarLineas, tipoLiquidacion, datosEditables]);
 
-  const applyConfig = () => {
-    const smmlv = parseNum(smmlvInput);
-    const auxTrans = parseNum(auxTransInput);
-    if (smmlv > 0) {
-      setConfig({ smmlv, auxTransporte: auxTrans });
-      if (isEditable) {
-        const tipoNom = tipoLiquidacion.startsWith('quincenal') ? 'quincenal' : 'mensual';
-        const esPrimera = tipoLiquidacion === 'quincenal-1';
-        const newLineas = empleados
-          .filter(emp => tipoLiquidacion.startsWith('quincenal') ? emp.tipoNomina === 'quincenal' : emp.tipoNomina !== 'quincenal')
-          .map(emp => {
-            const ed = datosEditables[emp.id] || {};
-            return calcularLineaNomina(emp, ed.diasTrabajados ?? 30, ed.bonos ?? 0, ed.bonoDescripcion ?? '', smmlv, auxTrans, tipoNom, esPrimera);
-          });
-        setLineas(newLineas);
-      }
+  // Sincronizar config desde Firestore cuando cambia el año (solo si no hay nómina cargada)
+  useEffect(() => {
+    if (!loadingConfig && !nominaCargada) {
+      setConfig({ smmlv: configNomina.smmlv, auxTransporte: configNomina.auxTransporte, tasas: configNomina.tasas || null });
     }
-  };
+  }, [configNomina, loadingConfig, nominaCargada, setConfig]);
 
   const handleGuardar = async () => {
     try {
@@ -299,68 +334,306 @@ const NominaPage = () => {
       const ExcelJSMod = await import('exceljs');
       const ExcelJS = ExcelJSMod.default || ExcelJSMod;
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet(`Nómina ${MESES[month - 1]} ${year}`);
+      wb.creator = 'Organización RDJ';
+      wb.created = new Date();
 
-      // Header
-      ws.mergeCells('A1:N1');
-      ws.getCell('A1').value = 'ORGANIZACIÓN RDJ';
-      ws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF1A237E' } };
-      ws.getCell('A1').alignment = { horizontal: 'center' };
+      // ─── PALETA CORPORATIVA ──────────────────────────────────────────────────
+      const BC = {
+        titleBg:    'FF0B3040',
+        subtitleBg: 'FF1A5F7A',
+        metricsBg:  'FF334155',
+        dateBg:     'FF475569',
+        headerBg:   'FF0B3040',
+        totalsBg:   'FF1A5F7A',
+        white:      'FFFFFFFF',
+        textDark:   'FF223344',
+        borderL:    'FFE2E8F0',
+        borderM:    'FFC0CCDA',
+      };
 
-      ws.mergeCells('A2:N2');
-      ws.getCell('A2').value = `NÓMINA — ${MESES[month - 1].toUpperCase()} ${year}`;
-      ws.getCell('A2').font = { bold: true, size: 12, color: { argb: 'FF5C6BC0' } };
-      ws.getCell('A2').alignment = { horizontal: 'center' };
+      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual'
+        : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
 
-      ws.mergeCells('A3:N3');
-      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual' : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
-      ws.getCell('A3').value = `Tipo: ${tipoLabel} | SMMLV: ${fmtCOP(config.smmlv)} | Aux. Transporte: ${fmtCOP(config.auxTransporte)}`;
-      ws.getCell('A3').font = { size: 9, color: { argb: 'FF757575' } };
-      ws.getCell('A3').alignment = { horizontal: 'center' };
+      // ─── HELPER: encabezado de 7 filas ───────────────────────────────────────
+      const buildHeader = (ws, subtitle, metrics, nCols) => {
+        ws.views = [{ state: 'frozen', ySplit: 7 }];
 
-      ws.addRow([]);
+        const mergeAndStyle = (row, value, fill, fontSize, bold) => {
+          ws.mergeCells(row, 1, row, nCols);
+          const cell = ws.getCell(row, 1);
+          cell.value = value;
+          cell.font = { name: 'Segoe UI', size: fontSize, bold, color: { argb: BC.white } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: row === 3 };
+        };
 
-      // Column headers
-      const headers = ['#', 'Empleado', 'Cargo', 'Sal. Base', 'Días', 'Devengado', 'Aux. Tr.', 'Bonos', 'T. Devengado', 'Salud 4%', 'Pensión 4%', 'T. Deducciones', 'Anticipo', 'Neto a Pagar'];
-      const hRow = ws.addRow(headers);
-      hRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-      hRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A237E' } };
-      hRow.alignment = { horizontal: 'center', vertical: 'middle' };
-      hRow.height = 24;
+        mergeAndStyle(1, 'ORGANIZACIÓN RDJ', BC.titleBg, 18, true);   ws.getRow(1).height = 30;
+        mergeAndStyle(2, subtitle,            BC.subtitleBg, 11, true); ws.getRow(2).height = 22;
+        mergeAndStyle(3, metrics,             BC.metricsBg, 10, true); ws.getRow(3).height = 22;
+        mergeAndStyle(4, `Generado: ${new Date().toLocaleString('es-CO')}`, BC.dateBg, 10, false);
+        ws.getRow(4).height = 18;
+        ws.getRow(5).height = 5;
+        ws.getRow(6).height = 8;
+      };
 
+      // ─── HELPER: estilo header columna ───────────────────────────────────────
+      const styleHeader = (cell) => {
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: BC.white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BC.headerBg } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left:   { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right:  { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        };
+      };
+
+      // ─── HELPER: estilo celda de dato ────────────────────────────────────────
+      const styleData = (cell, align = 'left', bold = false, bg = null) => {
+        cell.font = { name: 'Segoe UI', size: 9, bold, color: { argb: BC.textDark } };
+        cell.alignment = { horizontal: align, vertical: 'middle', wrapText: false };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: BC.borderL } },
+          left:   { style: 'thin', color: { argb: BC.borderL } },
+          bottom: { style: 'thin', color: { argb: BC.borderM } },
+          right:  { style: 'thin', color: { argb: BC.borderL } },
+        };
+        if (bg) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+      };
+
+      // ─── HELPER: estilo fila totales ─────────────────────────────────────────
+      const styleTotals = (cell, align = 'right') => {
+        cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: BC.white } };
+        cell.alignment = { horizontal: align, vertical: 'middle' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BC.totalsBg } };
+        cell.border = {
+          top:    { style: 'thin', color: { argb: 'FF1A5F7A' } },
+          left:   { style: 'thin', color: { argb: 'FF1A5F7A' } },
+          bottom: { style: 'medium', color: { argb: 'FF0B3040' } },
+          right:  { style: 'thin', color: { argb: 'FF1A5F7A' } },
+        };
+      };
+
+      const COP = '$#,##0';
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // HOJA 1 — LIQUIDACIÓN DE NÓMINA
+      // ════════════════════════════════════════════════════════════════════════════
+      const COLS1 = ['#', 'Empleado', 'Cargo', 'Sal. Base', 'Días', 'Devengado', 'Aux. Tr.', 'Bonos', 'Conceptos Adic.', 'Detalle Conceptos Adic.', 'T. Devengado', 'Salud 4%', 'Pensión 4%', 'T. Deducciones', 'Anticipo', 'Neto a Pagar'];
+      const NC1 = COLS1.length;
+
+      const ws1 = wb.addWorksheet(`Nómina ${MESES[month - 1]} ${year}`);
+      buildHeader(
+        ws1,
+        `Liquidación de Nómina — ${MESES[month - 1].toUpperCase()} ${year} (${tipoLabel})`,
+        `Empleados: ${lineas.length} | SMMLV: ${fmtCOP(config.smmlv)} | Aux. Transporte: ${fmtCOP(config.auxTransporte)} | Total Neto: ${fmtCOP(totales.totalNeto)}`,
+        NC1
+      );
+
+      // Row 7: headers
+      const hr1 = ws1.getRow(7);
+      hr1.height = 28;
+      COLS1.forEach((h, i) => { hr1.getCell(i + 1).value = h; styleHeader(hr1.getCell(i + 1)); });
+
+      // Rows 8+: datos
       lineas.forEach((l, i) => {
-        ws.addRow([i + 1, l.empleadoNombre, l.cargo, l.salarioBase, l.diasTrabajados, l.salarioDevengado, l.auxTransporte, l.bonos, l.totalDevengado, l.saludEmpleado, l.pensionEmpleado, l.totalDeducciones, l.anticipo || 0, l.netoAPagar]);
+        const paTotal = (l.pagosAdicionales || []).reduce((s, p) => s + (Number(p.monto) || 0), 0);
+        const paDesc  = (l.pagosAdicionales || []).map(p => `${p.concepto}: ${fmtCOP(Number(p.monto) || 0)}`).join(' | ') || '—';
+        const rowData = [
+          i + 1, l.empleadoNombre, l.cargo || '—',
+          l.salarioBase, l.diasTrabajados,
+          l.salarioDevengado, l.auxTransporte, l.bonos,
+          paTotal > 0 ? paTotal : '—', paDesc,
+          l.totalDevengado, l.saludEmpleado, l.pensionEmpleado,
+          l.totalDeducciones, l.anticipo || 0, l.netoAPagar,
+        ];
+        const row = ws1.getRow(i + 8);
+        row.height = 18;
+        rowData.forEach((v, ci) => {
+          const cell = row.getCell(ci + 1);
+          cell.value = v;
+          const isNum = ci >= 3 && ci !== 4 && ci !== 9;
+          styleData(cell, isNum ? 'right' : ci <= 2 ? 'left' : 'center');
+          if (isNum && typeof v === 'number') cell.numFmt = COP;
+          if (ci === 4) { cell.alignment = { horizontal: 'center', vertical: 'middle' }; }
+        });
       });
 
-      const tRow = ws.addRow(['', 'TOTALES', '', '', '',
+      // Fila totales
+      const paGrand = lineas.reduce((s, l) => s + (l.pagosAdicionales || []).reduce((ss, p) => ss + (Number(p.monto) || 0), 0), 0);
+      const totRow1 = ws1.getRow(lineas.length + 8);
+      totRow1.height = 20;
+      const tot1Data = [
+        '', 'TOTALES', '', '', '',
         lineas.reduce((s, l) => s + l.salarioDevengado, 0),
         lineas.reduce((s, l) => s + l.auxTransporte, 0),
         lineas.reduce((s, l) => s + l.bonos, 0),
+        paGrand,
+        '',
         totales.totalDevengado,
         lineas.reduce((s, l) => s + l.saludEmpleado, 0),
         lineas.reduce((s, l) => s + l.pensionEmpleado, 0),
-        totales.totalDeducciones, totales.totalAnticipo, totales.totalNeto
-      ]);
-      tRow.font = { bold: true };
-      tRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAF6' } };
+        totales.totalDeducciones,
+        totales.totalAnticipo,
+        totales.totalNeto,
+      ];
+      tot1Data.forEach((v, ci) => {
+        const cell = totRow1.getCell(ci + 1);
+        cell.value = v;
+        styleTotals(cell, ci === 1 ? 'left' : 'right');
+        if (typeof v === 'number' && v !== 0) cell.numFmt = COP;
+      });
 
-      [4, 6, 7, 8, 9, 10, 11, 12, 13, 14].forEach(col => { ws.getColumn(col).numFmt = '$#,##0'; ws.getColumn(col).width = 16; });
-      ws.getColumn(1).width = 5;
-      ws.getColumn(2).width = 30;
-      ws.getColumn(3).width = 20;
-      ws.getColumn(5).width = 8;
-      ws.views = [{ state: 'frozen', ySplit: 5 }];
+      // Anchos columnas
+      ws1.getColumn(1).width = 4;
+      ws1.getColumn(2).width = 32;
+      ws1.getColumn(3).width = 22;
+      ws1.getColumn(4).width = 15;
+      ws1.getColumn(5).width = 7;
+      ws1.getColumn(6).width = 15;
+      ws1.getColumn(7).width = 12;
+      ws1.getColumn(8).width = 12;
+      ws1.getColumn(9).width = 15;
+      ws1.getColumn(10).width = 40;
+      for (let c = 11; c <= 16; c++) ws1.getColumn(c).width = 15;
 
-      // Sheet 2: Provisiones
-      const ws2 = wb.addWorksheet('Provisiones Empleador');
-      const h2 = ws2.addRow(['Empleado', 'Salud 8.5%', 'Pensión 12%', 'ARL', 'Caja 4%', 'Cesantías', 'Int. Cesantías', 'Prima', 'Vacaciones', 'Total']);
-      h2.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      h2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A237E' } };
-      lineas.forEach(l => { ws2.addRow([l.empleadoNombre, l.saludEmpleador, l.pensionEmpleador, l.arl, l.caja, l.cesantias, l.interesesCesantias, l.prima, l.vacaciones, l.totalProvisionesEmpleador]); });
-      const t2 = ws2.addRow(['TOTALES', ...['saludEmpleador', 'pensionEmpleador', 'arl', 'caja', 'cesantias', 'interesesCesantias', 'prima', 'vacaciones', 'totalProvisionesEmpleador'].map(k => lineas.reduce((s, l) => s + (l[k] || 0), 0))]);
-      t2.font = { bold: true };
-      ws2.columns.forEach((col, i) => { col.width = i === 0 ? 30 : 16; if (i > 0) col.numFmt = '$#,##0'; });
+      // ════════════════════════════════════════════════════════════════════════════
+      // HOJA 2 — PROYECCIÓN PAGO PARAFISCALES (PILA)
+      // ════════════════════════════════════════════════════════════════════════════
+      const COLS2 = [
+        'Empleado', 'Sal. Base', 'Sal. Devengado',
+        'Salud Empl. (4%)', 'Salud Empr. (8.5%)', 'Total Salud (12.5%)',
+        'Pensión Empl. (4%)', 'Pensión Empr. (12%)', 'Total Pensión (16%)',
+        'ARL', 'Caja Comp. (4%)',
+        'TOTAL PILA',
+      ];
+      const NC2 = COLS2.length;
 
+      const ws2 = wb.addWorksheet('Proyección Parafiscales');
+      buildHeader(
+        ws2,
+        `Proyección Pago Parafiscales — ${MESES[month - 1].toUpperCase()} ${year}`,
+        `Empleados: ${lineas.length} | Total PILA estimado: ${fmtCOP(lineas.reduce((s, l) => s + l.saludEmpleado + l.saludEmpleador + l.pensionEmpleado + l.pensionEmpleador + l.arl + l.caja, 0))}`,
+        NC2
+      );
+
+      const hr2 = ws2.getRow(7);
+      hr2.height = 36; // más alto porque hay text wrap en headers
+      COLS2.forEach((h, i) => { hr2.getCell(i + 1).value = h; styleHeader(hr2.getCell(i + 1)); });
+
+      lineas.forEach((l, i) => {
+        const totalPila = l.saludEmpleado + l.saludEmpleador + l.pensionEmpleado + l.pensionEmpleador + l.arl + l.caja;
+        const rowData = [
+          l.empleadoNombre,
+          l.salarioBase,
+          l.salarioDevengado,
+          l.saludEmpleado,
+          l.saludEmpleador,
+          l.saludEmpleado + l.saludEmpleador,
+          l.pensionEmpleado,
+          l.pensionEmpleador,
+          l.pensionEmpleado + l.pensionEmpleador,
+          l.arl,
+          l.caja,
+          totalPila,
+        ];
+        const row = ws2.getRow(i + 8);
+        row.height = 18;
+        rowData.forEach((v, ci) => {
+          const cell = row.getCell(ci + 1);
+          cell.value = v;
+          styleData(cell, ci === 0 ? 'left' : 'right');
+          if (ci > 0) cell.numFmt = COP;
+        });
+      });
+
+      // Totales PILA
+      const totRow2 = ws2.getRow(lineas.length + 8);
+      totRow2.height = 20;
+      const tot2Data = [
+        'TOTALES',
+        lineas.reduce((s, l) => s + l.salarioBase, 0),
+        lineas.reduce((s, l) => s + l.salarioDevengado, 0),
+        lineas.reduce((s, l) => s + l.saludEmpleado, 0),
+        lineas.reduce((s, l) => s + l.saludEmpleador, 0),
+        lineas.reduce((s, l) => s + l.saludEmpleado + l.saludEmpleador, 0),
+        lineas.reduce((s, l) => s + l.pensionEmpleado, 0),
+        lineas.reduce((s, l) => s + l.pensionEmpleador, 0),
+        lineas.reduce((s, l) => s + l.pensionEmpleado + l.pensionEmpleador, 0),
+        lineas.reduce((s, l) => s + l.arl, 0),
+        lineas.reduce((s, l) => s + l.caja, 0),
+        lineas.reduce((s, l) => s + l.saludEmpleado + l.saludEmpleador + l.pensionEmpleado + l.pensionEmpleador + l.arl + l.caja, 0),
+      ];
+      tot2Data.forEach((v, ci) => {
+        const cell = totRow2.getCell(ci + 1);
+        cell.value = v;
+        styleTotals(cell, ci === 0 ? 'left' : 'right');
+        if (typeof v === 'number') cell.numFmt = COP;
+      });
+
+      // Nota informativa debajo de totales
+      const noteRow2 = ws2.getRow(lineas.length + 10);
+      ws2.mergeCells(lineas.length + 10, 1, lineas.length + 10, NC2);
+      noteRow2.getCell(1).value = 'NOTA: Los valores de Salud y Pensión incluyen el aporte del empleado y del empleador. ARL y Caja son exclusivos del empleador. Este reporte se usa como base para diligenciar la PILA mensual.';
+      noteRow2.getCell(1).font = { name: 'Segoe UI', size: 8, italic: true, color: { argb: 'FF475569' } };
+      noteRow2.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      noteRow2.height = 28;
+
+      ws2.getColumn(1).width = 32;
+      for (let c = 2; c <= NC2; c++) ws2.getColumn(c).width = 16;
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // HOJA 3 — PROVISIONES EMPLEADOR
+      // ════════════════════════════════════════════════════════════════════════════
+      const COLS3 = ['Empleado', 'Salud 8.5%', 'Pensión 12%', 'ARL', 'Caja 4%', 'Cesantías 8.33%', 'Int. Cesantías 1%', 'Prima 8.33%', 'Vacaciones 4.17%', 'Total Provisiones'];
+      const NC3 = COLS3.length;
+
+      const ws3 = wb.addWorksheet('Provisiones Empleador');
+      buildHeader(
+        ws3,
+        `Provisiones del Empleador — ${MESES[month - 1].toUpperCase()} ${year}`,
+        `Empleados: ${lineas.length} | Total Provisiones: ${fmtCOP(totales.totalProvisionesEmpleador || lineas.reduce((s, l) => s + (l.totalProvisionesEmpleador || 0), 0))}`,
+        NC3
+      );
+
+      const hr3 = ws3.getRow(7);
+      hr3.height = 36;
+      COLS3.forEach((h, i) => { hr3.getCell(i + 1).value = h; styleHeader(hr3.getCell(i + 1)); });
+
+      lineas.forEach((l, i) => {
+        const rowData = [
+          l.empleadoNombre,
+          l.saludEmpleador, l.pensionEmpleador, l.arl, l.caja,
+          l.cesantias, l.interesesCesantias, l.prima, l.vacaciones,
+          l.totalProvisionesEmpleador,
+        ];
+        const row = ws3.getRow(i + 8);
+        row.height = 18;
+        rowData.forEach((v, ci) => {
+          const cell = row.getCell(ci + 1);
+          cell.value = v;
+          styleData(cell, ci === 0 ? 'left' : 'right');
+          if (ci > 0) cell.numFmt = COP;
+        });
+      });
+
+      // Totales provisiones
+      const totRow3 = ws3.getRow(lineas.length + 8);
+      totRow3.height = 20;
+      const tot3Keys = ['saludEmpleador', 'pensionEmpleador', 'arl', 'caja', 'cesantias', 'interesesCesantias', 'prima', 'vacaciones', 'totalProvisionesEmpleador'];
+      const tot3Data = ['TOTALES', ...tot3Keys.map(k => lineas.reduce((s, l) => s + (l[k] || 0), 0))];
+      tot3Data.forEach((v, ci) => {
+        const cell = totRow3.getCell(ci + 1);
+        cell.value = v;
+        styleTotals(cell, ci === 0 ? 'left' : 'right');
+        if (typeof v === 'number') cell.numFmt = COP;
+      });
+
+      ws3.getColumn(1).width = 32;
+      for (let c = 2; c <= NC3; c++) ws3.getColumn(c).width = 17;
+
+      // ─── DESCARGA ────────────────────────────────────────────────────────────
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -382,147 +655,229 @@ const NominaPage = () => {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF('p', 'mm', 'letter');
-      const pw = 216;
-      const cw = pw - 30;
-      const x = 15;
-      let y = 20;
 
-      // Header empresa
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ORGANIZACIÓN RDJ', pw / 2, y, { align: 'center' });
-      y += 7;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('NIT: ---', pw / 2, y, { align: 'center' });
-      y += 10;
+      // ── Constantes de layout ────────────────────────────────────────────────
+      const PW = 216;
+      const PH = 279;
+      const ML = 14;
+      const CW = PW - ML * 2;
 
-      // Título
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('COMPROBANTE DE NÓMINA', pw / 2, y, { align: 'center' });
-      y += 6;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual' : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
-      doc.text(`Período: ${MESES[month - 1]} ${year} — ${tipoLabel}`, pw / 2, y, { align: 'center' });
-      y += 3;
-      doc.setDrawColor(180);
-      doc.line(x, y, x + cw, y);
-      y += 8;
-
-      // Datos empleado
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('DATOS DEL EMPLEADO', x, y);
-      y += 6;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      const empData = [
-        ['Nombre', linea.empleadoNombre],
-        ['Cédula', linea.empleadoDocumento],
-        ['Cargo', linea.cargo || '—'],
-        ['Empresa', linea.empresaContratante || '—'],
-        ['EPS', linea.eps || '—'],
-        ['Fondo Pensión', linea.fondoPension || '—'],
-        ['Fondo Cesantías', linea.fondoCesantias || '—'],
-        ['ARL', `${linea.arlNombre || '—'} (Nivel ${linea.arlPorcentaje}%)`],
-        ['Caja Compensación', linea.cajaCompensacion || '—'],
-        ['Banco', linea.banco ? `${linea.banco} — ${linea.tipoCuenta} ${linea.numeroCuenta}` : '—']
-      ];
-      empData.forEach(([label, val]) => {
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${label}:`, x + 3, y);
-        doc.setFont('helvetica', 'normal');
-        doc.text(String(val), x + 45, y);
-        y += 5;
-      });
-      y += 5;
-
-      const addRow = (label, value, bold = false) => {
-        doc.setFont('helvetica', bold ? 'bold' : 'normal');
-        doc.text(label, x + 5, y);
-        doc.text(fmtCOP(value), x + cw - 5, y, { align: 'right' });
-        y += 5;
+      // Paleta corporativa (R,G,B)
+      const C = {
+        dark:     [11,  48,  64],   // #0B3040
+        mid:      [26,  95, 122],   // #1A5F7A
+        slate:    [51,  65,  85],   // #334155
+        slateLt:  [71,  85, 105],   // #475569
+        sectionBg:[241,245, 249],   // #F1F5F9
+        border:   [226,232, 240],   // #E2E8F0
+        textDark: [34,  51,  68],   // #223344
+        textMid:  [100,116, 139],   // #64748B
+        white:    [255,255, 255],
       };
 
-      // Devengados
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('DEVENGADOS', x, y);
-      y += 6;
-      doc.setFontSize(9);
-      addRow(`Salario devengado (${linea.diasTrabajados} días)`, linea.salarioDevengado);
-      if (linea.auxTransporte > 0) addRow('Auxilio de transporte', linea.auxTransporte);
-      if (linea.bonos > 0) addRow(`Bonificación${linea.bonoDescripcion ? ` (${linea.bonoDescripcion})` : ''}`, linea.bonos);
-      doc.setDrawColor(200);
-      doc.line(x + 3, y, x + cw - 3, y);
-      y += 2;
-      addRow('TOTAL DEVENGADO', linea.totalDevengado, true);
-      y += 5;
+      let y = 0;
 
-      // Deducciones
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('DEDUCCIONES', x, y);
-      y += 6;
-      doc.setFontSize(9);
-      addRow('Aporte salud empleado (4%)', linea.saludEmpleado);
-      addRow('Aporte pensión empleado (4%)', linea.pensionEmpleado);
-      if (linea.anticipo > 0) addRow('Anticipo 1ra quincena', linea.anticipo);
-      doc.line(x + 3, y, x + cw - 3, y);
-      y += 2;
-      addRow('TOTAL DEDUCCIONES', linea.totalDeducciones + (linea.anticipo || 0), true);
+      // ── Helpers ─────────────────────────────────────────────────────────────
+      const sf  = (style, size) => { doc.setFont('helvetica', style); doc.setFontSize(size); };
+      const tc  = (c) => doc.setTextColor(...c);
+      const fc  = (c) => doc.setFillColor(...c);
+      const dc  = (c) => doc.setDrawColor(...c);
+      const lw  = (w) => doc.setLineWidth(w);
+
+      const hLine = (col = C.border, w = 0.25) => {
+        dc(col); lw(w); doc.line(ML, y, ML + CW, y);
+      };
+
+      // Encabezado de sección: franja gris + acento lateral izquierdo
+      const sectionHead = (title) => {
+        y += 3;
+        fc(C.sectionBg); doc.rect(ML, y - 2.5, CW, 7, 'F');
+        fc(C.mid);       doc.rect(ML, y - 2.5, 2.5, 7, 'F');
+        sf('bold', 8); tc(C.dark);
+        doc.text(title, ML + 5, y + 2);
+        y += 7;
+      };
+
+      // Fila moneda: label izq + monto der
+      const moneyRow = (label, amount, bold = false, indent = 4) => {
+        sf(bold ? 'bold' : 'normal', 8.5);
+        tc(bold ? C.textDark : C.textMid);
+        doc.text(label, ML + indent, y);
+        tc(C.textDark);
+        doc.text(fmtCOP(amount), ML + CW, y, { align: 'right' });
+        y += 5.8;
+      };
+
+      // Thin divisor
+      const thinDiv = () => { dc(C.border); lw(0.25); doc.line(ML + 4, y, ML + CW - 4, y); y += 1; };
+
+      // ── LOOKUP EMPRESA ────────────────────────────────────────────────────────
+      const empData    = companies.find(c => c.name === linea.empresaContratante);
+      const empNIT     = empData?.nit     || '—';
+      const empAddr    = empData?.address || '—';
+      const empLogoURL = empData?.logoURL || null;
+
+      let logoBase64 = null;
+      if (empLogoURL) {
+        try {
+          const res  = await fetch(empLogoURL);
+          const blob = await res.blob();
+          logoBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch { /* logo no disponible — continuar sin él */ }
+      }
+
+      // ── BANDA 1: Cabecera corporativa ────────────────────────────────────────
+      const B1H = 18;
+      fc(C.dark); doc.rect(0, 0, PW, B1H, 'F');
+      tc(C.white);
+      if (logoBase64) {
+        try { doc.addImage(logoBase64, 'JPEG', ML, 2, 14, 14); } catch { /* formato inesperado — ignorar logo */ }
+        const txtX = ML + 17;
+        const txtW = CW - 17;
+        sf('bold', 13);
+        doc.text(linea.empresaContratante || 'ORGANIZACIÓN RDJ', txtX + txtW / 2, 8, { align: 'center' });
+        sf('normal', 6.5);
+        doc.text(`NIT: ${empNIT}  ·  ${empAddr}  ·  Comprobante de Pago de Salarios`, txtX + txtW / 2, 14, { align: 'center' });
+      } else {
+        sf('bold', 14);
+        doc.text(linea.empresaContratante || 'ORGANIZACIÓN RDJ', PW / 2, 8, { align: 'center' });
+        sf('normal', 7);
+        doc.text(`NIT: ${empNIT}  ·  ${empAddr}  ·  Comprobante de Pago de Salarios`, PW / 2, 14, { align: 'center' });
+      }
+      y = B1H;
+
+      // ── BANDA 2: Subtítulo documento ─────────────────────────────────────────
+      fc(C.mid); doc.rect(0, y, PW, 8, 'F');
+      sf('bold', 9.5); tc(C.white);
+      doc.text('COMPROBANTE DE NÓMINA', PW / 2, y + 5.5, { align: 'center' });
       y += 8;
 
-      // Neto a pagar
-      doc.setFillColor(232, 234, 246);
-      doc.rect(x, y - 3, cw, 12, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text('NETO A PAGAR:', x + 5, y + 4);
-      doc.text(fmtCOP(linea.netoAPagar), x + cw - 5, y + 4, { align: 'right' });
-      y += 14;
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.text(`(${numeroALetras(linea.netoAPagar)})`, x + 5, y);
-      y += 10;
+      // ── BANDA 3: Período + fecha ──────────────────────────────────────────────
+      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual'
+        : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
+      fc(C.slate); doc.rect(0, y, PW, 6, 'F');
+      sf('normal', 7); tc(C.white);
+      doc.text(`Período: ${MESES[month - 1]} ${year}  —  ${tipoLabel}`, ML + 2, y + 4);
+      doc.text(`Generado: ${new Date().toLocaleDateString('es-CO')}`, ML + CW - 2, y + 4, { align: 'right' });
+      y += 6;
 
-      // Aportes empleador
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('APORTES DEL EMPLEADOR (Informativo)', x, y);
+      y += 4;
+
+      // ── DATOS DEL EMPLEADO (2 columnas) ──────────────────────────────────────
+      sectionHead('DATOS DEL EMPLEADO');
+
+      const colMid = ML + CW / 2 + 3;
+      const col2   = (lLabel, lVal, rLabel, rVal) => {
+        sf('normal', 6.5); tc(C.textMid);
+        doc.text(String(lLabel).toUpperCase(), ML, y);
+        if (rLabel) doc.text(String(rLabel).toUpperCase(), colMid, y);
+        y += 3.5;
+        sf('normal', 8.5); tc(C.textDark);
+        doc.text(String(lVal || '—'), ML, y);
+        if (rLabel) doc.text(String(rVal || '—'), colMid, y);
+        y += 6.5;
+      };
+
+      col2('Nombre completo', linea.empleadoNombre,       'Cédula de ciudadanía', linea.empleadoDocumento || '—');
+      col2('Cargo / Posición', linea.cargo || '—',        'Empresa contratante',  linea.empresaContratante || '—');
+      col2('EPS',             linea.eps || '—',           'Fondo de pensiones',   linea.fondoPension || '—');
+      col2('Fondo de cesantías', linea.fondoCesantias||'—', 'ARL', `${linea.arlNombre||'—'} (${linea.arlPorcentaje||0}%)`);
+      col2('Caja compensación', linea.cajaCompensacion||'—', 'Cuenta bancaria',
+        linea.banco ? `${linea.banco} – ${linea.tipoCuenta||''} ${linea.numeroCuenta||''}`.trim() : '—');
+
+      y += 1; hLine(); y += 7;
+
+      // ── DEVENGADOS ────────────────────────────────────────────────────────────
+      sectionHead('DEVENGADOS');
+
+      moneyRow(`Salario devengado (${linea.diasTrabajados} días de ${fmtCOP(linea.salarioBase)}/mes)`, linea.salarioDevengado);
+      if ((linea.auxTransporte || 0) > 0)
+        moneyRow('Auxilio de transporte  (Art. 2 Ley 15/59)', linea.auxTransporte);
+      if ((linea.bonos || 0) > 0)
+        moneyRow(`Bonificación${linea.bonoDescripcion ? `  —  ${linea.bonoDescripcion}` : ''}`, linea.bonos);
+
+      // Conceptos adicionales
+      const pagosAd = linea.pagosAdicionales || [];
+      if (pagosAd.length > 0) {
+        y += 1;
+        sf('normal', 6.5); tc(C.textMid);
+        doc.text('CONCEPTOS ADICIONALES PAGADOS EN EL PERÍODO:', ML + 4, y);
+        y += 4;
+        pagosAd.forEach(p => moneyRow(`    ${p.concepto}`, Number(p.monto) || 0, false, 6));
+      }
+
+      thinDiv();
+      moneyRow('TOTAL DEVENGADO', linea.totalDevengado, true, 3);
+
       y += 5;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      const provs = [
-        [`Salud (8.5%)`, linea.saludEmpleador],
-        [`Pensión (12%)`, linea.pensionEmpleador],
-        [`ARL (${linea.arlPorcentaje}%)`, linea.arl],
-        [`Caja Compensación (4%)`, linea.caja],
-        [`Cesantías (8.33%)`, linea.cesantias],
-        [`Int. Cesantías (1%)`, linea.interesesCesantias],
-        [`Prima (8.33%)`, linea.prima],
-        [`Vacaciones (4.17%)`, linea.vacaciones]
-      ];
-      provs.forEach(([l, v]) => { addRow(l, v); });
-      doc.line(x + 3, y, x + cw - 3, y);
-      y += 2;
-      addRow('TOTAL PROVISIONES', linea.totalProvisionesEmpleador, true);
-      y += 15;
 
-      // Firmas
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setDrawColor(100);
-      doc.line(x, y, x + 65, y);
-      doc.text('Firma Empleador', x + 32, y + 5, { align: 'center' });
-      doc.line(x + cw - 65, y, x + cw, y);
-      doc.text('Firma Empleado', x + cw - 32, y + 5, { align: 'center' });
+      // ── DEDUCCIONES ───────────────────────────────────────────────────────────
+      sectionHead('DEDUCCIONES LEGALES');
+
+      moneyRow('Aporte salud empleado  (4% — Art. 204 Ley 100/93)', linea.saludEmpleado);
+      moneyRow('Aporte pensión empleado  (4% — Art. 20 Ley 797/03)', linea.pensionEmpleado);
+      if ((linea.anticipo || 0) > 0)
+        moneyRow('Anticipo 1ra quincena', linea.anticipo);
+
+      thinDiv();
+      moneyRow('TOTAL DEDUCCIONES', linea.totalDeducciones + (linea.anticipo || 0), true, 3);
+
+      y += 7;
+
+      // ── NETO A PAGAR ──────────────────────────────────────────────────────────
+      fc(C.dark); doc.rect(ML, y, CW, 12, 'F');
+      sf('bold', 10); tc(C.white);
+      doc.text('NETO A PAGAR:', ML + 5, y + 5);
+      sf('bold', 13);
+      doc.text(fmtCOP(linea.netoAPagar), ML + CW - 5, y + 5, { align: 'right' });
       y += 12;
-      doc.setFontSize(7);
-      doc.setTextColor(130);
-      doc.text(`Generado el ${new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}`, pw / 2, y, { align: 'center' });
+      sf('italic', 7); tc(C.slateLt);
+      const letras = `(${numeroALetras(linea.netoAPagar)})`;
+      const letrasLines = doc.splitTextToSize(letras, CW - 4);
+      const rasLines = letrasLines.length * 4.2 + 4;
+      doc.text(letrasLines, ML + 4, y + 4);
+      y += rasLines + 6;
+
+      // ── FIRMAS ────────────────────────────────────────────────────────────────
+      if (y > PH - 46) { doc.addPage(); y = 18; }
+
+      const sigW = 74;
+      const sigL = ML;
+      const sigR = ML + CW - sigW;
+
+      dc(C.textDark); lw(0.4);
+      doc.line(sigL, y, sigL + sigW, y);
+      doc.line(sigR, y, sigR + sigW, y);
+
+      sf('bold', 8); tc(C.dark);
+      doc.text('Representante Legal', sigL + sigW / 2, y + 4.5, { align: 'center' });
+      doc.text('Empleado', sigR + sigW / 2, y + 4.5, { align: 'center' });
+
+      sf('normal', 7); tc(C.textMid);
+      doc.text('Nombre: _______________________________', sigL, y + 9);
+      doc.text(`Nombre: ${linea.empleadoNombre}`, sigR, y + 9);
+      doc.text('C.C.: _________________________________', sigL, y + 14);
+      doc.text(`C.C.: ${linea.empleadoDocumento || '—'}`, sigR, y + 14);
+      doc.text('Cargo: ________________________________', sigL, y + 19);
+      doc.text(`Cargo: ${linea.cargo || '—'}`, sigR, y + 19);
+
+      y += 27;
+
+      // ── PIE LEGAL ─────────────────────────────────────────────────────────────
+      hLine(C.border, 0.25); y += 3;
+      sf('italic', 6.5); tc(C.textMid);
+      const legal = 'Documento con validez legal como comprobante de pago de salarios y prestaciones conforme al Art. 139 del Código Sustantivo del Trabajo (C.S.T.) y la Ley 52 de 1975. Conservar por un mínimo de 10 años para efectos de auditoría, control laboral e inspecciones del Ministerio de Trabajo.';
+      const legalLines = doc.splitTextToSize(legal, CW);
+      doc.text(legalLines, ML, y + 3);
+      y += legalLines.length * 3.5 + 4;
+
+      sf('normal', 6.5); tc(C.textMid);
+      doc.text(`Página 1 de 1  ·  ${new Date().toLocaleString('es-CO')}`, PW / 2, y + 2, { align: 'center' });
 
       doc.save(`Desprendible_${linea.empleadoNombre.replace(/\s+/g, '_')}_${MESES[month - 1]}_${year}.pdf`);
       showToast(`Desprendible generado para ${linea.empleadoNombre}`, 'success');
@@ -540,7 +895,7 @@ const NominaPage = () => {
   };
 
   // === ESTILOS DE CELDA ===
-  const cellSx = { py: 1, px: 1, fontSize: '0.78rem', whiteSpace: 'nowrap' };
+  const cellSx = { py: 1, px: 1, fontSize: '0.8rem', whiteSpace: 'nowrap' };
   const headerCellSx = {
     ...cellSx,
     fontWeight: 600,
@@ -549,11 +904,11 @@ const NominaPage = () => {
     position: 'sticky',
     top: 0,
     zIndex: 1,
-    fontSize: '0.72rem',
+    fontSize: '0.75rem',
     textTransform: 'uppercase',
-    letterSpacing: 0.3
+    letterSpacing: 0.8
   };
-  const numCellSx = { ...cellSx, textAlign: 'right', fontFamily: 'monospace', fontSize: '0.76rem' };
+  const numCellSx = { ...cellSx, textAlign: 'right', fontSize: '0.8rem' };
 
   // Estado chip
   const estadoChip = (estado) => {
@@ -661,41 +1016,68 @@ const NominaPage = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <TextField
-              fullWidth
-              size="small"
-              label="SMMLV"
-              value={smmlvInput}
-              onChange={(e) => setSmmlvInput(formatNumber(e.target.value))}
-              onBlur={applyConfig}
-              disabled={!isEditable}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-            />
-          </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Aux. Transporte"
-              value={auxTransInput}
-              onChange={(e) => setAuxTransInput(formatNumber(e.target.value))}
-              onBlur={applyConfig}
-              disabled={!isEditable}
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-            />
+          <Grid item xs={12} sm={6} md={3}>
+            <Box sx={{
+              px: 2, py: 1,
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              backgroundColor: alpha(theme.palette.primary.main, 0.04)
+            }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Valores vigentes {year}
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem', mt: 0.25 }}>
+                SMMLV: <strong>{fmtCOP(config.smmlv)}</strong>
+                {' '}•{' '}
+                Aux. Tr.: <strong>{fmtCOP(config.auxTransporte)}</strong>
+              </Typography>
+            </Box>
           </Grid>
           <Grid item xs={12} md={1} sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', md: 'center' } }}>
-            <Tooltip title="Recalcular todo">
-              <IconButton onClick={applyConfig} disabled={!isEditable} color="primary" sx={{ border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`, borderRadius: 1 }}>
+            <Tooltip title="Recalcular nómina">
+              <IconButton onClick={recalcularTodo} disabled={!isEditable} color="primary" sx={{ border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`, borderRadius: 1 }}>
                 <RefreshIcon />
               </IconButton>
             </Tooltip>
           </Grid>
         </Grid>
       </Paper>
+
+      {/* ===== ALERTA ENERO/FEBRERO — INTERESES CESANTÍAS ===== */}
+      {[1, 2].includes(month) && isEditable && (
+        <Alert
+          severity="info"
+          icon={<InfoIcon />}
+          sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.info.main, 0.3)}` }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.25 }}>
+            📅 {month === 1 ? 'Enero' : 'Febrero'} — Pago obligatorio: Intereses sobre cesantías
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            Según el Art. 99 Ley 52/75, deben pagarse directamente al empleado antes del 31 de enero.
+            Expande ▾ cada fila para agregar el concepto con el monto sugerido autocalculado.
+          </Typography>
+        </Alert>
+      )}
+
+      {/* ===== ALERTA JUNIO/DICIEMBRE — PRIMA DE SERVICIOS ===== */}
+      {[6, 12].includes(month) && isEditable && (
+        <Alert
+          severity="success"
+          icon={<InfoIcon />}
+          sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.success.main, 0.3)}` }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.25 }}>
+            📅 {month === 6 ? 'Junio' : 'Diciembre'} — Pago obligatorio: Prima de servicios (semestre {month === 6 ? '1' : '2'})
+          </Typography>
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            {month === 6
+              ? 'Debe pagarse antes del 30 de junio. Corresponde a 15 días de salario por el primer semestre trabajado.'
+              : 'Debe pagarse antes del 20 de diciembre. Corresponde a 15 días de salario por el segundo semestre trabajado.'}
+            {' '}Expande ▾ cada fila para ver el monto sugerido y agregarlo a la nómina.
+          </Typography>
+        </Alert>
+      )}
 
       {/* ===== NOVEDADES ALERT ===== */}
       {novedades.length > 0 && (
@@ -823,7 +1205,7 @@ const NominaPage = () => {
                       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                           <Box sx={{ color: kpi.color, display: 'flex' }}>{kpi.icon}</Box>
-                          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.65rem' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.7rem' }}>
                             {kpi.label}
                           </Typography>
                         </Box>
@@ -874,10 +1256,10 @@ const NominaPage = () => {
                           >
                             <TableCell sx={cellSx}>{idx + 1}</TableCell>
                             <TableCell sx={{ ...cellSx, fontWeight: 500 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem', lineHeight: 1.3 }}>
                                 {linea.empleadoNombre}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                                 {linea.cargo || '—'}
                               </Typography>
                             </TableCell>
@@ -925,7 +1307,7 @@ const NominaPage = () => {
                             {tipoLiquidacion === 'quincenal-2' && (
                               <TableCell sx={numCellSx}>{fmtCOP(linea.anticipo)}</TableCell>
                             )}
-                            <TableCell sx={{ ...numCellSx, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.82rem' }}>
+                            <TableCell sx={{ ...numCellSx, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.85rem' }}>
                               {fmtCOP(linea.netoAPagar)}
                             </TableCell>
                             <TableCell sx={{ ...cellSx, textAlign: 'center' }}>
@@ -962,8 +1344,8 @@ const NominaPage = () => {
                                       { label: 'Vacaciones (4.17%)', val: linea.vacaciones }
                                     ].map((p, i) => (
                                       <Grid item xs={6} sm={3} md={1.5} key={i}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block' }}>{p.label}</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.78rem' }}>{fmtCOP(p.val)}</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block' }}>{p.label}</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>{fmtCOP(p.val)}</Typography>
                                       </Grid>
                                     ))}
                                   </Grid>
@@ -989,6 +1371,128 @@ const NominaPage = () => {
                                       />
                                     </Box>
                                   )}
+
+                                  {/* ===== CONCEPTOS ADICIONALES ===== */}
+                                  <Box sx={{ mt: 2 }}>
+                                    <Divider sx={{ mb: 1.5 }} />
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.72rem', letterSpacing: 0.8, color: 'text.secondary' }}>
+                                        Conceptos adicionales pagados al empleado
+                                      </Typography>
+                                      {isEditable && (
+                                        <Button
+                                          size="small"
+                                          startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                                          onClick={() => handleAddConcepto(linea.empleadoId)}
+                                          sx={{ fontSize: '0.74rem', textTransform: 'none', borderRadius: 1, py: 0.3 }}
+                                        >
+                                          Agregar concepto
+                                        </Button>
+                                      )}
+                                    </Box>
+
+                                    {/* Sugerencia automática en junio/diciembre — Prima de servicios */}
+                                    {isEditable && [6, 12].includes(month) && !(datosEditables[linea.empleadoId]?.pagosAdicionales || []).some(p => p.concepto?.toLowerCase().includes('prima')) && (
+                                      <Box sx={{ mb: 1.5, p: 1.5, borderRadius: 1, border: `1px dashed ${alpha(theme.palette.success.main, 0.4)}`, backgroundColor: alpha(theme.palette.success.main, 0.04) }}>
+                                        <Typography variant="caption" sx={{ color: 'success.dark', fontWeight: 600, display: 'block', mb: 0.5, fontSize: '0.75rem' }}>
+                                          💡 Prima de servicios — semestre {month === 6 ? '1 (hasta 30 jun)' : '2 (hasta 20 dic)'}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                            Monto sugerido: <strong>{fmtCOP(Math.round((linea.salarioBase + config.auxTransporte) * 0.5))}</strong>
+                                            {' '}(15 días de salario + aux. transporte)
+                                          </Typography>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="success"
+                                            onClick={() => handleAddConcepto(
+                                              linea.empleadoId,
+                                              `Prima de servicios semestre ${month === 6 ? '1' : '2'}`,
+                                              Math.round((linea.salarioBase + config.auxTransporte) * 0.5)
+                                            )}
+                                            sx={{ fontSize: '0.72rem', textTransform: 'none', borderRadius: 1, py: 0.25 }}
+                                          >
+                                            Agregar sugerido
+                                          </Button>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Sugerencia automática en enero/febrero — Intereses cesantías */}
+                                    {isEditable && [1, 2].includes(month) && !(datosEditables[linea.empleadoId]?.pagosAdicionales || []).some(p => p.concepto?.toLowerCase().includes('cesant')) && (
+                                      <Box sx={{ mb: 1.5, p: 1.5, borderRadius: 1, border: `1px dashed ${alpha(theme.palette.warning.main, 0.4)}`, backgroundColor: alpha(theme.palette.warning.main, 0.04) }}>
+                                        <Typography variant="caption" sx={{ color: 'warning.dark', fontWeight: 600, display: 'block', mb: 0.5, fontSize: '0.75rem' }}>
+                                          💡 Intereses de cesantías pendientes de pago — calculado sobre el año anterior
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                            Monto sugerido: <strong>{fmtCOP(Math.round((linea.salarioBase + config.auxTransporte) * 0.12))}</strong>
+                                            {' '}(12% anual × cesantías)
+                                          </Typography>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="warning"
+                                            onClick={() => handleAddConcepto(
+                                              linea.empleadoId,
+                                              'Intereses de cesantías',
+                                              Math.round((linea.salarioBase + config.auxTransporte) * 0.12)
+                                            )}
+                                            sx={{ fontSize: '0.72rem', textTransform: 'none', borderRadius: 1, py: 0.25 }}
+                                          >
+                                            Agregar sugerido
+                                          </Button>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Lista de conceptos */}
+                                    {(datosEditables[linea.empleadoId]?.pagosAdicionales || []).length === 0 ? (
+                                      <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                                        Sin conceptos adicionales. Usa “Agregar concepto” para incluir intereses de cesantías, prima, vacaciones u otros pagos directos.
+                                      </Typography>
+                                    ) : (
+                                      <Grid container spacing={1}>
+                                        {(datosEditables[linea.empleadoId]?.pagosAdicionales || []).map((cp, cIdx) => (
+                                          <Grid item xs={12} key={cIdx}>
+                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                              <TextField
+                                                size="small"
+                                                label="Concepto"
+                                                value={cp.concepto}
+                                                onChange={(e) => handleUpdateConcepto(linea.empleadoId, cIdx, 'concepto', e.target.value)}
+                                                disabled={!isEditable}
+                                                sx={{ flex: 2, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                                placeholder="Ej: Intereses de cesantías"
+                                              />
+                                              <TextField
+                                                size="small"
+                                                label="Monto"
+                                                value={cp.monto ? String(cp.monto).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                                                onChange={(e) => handleUpdateConcepto(linea.empleadoId, cIdx, 'monto', e.target.value)}
+                                                disabled={!isEditable}
+                                                sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                                inputProps={{ style: { textAlign: 'right' } }}
+                                              />
+                                              {isEditable && (
+                                                <IconButton size="small" color="error" onClick={() => handleRemoveConcepto(linea.empleadoId, cIdx)} sx={{ flexShrink: 0 }}>
+                                                  <DeleteIcon sx={{ fontSize: 16 }} />
+                                                </IconButton>
+                                              )}
+                                            </Box>
+                                          </Grid>
+                                        ))}
+                                        <Grid item xs={12}>
+                                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                              Subtotal conceptos adicionales: <strong>{fmtCOP((datosEditables[linea.empleadoId]?.pagosAdicionales || []).reduce((s, p) => s + (Number(p.monto) || 0), 0))}</strong>
+                                            </Typography>
+                                          </Box>
+                                        </Grid>
+                                      </Grid>
+                                    )}
+                                  </Box>
                                 </Box>
                               </Collapse>
                             </TableCell>
@@ -1058,7 +1562,7 @@ const NominaPage = () => {
                   <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
                       <Box sx={{ color: kpi.color, display: 'flex' }}>{kpi.icon}</Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.65rem' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.3, fontSize: '0.7rem' }}>
                         {kpi.label}
                       </Typography>
                     </Box>

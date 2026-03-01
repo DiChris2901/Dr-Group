@@ -8,7 +8,15 @@ import {
   IconButton,
   Chip,
   alpha,
-  useTheme
+  useTheme,
+  TextField,
+  Button,
+  Divider,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   Group as GroupIcon,
@@ -17,7 +25,11 @@ import {
   Assessment as AssessmentIcon,
   Dashboard as DashboardIcon,
   ArrowBack as ArrowBackIcon,
-  NavigateNext as NavigateNextIcon
+  NavigateNext as NavigateNextIcon,
+  Savings as SavingsIcon,
+  CheckCircle as CheckCircleIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -32,6 +44,7 @@ import DashboardRRHH from '../components/rrhh/DashboardRRHH';
 import SolicitudesRRHH from '../components/rrhh/SolicitudesRRHH';
 import LiquidacionesRRHH from '../components/rrhh/LiquidacionesRRHH';
 import PageSkeleton from '../components/common/PageSkeleton';
+import useConfigNomina, { TASAS_DEFAULT } from '../hooks/useConfigNomina';
 
 const RecursosHumanosPage = () => {
   const theme = useTheme();
@@ -51,6 +64,79 @@ const RecursosHumanosPage = () => {
   // Validar permisos granulares
   const hasFullRRHH = hasPermission('rrhh'); // Acceso completo
   const canViewDashboard = hasFullRRHH || hasPermission('rrhh.dashboard');
+
+  // ===== CONFIG AÑO DE NÓMINA (valores legales) =====
+  const YEARS_NOMINA = Array.from({ length: 5 }, (_, i) => 2024 + i);
+  const [configYear, setConfigYear] = useState(new Date().getFullYear());
+  const [smmlvEdit, setSmmlvEdit] = useState('');
+  const [auxTransEdit, setAuxTransEdit] = useState('');
+  const [configSaved, setConfigSaved] = useState(false);
+  const [tasasEdit, setTasasEdit] = useState({});
+  const [showTasas, setShowTasas] = useState(false);
+
+  const { config: configNomina, loading: loadingConfig, saving: savingConfig, guardarConfig } = useConfigNomina(configYear);
+
+  // Sincronizar formulario cuando carga/cambia el año
+  useEffect(() => {
+    if (!loadingConfig) {
+      setSmmlvEdit(configNomina.smmlv.toLocaleString('es-CO'));
+      setAuxTransEdit(configNomina.auxTransporte.toLocaleString('es-CO'));
+      const t = configNomina.tasas || TASAS_DEFAULT;
+      setTasasEdit({
+        SALUD_EMPLEADO: t.SALUD_EMPLEADO,
+        PENSION_EMPLEADO: t.PENSION_EMPLEADO,
+        SALUD_EMPLEADOR: t.SALUD_EMPLEADOR,
+        PENSION_EMPLEADOR: t.PENSION_EMPLEADOR,
+        CAJA_COMPENSACION: t.CAJA_COMPENSACION,
+        CESANTIAS: t.CESANTIAS,
+        INTERESES_CESANTIAS: t.INTERESES_CESANTIAS,
+        PRIMA: t.PRIMA,
+        VACACIONES: t.VACACIONES,
+        ARL_I: t.ARL?.I ?? 0.522,
+        ARL_II: t.ARL?.II ?? 1.044,
+        ARL_III: t.ARL?.III ?? 2.436,
+        ARL_IV: t.ARL?.IV ?? 4.350,
+        ARL_V: t.ARL?.V ?? 6.960,
+      });
+    }
+  }, [configNomina, loadingConfig]);
+
+  const handleGuardarConfig = async () => {
+    try {
+      const smmlv = parseInt(String(smmlvEdit).replace(/\./g, '').replace(/,/g, '')) || 0;
+      const auxTransporte = parseInt(String(auxTransEdit).replace(/\./g, '').replace(/,/g, '')) || 0;
+      if (!smmlv || !auxTransporte) {
+        showToast('Ingresa valores válidos para SMMLV y Aux. Transporte', 'error');
+        return;
+      }
+      const tasas = {
+        SALUD_EMPLEADO: parseFloat(tasasEdit.SALUD_EMPLEADO) || TASAS_DEFAULT.SALUD_EMPLEADO,
+        PENSION_EMPLEADO: parseFloat(tasasEdit.PENSION_EMPLEADO) || TASAS_DEFAULT.PENSION_EMPLEADO,
+        SALUD_EMPLEADOR: parseFloat(tasasEdit.SALUD_EMPLEADOR) || TASAS_DEFAULT.SALUD_EMPLEADOR,
+        PENSION_EMPLEADOR: parseFloat(tasasEdit.PENSION_EMPLEADOR) || TASAS_DEFAULT.PENSION_EMPLEADOR,
+        CAJA_COMPENSACION: parseFloat(tasasEdit.CAJA_COMPENSACION) || TASAS_DEFAULT.CAJA_COMPENSACION,
+        CESANTIAS: parseFloat(tasasEdit.CESANTIAS) || TASAS_DEFAULT.CESANTIAS,
+        INTERESES_CESANTIAS: parseFloat(tasasEdit.INTERESES_CESANTIAS) || TASAS_DEFAULT.INTERESES_CESANTIAS,
+        PRIMA: parseFloat(tasasEdit.PRIMA) || TASAS_DEFAULT.PRIMA,
+        VACACIONES: parseFloat(tasasEdit.VACACIONES) || TASAS_DEFAULT.VACACIONES,
+        ARL: {
+          I: parseFloat(tasasEdit.ARL_I) || TASAS_DEFAULT.ARL.I,
+          II: parseFloat(tasasEdit.ARL_II) || TASAS_DEFAULT.ARL.II,
+          III: parseFloat(tasasEdit.ARL_III) || TASAS_DEFAULT.ARL.III,
+          IV: parseFloat(tasasEdit.ARL_IV) || TASAS_DEFAULT.ARL.IV,
+          V: parseFloat(tasasEdit.ARL_V) || TASAS_DEFAULT.ARL.V,
+        },
+      };
+      await guardarConfig({ smmlv, auxTransporte, tasas });
+      showToast(`Valores legales ${configYear} guardados correctamente`, 'success');
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 4000);
+    } catch (err) {
+      showToast('Error al guardar: ' + err.message, 'error');
+    }
+  };
+
+  const fmtCOP = (v) => v ? '$' + Math.round(v).toLocaleString('es-CO') : '$0';
   // solicitudes.gestionar → gestión dentro de RRHH; 'solicitudes' (crear) tiene su propia ruta /solicitudes
   const canViewSolicitudes = hasFullRRHH || hasPermission('solicitudes.gestionar');
   // ⚠️ Verificación EXPLÍCITA del permiso de gestión
@@ -486,6 +572,165 @@ const RecursosHumanosPage = () => {
                 </Grid>
               )}
             </Grid>
+
+            {/* ===== VALORES LEGALES DE NÓMINA ===== */}
+            {(hasFullRRHH || userProfile?.role === 'ADMIN' || userProfile?.permissions?.ALL === true) && (
+              <Box sx={{ mt: 3 }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <SavingsIcon sx={{ color: theme.palette.warning.main, fontSize: 22 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                      Valores Legales de Nómina
+                    </Typography>
+                    {configSaved && (
+                      <Chip
+                        icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
+                        label="Guardado"
+                        size="small"
+                        color="success"
+                        sx={{ ml: 1, fontWeight: 600, borderRadius: 1 }}
+                      />
+                    )}
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', mb: 2 }}>
+                    Configura el Salario Mínimo (SMMLV) y Auxilio de Transporte vigentes por año. Estos valores se usan automáticamente al liquidar nómina.
+                  </Typography>
+
+                  <Divider sx={{ mb: 2.5 }} />
+
+                  <Grid container spacing={2} alignItems="flex-end">
+                    <Grid item xs={12} sm={3} md={2}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Año</InputLabel>
+                        <Select
+                          value={configYear}
+                          onChange={(e) => setConfigYear(e.target.value)}
+                          label="Año"
+                          sx={{ borderRadius: 1 }}
+                        >
+                          {YEARS_NOMINA.map(y => (
+                            <MenuItem key={y} value={y}>{y}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} sm={4} md={3}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="SMMLV"
+                        value={smmlvEdit}
+                        onChange={(e) => setSmmlvEdit(e.target.value)}
+                        disabled={loadingConfig || savingConfig}
+                        helperText="Salario Mínimo Mensual Vigente"
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                        InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, fontSize: '0.85rem', color: 'text.secondary' }}>$</Typography> }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12} sm={4} md={3}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Auxilio de Transporte"
+                        value={auxTransEdit}
+                        onChange={(e) => setAuxTransEdit(e.target.value)}
+                        disabled={loadingConfig || savingConfig}
+                        helperText="Valor mensual aux. transporte"
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                        InputProps={{ startAdornment: <Typography sx={{ mr: 0.5, fontSize: '0.85rem', color: 'text.secondary' }}>$</Typography> }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={12} sm={12} md={2}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        size="small"
+                        onClick={handleGuardarConfig}
+                        disabled={loadingConfig || savingConfig}
+                        sx={{ borderRadius: 1, py: 1, fontWeight: 600 }}
+                        startIcon={savingConfig ? <CircularProgress size={14} color="inherit" /> : null}
+                      >
+                        {savingConfig ? 'Guardando...' : 'Guardar'}
+                      </Button>
+                    </Grid>
+                  </Grid>
+
+                  {/* Toggle: Tasas Parafiscales */}
+                  <Box sx={{ mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => setShowTasas(v => !v)}
+                      endIcon={showTasas ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      sx={{ color: 'text.secondary', fontSize: '0.78rem', textTransform: 'none', px: 0 }}
+                    >
+                      {showTasas ? 'Ocultar' : 'Ver / editar'} tasas parafiscales
+                    </Button>
+                  </Box>
+
+                  {showTasas && !loadingConfig && (
+                    <Box sx={{ mt: 1, p: 2, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.divider, 0.25)}`, backgroundColor: alpha(theme.palette.background.default, 0.5) }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, fontSize: '0.75rem' }}>
+                        Porcentajes (%) aplicados al liquidar nómina. Modifica solo si hay cambios legales.
+                      </Typography>
+                      <Grid container spacing={1.5}>
+                        {[
+                          { key: 'SALUD_EMPLEADO',      label: 'Salud Empleado %' },
+                          { key: 'PENSION_EMPLEADO',    label: 'Pensión Empleado %' },
+                          { key: 'SALUD_EMPLEADOR',     label: 'Salud Empleador %' },
+                          { key: 'PENSION_EMPLEADOR',   label: 'Pensión Empleador %' },
+                          { key: 'CAJA_COMPENSACION',   label: 'Caja Compensación %' },
+                          { key: 'CESANTIAS',           label: 'Cesantías %' },
+                          { key: 'INTERESES_CESANTIAS', label: 'Int. Cesantías %' },
+                          { key: 'PRIMA',               label: 'Prima %' },
+                          { key: 'VACACIONES',          label: 'Vacaciones %' },
+                          { key: 'ARL_I',   label: 'ARL Riesgo I %' },
+                          { key: 'ARL_II',  label: 'ARL Riesgo II %' },
+                          { key: 'ARL_III', label: 'ARL Riesgo III %' },
+                          { key: 'ARL_IV',  label: 'ARL Riesgo IV %' },
+                          { key: 'ARL_V',   label: 'ARL Riesgo V %' },
+                        ].map(({ key, label }) => (
+                          <Grid item xs={6} sm={4} md={3} key={key}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label={label}
+                              type="number"
+                              inputProps={{ step: '0.001', min: '0' }}
+                              value={tasasEdit[key] ?? ''}
+                              onChange={(e) => setTasasEdit(prev => ({ ...prev, [key]: e.target.value }))}
+                              disabled={savingConfig}
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                            />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+
+                  {!loadingConfig && (
+                    <Box sx={{ mt: 2, p: 1.5, borderRadius: 1, backgroundColor: alpha(theme.palette.info.main, 0.06), border: `1px solid ${alpha(theme.palette.info.main, 0.15)}` }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        <strong>Vigente {configYear}:</strong>{' '}
+                        SMMLV {fmtCOP(configNomina.smmlv)} • Aux. Transporte {fmtCOP(configNomina.auxTransporte)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
+            )}
           </motion.div>
         ) : (
           /* MÓDULO ACTIVO - Vista Detallada */
