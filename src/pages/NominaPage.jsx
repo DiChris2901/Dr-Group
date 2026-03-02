@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import PageSkeleton from '../components/common/PageSkeleton';
 import {
   Box, Typography, Grid, Paper, Button, TextField, Select, MenuItem,
@@ -1265,7 +1265,7 @@ const NominaPage = ({ embedded = false }) => {
                     </TableHead>
                     <TableBody>
                       {lineas.map((linea, idx) => (
-                        <React.Fragment key={linea.empleadoId}>
+                        <Fragment key={linea.empleadoId}>
                           <TableRow
                             hover
                             sx={{
@@ -1516,7 +1516,7 @@ const NominaPage = ({ embedded = false }) => {
                               </Collapse>
                             </TableCell>
                           </TableRow>
-                        </React.Fragment>
+                        </Fragment>
                       ))}
 
                       {/* Fila de totales */}
