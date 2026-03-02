@@ -78,7 +78,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import EmpleadoForm, { NIVELES_RIESGO_ARL } from '../components/rrhh/EmpleadoForm';
-const EmpleadosPage = ({ embedded = false }) => {
+const EmpleadosPage = ({ embedded = false, empleadosExternal = null }) => {
   const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
@@ -152,9 +152,9 @@ const EmpleadosPage = ({ embedded = false }) => {
   const [pdfViewerUrl, setPdfViewerUrl] = useState('');
   const [pdfViewerTitle, setPdfViewerTitle] = useState('');
 
-  // Cargar empleados desde Firestore
+  // Cargar empleados desde Firestore (se omite si el padre provee empleadosExternal)
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || empleadosExternal !== null) return;
 
     const q = query(
       collection(db, 'empleados'),
@@ -182,7 +182,15 @@ const EmpleadosPage = ({ embedded = false }) => {
     );
 
     return () => unsubscribe();
-  }, [currentUser, addNotification]);
+  }, [currentUser, addNotification, empleadosExternal]);
+
+  // Sincronizar datos externos cuando el padre los actualiza
+  useEffect(() => {
+    if (empleadosExternal !== null) {
+      setEmpleados(empleadosExternal);
+      setLoading(false);
+    }
+  }, [empleadosExternal]);
 
   // Cargar empresas desde Firestore
   useEffect(() => {

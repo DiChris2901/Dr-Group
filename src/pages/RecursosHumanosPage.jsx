@@ -71,6 +71,8 @@ const RecursosHumanosPage = () => {
   const [configSaved, setConfigSaved] = useState(false);
   const [tasasEdit, setTasasEdit] = useState({});
   const [showTasas, setShowTasas] = useState(false);
+  // Lazy-loading de listeners: registra qué tabs se han visitado
+  const [tabsVisitados, setTabsVisitados] = useState(new Set());
 
   const { config: configNomina, loading: loadingConfig, saving: savingConfig, guardarConfig } = useConfigNomina(configYear);
 
@@ -158,6 +160,13 @@ const RecursosHumanosPage = () => {
   // Clave del tab activo
   const activeTabKey = availableTabs[activeTab]?.key || availableTabs[0]?.key;
 
+  // Registrar el tab activo como visitado (activa el listener correspondiente)
+  useEffect(() => {
+    if (activeTabKey) {
+      setTabsVisitados(prev => new Set([...prev, activeTabKey]));
+    }
+  }, [activeTabKey]);
+
   // ===== HEADER DINÁMICO SEGÚN TAB ACTIVO =====
   const headerConfig = useMemo(() => {
     const configs = {
@@ -203,9 +212,9 @@ const RecursosHumanosPage = () => {
     };
   }, [canViewRRHH]);
 
-  // ✅ LISTENER: Obtener asistencias del día actual
+  // ✅ LISTENER: Asistencias del día — lazy, solo cuando el tab Dashboard fue visitado
   useEffect(() => {
-    if (!canViewAsistencias) return;
+    if (!canViewAsistencias || !tabsVisitados.has('dashboard')) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
     const q = query(
@@ -230,12 +239,11 @@ const RecursosHumanosPage = () => {
     });
 
     return () => unsubscribe();
-  }, [canViewAsistencias]);
+  }, [canViewAsistencias, tabsVisitados]);
 
-  // ✅ LISTENER: Obtener solicitudes en tiempo real
-  // Si puede gestionar → TODAS las solicitudes | Si solo crear → solo las suyas
+  // ✅ LISTENER: Solicitudes — lazy, solo cuando el tab Solicitudes fue visitado
   useEffect(() => {
-    if (!canViewSolicitudes || !userProfile?.uid) return;
+    if (!canViewSolicitudes || !userProfile?.uid || !tabsVisitados.has('solicitudes')) return;
 
     const q = canManageSolicitudes
       ? query(collection(db, 'solicitudes'), orderBy('fechaSolicitud', 'desc'))
@@ -268,7 +276,7 @@ const RecursosHumanosPage = () => {
     });
 
     return () => unsubscribe();
-  }, [canViewSolicitudes, canManageSolicitudes, userProfile?.uid]);
+  }, [canViewSolicitudes, canManageSolicitudes, userProfile?.uid, tabsVisitados]);
 
   // ✅ Redirect: employees with only 'solicitudes' perm go to /solicitudes
   useEffect(() => {
@@ -468,7 +476,7 @@ const RecursosHumanosPage = () => {
 
         {/* TAB: EMPLEADOS */}
         {activeTabKey === 'empleados' && (
-          <EmpleadosPage embedded />
+          <EmpleadosPage embedded empleadosExternal={empleados} />
         )}
 
         {/* TAB: NÓMINA */}

@@ -1,6 +1,6 @@
 {
   "name": "org-rdj-dashboard",
-  "version": "3.19.2",
+  "version": "3.19.3",
   "description": "Plataforma de Gestión Operativa y Administrativa para Organización RDJ",
   "type": "module",
   "scripts": {
