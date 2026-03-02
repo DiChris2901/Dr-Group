@@ -1246,11 +1246,11 @@ const SolicitudesRRHH = ({
       case 'certificacion': 
         return <DocumentoIcon sx={{ ...iconStyles, color: theme.palette.primary.main }} />;
       case 'licencia_maternidad': 
-        return <MaternidadIcon sx={{ ...iconStyles, color: '#ff6090' }} />;
+        return <MaternidadIcon sx={{ ...iconStyles, color: theme.palette.secondary.main }} />;
       case 'adelanto': 
-        return <AdelantoIcon sx={{ ...iconStyles, color: '#4caf50' }} />;
+        return <AdelantoIcon sx={{ ...iconStyles, color: theme.palette.success.main }} />;
       case 'remoto': 
-        return <RemotoIcon sx={{ ...iconStyles, color: '#00bcd4' }} />;
+        return <RemotoIcon sx={{ ...iconStyles, color: theme.palette.info.main }} />;
       default: 
         return <AssignmentIcon sx={iconStyles} />;
     }
@@ -1961,10 +1961,8 @@ const SolicitudesRRHH = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark'
-            ? theme.palette.grey[900]
-            : theme.palette.grey[50],
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
           color: 'text.primary'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -2026,19 +2024,19 @@ const SolicitudesRRHH = ({
                   </MenuItem>
                   <MenuItem value="licencia_maternidad">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <MaternidadIcon fontSize="small" sx={{ color: '#ff6090' }} />
+                      <MaternidadIcon fontSize="small" sx={{ color: theme.palette.secondary.main }} />
                       Licencia Maternidad/Paternidad
                     </Box>
                   </MenuItem>
                   <MenuItem value="adelanto">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <AdelantoIcon fontSize="small" sx={{ color: '#4caf50' }} />
+                      <AdelantoIcon fontSize="small" sx={{ color: theme.palette.success.main }} />
                       Adelanto de Nómina
                     </Box>
                   </MenuItem>
                   <MenuItem value="remoto">
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <RemotoIcon fontSize="small" sx={{ color: '#00bcd4' }} />
+                      <RemotoIcon fontSize="small" sx={{ color: theme.palette.info.main }} />
                       Trabajo Remoto (Home Office)
                     </Box>
                   </MenuItem>
@@ -3067,11 +3065,9 @@ const SolicitudesRRHH = ({
             <Avatar 
               sx={{ 
                 bgcolor: confirmAction === 'aprobar' 
-                  ? alpha(theme.palette.primary.main, 0.1) 
-                  : alpha(theme.palette.error.main, 0.1),
-                color: confirmAction === 'aprobar' 
-                  ? theme.palette.primary.main 
-                  : theme.palette.error.main
+                  ? 'primary.main' 
+                  : 'error.main',
+                color: 'white'
               }}
             >
               {confirmAction === 'aprobar' ? <CheckIcon /> : <CloseIcon />}
@@ -3171,10 +3167,8 @@ const SolicitudesRRHH = ({
         <DialogTitle sx={{
           p: 3,
           pb: 2,
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
-            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
         }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center" gap={2.5}>
@@ -3184,7 +3178,7 @@ const SolicitudesRRHH = ({
                 transition={{ type: 'spring', stiffness: 200 }}
               >
                 <Avatar sx={{
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  bgcolor: 'primary.main',
                   width: 48,
                   height: 48
                 }}>
@@ -3769,10 +3763,8 @@ const SolicitudesRRHH = ({
         <DialogTitle sx={{
           p: 3,
           pb: 2,
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
-            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
         }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Box display="flex" alignItems="center" gap={2.5}>
@@ -3782,7 +3774,7 @@ const SolicitudesRRHH = ({
                 transition={{ type: 'spring', stiffness: 200 }}
               >
                 <Avatar sx={{
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  bgcolor: 'primary.main',
                   width: 40,
                   height: 40
                 }}>

@@ -231,9 +231,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'rrhh.nomina', 'empleados', 'asistencias', 'solicitudes', 'solicitudes.gestionar', 'usuarios', 'auditoria', 'storage'];
-        
-        // Convertir permissions de objeto a array si es necesario
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.nomina', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
         let userPermissions = user.permissions || [];
         if (typeof userPermissions === 'object' && !Array.isArray(userPermissions)) {
           // Es un objeto, convertir a array tomando las claves con valor true
@@ -382,13 +380,8 @@ const UserManagementPage = () => {
         'tareas.aprobar',
         'tareas.admin',
         'rrhh',
-        'rrhh.dashboard',
-        'rrhh.liquidaciones',
-        'rrhh.reportes',
         'rrhh.nomina',
-        'empleados',
         'asistencias',
-        'solicitudes',
         'usuarios',
         'auditoria',
         'storage'
@@ -515,7 +508,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes', 'rrhh.nomina', 'empleados', 'asistencias', 'solicitudes', 'solicitudes.gestionar', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'liquidaciones.estadisticas', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'tareas', 'tareas.crear', 'tareas.asignar', 'tareas.ver_todas', 'tareas.aprobar', 'tareas.admin', 'rrhh', 'rrhh.nomina', 'asistencias', 'solicitudes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1752,16 +1745,7 @@ const UserManagementPage = () => {
                           });
                         }
                         
-                        // Casos especiales
-                        if (perm.key === 'rrhh') {
-                          const rrhhModules = ['rrhh.dashboard', 'solicitudes', 'rrhh.liquidaciones', 'rrhh.reportes'];
-                          rrhhModules.forEach(module => {
-                            if (!newPermissions.includes(module)) {
-                              newPermissions.push(module);
-                            }
-                          });
-                          newPermissions = newPermissions.filter(p => p !== 'solicitudes.gestionar');
-                        }
+
                       }
                       
                       updateFormData({ permissions: newPermissions });
@@ -1929,20 +1913,10 @@ const UserManagementPage = () => {
                       icon: <BadgeIcon />, 
                       color: '#ff9800',
                       subPermissions: [
-                        { 
-                          key: 'rrhh', 
-                          label: 'Talento Humano',
-                          subPermissions: [
-                            { key: 'rrhh.dashboard', label: 'Dashboard' },
-                            { key: 'solicitudes', label: 'Realizar Solicitudes', mutuallyExclusiveWith: 'solicitudes.gestionar' },
-                            { key: 'solicitudes.gestionar', label: 'Gestionar Solicitudes', mutuallyExclusiveWith: 'solicitudes', noAutoActivate: true },
-                            { key: 'rrhh.liquidaciones', label: 'Liquidaciones' },
-                            { key: 'rrhh.reportes', label: 'Reportes' },
-                            { key: 'rrhh.nomina', label: 'Nómina' }
-                          ]
-                        },
-                        { key: 'empleados', label: 'Empleados' },
-                        { key: 'asistencias', label: 'Asistencias' }
+                        { key: 'rrhh', label: 'Talento Humano' },
+                        { key: 'solicitudes', label: 'Realizar Solicitudes' },
+                        { key: 'asistencias', label: 'Asistencias' },
+                        { key: 'rrhh.nomina', label: 'Nómina' }
                       ]
                     },
                     { 

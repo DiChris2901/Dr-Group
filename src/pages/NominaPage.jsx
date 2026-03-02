@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import PageSkeleton from '../components/common/PageSkeleton';
 import {
   Box, Typography, Grid, Paper, Button, TextField, Select, MenuItem,
   FormControl, InputLabel, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Tabs, Tab, Chip, IconButton,
-  Alert, Tooltip, Collapse, Divider, CircularProgress,
+  Alert, Tooltip, Collapse, Divider, CircularProgress, LinearProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, alpha, useTheme
 } from '@mui/material';
 import {
@@ -98,7 +99,7 @@ const numeroALetras = (num) => {
 };
 
 // ===== COMPONENTE PRINCIPAL =====
-const NominaPage = () => {
+const NominaPage = ({ embedded = false }) => {
   const theme = useTheme();
   const { showToast } = useToast();
   const { companies } = useCompanies();
@@ -923,17 +924,14 @@ const NominaPage = () => {
 
   // === LOADING ===
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <PageSkeleton variant="table" kpiCount={4} />;
   }
 
   // === RENDER ===
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1600, mx: 'auto' }}>
+    <Box sx={{ p: embedded ? 0 : { xs: 2, md: 3 }, maxWidth: 1600, mx: 'auto' }}>
       {/* ===== HEADER GRADIENT SOBRIO ===== */}
+      {!embedded && (
       <Paper
         elevation={0}
         sx={{
@@ -977,6 +975,7 @@ const NominaPage = () => {
           </Typography>
         </Box>
       </Paper>
+      )}
 
       {/* ===== SELECTOR DE PERÍODO + CONFIG ===== */}
       <Paper
@@ -1175,8 +1174,8 @@ const NominaPage = () => {
       {activeTab === 0 && (
         <Box>
           {loadingPeriodo ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-              <CircularProgress />
+            <Box sx={{ py: 2 }}>
+              <LinearProgress sx={{ borderRadius: 1 }} />
             </Box>
           ) : lineas.length === 0 ? (
             <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.15)}` }}>
@@ -1266,9 +1265,8 @@ const NominaPage = () => {
                     </TableHead>
                     <TableBody>
                       {lineas.map((linea, idx) => (
-                        <>
+                        <React.Fragment key={linea.empleadoId}>
                           <TableRow
-                            key={linea.empleadoId}
                             hover
                             sx={{
                               '&:nth-of-type(even)': { backgroundColor: alpha(theme.palette.primary.main, 0.02) },
@@ -1518,7 +1516,7 @@ const NominaPage = () => {
                               </Collapse>
                             </TableCell>
                           </TableRow>
-                        </>
+                        </React.Fragment>
                       ))}
 
                       {/* Fila de totales */}

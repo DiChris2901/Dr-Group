@@ -24,7 +24,6 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  CircularProgress,
   Alert,
   Fab,
   alpha,
@@ -78,73 +77,8 @@ import PageSkeleton from '../components/common/PageSkeleton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Lista de bancos en Colombia
-const BANCOS_COLOMBIA = [
-  'Bancolombia',
-  'Banco de Bogotá',
-  'Davivienda',
-  'BBVA Colombia',
-  'Banco de Occidente',
-  'Banco Popular',
-  'Banco Caja Social',
-  'Banco AV Villas',
-  'Banco Agrario',
-  'Banco Pichincha',
-  'Banco Falabella',
-  'Banco Finandina',
-  'Banco GNB Sudameris',
-  'Banco Cooperativo Coopcentral',
-  'Banco Serfinanza',
-  'Banco Mundo Mujer',
-  'Bancamía',
-  'Banco W',
-  'Banco Credifinanciera',
-  'Itaú',
-  'Scotiabank Colpatria',
-  'Citibank',
-  'Nequi',
-  'Daviplata',
-  'Movii',
-  'Rappipay',
-  'Banco Santander',
-  'Lulo Bank'
-].sort();
-
-// ===== CONSTANTES PARA NÓMINA Y SEGURIDAD SOCIAL =====
-
-const EPS_COLOMBIA = [
-  'Aliansalud', 'Asmet Salud', 'Capital Salud', 'Compensar EPS', 'Coomeva EPS',
-  'Coosalud', 'Emssanar', 'Famisanar', 'Medimás', 'Mutual Ser',
-  'Nueva EPS', 'Salud Total', 'Sanitas', 'SOS EPS', 'Sura EPS'
-];
-
-const FONDOS_PENSION = [
-  'Colfondos', 'Colpensiones (RPM)', 'Old Mutual (Skandia)', 'Porvenir', 'Protección'
-];
-
-const FONDOS_CESANTIAS = [
-  'Colfondos', 'FNA (Fondo Nacional del Ahorro)', 'Porvenir', 'Protección'
-];
-
-const CAJAS_COMPENSACION = [
-  'Cafam', 'Colsubsidio', 'Combarranquilla', 'Comfaboy', 'Comfama',
-  'Comfandi', 'Comfenalco', 'Compensar'
-];
-
-const ARL_COLOMBIA = [
-  'Alfa ARL', 'Bolívar ARL', 'Colmena ARL', 'Colpatria ARL',
-  'Equidad ARL', 'Liberty ARL', 'Positiva ARL', 'Sura ARL'
-];
-
-const NIVELES_RIESGO_ARL = [
-  { value: 'I', label: 'Nivel I - Riesgo Mínimo', porcentaje: 0.522 },
-  { value: 'II', label: 'Nivel II - Riesgo Bajo', porcentaje: 1.044 },
-  { value: 'III', label: 'Nivel III - Riesgo Medio', porcentaje: 2.436 },
-  { value: 'IV', label: 'Nivel IV - Riesgo Alto', porcentaje: 4.350 },
-  { value: 'V', label: 'Nivel V - Riesgo Máximo', porcentaje: 6.960 }
-];
-
-const EmpleadosPage = () => {
+import EmpleadoForm, { NIVELES_RIESGO_ARL } from '../components/rrhh/EmpleadoForm';
+const EmpleadosPage = ({ embedded = false }) => {
   const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
@@ -796,6 +730,25 @@ const EmpleadosPage = () => {
     }
   };
 
+
+  // Eliminar archivo de un empleado (usado por EmpleadoForm en modo edit)
+  const handleDeleteEmpleadoFile = async (fieldName, fileUrl) => {
+    try {
+      await deleteFileFromStorage(fileUrl);
+      await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
+        [fieldName]: ''
+      });
+      setSelectedEmpleado(prev => ({
+        ...prev,
+        [fieldName]: ''
+      }));
+      addNotification('Archivo eliminado correctamente', 'success');
+    } catch (error) {
+      console.error('Error al eliminar archivo:', error);
+      addNotification('Error al eliminar el archivo', 'error');
+    }
+  };
+
   // Abrir modal de agregar
   const handleOpenAddDialog = () => {
     resetForm();
@@ -884,11 +837,12 @@ const EmpleadosPage = () => {
 
   return (
     <Box sx={{ 
-      p: { xs: 2, sm: 3, md: 4 },
+      p: embedded ? 0 : { xs: 2, sm: 3, md: 4 },
       maxWidth: '1400px',
       mx: 'auto'
     }}>
       {/* HEADER GRADIENT SOBRIO */}
+      {!embedded && (
       <Paper 
         sx={{ 
           background: theme.palette.mode === 'dark' 
@@ -988,6 +942,7 @@ const EmpleadosPage = () => {
           </Box>
         </Box>
       </Paper>
+      )}
 
       {/* Contenido principal */}
       {loading ? (
@@ -1190,12 +1145,13 @@ const EmpleadosPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: `0 12px 48px ${alpha(theme.palette.common.black, 0.2)}`
+            boxShadow: `0 4px 24px ${alpha(theme.palette.common.black, 0.2)}`
           }
         }}
       >
         <DialogTitle sx={{
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1204,8 +1160,8 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                color: 'primary.main',
+                bgcolor: 'primary.main',
+                color: 'white',
                 width: 40,
                 height: 40
               }}
@@ -1231,669 +1187,28 @@ const EmpleadosPage = () => {
         </DialogTitle>
         <DialogContent sx={{ p: 3, pt: 3 }}>
           <Box sx={{ mt: 2 }}>
-          <Grid container spacing={2}>
-            {/* Información Personal */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'primary.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <BadgeIcon />
-                Información Personal
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nombres *"
-                value={formData.nombres}
-                onChange={(e) => handleFormChange('nombres', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Apellidos *"
-                value={formData.apellidos}
-                onChange={(e) => handleFormChange('apellidos', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nacionalidad"
-                value={formData.nacionalidad}
-                onChange={(e) => handleFormChange('nacionalidad', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo Documento</InputLabel>
-                <Select
-                  value={formData.tipoDocumento}
-                  onChange={(e) => handleFormChange('tipoDocumento', e.target.value)}
-                  label="Tipo Documento"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
-                  <MenuItem value="CE">Cédula de Extranjería</MenuItem>
-                  <MenuItem value="PAS">Pasaporte</MenuItem>
-                  <MenuItem value="TI">Tarjeta de Identidad</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="N° Documento *"
-                value={formData.numeroDocumento}
-                onChange={(e) => handleFormChange('numeroDocumento', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Email Corporativo"
-                type="email"
-                value={formData.emailCorporativo}
-                onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
-                placeholder="ejemplo@org-rdj.com"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Teléfono"
-                type="tel"
-                value={formData.telefono}
-                onChange={(e) => handleFormChange('telefono', e.target.value)}
-                placeholder="+57 300 123 4567"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Fecha de Nacimiento"
-                type="date"
-                value={formData.fechaNacimiento}
-                onChange={(e) => handleFormChange('fechaNacimiento', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Edad"
-                value={formData.edad}
-                disabled
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                helperText="Se calcula automáticamente"
-              />
-            </Grid>
-
-            {/* Documento de Identidad */}
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'documento')}
-                onDragLeave={(e) => handleDragLeave(e, 'documento')}
-                onDrop={(e) => handleDrop(e, 'documento', ['application/pdf', 'image/*'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverDocumento 
-                    ? alpha(theme.palette.info.main, 0.08)
-                    : alpha(theme.palette.info.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf,image/*"
-                  style={{ display: 'none' }}
-                  id="documento-identidad-upload"
-                  onChange={(e) => setDocumentoIdentidadFile(e.target.files[0])}
-                />
-                <label htmlFor="documento-identidad-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<BadgeIcon />}
-                    fullWidth
-                    color="info"
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {documentoIdentidadFile ? documentoIdentidadFile.name : 'Adjuntar Documento de Identidad (PDF o Imagen)'}
-                  </Button>
-                  {!documentoIdentidadFile && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
-                      sx={{ 
-                        display: 'block', 
-                        textAlign: 'center', 
-                        mt: 1,
-                        fontStyle: 'italic' 
-                      }}
-                    >
-                      o arrastra el archivo aquí
-                    </Typography>
-                  )}
-                </label>
-                {uploadingDocumentoIdentidad && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="caption">Subiendo documento...</Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Información Laboral */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'info.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <WorkIcon />
-                Información Laboral
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <FormControl fullWidth>
-                <InputLabel>Empresa Contratante</InputLabel>
-                <Select
-                  value={formData.empresaContratante || ''}
-                  onChange={(e) => handleFormChange('empresaContratante', e.target.value)}
-                  label="Empresa Contratante"                  displayEmpty
-                  sx={{ borderRadius: 2 }}
-                  renderValue={(selected) => {
-                    const empresa = empresas.find(e => e.name === selected);
-                    if (!empresa) return <em>Seleccionar empresa</em>;
-                    return (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                          src={empresa.logoURL}
-                          sx={{ width: 24, height: 24 }}
-                        >
-                          {empresa.name.charAt(0)}
-                        </Avatar>
-                        {empresa.name}
-                      </Box>
-                    );
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Seleccionar empresa</em>
-                  </MenuItem>
-                  {empresas.map((empresa) => (
-                    <MenuItem key={empresa.id} value={empresa.name}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                          src={empresa.logoURL}
-                          sx={{ width: 24, height: 24 }}
-                        >
-                          {empresa.name.charAt(0)}
-                        </Avatar>
-                        {empresa.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <TextField
-                fullWidth
-                label="Fecha Inicio Contrato"
-                type="date"
-                value={formData.fechaInicioContrato}
-                onChange={(e) => handleFormChange('fechaInicioContrato', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo de Vigencia</InputLabel>
-                <Select
-                  value={formData.tipoVigencia}
-                  onChange={(e) => handleFormChange('tipoVigencia', e.target.value)}
-                  label="Tipo de Vigencia"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="Trimestral">Trimestral (3 meses)</MenuItem>
-                  <MenuItem value="Semestral">Semestral (6 meses)</MenuItem>
-                  <MenuItem value="Anual">Anual (12 meses)</MenuItem>
-                  <MenuItem value="Indefinido">Indefinido</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12} sm={3}>
-                <TextField
-                  fullWidth
-                  label="Fecha Fin Contrato"
-                  type="date"
-                  value={formData.fechaInicioContrato && formData.tipoVigencia ? calcularFechaFinContrato(formData.fechaInicioContrato, formData.tipoVigencia) : ''}
-                  disabled
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  helperText="Calculada automáticamente"
-                />
-              </Grid>
-            )}
-
-            {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12}>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    bgcolor: formData.seRenueva 
-                      ? alpha(theme.palette.success.main, 0.05)
-                      : alpha(theme.palette.grey[500], 0.05),
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    {formData.seRenueva && (
-                      <Chip
-                        label="Renovación Automática"
-                        color="success"
-                        size="small"
-                      />
-                    )}
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.seRenueva}
-                          onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
-                          color="success"
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            ¿El contrato se renueva automáticamente?
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  </Box>
-                </Paper>
-              </Grid>
-            )}
-
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'contrato')}
-                onDragLeave={(e) => handleDragLeave(e, 'contrato')}
-                onDrop={(e) => handleDrop(e, 'contrato', ['application/pdf'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverContrato
-                    ? alpha(theme.palette.primary.main, 0.08)
-                    : alpha(theme.palette.primary.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
-                  id="contrato-upload"
-                  onChange={(e) => setContratoFile(e.target.files[0])}
-                />
-                <label htmlFor="contrato-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    fullWidth
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {contratoFile ? contratoFile.name : 'Subir Contrato Laboral (PDF)'}
-                  </Button>
-                  {!contratoFile && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
-                      sx={{ 
-                        display: 'block', 
-                        textAlign: 'center', 
-                        mt: 1,
-                        fontStyle: 'italic' 
-                      }}
-                    >
-                      o arrastra el archivo aquí
-                    </Typography>
-                  )}
-                </label>
-                {uploadingContrato && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="caption">Subiendo contrato...</Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Información de Nómina */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'success.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <AttachMoneyIcon />
-                Información de Nómina
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Salario Base"
-                value={formData.salarioBase}
-                onChange={(e) => handleFormChange('salarioBase', e.target.value)}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>
-                }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                helperText="Salario mensual"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Cargo"
-                value={formData.cargo}
-                onChange={(e) => handleFormChange('cargo', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Periodicidad de Nómina</InputLabel>
-                <Select
-                  value={formData.tipoNomina}
-                  onChange={(e) => handleFormChange('tipoNomina', e.target.value)}
-                  label="Periodicidad de Nómina"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="mensual">Mensual</MenuItem>
-                  <MenuItem value="quincenal">Quincenal</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Seguridad Social y Parafiscales */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <LocalHospitalIcon />
-                Seguridad Social y Parafiscales
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={EPS_COLOMBIA}
-                value={formData.eps}
-                onChange={(event, newValue) => handleFormChange('eps', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('eps', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="EPS" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={FONDOS_PENSION}
-                value={formData.fondoPension}
-                onChange={(event, newValue) => handleFormChange('fondoPension', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('fondoPension', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Fondo de Pensión" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={FONDOS_CESANTIAS}
-                value={formData.fondoCesantias}
-                onChange={(event, newValue) => handleFormChange('fondoCesantias', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('fondoCesantias', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Fondo de Cesantías" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={CAJAS_COMPENSACION}
-                value={formData.cajaCompensacion}
-                onChange={(event, newValue) => handleFormChange('cajaCompensacion', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('cajaCompensacion', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Caja de Compensación" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={ARL_COLOMBIA}
-                value={formData.arl}
-                onChange={(event, newValue) => handleFormChange('arl', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('arl', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="ARL" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Nivel de Riesgo ARL</InputLabel>
-                <Select
-                  value={formData.nivelRiesgoArl}
-                  onChange={(e) => handleFormChange('nivelRiesgoArl', e.target.value)}
-                  label="Nivel de Riesgo ARL"
-                  sx={{ borderRadius: 2 }}
-                >
-                  {NIVELES_RIESGO_ARL.map(nivel => (
-                    <MenuItem key={nivel.value} value={nivel.value}>
-                      {nivel.label} ({nivel.porcentaje}%)
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Información Bancaria */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'secondary.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <AccountBalanceIcon />
-                Información Bancaria
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={BANCOS_COLOMBIA}
-                value={formData.banco}
-                onChange={(event, newValue) => {
-                  handleFormChange('banco', newValue || '');
-                }}
-                onInputChange={(event, newInputValue) => {
-                  handleFormChange('banco', newInputValue);
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Banco"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo de Cuenta</InputLabel>
-                <Select
-                  value={formData.tipoCuenta}
-                  onChange={(e) => handleFormChange('tipoCuenta', e.target.value)}
-                  label="Tipo de Cuenta"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="Ahorros">Ahorros</MenuItem>
-                  <MenuItem value="Corriente">Corriente</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="Número de Cuenta"
-                value={formData.numeroCuenta}
-                onChange={(e) => handleFormChange('numeroCuenta', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'certificado')}
-                onDragLeave={(e) => handleDragLeave(e, 'certificado')}
-                onDrop={(e) => handleDrop(e, 'certificado', ['application/pdf'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverCertificado
-                    ? alpha(theme.palette.success.main, 0.08)
-                    : alpha(theme.palette.success.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
-                  id="certificado-upload"
-                  onChange={(e) => setCertificadoFile(e.target.files[0])}
-                />
-                <label htmlFor="certificado-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    fullWidth
-                    color="success"
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {certificadoFile ? certificadoFile.name : 'Subir Certificado Bancario (PDF)'}
-                  </Button>
-                  {!certificadoFile && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
-                      sx={{ 
-                        display: 'block', 
-                        textAlign: 'center', 
-                        mt: 1,
-                        fontStyle: 'italic' 
-                      }}
-                    >
-                      o arrastra el archivo aquí
-                    </Typography>
-                  )}
-                </label>
-                {uploadingCertificado && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <CircularProgress size={16} />
-                    <Typography variant="caption">Subiendo certificado...</Typography>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
+            <EmpleadoForm
+              mode="add"
+              formData={formData}
+              handleFormChange={handleFormChange}
+              empresas={empresas}
+              calcularFechaFinContrato={calcularFechaFinContrato}
+              documentoIdentidadFile={documentoIdentidadFile}
+              setDocumentoIdentidadFile={setDocumentoIdentidadFile}
+              contratoFile={contratoFile}
+              setContratoFile={setContratoFile}
+              certificadoFile={certificadoFile}
+              setCertificadoFile={setCertificadoFile}
+              dragOverDocumento={dragOverDocumento}
+              dragOverContrato={dragOverContrato}
+              dragOverCertificado={dragOverCertificado}
+              handleDragOver={handleDragOver}
+              handleDragLeave={handleDragLeave}
+              handleDrop={handleDrop}
+              uploadingDocumentoIdentidad={uploadingDocumentoIdentidad}
+              uploadingContrato={uploadingContrato}
+              uploadingCertificado={uploadingCertificado}
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ 
@@ -1908,7 +1223,7 @@ const EmpleadosPage = () => {
             startIcon={<CancelIcon />}
             disabled={saving}
             sx={{ 
-              borderRadius: 2,
+              borderRadius: 1,
               textTransform: 'none',
               fontWeight: 500
             }}
@@ -1921,7 +1236,7 @@ const EmpleadosPage = () => {
             startIcon={<SaveIcon />}
             disabled={saving}
             sx={{ 
-              borderRadius: 2,
+              borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
@@ -1941,12 +1256,13 @@ const EmpleadosPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: `0 12px 48px ${alpha(theme.palette.common.black, 0.2)}`
+            boxShadow: `0 4px 24px ${alpha(theme.palette.common.black, 0.2)}`
           }
         }}
       >
         <DialogTitle sx={{
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+          bgcolor: alpha(theme.palette.secondary.main, 0.04),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1955,8 +1271,8 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.secondary.main, 0.08),
-                color: 'secondary.main',
+                bgcolor: 'secondary.main',
+                color: 'white',
                 width: 40,
                 height: 40
               }}
@@ -1982,862 +1298,31 @@ const EmpleadosPage = () => {
         </DialogTitle>
         <DialogContent sx={{ p: 3, pt: 3 }}>
           <Box sx={{ mt: 2 }}>
-          {/* Mismo contenido que el modal de agregar */}
-          <Grid container spacing={2}>
-            {/* Copiar estructura del modal de agregar */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'primary.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <BadgeIcon />
-                Información Personal
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nombres *"
-                value={formData.nombres}
-                onChange={(e) => handleFormChange('nombres', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Apellidos *"
-                value={formData.apellidos}
-                onChange={(e) => handleFormChange('apellidos', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Nacionalidad"
-                value={formData.nacionalidad}
-                onChange={(e) => handleFormChange('nacionalidad', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo Documento</InputLabel>
-                <Select
-                  value={formData.tipoDocumento}
-                  onChange={(e) => handleFormChange('tipoDocumento', e.target.value)}
-                  label="Tipo Documento"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="CC">Cédula de Ciudadanía</MenuItem>
-                  <MenuItem value="CE">Cédula de Extranjería</MenuItem>
-                  <MenuItem value="PAS">Pasaporte</MenuItem>
-                  <MenuItem value="TI">Tarjeta de Identidad</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="N° Documento *"
-                value={formData.numeroDocumento}
-                onChange={(e) => handleFormChange('numeroDocumento', e.target.value)}
-                required
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Email Corporativo"
-                type="email"
-                value={formData.emailCorporativo}
-                onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
-                placeholder="ejemplo@org-rdj.com"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Teléfono"
-                type="tel"
-                value={formData.telefono}
-                onChange={(e) => handleFormChange('telefono', e.target.value)}
-                placeholder="+57 300 123 4567"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Fecha de Nacimiento"
-                type="date"
-                value={formData.fechaNacimiento}
-                onChange={(e) => handleFormChange('fechaNacimiento', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Edad"
-                value={formData.edad}
-                disabled
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                helperText="Se calcula automáticamente"
-              />
-            </Grid>
-
-            {/* Documento de Identidad */}
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'documento')}
-                onDragLeave={(e) => handleDragLeave(e, 'documento')}
-                onDrop={(e) => handleDrop(e, 'documento', ['application/pdf', 'image/*'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverDocumento 
-                    ? alpha(theme.palette.info.main, 0.08)
-                    : alpha(theme.palette.info.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <input
-                    type="file"
-                    accept="application/pdf,image/*"
-                    style={{ display: 'none' }}
-                    id="documento-identidad-upload-edit"
-                    onChange={(e) => setDocumentoIdentidadFile(e.target.files[0])}
-                  />
-                  <label htmlFor="documento-identidad-upload-edit" style={{ cursor: 'pointer', width: '100%' }}>
-                    <Button
-                      component="span"
-                      variant="outlined"
-                      startIcon={<BadgeIcon />}
-                      fullWidth
-                      color="info"
-                      sx={{ borderRadius: 2 }}
-                    >
-                      {documentoIdentidadFile ? documentoIdentidadFile.name : selectedEmpleado?.documentoIdentidadURL ? 'Cambiar Documento de Identidad' : 'Adjuntar Documento de Identidad'}
-                    </Button>
-                    {!documentoIdentidadFile && !selectedEmpleado?.documentoIdentidadURL && (
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary" 
-                        sx={{ 
-                          display: 'block', 
-                          textAlign: 'center', 
-                          mt: 1,
-                          fontStyle: 'italic' 
-                        }}
-                      >
-                        o arrastra el archivo aquí
-                      </Typography>
-                    )}
-                  </label>
-                  {selectedEmpleado?.documentoIdentidadURL && (
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                      <Button
-                        size="small"
-                        variant="text"
-                        startIcon={<VisibilityIcon />}
-                        onClick={() => {
-                          setPdfViewerUrl(selectedEmpleado.documentoIdentidadURL);
-                          setPdfViewerTitle('Documento de Identidad');
-                          setPdfViewerOpen(true);
-                        }}
-                        sx={{ borderRadius: 2, flex: 1 }}
-                      >
-                        Ver documento actual
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="text"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={async () => {
-                          if (window.confirm('¿Estás seguro de que deseas eliminar el documento de identidad?')) {
-                            try {
-                              // Eliminar archivo de Storage
-                              await deleteFileFromStorage(selectedEmpleado.documentoIdentidadURL);
-                              
-                              // Actualizar Firestore
-                              await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
-                                documentoIdentidadURL: ''
-                              });
-                              
-                              setSelectedEmpleado({ ...selectedEmpleado, documentoIdentidadURL: '' });
-                              addNotification('Documento eliminado exitosamente', 'success');
-                            } catch (error) {
-                              console.error('Error al eliminar documento:', error);
-                              addNotification('Error al eliminar documento', 'error');
-                            }
-                          }
-                        }}
-                        sx={{ borderRadius: 2, flex: 1 }}
-                      >
-                        Eliminar
-                      </Button>
-                    </Box>
-                  )}
-                  {uploadingDocumentoIdentidad && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CircularProgress size={16} />
-                      <Typography variant="caption">Subiendo documento...</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-
-            {/* Información Laboral */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'info.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <WorkIcon />
-                Información Laboral
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <FormControl fullWidth>
-                <InputLabel>Empresa Contratante</InputLabel>
-                <Select
-                  value={formData.empresaContratante || ''}
-                  onChange={(e) => handleFormChange('empresaContratante', e.target.value)}
-                  label="Empresa Contratante"                  displayEmpty
-                  sx={{ borderRadius: 2 }}
-                  renderValue={(selected) => {
-                    const empresa = empresas.find(e => e.name === selected);
-                    if (!empresa) return <em>Seleccionar empresa</em>;
-                    return (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                          src={empresa.logoURL}
-                          sx={{ width: 24, height: 24 }}
-                        >
-                          {empresa.name.charAt(0)}
-                        </Avatar>
-                        {empresa.name}
-                      </Box>
-                    );
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Seleccionar empresa</em>
-                  </MenuItem>
-                  {empresas.map((empresa) => (
-                    <MenuItem key={empresa.id} value={empresa.name}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                          src={empresa.logoURL}
-                          sx={{ width: 24, height: 24 }}
-                        >
-                          {empresa.name.charAt(0)}
-                        </Avatar>
-                        {empresa.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <TextField
-                fullWidth
-                label="Fecha Inicio Contrato"
-                type="date"
-                value={formData.fechaInicioContrato}
-                onChange={(e) => handleFormChange('fechaInicioContrato', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo de Vigencia</InputLabel>
-                <Select
-                  value={formData.tipoVigencia}
-                  onChange={(e) => handleFormChange('tipoVigencia', e.target.value)}
-                  label="Tipo de Vigencia"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="Trimestral">Trimestral (3 meses)</MenuItem>
-                  <MenuItem value="Semestral">Semestral (6 meses)</MenuItem>
-                  <MenuItem value="Anual">Anual (12 meses)</MenuItem>
-                  <MenuItem value="Indefinido">Indefinido</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12} sm={3}>
-                <TextField
-                  fullWidth
-                  label="Fecha Fin Contrato"
-                  type="date"
-                  value={formData.fechaInicioContrato && formData.tipoVigencia ? calcularFechaFinContrato(formData.fechaInicioContrato, formData.tipoVigencia) : ''}
-                  disabled
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  helperText="Calculada automáticamente"
-                />
-              </Grid>
-            )}
-
-            {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12}>
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    bgcolor: formData.seRenueva 
-                      ? alpha(theme.palette.success.main, 0.05)
-                      : alpha(theme.palette.grey[500], 0.02),
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.seRenueva}
-                          onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
-                          color="success"
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            ¿El contrato se renueva automáticamente?
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
-                          </Typography>
-                        </Box>
-                      }
-                      sx={{ flex: 1 }}
-                    />
-                    {formData.seRenueva && (
-                      <Chip 
-                        label="Renovación Automática" 
-                        size="small" 
-                        color="success" 
-                        sx={{ fontWeight: 600 }}
-                      />
-                    )}
-                  </Box>
-                </Paper>
-              </Grid>
-            )}
-
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'contrato')}
-                onDragLeave={(e) => handleDragLeave(e, 'contrato')}
-                onDrop={(e) => handleDrop(e, 'contrato', ['application/pdf'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverContrato
-                    ? alpha(theme.palette.primary.main, 0.08)
-                    : alpha(theme.palette.primary.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
-                  id="contrato-upload-edit"
-                  onChange={(e) => setContratoFile(e.target.files[0])}
-                />
-                <label htmlFor="contrato-upload-edit" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    fullWidth
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {contratoFile ? contratoFile.name : selectedEmpleado?.contratoURL ? 'Cambiar Contrato' : 'Subir Contrato'}
-                  </Button>
-                  {!contratoFile && !selectedEmpleado?.contratoURL && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
-                      sx={{ 
-                        display: 'block', 
-                        textAlign: 'center', 
-                        mt: 1,
-                        fontStyle: 'italic' 
-                      }}
-                    >
-                      o arrastra el archivo aquí
-                    </Typography>
-                  )}
-                </label>
-                {selectedEmpleado?.contratoURL && !contratoFile && (
-                  <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
-                    <Button
-                      size="small"
-                      startIcon={<VisibilityIcon />}
-                      onClick={() => handleOpenPdfViewer(selectedEmpleado.contratoURL, 'Contrato Laboral')}
-                      sx={{ flex: 1 }}
-                    >
-                      Ver contrato actual
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={async () => {
-                        if (window.confirm('¿Estás seguro de que deseas eliminar el contrato?')) {
-                          try {
-                            // Eliminar archivo de Storage
-                            await deleteFileFromStorage(selectedEmpleado.contratoURL);
-                            
-                            // Actualizar Firestore
-                            await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
-                              contratoURL: ''
-                            });
-                            
-                            setSelectedEmpleado({ ...selectedEmpleado, contratoURL: '' });
-                            addNotification('Contrato eliminado exitosamente', 'success');
-                          } catch (error) {
-                            console.error('Error al eliminar contrato:', error);
-                            addNotification('Error al eliminar contrato', 'error');
-                          }
-                        }
-                      }}
-                      sx={{ borderRadius: 2, flex: 1 }}
-                    >
-                      Eliminar
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-
-            {/* Información de Nómina */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'success.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <AttachMoneyIcon />
-                Información de Nómina
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Salario Base"
-                value={formData.salarioBase}
-                onChange={(e) => handleFormChange('salarioBase', e.target.value)}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>
-                }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                helperText="Salario mensual"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <TextField
-                fullWidth
-                label="Cargo"
-                value={formData.cargo}
-                onChange={(e) => handleFormChange('cargo', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth>
-                <InputLabel>Periodicidad de Nómina</InputLabel>
-                <Select
-                  value={formData.tipoNomina}
-                  onChange={(e) => handleFormChange('tipoNomina', e.target.value)}
-                  label="Periodicidad de Nómina"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="mensual">Mensual</MenuItem>
-                  <MenuItem value="quincenal">Quincenal</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Seguridad Social y Parafiscales */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <LocalHospitalIcon />
-                Seguridad Social y Parafiscales
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={EPS_COLOMBIA}
-                value={formData.eps}
-                onChange={(event, newValue) => handleFormChange('eps', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('eps', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="EPS" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={FONDOS_PENSION}
-                value={formData.fondoPension}
-                onChange={(event, newValue) => handleFormChange('fondoPension', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('fondoPension', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Fondo de Pensión" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={FONDOS_CESANTIAS}
-                value={formData.fondoCesantias}
-                onChange={(event, newValue) => handleFormChange('fondoCesantias', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('fondoCesantias', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Fondo de Cesantías" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={CAJAS_COMPENSACION}
-                value={formData.cajaCompensacion}
-                onChange={(event, newValue) => handleFormChange('cajaCompensacion', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('cajaCompensacion', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="Caja de Compensación" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={ARL_COLOMBIA}
-                value={formData.arl}
-                onChange={(event, newValue) => handleFormChange('arl', newValue || '')}
-                onInputChange={(event, newInputValue) => handleFormChange('arl', newInputValue)}
-                renderInput={(params) => (
-                  <TextField {...params} label="ARL" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Nivel de Riesgo ARL</InputLabel>
-                <Select
-                  value={formData.nivelRiesgoArl}
-                  onChange={(e) => handleFormChange('nivelRiesgoArl', e.target.value)}
-                  label="Nivel de Riesgo ARL"
-                  sx={{ borderRadius: 2 }}
-                >
-                  {NIVELES_RIESGO_ARL.map(nivel => (
-                    <MenuItem key={nivel.value} value={nivel.value}>
-                      {nivel.label} ({nivel.porcentaje}%)
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Estado de Retiro */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'warning.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <InfoIcon />
-                Estado Laboral
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.retirado || false}
-                    onChange={(e) => {
-                      handleFormChange('retirado', e.target.checked);
-                      if (!e.target.checked) {
-                        handleFormChange('fechaRetiro', '');
-                        handleFormChange('motivoRetiro', '');
-                      }
-                    }}
-                    color="warning"
-                  />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography>Empleado retirado</Typography>
-                    {formData.retirado && (
-                      <Chip 
-                        label="RETIRADO" 
-                        size="small" 
-                        color="warning"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    )}
-                  </Box>
-                }
-              />
-            </Grid>
-
-            {formData.retirado && (
-              <>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Fecha de Retiro *"
-                    type="date"
-                    value={formData.fechaRetiro || ''}
-                    onChange={(e) => handleFormChange('fechaRetiro', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    required={formData.retirado}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required={formData.retirado}>
-                    <InputLabel>Motivo de Retiro *</InputLabel>
-                    <Select
-                      value={formData.motivoRetiro || ''}
-                      onChange={(e) => handleFormChange('motivoRetiro', e.target.value)}
-                      label="Motivo de Retiro *"
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <MenuItem value="Terminación de contrato">Terminación de contrato</MenuItem>
-                      <MenuItem value="Retiro voluntario">Retiro voluntario</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </>
-            )}
-
-            {/* Información Bancaria */}
-            <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                color: 'secondary.main', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
-              }}>
-                <AccountBalanceIcon />
-                Información Bancaria
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <Autocomplete
-                fullWidth
-                freeSolo
-                options={BANCOS_COLOMBIA}
-                value={formData.banco}
-                onChange={(event, newValue) => {
-                  handleFormChange('banco', newValue || '');
-                }}
-                onInputChange={(event, newInputValue) => {
-                  handleFormChange('banco', newInputValue);
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Banco"
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth>
-                <InputLabel>Tipo de Cuenta</InputLabel>
-                <Select
-                  value={formData.tipoCuenta}
-                  onChange={(e) => handleFormChange('tipoCuenta', e.target.value)}
-                  label="Tipo de Cuenta"
-                  sx={{ borderRadius: 2 }}
-                >
-                  <MenuItem value="Ahorros">Ahorros</MenuItem>
-                  <MenuItem value="Corriente">Corriente</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="Número de Cuenta"
-                value={formData.numeroCuenta}
-                onChange={(e) => handleFormChange('numeroCuenta', e.target.value)}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Paper
-                variant="outlined"
-                onDragOver={(e) => handleDragOver(e, 'certificado')}
-                onDragLeave={(e) => handleDragLeave(e, 'certificado')}
-                onDrop={(e) => handleDrop(e, 'certificado', ['application/pdf'])}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: dragOverCertificado
-                    ? alpha(theme.palette.success.main, 0.08)
-                    : alpha(theme.palette.success.main, 0.02),
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
-                  id="certificado-upload-edit"
-                  onChange={(e) => setCertificadoFile(e.target.files[0])}
-                />
-                <label htmlFor="certificado-upload-edit" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    fullWidth
-                    color="success"
-                    sx={{ borderRadius: 2 }}
-                  >
-                    {certificadoFile ? certificadoFile.name : selectedEmpleado?.certificadoBancarioURL ? 'Cambiar Certificado' : 'Subir Certificado'}
-                  </Button>
-                  {!certificadoFile && !selectedEmpleado?.certificadoBancarioURL && (
-                    <Typography 
-                      variant="caption" 
-                      color="text.secondary" 
-                      sx={{ 
-                        display: 'block', 
-                        textAlign: 'center', 
-                        mt: 1,
-                        fontStyle: 'italic' 
-                      }}
-                    >
-                      o arrastra el archivo aquí
-                    </Typography>
-                  )}
-                </label>
-                {selectedEmpleado?.certificadoBancarioURL && !certificadoFile && (
-                  <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
-                    <Button
-                      size="small"
-                      startIcon={<VisibilityIcon />}
-                      onClick={() => handleOpenPdfViewer(selectedEmpleado.certificadoBancarioURL, 'Certificado Bancario')}
-                      sx={{ flex: 1 }}
-                    >
-                      Ver certificado actual
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={async () => {
-                        if (window.confirm('¿Estás seguro de que deseas eliminar el certificado bancario?')) {
-                          try {
-                            // Eliminar archivo de Storage
-                            await deleteFileFromStorage(selectedEmpleado.certificadoBancarioURL);
-                            
-                            // Actualizar Firestore
-                            await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
-                              certificadoBancarioURL: ''
-                            });
-                            
-                            setSelectedEmpleado({ ...selectedEmpleado, certificadoBancarioURL: '' });
-                            addNotification('Certificado eliminado exitosamente', 'success');
-                          } catch (error) {
-                            console.error('Error al eliminar certificado:', error);
-                            addNotification('Error al eliminar certificado', 'error');
-                          }
-                        }
-                      }}
-                      sx={{ borderRadius: 2, flex: 1 }}
-                    >
-                      Eliminar
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
+            <EmpleadoForm
+              mode="edit"
+              formData={formData}
+              handleFormChange={handleFormChange}
+              empresas={empresas}
+              calcularFechaFinContrato={calcularFechaFinContrato}
+              documentoIdentidadFile={documentoIdentidadFile}
+              setDocumentoIdentidadFile={setDocumentoIdentidadFile}
+              contratoFile={contratoFile}
+              setContratoFile={setContratoFile}
+              certificadoFile={certificadoFile}
+              setCertificadoFile={setCertificadoFile}
+              dragOverDocumento={dragOverDocumento}
+              dragOverContrato={dragOverContrato}
+              dragOverCertificado={dragOverCertificado}
+              handleDragOver={handleDragOver}
+              handleDragLeave={handleDragLeave}
+              handleDrop={handleDrop}
+              uploadingDocumentoIdentidad={uploadingDocumentoIdentidad}
+              uploadingContrato={uploadingContrato}
+              uploadingCertificado={uploadingCertificado}
+              selectedEmpleado={selectedEmpleado}
+              onViewFile={handleOpenPdfViewer}
+              onDeleteFile={handleDeleteEmpleadoFile}
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ 
@@ -2852,7 +1337,7 @@ const EmpleadosPage = () => {
             startIcon={<CancelIcon />}
             disabled={saving}
             sx={{ 
-              borderRadius: 2,
+              borderRadius: 1,
               textTransform: 'none',
               fontWeight: 500
             }}
@@ -2865,7 +1350,7 @@ const EmpleadosPage = () => {
             startIcon={<SaveIcon />}
             disabled={saving}
             sx={{ 
-              borderRadius: 2,
+              borderRadius: 1,
               textTransform: 'none',
               fontWeight: 600,
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
@@ -2890,7 +1375,8 @@ const EmpleadosPage = () => {
         }}
       >
         <DialogTitle sx={{
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -2899,8 +1385,8 @@ const EmpleadosPage = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                color: 'primary.main',
+                bgcolor: 'primary.main',
+                color: 'white',
                 width: 40,
                 height: 40
               }}
@@ -2945,90 +1431,90 @@ const EmpleadosPage = () => {
         <DialogContent sx={{ p: 3, pt: 3 }}>
           {selectedEmpleado && (
             <>
-              {/* Información Personal en Grid Horizontal */}
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BadgeIcon />
+              {/* Información Personal */}
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                <BadgeIcon sx={{ fontSize: 18 }} />
                 Información Personal
               </Typography>
               
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {/* Primera fila */}
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Nombre Completo
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.nombres} {selectedEmpleado.apellidos}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Nacionalidad
                     </Typography>
                     <Typography variant="body1">
                       {selectedEmpleado.nacionalidad || 'No especificada'}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 {/* Segunda fila */}
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Tipo y N° Documento
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.tipoDocumento} {formatearNumeroDocumento(selectedEmpleado.numeroDocumento || '')}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
                       Fecha de Nacimiento
                     </Typography>
                     <Typography variant="body1">
                       {formatDate(selectedEmpleado.fechaNacimiento)}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Edad
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.edad || 'No especificada'} años
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 {/* Tercera fila */}
                 {selectedEmpleado.emailCorporativo && (
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                    <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
                         Email Corporativo
                       </Typography>
                       <Typography variant="body1" fontWeight="medium">
                         {selectedEmpleado.emailCorporativo}
                       </Typography>
-                    </Card>
+                    </Paper>
                   </Grid>
                 )}
 
                 {selectedEmpleado.telefono && (
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                    <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
                         Teléfono
                       </Typography>
@@ -3052,7 +1538,7 @@ const EmpleadosPage = () => {
                           <WhatsAppIcon sx={{ fontSize: 22 }} />
                         </IconButton>
                       </Box>
-                    </Card>
+                    </Paper>
                   </Grid>
                 )}
               </Grid>
@@ -3060,17 +1546,17 @@ const EmpleadosPage = () => {
               {/* Documento de Identidad */}
               {selectedEmpleado.documentoIdentidadURL && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'success.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <BadgeIcon />
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, mt: 2, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                    <BadgeIcon sx={{ fontSize: 18 }} />
                     Documento de Identidad
                   </Typography>
                   
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid item xs={12}>
-                      <Card variant="outlined" sx={{ p: 2 }}>
+                      <Paper elevation={0} sx={{ p: 2, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.15)}` }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Box>
-                            <Typography variant="subtitle2" color="success" gutterBottom>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                               Archivo Adjunto
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -3080,7 +1566,7 @@ const EmpleadosPage = () => {
                           <Button
                             variant="outlined"
                             size="small"
-                            color="success"
+                            color="primary"
                             startIcon={<VisibilityIcon />}
                             onClick={() => {
                               setPdfViewerUrl(selectedEmpleado.documentoIdentidadURL);
@@ -3091,15 +1577,15 @@ const EmpleadosPage = () => {
                             Ver Documento
                           </Button>
                         </Box>
-                      </Card>
+                      </Paper>
                     </Grid>
                   </Grid>
                 </>
               )}
 
               {/* Información Laboral */}
-              <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'info.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <WorkIcon />
+              <Typography variant="subtitle2" sx={{ mb: 1.5, mt: 2, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                <WorkIcon sx={{ fontSize: 18 }} />
                 Información Laboral
               </Typography>
               
@@ -3107,8 +1593,8 @@ const EmpleadosPage = () => {
                 {/* Primera fila: Empresa Contratante y Tipo de Vigencia */}
                 {selectedEmpleado.empresaContratante && (
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="info" gutterBottom>
+                    <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         <WorkIcon sx={{ fontSize: 16, mr: 0.5 }} />
                         Empresa Contratante
                       </Typography>
@@ -3132,37 +1618,37 @@ const EmpleadosPage = () => {
                           );
                         })()}
                       </Box>
-                    </Card>
+                    </Paper>
                   </Grid>
                 )}
 
                 <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 6 : 12}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="info" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Tipo de Vigencia
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.tipoVigencia || 'No especificado'}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 {/* Segunda fila: Fecha Inicio y Tiempo en la Empresa */}
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="info" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
                       Fecha Inicio
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {formatDate(selectedEmpleado.fechaInicioContrato)}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="info" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
                       Tiempo en la Empresa
                     </Typography>
@@ -3194,43 +1680,45 @@ const EmpleadosPage = () => {
                         }
                       })()}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 {selectedEmpleado.tipoVigencia !== 'Indefinido' && (
                   <>
                     <Grid item xs={12} md={4}>
-                      <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="subtitle2" color="info" gutterBottom>
+                      <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                           <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
                           Fecha Fin Actual
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
                           {formatDate(calcularFechaFinContrato(selectedEmpleado.fechaInicioContrato, selectedEmpleado.tipoVigencia))}
                         </Typography>
-                      </Card>
+                      </Paper>
                     </Grid>
 
                     <Grid item xs={12} md={4}>
-                      <Card variant="outlined" sx={{ p: 2, height: '100%', bgcolor: alpha(theme.palette.success.main, 0.05) }}>
-                        <Typography variant="subtitle2" color="success" gutterBottom>
+                      <Paper elevation={0} sx={{ p: 2, height: '100%', borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.15)}`, bgcolor: alpha(theme.palette.success.main, 0.04) }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                           <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
                           Siguiente Renovación
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
                           {formatDate(calcularSiguienteRenovacion(selectedEmpleado.fechaInicioContrato, selectedEmpleado.tipoVigencia))}
                         </Typography>
-                      </Card>
+                      </Paper>
                     </Grid>
 
                     <Grid item xs={12}>
-                      <Card 
-                        variant="outlined" 
+                      <Paper 
+                        elevation={0} 
                         sx={{ 
                           p: 2,
+                          borderRadius: 1,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
                           bgcolor: selectedEmpleado.seRenueva 
-                            ? alpha(theme.palette.success.main, 0.05)
-                            : alpha(theme.palette.grey[500], 0.05)
+                            ? alpha(theme.palette.success.main, 0.04)
+                            : alpha(theme.palette.action.hover, 0.04)
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -3246,17 +1734,17 @@ const EmpleadosPage = () => {
                             }
                           </Typography>
                         </Box>
-                      </Card>
+                      </Paper>
                     </Grid>
                   </>
                 )}
 
                 {selectedEmpleado.contratoURL && (
                   <Grid item xs={12}>
-                    <Card variant="outlined" sx={{ p: 2 }}>
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.15)}` }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Box>
-                          <Typography variant="subtitle2" color="info" gutterBottom>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Contrato Laboral
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -3272,7 +1760,7 @@ const EmpleadosPage = () => {
                           Ver Contrato
                         </Button>
                       </Box>
-                    </Card>
+                    </Paper>
                   </Grid>
                 )}
               </Grid>
@@ -3280,47 +1768,47 @@ const EmpleadosPage = () => {
               {/* Información de Nómina */}
               {(selectedEmpleado.salarioBase > 0 || selectedEmpleado.cargo) && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'success.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <AttachMoneyIcon />
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, mt: 2, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                    <AttachMoneyIcon sx={{ fontSize: 18 }} />
                     Información de Nómina
                   </Typography>
                   
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     {selectedEmpleado.salarioBase > 0 && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" color="success" gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Salario Base
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             $ {formatearNumeroDocumento(String(selectedEmpleado.salarioBase))}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     {selectedEmpleado.cargo && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" color="success" gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Cargo
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.cargo}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     <Grid item xs={12} md={4}>
-                      <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="subtitle2" color="success" gutterBottom>
+                      <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                           Periodicidad
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
                           {selectedEmpleado.tipoNomina === 'quincenal' ? 'Quincenal' : 'Mensual'}
                         </Typography>
-                      </Card>
+                      </Paper>
                     </Grid>
                   </Grid>
                 </>
@@ -3329,74 +1817,74 @@ const EmpleadosPage = () => {
               {/* Seguridad Social */}
               {(selectedEmpleado.eps || selectedEmpleado.fondoPension || selectedEmpleado.arl) && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, mt: 1, color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LocalHospitalIcon />
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, mt: 2, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                    <LocalHospitalIcon sx={{ fontSize: 18 }} />
                     Seguridad Social y Parafiscales
                   </Typography>
                   
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     {selectedEmpleado.eps && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             EPS
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.eps}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     {selectedEmpleado.fondoPension && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Fondo de Pensión
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.fondoPension}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     {selectedEmpleado.fondoCesantias && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Fondo de Cesantías
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.fondoCesantias}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     {selectedEmpleado.arl && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             ARL
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.arl} — Nivel {selectedEmpleado.nivelRiesgoArl || 'I'} ({(NIVELES_RIESGO_ARL.find(n => n.value === (selectedEmpleado.nivelRiesgoArl || 'I'))?.porcentaje || 0.522)}%)
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
 
                     {selectedEmpleado.cajaCompensacion && (
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                          <Typography variant="subtitle2" sx={{ color: theme.palette.mode === 'dark' ? '#66bb6a' : '#2e7d32' }} gutterBottom>
+                        <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Caja de Compensación
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedEmpleado.cajaCompensacion}
                           </Typography>
-                        </Card>
+                        </Paper>
                       </Grid>
                     )}
                   </Grid>
@@ -3407,19 +1895,20 @@ const EmpleadosPage = () => {
               {selectedEmpleado.retirado && (
                 <>
                   <Divider sx={{ my: 3 }} />
-                  <Typography variant="h6" sx={{ mb: 2, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <InfoIcon />
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                    <InfoIcon sx={{ fontSize: 18 }} />
                     Estado Laboral
                   </Typography>
                   
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid item xs={12}>
-                      <Card 
-                        variant="outlined" 
+                      <Paper 
+                        elevation={0} 
                         sx={{ 
                           p: 2, 
-                          bgcolor: alpha(theme.palette.warning.main, 0.04),
-                          borderColor: alpha(theme.palette.warning.main, 0.2)
+                          borderRadius: 1,
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                          bgcolor: alpha(theme.palette.warning.main, 0.04)
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -3450,58 +1939,58 @@ const EmpleadosPage = () => {
                             </Typography>
                           </Grid>
                         </Grid>
-                      </Card>
+                      </Paper>
                     </Grid>
                   </Grid>
                 </>
               )}
 
               {/* Información Bancaria */}
-              <Typography variant="h6" sx={{ mb: 2, mt: 3, color: 'secondary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AccountBalanceIcon />
+              <Typography variant="subtitle2" sx={{ mb: 1.5, mt: 2, fontWeight: 700, fontSize: '0.75rem', color: 'primary.main', textTransform: 'uppercase', letterSpacing: 0.8, display: 'flex', alignItems: 'center', gap: 1, pl: 1.5, borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                <AccountBalanceIcon sx={{ fontSize: 18 }} />
                 Información Bancaria
               </Typography>
               
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="secondary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Entidad Bancaria
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.banco || 'No especificado'}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="secondary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Tipo de Cuenta
                     </Typography>
                     <Typography variant="body1">
                       {selectedEmpleado.tipoCuenta || 'No especificado'}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="secondary" gutterBottom>
+                  <Paper elevation={0} variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                       Número de Cuenta
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.numeroCuenta || 'No especificado'}
                     </Typography>
-                  </Card>
+                  </Paper>
                 </Grid>
 
                 {selectedEmpleado.certificadoBancarioURL && (
                   <Grid item xs={12}>
-                    <Card variant="outlined" sx={{ p: 2 }}>
+                    <Paper elevation={0} sx={{ p: 2, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.15)}` }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Box>
-                          <Typography variant="subtitle2" color="secondary" gutterBottom>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             Certificado Bancario
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -3511,14 +2000,14 @@ const EmpleadosPage = () => {
                         <Button
                           variant="outlined"
                           size="small"
-                          color="secondary"
+                          color="primary"
                           startIcon={<PdfIcon />}
                           onClick={() => handleOpenPdfViewer(selectedEmpleado.certificadoBancarioURL, 'Certificado Bancario')}
                         >
                           Ver Certificado
                         </Button>
                       </Box>
-                    </Card>
+                    </Paper>
                   </Grid>
                 )}
               </Grid>
@@ -3570,7 +2059,7 @@ const EmpleadosPage = () => {
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="warning" sx={{ mb: 2, borderRadius: 1 }}>
             Esta acción no se puede deshacer
           </Alert>
           <Typography>
@@ -3639,6 +2128,22 @@ const EmpleadosPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* FAB para agregar empleado rápido */}
+      {isAdmin && (
+        <Fab
+          color="primary"
+          aria-label="agregar empleado"
+          onClick={handleOpenAddDialog}
+          sx={{
+            position: 'fixed',
+            bottom: 28,
+            right: 28,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)'
+          }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
 
     </Box>
   );

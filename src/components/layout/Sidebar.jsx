@@ -374,10 +374,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#ff9800',
       permission: 'talento_humano',
       submenu: [
-        { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
-        { title: 'Empleados', icon: Person, path: '/empleados', permission: 'empleados' },
+        { title: 'Talento Humano', icon: Badge, path: '/recursos-humanos', permission: 'rrhh' },
+        { title: 'Realizar Solicitudes', icon: Assignment, path: '/solicitudes', permission: 'solicitudes' },
         { title: 'Asistencias', icon: AccessTime, path: '/asistencias', permission: 'asistencias' },
-        { title: 'Nómina', icon: Payments, path: '/nomina', permission: 'rrhh.nomina' },
       ]
     }
   ];
@@ -1377,7 +1376,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 fontSize: '0.65rem',
                 mb: 1.5
               }}>
-                v3.19.1 • Feb 2026
+                v3.19.2 • Mar 2026
               </Typography>
               
               {/* Estado del sistema mejorado */}

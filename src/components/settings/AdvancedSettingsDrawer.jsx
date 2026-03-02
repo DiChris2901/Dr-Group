@@ -1,6 +1,6 @@
 /**
  * Professional Settings Drawer with Tabs
- * Complete configuration system for Organización RDJ Dashboard
+ * Complete configuration system for Organizaciï¿½n RDJ Dashboard
  * Design System 3.0 - DiseÃ±o Sobrio Empresarial
  */
 
@@ -810,7 +810,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          backgroundColor: '#9c27b0', // Purple for themes
+                          backgroundColor: theme.palette.secondary.main,
                           color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
@@ -963,7 +963,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          backgroundColor: '#e91e63', // Elegant Pink
+                          backgroundColor: theme.palette.error.main,
                           color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
