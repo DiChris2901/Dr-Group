@@ -1089,260 +1089,158 @@ const TasksPage = () => {
                 >
                   <Card
                     sx={{
-                      minHeight: 320,
-                      maxHeight: 320,
+                      height: '100%',
                       display: 'flex',
                       flexDirection: 'column',
-                      borderRadius: 1,
-                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      transition: 'all 0.2s ease',
+                      transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
                       cursor: 'pointer',
-                      position: 'relative',
-                      overflow: 'hidden',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                        borderColor: alpha(theme.palette.primary.main, 0.3)
+                        transform: 'translateY(-4px)',
+                        boxShadow: 3
                       }
                     }}
                     onClick={() => handleTaskClick(task)}
                   >
-                    <CardContent sx={{ 
-                      flexGrow: 1, 
-                      p: 2, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      {/* Header: Estado + Prioridad + Días Restantes + Menú */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'flex-start', 
-                        mb: 2
-                      }}>
-                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1, pr: 1 }}>
-                          <Chip
-                            label={getEstadoLabel(task.estadoActual)}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              fontSize: '0.625rem',
-                              fontWeight: 600,
-                              letterSpacing: 0.8,
-                              textTransform: 'uppercase',
-                              bgcolor: alpha(getEstadoColor(task.estadoActual), 0.08),
-                              color: getEstadoColor(task.estadoActual),
-                              border: 'none',
-                              borderRadius: 1
-                            }}
-                          />
-                          <Chip
-                            label={task.prioridad || 'media'}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              fontSize: '0.625rem',
-                              fontWeight: 600,
-                              letterSpacing: 0.8,
-                              textTransform: 'uppercase',
-                              bgcolor: alpha(getPriorityColor(task.prioridad), 0.08),
-                              color: getPriorityColor(task.prioridad),
-                              border: 'none',
-                              borderRadius: 1
-                            }}
-                          />
+                    <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 
-                        </Box>
-                        <IconButton 
-                          size="small" 
-                          className="menu-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMenuOpen(e, task);
-                          }}
+                      {/* 1. Header: chip estado sólido + menú */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Chip
+                          label={getEstadoLabel(task.estadoActual)}
+                          size="small"
                           sx={{
-                            bgcolor: alpha(theme.palette.divider, 0.05),
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.1)
-                            }
+                            height: 24,
+                            fontSize: '0.65rem',
+                            fontWeight: 600,
+                            letterSpacing: 0.5,
+                            bgcolor: alpha(getEstadoColor(task.estadoActual), 0.1),
+                            color: getEstadoColor(task.estadoActual),
+                            borderRadius: 1,
+                            border: 'none'
                           }}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); handleMenuOpen(e, task); }}
+                          sx={{ '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) } }}
                         >
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </Box>
 
-                      {/* Contenido principal */}
-                      <Box sx={{ flexGrow: 1 }}>
-                        {/* Título */}
+                      {/* 2. Avatar + nombre asignado (como logo + nombre en companies) */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                        <Avatar
+                          src={task.asignadoA?.photoURL}
+                          sx={{ width: 48, height: 48, fontSize: '1.1rem', bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main }}
+                        >
+                          {task.asignadoA?.nombre?.charAt(0) || task.asignadoA?.displayName?.charAt(0) || '?'}
+                        </Avatar>
+                        <Box sx={{ overflow: 'hidden' }}>
+                          <Typography variant="subtitle2" fontWeight={600} noWrap>
+                            {task.asignadoA?.nombre || task.asignadoA?.displayName || 'Sin asignar'}
+                          </Typography>
+                          <Typography variant="caption" color="text.disabled" noWrap>
+                            {(task.prioridad || 'media').charAt(0).toUpperCase() + (task.prioridad || 'media').slice(1)}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* 3. Título */}
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        sx={{
+                          fontSize: '0.975rem',
+                          fontWeight: 600,
+                          lineHeight: 1.35,
+                          mb: 0.75,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          color: 'text.primary'
+                        }}
+                      >
+                        {task.titulo}
+                      </Typography>
+
+                      {/* 4. Descripción */}
+                      {task.descripcion && (
                         <Typography
-                          variant="h6"
+                          variant="body2"
+                          color="text.secondary"
                           sx={{
-                            fontSize: '1.05rem',
-                            fontWeight: 600,
-                            mb: 1,
-                            lineHeight: 1.35,
+                            fontSize: '0.8125rem',
+                            lineHeight: 1.5,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            color: isOverdue(task) ? theme.palette.error.main : 'text.primary'
+                            mb: 1
                           }}
                         >
-                          {task.titulo}
+                          {task.descripcion}
                         </Typography>
+                      )}
 
-                        {/* Descripción */}
-                        {task.descripcion && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              fontSize: '0.8125rem',
-                              mb: 2,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              lineHeight: 1.5,
-                              opacity: 0.85
-                            }}
-                          >
-                            {task.descripcion}
-                          </Typography>
-                        )}
+                      {/* Progreso */}
+                      {task.porcentajeCompletado > 0 && (
+                        <Box sx={{ mt: 1, mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.625rem' }}>Progreso</Typography>
+                            <Typography variant="caption" fontWeight={600} color="primary">{task.porcentajeCompletado}%</Typography>
+                          </Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={task.porcentajeCompletado}
+                            sx={{ height: 5, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), '& .MuiLinearProgress-bar': { borderRadius: 1 } }}
+                          />
+                        </Box>
+                      )}
 
-                        {/* Barra de progreso */}
-                        {task.porcentajeCompletado > 0 && (
-                          <Box sx={{ mb: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
-                              <Typography 
-                                variant="overline" 
-                                sx={{ 
-                                  fontSize: '0.625rem',
-                                  letterSpacing: 0.8,
-                                  fontWeight: 600,
-                                  color: 'text.secondary'
-                                }}
-                              >
-                                Progreso
-                              </Typography>
-                              <Typography variant="caption" fontWeight={600} color="primary">
-                                {task.porcentajeCompletado}%
+                      {/* 5. Divider + footer (como en companies) */}
+                      <Box sx={{ mt: 'auto', pt: 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}` }}>
+
+                        {/* Fecha + días restantes */}
+                        {task.fechaVencimiento && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: task.archivosAdjuntos?.length > 0 || task.comentarios?.length > 0 ? 0.75 : 0 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <CalendarIcon sx={{ fontSize: 14, color: isOverdue(task) ? 'error.main' : 'text.disabled' }} />
+                              <Typography variant="caption" sx={{ fontSize: '0.78rem', color: 'text.secondary', fontWeight: 500 }}>
+                                {format(task.fechaVencimiento.toDate(), 'dd MMM yyyy', { locale: es })}
                               </Typography>
                             </Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={task.porcentajeCompletado}
-                              sx={{
-                                height: 6,
-                                borderRadius: 1,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                '& .MuiLinearProgress-bar': {
-                                  borderRadius: 1,
-                                  bgcolor: theme.palette.primary.main
-                                }
-                              }}
-                            />
-                          </Box>
-                        )}
-                      </Box>
-
-                      {/* Footer: Información adicional */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 'auto' }}>
-                        {/* Fecha de vencimiento */}
-                        {task.fechaVencimiento && (
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            px: 0.5,
-                            py: 0.5
-                          }}>
-                            <CalendarIcon sx={{ 
-                              fontSize: 15, 
-                              color: isOverdue(task) ? 'error.main' : 'text.disabled'
-                            }} />
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontSize: '0.75rem',
-                                color: isOverdue(task) ? 'error.main' : 'text.secondary',
-                                fontWeight: 500
-                              }}
-                            >
-                              {isOverdue(task) ? 'Vencida: ' : ''}
-                              {format(task.fechaVencimiento.toDate(), 'dd MMM yyyy', { locale: es })}
-                            </Typography>
                             {getDaysRemaining(task) !== null && (
-                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: getDaysRemainingColor(getDaysRemaining(task)), fontWeight: 500, ml: 'auto', flexShrink: 0 }}>
+                              <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'text.disabled', fontWeight: 500, flexShrink: 0 }}>
                                 {getDaysRemainingLabel(getDaysRemaining(task))}
                               </Typography>
                             )}
                           </Box>
                         )}
 
-                        {/* Asignado a */}
-                        {task.asignadoA && (
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            px: 0.5,
-                            py: 0.25
-                          }}>
-                            <Avatar
-                              src={task.asignadoA.photoURL}
-                              sx={{ width: 22, height: 22, fontSize: '0.7rem' }}
-                            >
-                              {task.asignadoA.nombre?.charAt(0) || task.asignadoA.displayName?.charAt(0) || task.asignadoA.email?.charAt(0)}
-                            </Avatar>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                fontSize: '0.75rem', 
-                                color: 'text.secondary', 
-                                fontWeight: 500,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {task.asignadoA.nombre || task.asignadoA.displayName || task.asignadoA.email}
-                            </Typography>
-                          </Box>
-                        )}
-
                         {/* Adjuntos y comentarios */}
                         {(task.archivosAdjuntos?.length > 0 || task.comentarios?.length > 0) && (
-                          <Box sx={{ 
-                            display: 'flex', 
-                            gap: 1.5, 
-                            alignItems: 'center',
-                            px: 1,
-                            py: 0.5
-                          }}>
+                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
                             {task.archivosAdjuntos?.length > 0 && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <AttachFileIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                  {task.archivosAdjuntos.length}
-                                </Typography>
+                                <AttachFileIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{task.archivosAdjuntos.length}</Typography>
                               </Box>
                             )}
                             {task.comentarios?.length > 0 && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CommentIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                  {task.comentarios.length}
-                                </Typography>
+                                <CommentIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>{task.comentarios.length}</Typography>
                               </Box>
                             )}
                           </Box>
                         )}
                       </Box>
+
                     </CardContent>
                   </Card>
                 </motion.div>
