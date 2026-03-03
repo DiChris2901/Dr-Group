@@ -1153,27 +1153,7 @@ const TasksPage = () => {
                               borderRadius: 1
                             }}
                           />
-                          {/* Chip de días restantes */}
-                          {getDaysRemaining(task) !== null && (
-                            <Chip
-                              label={getDaysRemainingLabel(getDaysRemaining(task))}
-                              size="small"
-                              icon={<CalendarIcon sx={{ fontSize: 12, color: getDaysRemainingColor(getDaysRemaining(task)) + ' !important' }} />}
-                              sx={{
-                                height: 22,
-                                fontSize: '0.625rem',
-                                fontWeight: 600,
-                                letterSpacing: 0.8,
-                                bgcolor: alpha(getDaysRemainingColor(getDaysRemaining(task)), 0.08),
-                                color: getDaysRemainingColor(getDaysRemaining(task)),
-                                border: 'none',
-                                borderRadius: 1,
-                                '& .MuiChip-icon': {
-                                  marginLeft: '6px'
-                                }
-                              }}
-                            />
-                          )}
+
                         </Box>
                         <IconButton 
                           size="small" 
@@ -1278,31 +1258,29 @@ const TasksPage = () => {
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1,
-                            px: 1,
-                            py: 0.75,
-                            borderRadius: 1,
-                            bgcolor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.04),
-                            border: `1px solid ${alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.12)}`,
-                            '&:hover': {
-                              bgcolor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.06),
-                              borderColor: alpha(isOverdue(task) ? theme.palette.error.main : theme.palette.warning.main, 0.18)
-                            }
+                            px: 0.5,
+                            py: 0.5
                           }}>
                             <CalendarIcon sx={{ 
-                              fontSize: 16, 
-                              color: isOverdue(task) ? 'error.main' : 'warning.main'
+                              fontSize: 15, 
+                              color: isOverdue(task) ? 'error.main' : 'text.disabled'
                             }} />
                             <Typography
                               variant="caption"
                               sx={{
                                 fontSize: '0.75rem',
-                                color: isOverdue(task) ? 'error.main' : 'warning.main',
+                                color: isOverdue(task) ? 'error.main' : 'text.secondary',
                                 fontWeight: 500
                               }}
                             >
-                              {isOverdue(task) && 'Vencida: '}
+                              {isOverdue(task) ? 'Vencida: ' : ''}
                               {format(task.fechaVencimiento.toDate(), 'dd MMM yyyy', { locale: es })}
                             </Typography>
+                            {getDaysRemaining(task) !== null && (
+                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: getDaysRemainingColor(getDaysRemaining(task)), fontWeight: 500, ml: 'auto', flexShrink: 0 }}>
+                                {getDaysRemainingLabel(getDaysRemaining(task))}
+                              </Typography>
+                            )}
                           </Box>
                         )}
 
@@ -1312,15 +1290,8 @@ const TasksPage = () => {
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1,
-                            px: 1,
-                            py: 0.75,
-                            borderRadius: 1,
-                            bgcolor: alpha(theme.palette.info.main, 0.04),
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.info.main, 0.06),
-                              borderColor: alpha(theme.palette.info.main, 0.18)
-                            }
+                            px: 0.5,
+                            py: 0.25
                           }}>
                             <Avatar
                               src={task.asignadoA.photoURL}
