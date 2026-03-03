@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Box,
@@ -100,6 +100,9 @@ const TasksPage = () => {
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterAssignment, setFilterAssignment] = useState(initialAssignmentFilter);
   const [filterCompany, setFilterCompany] = useState('all');
+  const [filterUser, setFilterUser] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [users, setUsers] = useState([]);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -115,22 +118,23 @@ const TasksPage = () => {
   // Estados para sistema de filtros aplicados
   const [filtersApplied, setFiltersApplied] = useState(false); // Usuario debe hacer clic en Aplicar
 
-  // Permisos (soporta formato objeto y array)
-  const canCreate = userProfile?.permissions?.['tareas'] || 
-                    userProfile?.permissions?.['tareas.crear'] || 
-                    (Array.isArray(userProfile?.permissions) && 
-                     (userProfile?.permissions.includes('tareas') || 
-                      userProfile?.permissions.includes('tareas.crear')));
-  const canAssign = userProfile?.permissions?.['tareas.asignar'] || 
-                    (Array.isArray(userProfile?.permissions) && userProfile?.permissions.includes('tareas.asignar'));
-  const canApprove = userProfile?.permissions?.['tareas.aprobar'] || 
-                     (Array.isArray(userProfile?.permissions) && userProfile?.permissions.includes('tareas.aprobar'));
-  const canViewAll = userProfile?.permissions?.['tareas.ver_todas'] || 
-                     (Array.isArray(userProfile?.permissions) && userProfile?.permissions.includes('tareas.ver_todas'));
-  
-  // Editar y Eliminar: Solo usuarios con permiso de crear tareas
-  const canEdit = canCreate;
-  const canDelete = canCreate;
+  // Permisos — useMemo para no recalcular en cada render (solo cambia si cambian los permisos)
+  const permissions = useMemo(() => {
+    const p = userProfile?.permissions;
+    const has = (key) => p?.[key] || (Array.isArray(p) && p.includes(key));
+    const canCreate = has('tareas') || has('tareas.crear');
+    return {
+      canCreate,
+      canAssign:  has('tareas.asignar'),
+      canApprove: has('tareas.aprobar'),
+      canViewAll: has('tareas.ver_todas'),
+      canEdit:    canCreate,
+      canDelete:  canCreate,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(userProfile?.permissions)]);
+
+  const { canCreate, canAssign, canApprove, canViewAll, canEdit, canDelete } = permissions;
 
   // Ajustar filtro de asignación si el usuario no tiene permisos
   useEffect(() => {
@@ -142,27 +146,54 @@ const TasksPage = () => {
     }
   }, [hasPermissionVerTodas, filterAssignment]);
 
-  // Cargar empresas desde Firestore
+  // Caché en memoria para companies y users — evita re-fetch en cada mount de la página
+  const companiesCache = useRef(null);
+  const usersCache    = useRef(null);
+
   useEffect(() => {
     const fetchCompanies = async () => {
+      if (companiesCache.current) {
+        setCompanies(companiesCache.current);
+        return;
+      }
       try {
-        const companiesQuery = query(collection(db, 'companies'));
-        const companiesSnapshot = await getDocs(companiesQuery);
-        const companiesData = [];
-        companiesSnapshot.forEach((doc) => {
-          const companyData = doc.data();
-          companiesData.push({
-            id: doc.id,
-            nombre: companyData.name || companyData.nombre
-          });
+        const snapshot = await getDocs(query(collection(db, 'companies')));
+        const data = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return { id: doc.id, nombre: d.name || d.nombre };
         });
-        setCompanies(companiesData);
+        companiesCache.current = data;
+        setCompanies(data);
       } catch (error) {
         console.error('Error al cargar empresas:', error);
       }
     };
 
+    const fetchUsers = async () => {
+      if (usersCache.current) {
+        setUsers(usersCache.current);
+        return;
+      }
+      try {
+        const snapshot = await getDocs(query(collection(db, 'users')));
+        const data = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            uid: doc.id,
+            nombre: d.name || d.displayName || d.email,
+            email: d.email,
+            photoURL: d.photoURL
+          };
+        });
+        usersCache.current = data;
+        setUsers(data);
+      } catch (error) {
+        console.error('Error al cargar usuarios:', error);
+      }
+    };
+
     fetchCompanies();
+    fetchUsers();
   }, []);
 
   // Filtrar tareas - solo mostrar datos si se han aplicado filtros
@@ -196,14 +227,28 @@ const TasksPage = () => {
         return false;
       }
 
-      // Filtro por empresa
-      if (filterCompany !== 'all' && task.empresa !== filterCompany) {
+      // Filtro por empresa (empresa es array de {id, nombre, ...})
+      if (filterCompany !== 'all') {
+        const empresas = Array.isArray(task.empresa) ? task.empresa : [];
+        const tieneEmpresa = empresas.some(e => e?.id === filterCompany);
+        if (!tieneEmpresa) return false;
+      }
+
+      // Filtro por usuario asignado
+      if (filterUser !== 'all' && task.asignadoA?.uid !== filterUser) {
         return false;
+      }
+
+      // Filtro por mes de creación (formato 'YYYY-MM')
+      if (filterMonth !== 'all' && task.fechaCreacion) {
+        const created = task.fechaCreacion?.toDate ? task.fechaCreacion.toDate() : new Date(task.fechaCreacion);
+        const taskMonth = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
+        if (taskMonth !== filterMonth) return false;
       }
 
       return true;
     });
-  }, [tasks, filterPriority, filterAssignment, filterCompany, searchTerm, currentUser, filtersApplied]);
+  }, [tasks, filterPriority, filterAssignment, filterCompany, filterUser, filterMonth, searchTerm, currentUser, filtersApplied]);
 
   // Handlers
   const handleMenuOpen = (event, task) => {
@@ -711,8 +756,11 @@ const TasksPage = () => {
         filterPriority={filterPriority}
         filterAssignment={filterAssignment}
         filterCompany={filterCompany}
+        filterUser={filterUser}
+        filterMonth={filterMonth}
         viewMode={viewMode}
         companies={companies}
+        users={users}
         hasFiltersChanged={!filtersApplied}
         filtersApplied={filtersApplied}
         userProfile={userProfile}
@@ -720,6 +768,8 @@ const TasksPage = () => {
         onPriorityChange={setFilterPriority}
         onAssignmentChange={setFilterAssignment}
         onCompanyChange={setFilterCompany}
+        onUserChange={setFilterUser}
+        onMonthChange={setFilterMonth}
         onViewModeChange={setViewMode}
         onApplyFilters={() => {
           setFiltersApplied(true);
@@ -729,6 +779,8 @@ const TasksPage = () => {
           setFilterPriority('all');
           setFilterAssignment(initialAssignmentFilter);
           setFilterCompany('all');
+          setFilterUser('all');
+          setFilterMonth('all');
           setFiltersApplied(false);
         }}
         onRefresh={refreshTasks}

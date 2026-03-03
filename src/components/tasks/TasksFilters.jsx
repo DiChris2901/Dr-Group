@@ -1,5 +1,6 @@
 import {
   Business,
+  CalendarMonth,
   Clear,
   FilterList,
   GridView as GridViewIcon,
@@ -11,6 +12,7 @@ import {
   Flag
 } from '@mui/icons-material';
 import {
+  Avatar,
   Box,
   Button,
   Chip,
@@ -31,12 +33,16 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import { format, subMonths, startOfMonth } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const TasksFilters = ({
   onSearchChange,
   onPriorityChange,
   onAssignmentChange,
   onCompanyChange,
+  onUserChange,
+  onMonthChange,
   onViewModeChange,
   onApplyFilters,
   onClearFilters,
@@ -45,13 +51,24 @@ const TasksFilters = ({
   filterPriority = 'all',
   filterAssignment = 'all',
   filterCompany = 'all',
+  filterUser = 'all',
+  filterMonth = 'all',
   viewMode = 'grid',
   companies = [],
+  users = [],
   hasFiltersChanged = false,
   filtersApplied = false,
   userProfile = null
 }) => {
   const theme = useTheme();
+
+  // Generar opciones de los últimos 13 meses (mes actual + 12 anteriores)
+  const monthOptions = Array.from({ length: 13 }, (_, i) => {
+    const date = subMonths(startOfMonth(new Date()), i);
+    const value = format(date, 'yyyy-MM');
+    const label = format(date, 'MMMM yyyy', { locale: es });
+    return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
+  });
 
   // Determinar permisos del usuario
   const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
@@ -136,6 +153,8 @@ const TasksFilters = ({
     onPriorityChange('all');
     onAssignmentChange('all');
     onCompanyChange('all');
+    if (onUserChange) onUserChange('all');
+    if (onMonthChange) onMonthChange('all');
     if (onClearFilters) onClearFilters();
   };
 
@@ -157,12 +176,13 @@ const TasksFilters = ({
   const hasActiveFilters = filtersApplied;
 
   const getActiveFiltersCount = () => {
-    if (!filtersApplied) return 0; // Si no hay filtros aplicados, contador en 0
-    
-    let count = 1; // Siempre hay 1 filtro (asignación) cuando se aplican filtros
+    if (!filtersApplied) return 0;
+    let count = 1; // asignación siempre cuenta
     if (searchTerm) count++;
     if (filterPriority !== 'all') count++;
     if (filterCompany !== 'all') count++;
+    if (filterUser !== 'all') count++;
+    if (filterMonth !== 'all') count++;
     return count;
   };
 
@@ -270,215 +290,124 @@ const TasksFilters = ({
             </Box>
           </Box>
 
-          <Grid container spacing={3}>
-            {/* Campo de búsqueda */}
-            <Grid item xs={12} md={3}>
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <TextField
-                  fullWidth
-                  label="Buscar tareas"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder="Título, descripción, asignado a..."
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      backgroundColor: theme.palette.background.paper,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                      },
-                      '&.Mui-focused': {
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
-                      }
-                    }
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search color="primary" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchTerm && (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          onClick={handleClearSearch}
-                          sx={{ 
-                            color: 'text.secondary',
-                            '&:hover': { color: 'error.main' }
-                          }}
-                        >
-                          <Clear fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    )
-                  }}
-                />
-              </motion.div>
-            </Grid>
+          {/* Una sola fila: 5 dropdowns + botones */}
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
 
-            {/* Filtro por Prioridad */}
-            <Grid item xs={12} md={2.25}>
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <FormControl fullWidth>
-                  <InputLabel>Prioridad</InputLabel>
-                  <Select
-                    value={filterPriority}
-                    onChange={handlePriorityChange}
-                    label="Prioridad"
-                    sx={{
-                      borderRadius: 1,
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                      }
-                    }}
-                  >
-                    {priorityOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span>{option.icon}</span>
-                          <span>{option.label}</span>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </motion.div>
-            </Grid>
-
-            {/* Filtro por Asignación */}
-            <Grid item xs={12} md={2.25}>
-              <motion.div
-                initial={{ opacity: 0, x: 0 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <FormControl fullWidth>
-                  <InputLabel>Asignación</InputLabel>
-                  <Select
-                    value={filterAssignment}
-                    onChange={handleAssignmentChange}
-                    label="Asignación"
-                    disabled={!hasPermissionVerTodas} // Solo lectura si no puede ver todas las tareas
-                    sx={{
-                      borderRadius: 1,
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                      }
-                    }}
-                  >
-                    {assignmentOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <span>{option.icon}</span>
-                          <span>{option.label}</span>
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </motion.div>
-            </Grid>
-
-            {/* Filtro por Empresa */}
-            <Grid item xs={12} md={2.25}>
-              <motion.div
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 }}
-              >
-                <FormControl fullWidth>
-                  <InputLabel>Empresa</InputLabel>
-                  <Select
-                    value={filterCompany}
-                    onChange={handleCompanyChange}
-                    label="Empresa"
-                    sx={{
-                      borderRadius: 1,
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                      }
-                    }}
-                  >
-                    <MenuItem value="all">
+            {/* Prioridad */}
+            <Box sx={{ flex: '1 1 140px' }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Prioridad</InputLabel>
+                <Select value={filterPriority} onChange={handlePriorityChange}
+                  label="Prioridad" sx={{ borderRadius: 1 }}>
+                  {priorityOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Business fontSize="small" color="action" />
-                        <span>Todas las empresas</span>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
                       </Box>
                     </MenuItem>
-                    {companies.map((company) => (
-                      <MenuItem key={company.id} value={company.id}>
-                        {company.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </motion.div>
-            </Grid>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-            {/* Botones de Acción */}
-            <Grid item xs={12} md={2.25}>
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 }}
+            {/* Asignación */}
+            <Box sx={{ flex: '1 1 140px' }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Asignación</InputLabel>
+                <Select value={filterAssignment} onChange={handleAssignmentChange}
+                  label="Asignación" disabled={!hasPermissionVerTodas} sx={{ borderRadius: 1 }}>
+                  {assignmentOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Empresa */}
+            <Box sx={{ flex: '1 1 150px' }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Empresa</InputLabel>
+                <Select value={filterCompany} onChange={handleCompanyChange}
+                  label="Empresa" sx={{ borderRadius: 1 }}>
+                  <MenuItem value="all">Todas las empresas</MenuItem>
+                  {companies.map((company) => (
+                    <MenuItem key={company.id} value={company.id}>{company.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Usuario asignado */}
+            <Box sx={{ flex: '1 1 150px' }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Usuario asignado</InputLabel>
+                <Select value={filterUser}
+                  onChange={(e) => onUserChange && onUserChange(e.target.value)}
+                  label="Usuario asignado" sx={{ borderRadius: 1 }}>
+                  <MenuItem value="all">Todos los usuarios</MenuItem>
+                  {users.map((user) => (
+                    <MenuItem key={user.uid} value={user.uid}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar src={user.photoURL} sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
+                          {(user.nombre || '?').charAt(0).toUpperCase()}
+                        </Avatar>
+                        <span>{user.nombre}</span>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Mes de creación */}
+            <Box sx={{ flex: '1 1 140px' }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Mes de creación</InputLabel>
+                <Select value={filterMonth}
+                  onChange={(e) => onMonthChange && onMonthChange(e.target.value)}
+                  label="Mes de creación" sx={{ borderRadius: 1 }}>
+                  <MenuItem value="all">Todos los meses</MenuItem>
+                  {monthOptions.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Botones — siempre al final */}
+            <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, ml: 'auto' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleClearFilters}
+                disabled={!hasActiveFilters}
+                size="small"
+                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, minWidth: 80 }}
               >
-                <Box sx={{ display: 'flex', gap: 1, height: '100%', alignItems: 'flex-end' }}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    color="secondary"
-                    onClick={handleClearFilters}
-                    disabled={!hasActiveFilters}
-                    sx={{
-                      borderRadius: 1,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                      }
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    color="primary"
-                    onClick={onApplyFilters}
-                    disabled={!hasFiltersChanged}
-                    sx={{
-                      borderRadius: 1,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                      '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
-                      }
-                    }}
-                  >
-                    Aplicar
-                  </Button>
-                </Box>
-              </motion.div>
-            </Grid>
-          </Grid>
+                Limpiar
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={onApplyFilters}
+                disabled={!hasFiltersChanged}
+                size="small"
+                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600, minWidth: 80,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+              >
+                Aplicar
+              </Button>
+            </Box>
+
+          </Box>
+
+
 
           {/* Chips de Filtros Activos */}
           {hasActiveFilters && (
@@ -547,6 +476,28 @@ const TasksFilters = ({
                   <Chip
                     label={`Empresa: ${companies.find(c => c.id === filterCompany)?.nombre || 'Seleccionada'}`}
                     onDelete={() => onCompanyChange('all')}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ borderRadius: 1 }}
+                  />
+                )}
+
+                {filterUser !== 'all' && (
+                  <Chip
+                    label={`Asignado a: ${users.find(u => u.uid === filterUser)?.nombre || 'Usuario'}`}
+                    onDelete={() => onUserChange && onUserChange('all')}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ borderRadius: 1 }}
+                  />
+                )}
+
+                {filterMonth !== 'all' && (
+                  <Chip
+                    label={`Mes: ${monthOptions.find(m => m.value === filterMonth)?.label || filterMonth}`}
+                    onDelete={() => onMonthChange && onMonthChange('all')}
                     size="small"
                     color="primary"
                     variant="outlined"

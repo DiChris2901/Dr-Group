@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   collection, 
   query, 
@@ -43,6 +43,17 @@ export const useDelegatedTasks = () => {
   const [hasMore, setHasMore] = useState(true);
   const TASKS_PER_PAGE = 10;
 
+  // Booleano ESTABLE para permisos — evita que un nuevo objeto de referencia en
+  // userProfile?.permissions recree el listener innecesariamente (causa de la "recarga" del usuario).
+  const hasPermissionVerTodas = useMemo(() => {
+    const perms = userProfile?.permissions;
+    return !!(perms?.['tareas.ver_todas'] ||
+              perms?.['tareas'] ||
+              (Array.isArray(perms) &&
+               (perms.includes('tareas.ver_todas') || perms.includes('tareas'))));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(userProfile?.permissions)]);
+
   // Función para cargar tareas con listener en tiempo real
   const loadTasks = useCallback((pageNumber = 1) => {
     if (!currentUser?.uid) {
@@ -55,12 +66,7 @@ export const useDelegatedTasks = () => {
     setError(null);
 
     // Query: Tareas donde el usuario es creador O asignado O tiene permiso ver_todas
-    const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
-                                  userProfile?.permissions?.['tareas'] ||
-                                  (Array.isArray(userProfile?.permissions) && 
-                                   (userProfile?.permissions.includes('tareas.ver_todas') ||
-                                    userProfile?.permissions.includes('tareas')));
-
+    // Usa el booleano estable memoizado para evitar reemplazar el listener en cada render.
     let tasksQuery;
     if (hasPermissionVerTodas) {
       // Ver todas las tareas
@@ -129,9 +135,11 @@ export const useDelegatedTasks = () => {
     );
 
     return unsubscribe;
-  }, [currentUser?.uid, userProfile, lastVisible]);
+  }, [currentUser?.uid, hasPermissionVerTodas, lastVisible]);
 
-  // Cargar tareas al montar o cambiar usuario con listener en tiempo real
+  // Cargar tareas al montar o cambiar usuario con listener en tiempo real.
+  // Depende de hasPermissionVerTodas (booleano estable) en lugar de userProfile?.permissions
+  // (objeto que cambia de referencia en cada snapshot de AuthContext aunque los datos sean iguales).
   useEffect(() => {
     const unsubscribe = loadTasks(1);
     return () => {
@@ -139,7 +147,7 @@ export const useDelegatedTasks = () => {
         unsubscribe();
       }
     };
-  }, [currentUser?.uid, userProfile?.permissions]);
+  }, [currentUser?.uid, hasPermissionVerTodas]);
 
   // Funciones de paginación
   const nextPage = useCallback(() => {

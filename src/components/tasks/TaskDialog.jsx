@@ -133,41 +133,11 @@ const TaskDialog = ({ open, onClose, task = null }) => {
     }
   }, [open]);
 
+  // Effect 1: Inicializar / resetear el formulario SOLO cuando cambia la tarea o el modal abre/cierra.
+  // IMPORTANTE: 'companies' NO está en las deps para evitar el reset del form cuando las
+  // empresas terminan de cargar desde Firestore mientras el usuario ya está llenando el formulario.
   useEffect(() => {
-    if (task && companies.length > 0) {
-      // Encontrar las empresas (puede ser una o múltiples)
-      let empresasArray = [];
-      if (task.empresa) {
-        // Si task.empresa es un array
-        if (Array.isArray(task.empresa)) {
-          empresasArray = task.empresa.map(emp => {
-            if (typeof emp === 'object') {
-              return companies.find(c => 
-                (emp.id && c.id === emp.id) || 
-                (emp.nombre && c.nombre === emp.nombre)
-              );
-            } else if (typeof emp === 'string') {
-              return companies.find(c => c.id === emp || c.nombre === emp);
-            }
-            return null;
-          }).filter(Boolean);
-        }
-        // Si es un solo objeto o string (retrocompatibilidad)
-        else if (typeof task.empresa === 'object') {
-          const empresaObj = companies.find(c => 
-            (task.empresa.id && c.id === task.empresa.id) || 
-            (task.empresa.nombre && c.nombre === task.empresa.nombre)
-          );
-          if (empresaObj) empresasArray = [empresaObj];
-        } else if (typeof task.empresa === 'string') {
-          const empresaObj = companies.find(c => 
-            c.id === task.empresa || 
-            c.nombre === task.empresa
-          );
-          if (empresaObj) empresasArray = [empresaObj];
-        }
-      }
-
+    if (task) {
       setFormData({
         titulo: task.titulo || '',
         descripcion: task.descripcion || '',
@@ -175,18 +145,17 @@ const TaskDialog = ({ open, onClose, task = null }) => {
         fechaVencimiento: task.fechaVencimiento 
           ? new Date(task.fechaVencimiento.seconds * 1000).toISOString().split('T')[0] 
           : '',
-        empresa: empresasArray,
+        empresa: [], // se resolverá en el Effect 2 cuando companies esté listo
         asignadoA: task.asignadoA || null
       });
-      
-      // Cargar adjunto existente si existe
       if (task.adjunto) {
         setExistingAttachment(task.adjunto);
       } else {
         setExistingAttachment(null);
       }
       setSelectedFiles([]);
-    } else if (!task) {
+    } else {
+      // Modo creación: limpiar todo
       setFormData({
         titulo: '',
         descripcion: '',
@@ -199,7 +168,43 @@ const TaskDialog = ({ open, onClose, task = null }) => {
       setSelectedFiles([]);
     }
     setErrors({});
-  }, [task, open, companies]);
+  }, [task, open]);
+
+  // Effect 2: Resolver objetos de empresa SOLO en modo edición, cuando companies carga.
+  // Separado del Effect 1 para que nunca afecte el formulario en modo creación.
+  useEffect(() => {
+    if (!task || companies.length === 0) return;
+
+    let empresasArray = [];
+    if (task.empresa) {
+      if (Array.isArray(task.empresa)) {
+        empresasArray = task.empresa.map(emp => {
+          if (typeof emp === 'object') {
+            return companies.find(c => 
+              (emp.id && c.id === emp.id) || 
+              (emp.nombre && c.nombre === emp.nombre)
+            );
+          } else if (typeof emp === 'string') {
+            return companies.find(c => c.id === emp || c.nombre === emp);
+          }
+          return null;
+        }).filter(Boolean);
+      } else if (typeof task.empresa === 'object') {
+        const found = companies.find(c => 
+          (task.empresa.id && c.id === task.empresa.id) || 
+          (task.empresa.nombre && c.nombre === task.empresa.nombre)
+        );
+        if (found) empresasArray = [found];
+      } else if (typeof task.empresa === 'string') {
+        const found = companies.find(c => 
+          c.id === task.empresa || c.nombre === task.empresa
+        );
+        if (found) empresasArray = [found];
+      }
+    }
+
+    setFormData(prev => ({ ...prev, empresa: empresasArray }));
+  }, [task, companies]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -891,13 +896,31 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                   <Grid item xs={12}>
                     <Autocomplete
                       multiple
-                      options={companies}
+                      options={[
+                        { id: '__all__', nombre: 'Seleccionar todas las empresas', isAll: true },
+                        ...companies
+                      ]}
                       loading={loadingCompanies}
                       getOptionLabel={(option) => option.nombre || ''}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
                       value={formData.empresa}
-                      onChange={(event, newValue) => handleChange('empresa', newValue)}
+                      onChange={(event, newValue) => {
+                        // Si el usuario seleccionó la opción "Seleccionar todas"
+                        if (newValue.some(v => v.id === '__all__')) {
+                          // Si ya estaban todas seleccionadas → deseleccionar todas
+                          if (formData.empresa.length === companies.length) {
+                            handleChange('empresa', []);
+                          } else {
+                            // Seleccionar todas (sin incluir el sentinel)
+                            handleChange('empresa', companies);
+                          }
+                          return;
+                        }
+                        handleChange('empresa', newValue);
+                      }}
                       renderTags={(value, getTagProps) =>
                         value.map((option, index) => {
+                          if (option.id === '__all__') return null; // nunca mostrar el sentinel como chip
                           const { key, ...tagProps } = getTagProps({ index });
                           return (
                             <Chip
@@ -938,7 +961,7 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                         <TextField
                           {...params}
                           label="Empresas"
-                          placeholder="Selecciona una o más empresas..."
+                          placeholder={formData.empresa.length === 0 ? 'Selecciona una o más empresas...' : ''}
                           InputProps={{
                             ...params.InputProps,
                             startAdornment: (
@@ -965,6 +988,46 @@ const TaskDialog = ({ open, onClose, task = null }) => {
                       )}
                       renderOption={(props, option) => {
                         const { key, ...otherProps } = props;
+
+                        // Opción especial "Seleccionar todas las empresas"
+                        if (option.id === '__all__') {
+                          const allSelected = formData.empresa.length === companies.length && companies.length > 0;
+                          return (
+                            <Box
+                              component="li"
+                              key={key}
+                              {...otherProps}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.5,
+                                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                '&:hover': {
+                                  bgcolor: `${alpha(theme.palette.primary.main, 0.12)} !important`
+                                },
+                                py: 1.5
+                              }}
+                            >
+                              <Avatar sx={{ 
+                                width: 32, height: 32,
+                                bgcolor: alpha(theme.palette.primary.main, 0.15),
+                                color: 'primary.main'
+                              }}>
+                                <BusinessIcon fontSize="small" />
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                  {allSelected ? 'Deseleccionar todas las empresas' : 'Seleccionar todas las empresas'}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                  {companies.length} empresa{companies.length !== 1 ? 's' : ''} disponible{companies.length !== 1 ? 's' : ''}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          );
+                        }
+
                         return (
                           <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             {option.logoURL ? (
