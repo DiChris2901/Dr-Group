@@ -127,7 +127,7 @@ const NominaPage = ({ embedded = false }) => {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', action: null });
 
   const periodo = `${year}-${String(month).padStart(2, '0')}`;
-  const isEditable = !nominaCargada || nominaCargada.estado === 'borrador';
+  const isEditable = (!nominaCargada || nominaCargada.estado === 'borrador') && tipoLiquidacion !== 'todo';
 
   // === CARGAR PERÍODO ===
   const loadPeriodo = useCallback(async () => {
@@ -176,7 +176,6 @@ const NominaPage = ({ embedded = false }) => {
     totalDeducciones: lineas.reduce((s, l) => s + l.totalDeducciones, 0),
     totalNeto: lineas.reduce((s, l) => s + l.netoAPagar, 0),
     totalProvEmpleador: lineas.reduce((s, l) => s + l.totalProvisionesEmpleador, 0),
-    totalAnticipo: lineas.reduce((s, l) => s + (l.anticipo || 0), 0)
   }), [lineas]);
 
   // === KPIs CONSOLIDADO ===
@@ -218,8 +217,7 @@ const NominaPage = ({ embedded = false }) => {
   const recalcularLineaConEd = (empId, updatedEd) => {
     const emp = empleados.find(e => e.id === empId);
     if (!emp) return;
-    const tipoNom = tipoLiquidacion.startsWith('quincenal') ? 'quincenal' : 'mensual';
-    const nueva = calcularLineaNomina(emp, updatedEd.diasTrabajados ?? 30, updatedEd.bonos ?? 0, updatedEd.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, tipoNom, tipoLiquidacion === 'quincenal-1', updatedEd.pagosAdicionales ?? [], config.tasas);
+    const nueva = calcularLineaNomina(emp, updatedEd.diasTrabajados ?? 30, updatedEd.bonos ?? 0, updatedEd.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, updatedEd.pagosAdicionales ?? [], config.tasas);
     setLineas(prev => prev.map(l => l.empleadoId === empId ? nueva : l));
   };
 
@@ -255,8 +253,7 @@ const NominaPage = ({ embedded = false }) => {
   const recalcularLinea = (empId, editable) => {
     const emp = empleados.find(e => e.id === empId);
     if (!emp) return;
-    const tipoNom = tipoLiquidacion.startsWith('quincenal') ? 'quincenal' : 'mensual';
-    const nueva = calcularLineaNomina(emp, editable.diasTrabajados ?? 30, editable.bonos ?? 0, editable.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, tipoNom, tipoLiquidacion === 'quincenal-1', editable.pagosAdicionales ?? [], config.tasas);
+    const nueva = calcularLineaNomina(emp, editable.diasTrabajados ?? 30, editable.bonos ?? 0, editable.bonoDescripcion ?? '', config.smmlv, config.auxTransporte, editable.pagosAdicionales ?? [], config.tasas);
     setLineas(prev => prev.map(l => l.empleadoId === empId ? nueva : l));
   };
 
@@ -352,8 +349,7 @@ const NominaPage = ({ embedded = false }) => {
         borderM:    'FFC0CCDA',
       };
 
-      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual'
-        : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
+      const tipoLabel = tipoLiquidacion === 'todo' ? 'Todos' : 'Mensual';
 
       // ─── HELPER: encabezado de 7 filas ───────────────────────────────────────
       const buildHeader = (ws, subtitle, metrics, nCols) => {
@@ -421,7 +417,7 @@ const NominaPage = ({ embedded = false }) => {
       // ════════════════════════════════════════════════════════════════════════════
       // HOJA 1 — LIQUIDACIÓN DE NÓMINA
       // ════════════════════════════════════════════════════════════════════════════
-      const COLS1 = ['#', 'Empleado', 'Cargo', 'Sal. Base', 'Días', 'Devengado', 'Aux. Tr.', 'Bonos', 'Conceptos Adic.', 'Detalle Conceptos Adic.', 'T. Devengado', 'Salud 4%', 'Pensión 4%', 'T. Deducciones', 'Anticipo', 'Neto a Pagar'];
+      const COLS1 = ['#', 'Empleado', 'Cargo', 'Sal. Base', 'Días', 'Devengado', 'Aux. Tr.', 'Bonos', 'Conceptos Adic.', 'Detalle Conceptos Adic.', 'T. Devengado', 'Salud 4%', 'Pensión 4%', 'T. Deducciones', 'Neto a Pagar'];
       const NC1 = COLS1.length;
 
       const ws1 = wb.addWorksheet(`Nómina ${MESES[month - 1]} ${year}`);
@@ -447,7 +443,7 @@ const NominaPage = ({ embedded = false }) => {
           l.salarioDevengado, l.auxTransporte, l.bonos,
           paTotal > 0 ? paTotal : '—', paDesc,
           l.totalDevengado, l.saludEmpleado, l.pensionEmpleado,
-          l.totalDeducciones, l.anticipo || 0, l.netoAPagar,
+          l.totalDeducciones, l.netoAPagar,
         ];
         const row = ws1.getRow(i + 8);
         row.height = 18;
@@ -476,7 +472,6 @@ const NominaPage = ({ embedded = false }) => {
         lineas.reduce((s, l) => s + l.saludEmpleado, 0),
         lineas.reduce((s, l) => s + l.pensionEmpleado, 0),
         totales.totalDeducciones,
-        totales.totalAnticipo,
         totales.totalNeto,
       ];
       tot1Data.forEach((v, ci) => {
@@ -759,8 +754,7 @@ const NominaPage = ({ embedded = false }) => {
       y += 8;
 
       // ── BANDA 3: Período + fecha ──────────────────────────────────────────────
-      const tipoLabel = tipoLiquidacion === 'mensual' ? 'Mensual'
-        : tipoLiquidacion === 'quincenal-1' ? '1ra Quincena' : '2da Quincena';
+      const tipoLabel = 'Mensual';
       fc(C.slate); doc.rect(0, y, PW, 6, 'F');
       sf('normal', 7); tc(C.white);
       doc.text(`Período: ${MESES[month - 1]} ${year}  —  ${tipoLabel}`, ML + 2, y + 4);
@@ -822,11 +816,9 @@ const NominaPage = ({ embedded = false }) => {
 
       moneyRow('Aporte salud empleado  (4% — Art. 204 Ley 100/93)', linea.saludEmpleado);
       moneyRow('Aporte pensión empleado  (4% — Art. 20 Ley 797/03)', linea.pensionEmpleado);
-      if ((linea.anticipo || 0) > 0)
-        moneyRow('Anticipo 1ra quincena', linea.anticipo);
 
       thinDiv();
-      moneyRow('TOTAL DEDUCCIONES', linea.totalDeducciones + (linea.anticipo || 0), true, 3);
+      moneyRow('TOTAL DEDUCCIONES', linea.totalDeducciones, true, 3);
 
       y += 7;
 
@@ -1010,8 +1002,6 @@ const NominaPage = ({ embedded = false }) => {
               <InputLabel>Tipo de Liquidación</InputLabel>
               <Select value={tipoLiquidacion} onChange={(e) => setTipoLiquidacion(e.target.value)} label="Tipo de Liquidación" sx={{ borderRadius: 1 }}>
                 <MenuItem value="mensual">Mensual</MenuItem>
-                <MenuItem value="quincenal-1">Quincenal — 1ra Quincena</MenuItem>
-                <MenuItem value="quincenal-2">Quincenal — 2da Quincena</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -1184,9 +1174,7 @@ const NominaPage = ({ embedded = false }) => {
                 No hay empleados para liquidar en este período
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {tipoLiquidacion.startsWith('quincenal')
-                  ? 'No hay empleados con periodicidad quincenal configurada.'
-                  : 'No hay empleados activos con periodicidad mensual.'}
+                No hay empleados activos registrados.
               </Typography>
             </Paper>
           ) : (
@@ -1246,6 +1234,9 @@ const NominaPage = ({ embedded = false }) => {
                       <TableRow>
                         <TableCell sx={headerCellSx}>#</TableCell>
                         <TableCell sx={{ ...headerCellSx, minWidth: 180 }}>Empleado</TableCell>
+                        {tipoLiquidacion === 'todo' && (
+                          <TableCell sx={{ ...headerCellSx, textAlign: 'center', minWidth: 110 }}>Tipo Pago</TableCell>
+                        )}
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right' }}>Sal. Base</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'center', minWidth: 65 }}>Días</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right' }}>Devengado</TableCell>
@@ -1255,9 +1246,6 @@ const NominaPage = ({ embedded = false }) => {
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right' }}>Salud 4%</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right' }}>Pensión 4%</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right', color: theme.palette.error.main }}>T. Deducc.</TableCell>
-                        {tipoLiquidacion === 'quincenal-2' && (
-                          <TableCell sx={{ ...headerCellSx, textAlign: 'right' }}>Anticipo</TableCell>
-                        )}
                         <TableCell sx={{ ...headerCellSx, textAlign: 'right', color: theme.palette.primary.main, fontWeight: 700 }}>Neto</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'center', width: 50 }}>+</TableCell>
                         <TableCell sx={{ ...headerCellSx, textAlign: 'center', width: 40 }}>PDF</TableCell>
@@ -1323,9 +1311,6 @@ const NominaPage = ({ embedded = false }) => {
                             <TableCell sx={{ ...numCellSx, color: theme.palette.error.main, fontWeight: 600 }}>
                               {fmtCOP(linea.totalDeducciones)}
                             </TableCell>
-                            {tipoLiquidacion === 'quincenal-2' && (
-                              <TableCell sx={numCellSx}>{fmtCOP(linea.anticipo)}</TableCell>
-                            )}
                             <TableCell sx={{ ...numCellSx, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.85rem' }}>
                               {fmtCOP(linea.netoAPagar)}
                             </TableCell>
@@ -1345,7 +1330,7 @@ const NominaPage = ({ embedded = false }) => {
 
                           {/* Fila expandida: Provisiones empleador */}
                           <TableRow key={`${linea.empleadoId}-prov`}>
-                            <TableCell colSpan={tipoLiquidacion === 'quincenal-2' ? 16 : 15} sx={{ py: 0, borderBottom: expandedRows[linea.empleadoId] ? undefined : 'none' }}>
+                            <TableCell colSpan={15} sx={{ py: 0, borderBottom: expandedRows[linea.empleadoId] ? undefined : 'none' }}>
                               <Collapse in={expandedRows[linea.empleadoId]} timeout="auto">
                                 <Box sx={{ p: 2, backgroundColor: alpha(theme.palette.info.main, 0.05), border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`, borderRadius: 1, my: 1 }}>
                                   <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600, color: 'info.main', fontSize: '0.78rem' }}>
@@ -1531,9 +1516,6 @@ const NominaPage = ({ embedded = false }) => {
                         <TableCell sx={{ ...numCellSx, fontWeight: 600 }}>{fmtCOP(lineas.reduce((s, l) => s + l.saludEmpleado, 0))}</TableCell>
                         <TableCell sx={{ ...numCellSx, fontWeight: 600 }}>{fmtCOP(lineas.reduce((s, l) => s + l.pensionEmpleado, 0))}</TableCell>
                         <TableCell sx={{ ...numCellSx, fontWeight: 700, color: theme.palette.error.main }}>{fmtCOP(totales.totalDeducciones)}</TableCell>
-                        {tipoLiquidacion === 'quincenal-2' && (
-                          <TableCell sx={{ ...numCellSx, fontWeight: 600 }}>{fmtCOP(totales.totalAnticipo)}</TableCell>
-                        )}
                         <TableCell sx={{ ...numCellSx, fontWeight: 700, color: theme.palette.primary.main, fontSize: '0.85rem' }}>{fmtCOP(totales.totalNeto)}</TableCell>
                         <TableCell colSpan={2} />
                       </TableRow>
@@ -1653,7 +1635,7 @@ const NominaPage = ({ embedded = false }) => {
                     {kpis.nominasDelYear.map((nom) => {
                       const [ny, nm] = nom.periodo.split('-');
                       const mesNombre = MESES[parseInt(nm) - 1] || nm;
-                      const tipoLabel = nom.tipo === 'mensual' ? 'Mensual' : nom.tipo === 'quincenal-1' ? '1ra Qna.' : '2da Qna.';
+                      const tipoLabel = nom.tipo === 'mensual' ? 'Mensual' : 'Todos';
                       return (
                         <TableRow
                           key={nom.id}
