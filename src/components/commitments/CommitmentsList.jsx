@@ -463,6 +463,8 @@ const CommitmentsList = ({
     // Nota: el filtro por empresa se aplicará localmente para soportar selección múltiple.
     
     // ✅ Aplicar filtro de rango de fechas (Este mes, Último mes, etc.)
+    // IMPORTANTE: filtramos por dueDate (fecha de vencimiento), no por createdAt.
+    // Así "Este mes" = "vence este mes", lo cual es el comportamiento esperado.
       if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
       const { startDate, endDate } = getDateRangeFromFilter(
         debouncedDateRangeFilter,
@@ -474,16 +476,16 @@ const CommitmentsList = ({
         if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
           q = query(
             collection(db, 'commitments'),
-            where('createdAt', '>=', startDate),
-            where('createdAt', '<=', endDate),
-            orderBy('createdAt', 'desc')
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
           );
         } else {
           q = query(
             collection(db, 'commitments'),
-            where('createdAt', '>=', startDate),
-            where('createdAt', '<=', endDate),
-            orderBy('createdAt', 'desc')
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
           );
         }
       }

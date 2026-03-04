@@ -2687,6 +2687,48 @@ const NewPaymentPage = () => {
               getOptionLabel={(option) => option.displayName || ''}
               isOptionEqualToValue={(option, value) => option.id === value.id}
               autoHighlight
+              groupBy={(option) => {
+                const now = new Date();
+                const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                if (!option.dueDate) return '📅 Próximos meses';
+                const due = option.dueDate.toDate ? option.dueDate.toDate() : new Date(option.dueDate);
+                return due <= endOfThisMonth ? '📌 Vencidos / Este mes' : '📅 Próximos meses';
+              }}
+              renderGroup={(params) => (
+                <li key={params.key}>
+                  <Box
+                    sx={{
+                      position: 'sticky',
+                      top: -8,
+                      zIndex: 1,
+                      px: 2,
+                      py: 0.75,
+                      backgroundColor: String(params.group).startsWith('📌')
+                        ? alpha(theme.palette.warning.main, 0.1)
+                        : alpha(theme.palette.info.main, 0.06),
+                      borderTop: `2px solid ${String(params.group).startsWith('📌')
+                        ? alpha(theme.palette.warning.main, 0.3)
+                        : alpha(theme.palette.divider, 0.2)}`
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      fontWeight="700"
+                      sx={{
+                        color: String(params.group).startsWith('📌')
+                          ? theme.palette.warning.dark
+                          : theme.palette.text.secondary,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.8,
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      {params.group}
+                    </Typography>
+                  </Box>
+                  <ul style={{ padding: 0 }}>{params.children}</ul>
+                </li>
+              )}
               filterOptions={(options, { inputValue }) => {
                 if (!inputValue) return options;
                 const filterText = inputValue.toLowerCase();
