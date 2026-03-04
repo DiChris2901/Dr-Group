@@ -136,13 +136,22 @@ const TasksPage = () => {
 
   const { canCreate, canAssign, canApprove, canViewAll, canEdit, canDelete } = permissions;
 
+  // Para usuarios sin permiso ver_todas: aplicar filtros automáticamente al cargar el perfil.
+  // Su query en Firestore ya está limitada a sus propias tareas (array participantes),
+  // así que no hay riesgo de rendimiento — solo necesitamos que filtersApplied sea true.
+  useEffect(() => {
+    if (userProfile && !hasPermissionVerTodas) {
+      setFiltersApplied(true);
+    }
+  }, [userProfile, hasPermissionVerTodas]);
+
   // Ajustar filtro de asignación si el usuario no tiene permisos
   useEffect(() => {
     if (!hasPermissionVerTodas && (filterAssignment === 'all' || filterAssignment === 'unassigned')) {
       // Si el usuario no puede ver todas las tareas pero tiene filtro "all" o "unassigned"
       // cambiar automáticamente a "mine"
       setFilterAssignment('mine');
-      setFiltersApplied(false); // Requiere aplicar de nuevo
+      // No resetear filtersApplied: el usuario ya está viendo sus tareas
     }
   }, [hasPermissionVerTodas, filterAssignment]);
 

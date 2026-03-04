@@ -65,76 +65,90 @@ export const useDelegatedTasks = () => {
     setLoading(true);
     setError(null);
 
-    // Query: Tareas donde el usuario es creador O asignado O tiene permiso ver_todas
-    // Usa el booleano estable memoizado para evitar reemplazar el listener en cada render.
-    let tasksQuery;
     if (hasPermissionVerTodas) {
-      // Ver todas las tareas
-      tasksQuery = query(
-        collection(db, 'delegated_tasks'),
-        orderBy('fechaCreacion', 'desc'),
-        limit(TASKS_PER_PAGE)
-      );
-    } else {
-      // Solo tareas propias (creadas o asignadas)
-      tasksQuery = query(
-        collection(db, 'delegated_tasks'),
-        where('participantes', 'array-contains', currentUser.uid),
-        orderBy('fechaCreacion', 'desc'),
-        limit(TASKS_PER_PAGE)
-      );
-    }
+      // ── ADMIN: ver todas las tareas con paginación ──────────────────────────
+      const adminQuery = pageNumber > 1 && lastVisible
+        ? query(collection(db, 'delegated_tasks'), orderBy('fechaCreacion', 'desc'), startAfter(lastVisible), limit(TASKS_PER_PAGE))
+        : query(collection(db, 'delegated_tasks'), orderBy('fechaCreacion', 'desc'), limit(TASKS_PER_PAGE));
 
-    // Si es página siguiente, iniciar después del último documento
-    if (pageNumber > 1 && lastVisible) {
-      if (hasPermissionVerTodas) {
-        tasksQuery = query(
-          collection(db, 'delegated_tasks'),
-          orderBy('fechaCreacion', 'desc'),
-          startAfter(lastVisible),
-          limit(TASKS_PER_PAGE)
-        );
-      } else {
-        tasksQuery = query(
-          collection(db, 'delegated_tasks'),
-          where('participantes', 'array-contains', currentUser.uid),
-          orderBy('fechaCreacion', 'desc'),
-          startAfter(lastVisible),
-          limit(TASKS_PER_PAGE)
-        );
-      }
-    }
-
-    // Listener en tiempo real con onSnapshot
-    const unsubscribe = onSnapshot(
-      tasksQuery,
-      (snapshot) => {
-        const tasksData = [];
-        snapshot.forEach((doc) => {
-          tasksData.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-
-        // Guardar último documento para paginación
-        if (!snapshot.empty) {
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      const unsubscribe = onSnapshot(
+        adminQuery,
+        (snapshot) => {
+          const tasksData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+          if (!snapshot.empty) setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+          setTasks(tasksData);
+          setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
+          setCurrentPage(pageNumber);
+          setLoading(false);
+        },
+        (err) => {
+          console.error('Error fetching delegated tasks (admin):', err);
+          setError(err.message);
+          setLoading(false);
         }
+      );
+      return unsubscribe;
+    }
 
-        setTasks(tasksData);
-        setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
-        setCurrentPage(pageNumber);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Error fetching delegated tasks:', err);
-        setError(err.message);
-        setLoading(false);
-      }
+    // ── USUARIO NORMAL: dos queries paralelas (asignadas + creadas) ──────────
+    // Se usa asignadoA.uid y creadoPor.uid en lugar de 'participantes'
+    // para compatibilidad con tareas creadas antes del campo participantes.
+    const assignedQuery = query(
+      collection(db, 'delegated_tasks'),
+      where('asignadoA.uid', '==', currentUser.uid)
+    );
+    const createdQuery = query(
+      collection(db, 'delegated_tasks'),
+      where('creadoPor.uid', '==', currentUser.uid)
     );
 
-    return unsubscribe;
+    // Estado local de cada listener (closures estables)
+    let assignedDocs = [];
+    let createdDocs  = [];
+    let assignedReady = false;
+    let createdReady  = false;
+
+    const mergeTasks = () => {
+      if (!assignedReady || !createdReady) return;
+      // Deduplicar por id, ordenar descendente por fechaCreacion
+      const seen = new Set();
+      const merged = [...assignedDocs, ...createdDocs].filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
+      merged.sort((a, b) => {
+        const aTs = a.fechaCreacion?.toDate?.() ?? new Date(a.fechaCreacion ?? 0);
+        const bTs = b.fechaCreacion?.toDate?.() ?? new Date(b.fechaCreacion ?? 0);
+        return bTs - aTs;
+      });
+      setTasks(merged);
+      setHasMore(false); // Paginación no aplica para queries duales
+      setCurrentPage(1);
+      setLoading(false);
+    };
+
+    const unsub1 = onSnapshot(
+      assignedQuery,
+      (snapshot) => {
+        assignedDocs  = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        assignedReady = true;
+        mergeTasks();
+      },
+      (err) => { console.error('Error query asignadas:', err); setError(err.message); setLoading(false); }
+    );
+
+    const unsub2 = onSnapshot(
+      createdQuery,
+      (snapshot) => {
+        createdDocs  = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        createdReady = true;
+        mergeTasks();
+      },
+      (err) => { console.error('Error query creadas:', err); setError(err.message); setLoading(false); }
+    );
+
+    return () => { unsub1(); unsub2(); };
   }, [currentUser?.uid, hasPermissionVerTodas, lastVisible]);
 
   // Cargar tareas al montar o cambiar usuario con listener en tiempo real.
