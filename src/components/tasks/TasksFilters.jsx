@@ -343,27 +343,29 @@ const TasksFilters = ({
               </FormControl>
             </Box>
 
-            {/* Usuario asignado */}
-            <Box sx={{ flex: '1 1 150px' }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Usuario asignado</InputLabel>
-                <Select value={filterUser}
-                  onChange={(e) => onUserChange && onUserChange(e.target.value)}
-                  label="Usuario asignado" sx={{ borderRadius: 1 }}>
-                  <MenuItem value="all">Todos los usuarios</MenuItem>
-                  {users.map((user) => (
-                    <MenuItem key={user.uid} value={user.uid}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar src={user.photoURL} sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
-                          {(user.nombre || '?').charAt(0).toUpperCase()}
-                        </Avatar>
-                        <span>{user.nombre}</span>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+            {/* Usuario asignado — solo visible para admins con permiso ver_todas */}
+            {hasPermissionVerTodas && (
+              <Box sx={{ flex: '1 1 150px' }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Usuario asignado</InputLabel>
+                  <Select value={filterUser}
+                    onChange={(e) => onUserChange && onUserChange(e.target.value)}
+                    label="Usuario asignado" sx={{ borderRadius: 1 }}>
+                    <MenuItem value="all">Todos los usuarios</MenuItem>
+                    {users.map((user) => (
+                      <MenuItem key={user.uid} value={user.uid}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar src={user.photoURL} sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
+                            {(user.nombre || '?').charAt(0).toUpperCase()}
+                          </Avatar>
+                          <span>{user.nombre}</span>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
 
             {/* Mes de creación */}
             <Box sx={{ flex: '1 1 140px' }}>
