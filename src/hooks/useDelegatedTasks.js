@@ -66,19 +66,22 @@ export const useDelegatedTasks = () => {
     setError(null);
 
     if (hasPermissionVerTodas) {
-      // ── ADMIN: ver todas las tareas con paginación ──────────────────────────
-      const adminQuery = pageNumber > 1 && lastVisible
-        ? query(collection(db, 'delegated_tasks'), orderBy('fechaCreacion', 'desc'), startAfter(lastVisible), limit(TASKS_PER_PAGE))
-        : query(collection(db, 'delegated_tasks'), orderBy('fechaCreacion', 'desc'), limit(TASKS_PER_PAGE));
+      // ── ADMIN: cargar TODAS las tareas sin paginación para que los filtros
+      // cliente (por usuario, empresa, mes, etc.) operen sobre el dataset completo.
+      // La paginación server-side con filtros cliente-side causa que tareas de páginas
+      // posteriores no aparezcan al filtrar (el filtro solo ve la página actual).
+      const adminQuery = query(
+        collection(db, 'delegated_tasks'),
+        orderBy('fechaCreacion', 'desc')
+      );
 
       const unsubscribe = onSnapshot(
         adminQuery,
         (snapshot) => {
           const tasksData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          if (!snapshot.empty) setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
           setTasks(tasksData);
-          setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
-          setCurrentPage(pageNumber);
+          setHasMore(false); // Sin paginación server-side para admin
+          setCurrentPage(1);
           setLoading(false);
         },
         (err) => {
