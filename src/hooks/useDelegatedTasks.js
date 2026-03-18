@@ -240,6 +240,7 @@ export const useDelegatedTasks = () => {
         empresa: taskData.empresa || null,
         
         // ADJUNTOS
+        adjunto: taskData.adjunto || null,
         archivosAdjuntos: [],
         
         // FECHAS
