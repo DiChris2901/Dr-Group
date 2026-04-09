@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform, AppState } from 'react-native';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { collection, query, where, onSnapshot, orderBy, limit, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, doc, setDoc, getDoc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 import { logger } from '../utils/logger';
@@ -123,6 +123,30 @@ export const NotificationsProvider = ({ children }) => {
     return () => subscription.remove();
   }, [user, userProfile, registerForPushNotifications]);
 
+  // Auto-limpiar notificaciones > 2 días al iniciar sesión
+  useEffect(() => {
+    if (!user?.uid) return;
+    const twoDaysAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
+    const cleanupQuery = query(
+      collection(db, 'notifications'),
+      where('uid', '==', user.uid),
+      where('createdAt', '<', twoDaysAgo)
+    );
+    getDocs(cleanupQuery).then((snapshot) => {
+      if (snapshot.empty) return;
+      const CHUNK_SIZE = 400;
+      const chunks = [];
+      for (let i = 0; i < snapshot.docs.length; i += CHUNK_SIZE) {
+        chunks.push(snapshot.docs.slice(i, i + CHUNK_SIZE));
+      }
+      return Promise.all(chunks.map(chunk => {
+        const batch = writeBatch(db);
+        chunk.forEach((d) => batch.delete(d.ref));
+        return batch.commit();
+      }));
+    }).catch((e) => console.warn('[Notifications] cleanup error:', e?.message));
+  }, [user?.uid]);
+
   // ✅ Listener de Firestore para contar no leídas y detectar nuevas
   useEffect(() => {
     if (!user?.uid) {
@@ -132,13 +156,15 @@ export const NotificationsProvider = ({ children }) => {
       return () => {}; // ✅ Cleanup vacío cuando no hay usuario
     }
 
-    // Query para contar no leídas
+    const twoDaysAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
+    // Query para contar no leídas (solo últimos 2 días)
     const q = query(
       collection(db, 'notifications'),
       where('uid', '==', user.uid),
       where('read', '==', false),
+      where('createdAt', '>=', twoDaysAgo),
       orderBy('createdAt', 'desc'),
-      limit(30) // Maximo 30 unread escuchadas (con cleanup a 2 dias nunca se acumulan mas)
+      limit(30)
     );
 
     const unsubscribe = onSnapshot(

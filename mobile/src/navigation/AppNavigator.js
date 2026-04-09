@@ -30,6 +30,11 @@ import EmpresasScreen from '../screens/empresas/EmpresasScreen';
 import EmpresaDetailScreen from '../screens/empresas/EmpresaDetailScreen';
 import EmpleadosScreen from '../screens/empleados/EmpleadosScreen';
 import EmpleadoDetailScreen from '../screens/empleados/EmpleadoDetailScreen';
+import LiquidacionesScreen from '../screens/liquidaciones/LiquidacionesScreen';
+import LiquidacionesHistorialScreen from '../screens/liquidaciones/LiquidacionesHistorialScreen';
+import LiquidacionesEstadisticasScreen from '../screens/liquidaciones/LiquidacionesEstadisticasScreen';
+import MaquinasEnCeroScreen from '../screens/liquidaciones/MaquinasEnCeroScreen';
+import LiquidacionDetailScreen from '../screens/liquidaciones/LiquidacionDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +58,11 @@ const ProtectedAdminNovedadesScreen = createProtectedScreen(AdminNovedadesScreen
 const ProtectedAdminSettingsScreen = createProtectedScreen(AdminSettingsScreen, APP_PERMISSIONS.ADMIN_SETTINGS);
 const ProtectedAdminCreateAlertScreen = createProtectedScreen(AdminCreateAlertScreen, APP_PERMISSIONS.ADMIN_CREATE_ALERT);
 const ProtectedAdminNotificationControlScreen = createProtectedScreen(AdminNotificationControlScreen, APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL);
+const ProtectedLiquidacionesScreen = createProtectedScreen(LiquidacionesScreen, APP_PERMISSIONS.LIQUIDACIONES_VER);
+const ProtectedLiquidacionesHistorialScreen = createProtectedScreen(LiquidacionesHistorialScreen, APP_PERMISSIONS.LIQUIDACIONES_VER);
+const ProtectedLiquidacionesEstadisticasScreen = createProtectedScreen(LiquidacionesEstadisticasScreen, APP_PERMISSIONS.LIQUIDACIONES_VER);
+const ProtectedMaquinasEnCeroScreen = createProtectedScreen(MaquinasEnCeroScreen, APP_PERMISSIONS.LIQUIDACIONES_VER);
+const ProtectedLiquidacionDetailScreen = createProtectedScreen(LiquidacionDetailScreen, APP_PERMISSIONS.LIQUIDACIONES_VER);
 
 function AppNavigator({ navigation }, ref) {
   const { user, userProfile, loading } = useAuth();
@@ -100,6 +110,11 @@ function AppNavigator({ navigation }, ref) {
             <Stack.Screen name="EmpresaDetail" component={EmpresaDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Empleados" component={EmpleadosScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EmpleadoDetail" component={EmpleadoDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Liquidaciones" component={ProtectedLiquidacionesScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="LiquidacionesHistorial" component={ProtectedLiquidacionesHistorialScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="LiquidacionesEstadisticas" component={ProtectedLiquidacionesEstadisticasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MaquinasEnCero" component={ProtectedMaquinasEnCeroScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="LiquidacionDetail" component={ProtectedLiquidacionDetailScreen} options={{ headerShown: false }} />
           </>
         ) : (
           // Usuario no autenticado

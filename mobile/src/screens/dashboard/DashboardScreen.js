@@ -112,10 +112,25 @@ export default function DashboardScreen() {
       setLocalLoading(true); // 🔒 Activar loading local inmediatamente
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // ✅ Feedback táctil inmediato
       
-      await iniciarJornada();
+      const result = await iniciarJornada();
       
-      // ✅ Feedback de éxito
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result?.shouldResume) {
+        // Jornada activa encontrada → mostrar popup de reconexión
+        const horaEntrada = result.existingSession?.entrada?.hora;
+        const horaStr = horaEntrada
+          ? (horaEntrada.toDate ? horaEntrada.toDate() : new Date(horaEntrada))
+              .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '';
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        Alert.alert(
+          'Jornada en Curso',
+          `Tienes una jornada activa${horaStr ? ` desde las ${horaStr}` : ''}. Tu sesión ha sido retomada.`,
+          [{ text: 'Entendido', style: 'default' }]
+        );
+      } else {
+        // ✅ Feedback de éxito (nueva jornada iniciada)
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (error) {
       // Si el error es por procesamiento duplicado, ignorar (ya hay candado activo)
       if (error.message.includes('Ya se está procesando')) {

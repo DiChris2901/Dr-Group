@@ -311,6 +311,80 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "priority",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "liquidaciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa.normalizado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechas.createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "liquidaciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa.normalizado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechas.periodoLiquidacion",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "liquidaciones_por_sala",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa.normalizado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechas.periodoLiquidacion",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

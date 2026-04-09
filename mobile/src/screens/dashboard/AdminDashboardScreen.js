@@ -566,6 +566,15 @@ export default function AdminDashboardScreen({ navigation }) {
                 <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Empleados</Text>
               </Surface>
             )}
+            {can(APP_PERMISSIONS.LIQUIDACIONES_VER) && (
+              <Surface style={[styles.quickAction, { backgroundColor: surfaceColors.surfaceContainerHigh }]} elevation={0}>
+                <IconButton icon="cash-register" size={24} iconColor={surfaceColors.tertiary} onPress={() => {
+                  triggerHaptic('selection');
+                  navigation.navigate('Liquidaciones');
+                }} />
+                <Text variant="labelMedium" style={{ textAlign: 'center', color: surfaceColors.onSurface }}>Liquidaciones</Text>
+              </Surface>
+            )}
           </View>
         </View>
 

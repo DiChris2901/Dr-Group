@@ -38,10 +38,11 @@ export const APP_PERMISSIONS = {
   REPORTES_TODOS: 'reportes.todos',                // Ver desempeño de TODOS
 
   // ====================================
-  // 🏢 CONSULTA (2 permisos) - Solo lectura
+  // 🏢 CONSULTA (3 permisos) - Solo lectura
   // ====================================
   EMPRESAS_VER: 'empresas.ver',                    // Consultar directorio de empresas
   EMPLEADOS_VER: 'empleados.ver',                  // Consultar directorio de empleados
+  LIQUIDACIONES_VER: 'liquidaciones.ver',          // Consultar liquidaciones (solo lectura)
 };
 
 // ========================================
@@ -83,6 +84,7 @@ export const PERMISSION_CATEGORIES = [
     permissions: [
       APP_PERMISSIONS.EMPRESAS_VER,
       APP_PERMISSIONS.EMPLEADOS_VER,
+      APP_PERMISSIONS.LIQUIDACIONES_VER,
     ],
   },
   {
@@ -105,7 +107,7 @@ export const PERMISSION_CATEGORIES = [
 // 📊 CONSTANTES DEL SISTEMA
 // ========================================
 
-export const TOTAL_PERMISSIONS = 18; // Total de permisos en el sistema v2.1
+export const TOTAL_PERMISSIONS = 19; // Total de permisos en el sistema v2.2
 
 // ========================================
 // 🎭 ROLES Y PERMISOS POR DEFECTO

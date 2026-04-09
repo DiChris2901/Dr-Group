@@ -15,6 +15,7 @@ import { logger } from '../utils/logger';
 import { notifyAdminsWorkEvent } from '../utils/notificationHelpers';
 import { getTodayStr } from '../utils/dateUtils';
 import { checkTodaySessionInCache, saveTodaySessionInCache } from '../utils/sessionCache';
+import WidgetService from '../services/WidgetService';
 import {
   generateId,
   obtenerColaPendiente,
@@ -59,6 +60,11 @@ export const AuthProvider = ({ children }) => {
       setHasPendingSync(pending);
     };
     checkPending();
+  }, [activeSession]);
+
+  // ✅ Sincronizar widget Android con cada cambio de sesión
+  useEffect(() => {
+    WidgetService.updateSession(activeSession);
   }, [activeSession]);
 
   // 🔒 CAPA 1: checkTodaySessionInCache y saveTodaySessionInCache

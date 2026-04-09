@@ -3,7 +3,7 @@ import { View, StyleSheet, FlatList, Modal, TouchableOpacity, Linking, Alert } f
 import { Text, useTheme, Surface, Avatar, IconButton, ActivityIndicator, SegmentedButtons, Button, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, limit, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { OverlineText } from '../../components';
@@ -209,9 +209,11 @@ export default function NotificationsScreen({ navigation }) {
 
     setLoading(true);
     
-    // Base query
+    // Base query - solo últimos 2 días
+    const twoDaysAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
     let constraints = [
-      where('uid', '==', user.uid)
+      where('uid', '==', user.uid),
+      where('createdAt', '>=', twoDaysAgo)
     ];
 
     // Apply filters

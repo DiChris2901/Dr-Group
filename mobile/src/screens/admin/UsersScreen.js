@@ -140,6 +140,7 @@ export default function UsersScreen() {
       // Directorios
       'empresas.ver': '🏢 Directorio de Empresas',
       'empleados.ver': '👥 Directorio de Empleados',
+      'liquidaciones.ver': '📊 Liquidaciones',
       
       // Admin
       'admin.dashboard': '🎛️ Panel Admin',
