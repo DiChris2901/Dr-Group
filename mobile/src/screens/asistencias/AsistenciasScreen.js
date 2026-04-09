@@ -51,7 +51,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function AsistenciasScreen({ navigation }) {
   const { userProfile, user, activeSession } = useAuth();
-  const { can } = usePermissions();
+  const { can, loading: permissionsLoading } = usePermissions();
   const theme = useTheme();
   
   // ✅ TODOS LOS HOOKS PRIMERO (Rules of Hooks)
@@ -333,7 +333,7 @@ export default function AsistenciasScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [userProfile, user, filterType, startDate, endDate]);
+  }, [userProfile, user, filterType, startDate, endDate, puedeVerTodos, puedeVerPropias]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -828,7 +828,7 @@ export default function AsistenciasScreen({ navigation }) {
             mode="contained"
             onPress={cargarAsistencias}
             loading={loading}
-            disabled={loading}
+            disabled={loading || permissionsLoading}
             icon="filter-check"
             style={{ flex: 1, borderRadius: 24 }}
             contentStyle={{ paddingVertical: 10 }}
