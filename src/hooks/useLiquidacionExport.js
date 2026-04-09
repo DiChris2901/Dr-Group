@@ -330,7 +330,7 @@ export default function useLiquidacionExport({
       // FILA 1: Título principal
       ws.mergeCells(1, 1, 1, totalColumnas);
       const titleCell = ws.getCell(1, 1);
-      titleCell.value = 'DR GROUP';
+      titleCell.value = 'ORGANIZACIÓN RDJ';
       titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: BRAND_COLORS.white } };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.titleBg } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -541,7 +541,7 @@ export default function useLiquidacionExport({
 
       // FILA 1: Título Principal
       ws.mergeCells('A1:G1');
-      ws.getCell('A1').value = 'DR GROUP';
+      ws.getCell('A1').value = 'ORGANIZACIÓN RDJ';
       ws.getCell('A1').font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: BRAND_COLORS.white } };
       ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_COLORS.titleBg } };
       ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };

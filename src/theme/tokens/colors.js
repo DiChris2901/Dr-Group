@@ -1,5 +1,5 @@
 /**
- * 🎨 DR Group Design System 3.0 - Color Tokens
+ * 🎨 Organizaci�n RDJ Design System 3.0 - Color Tokens
  * Tokens extraídos del sistema de colores establecido
  */
 

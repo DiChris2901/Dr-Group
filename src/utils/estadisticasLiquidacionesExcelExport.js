@@ -95,7 +95,7 @@ const applyHeader7Rows = (ws, { title, subtitle, metrics, totalColumns }) => {
   // Fila 1: TÃ­tulo
   ws.mergeCells(1, 1, 1, totalColumns);
   const titleCell = ws.getCell(1, 1);
-  titleCell.value = 'DR GROUP';
+  titleCell.value = 'ORGANIZACIÓN RDJ';
   titleCell.style = fmtTitle;
   ws.getRow(1).height = 30;
 
@@ -308,7 +308,7 @@ export const exportarEstadisticasLiquidaciones = async (
 ) => {
   try {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'DR Group Dashboard';
+    wb.creator = 'Organización RDJ Dashboard';
     wb.created = new Date();
 
     const empresaLabel = filtros?.empresa && filtros.empresa !== 'todas' ? filtros.empresa : 'Todas';

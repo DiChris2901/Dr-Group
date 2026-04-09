@@ -717,10 +717,10 @@ const MaquinasEnCeroStats = ({
   const handleExportarExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'DR Group Dashboard';
+      workbook.creator = 'Organización RDJ';
       workbook.created = new Date();
 
-      // BRAND_COLORS — Paleta corporativa DR Group (ARGB con prefijo FF)
+      // BRAND_COLORS — Paleta corporativa Organizaci�n RDJ (ARGB con prefijo FF)
       const BRAND_COLORS = {
         titleBg:    'FF0B3040',
         subtitleBg: 'FF1A5F7A',
@@ -767,7 +767,7 @@ const MaquinasEnCeroStats = ({
       });
 
       // Fila 1 — Título principal
-      applyHeaderRow(ws, COLS1, 1, 'DR GROUP', BRAND_COLORS.titleBg, 18, true, 30);
+      applyHeaderRow(ws, COLS1, 1, 'ORGANIZACIÓN RDJ', BRAND_COLORS.titleBg, 18, true, 30);
 
       // Fila 2 — Subtítulo descriptivo
       applyHeaderRow(ws, COLS1, 2,
@@ -856,7 +856,7 @@ const MaquinasEnCeroStats = ({
         views: [{ state: 'frozen', ySplit: 7 }]
       });
 
-      applyHeaderRow(ws2, COLS2, 1, 'DR GROUP', BRAND_COLORS.titleBg, 18, true, 30);
+      applyHeaderRow(ws2, COLS2, 1, 'ORGANIZACIÓN RDJ', BRAND_COLORS.titleBg, 18, true, 30);
       applyHeaderRow(ws2, COLS2, 2,
         `Resumen por Sala — Máquinas en Cero — ${empresaSeleccionada}`,
         BRAND_COLORS.subtitleBg, 11, true, 22);

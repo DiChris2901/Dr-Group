@@ -85,7 +85,7 @@ const downloadAndInstallAPK = async (downloadUrl, version) => {
     );
 
     // Directorio de descarga
-    const downloadPath = `${FileSystem.documentDirectory}dr-group-${version}.apk`;
+    const downloadPath = `${FileSystem.documentDirectory}rdj-${version}.apk`;
 
     // Descargar APK
     const downloadResumable = FileSystem.createDownloadResumable(

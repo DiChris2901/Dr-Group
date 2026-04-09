@@ -1,6 +1,6 @@
 /**
  * Professional Settings Drawer with Tabs
- * Complete configuration system for DR Group Dashboard
+ * Complete configuration system for Organizaci�n RDJ Dashboard
  * Design System 3.0 - Diseño Sobrio Empresarial
  */
 
@@ -810,7 +810,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          backgroundColor: '#9c27b0', // Purple for themes
+                          backgroundColor: theme.palette.secondary.main,
                           color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
@@ -963,7 +963,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          backgroundColor: '#e91e63', // Elegant Pink
+                          backgroundColor: theme.palette.error.main,
                           color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
@@ -1763,7 +1763,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               fontWeight: 600,
                               mb: 1 
                             }}>
-                              DR Group Dashboard
+                              Organización RDJ
                             </Typography>
                             <Typography variant="body1" sx={{ 
                               fontFamily: 'inherit',

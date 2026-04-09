@@ -1,5 +1,5 @@
 /**
- * 🎨 DR Group Design System 3.0 - Design Tokens Index
+ * 🎨 Organizaci�n RDJ Design System 3.0 - Design Tokens Index
  * Índice principal de tokens basado en el sistema de colores y gradientes establecido
  */
 

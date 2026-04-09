@@ -814,9 +814,9 @@ const ReportsCompanyPage = () => {
 
       // 📊 CREAR WORKBOOK DE EXCEL CON FORMATO PROFESIONAL
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'DR Group Dashboard';
+      workbook.creator = 'Organización RDJ';
       workbook.created = new Date();
-      workbook.properties.title = "DR Group - Reporte de Empresas PREMIUM";
+      workbook.properties.title = "Organización RDJ - Reporte de Empresas PREMIUM";
       workbook.properties.subject = "Análisis Detallado por Empresa";
       
       // 📋 HOJA 1: DASHBOARD EJECUTIVO EMPRESAS - FORMATO PYTHON PROFESIONAL
@@ -828,7 +828,7 @@ const ReportsCompanyPage = () => {
       // 🔹 FILA 1: Título Principal
       summarySheet.mergeCells('A1:H1');
       const titleCell = summarySheet.getCell('A1');
-      titleCell.value = 'DR GROUP';
+      titleCell.value = 'ORGANIZACIÓN RDJ';
       titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -946,7 +946,7 @@ const ReportsCompanyPage = () => {
       // 🔹 FILA 1: Título Principal
       detailSheet.mergeCells('A1:G1');
       const detailTitleCell = detailSheet.getCell('A1');
-      detailTitleCell.value = 'DR GROUP';
+      detailTitleCell.value = 'ORGANIZACIÓN RDJ';
       detailTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
       detailTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
       detailTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1087,7 +1087,7 @@ const ReportsCompanyPage = () => {
       // 🔹 FILA 1
       historicalSheet.mergeCells(`A1:${lastColumnLetter}1`);
       const histTitleCell = historicalSheet.getCell('A1');
-      histTitleCell.value = 'DR GROUP';
+      histTitleCell.value = 'ORGANIZACIÓN RDJ';
       histTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
       histTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
       histTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1260,7 +1260,7 @@ const ReportsCompanyPage = () => {
         // 🔹 FILA 1
         completedSheet.mergeCells('A1:O1');
         const completedTitleCell = completedSheet.getCell('A1');
-        completedTitleCell.value = 'DR GROUP';
+        completedTitleCell.value = 'ORGANIZACIÓN RDJ';
         completedTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
         completedTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
         completedTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1512,7 +1512,7 @@ const ReportsCompanyPage = () => {
         // 🔹 FILA 1
         pendingSheet.mergeCells('A1:S1');
         const pendingTitleCell = pendingSheet.getCell('A1');
-        pendingTitleCell.value = 'DR GROUP';
+        pendingTitleCell.value = 'ORGANIZACIÓN RDJ';
         pendingTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
         pendingTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
         pendingTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1775,7 +1775,7 @@ const ReportsCompanyPage = () => {
         // 🔹 FILA 1
         overdueSheet.mergeCells('A1:O1');
         const overdueTitleCell = overdueSheet.getCell('A1');
-        overdueTitleCell.value = 'DR GROUP';
+        overdueTitleCell.value = 'ORGANIZACIÓN RDJ';
         overdueTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
         overdueTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
         overdueTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1947,7 +1947,7 @@ const ReportsCompanyPage = () => {
       
       // Nombre del archivo con fecha
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      const filename = `DR-Group-Reporte-Empresas-${timestamp}.xlsx`;
+      const filename = `RDJ-Reporte-Empresas-${timestamp}.xlsx`;
       a.download = filename;
       
       document.body.appendChild(a);

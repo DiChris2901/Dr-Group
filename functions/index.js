@@ -2,7 +2,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 
 // Inicializar Firebase Admin
@@ -405,5 +405,92 @@ exports.sendAlertPush = onCall({
   } catch (error) {
     console.error('❌ Error en sendAlertPush:', error);
     throw new HttpsError('internal', 'Error enviando push notifications');
+  }
+});
+
+// =============================================================================
+// Cloud Function: Clonar config de nómina el 1 de enero
+// =============================================================================
+exports.clonarConfigNominaAnual = onSchedule({
+  schedule: '0 6 1 1 *',        // 1 de enero a las 6:00 AM
+  timeZone: 'America/Bogota',
+  memory: '256MiB',
+}, async (_event) => {
+  const db = getFirestore();
+  const nuevoAnio = new Date().getFullYear();
+  const anioAnterior = nuevoAnio - 1;
+
+  const TASAS_NODE_DEFAULT = {
+    SALUD_EMPLEADO: 4,
+    PENSION_EMPLEADO: 4,
+    SALUD_EMPLEADOR: 8.5,
+    PENSION_EMPLEADOR: 12,
+    CAJA_COMPENSACION: 4,
+    CESANTIAS: 8.33,
+    INTERESES_CESANTIAS: 1,
+    PRIMA: 8.33,
+    VACACIONES: 4.17,
+    ARL: { I: 0.522, II: 1.044, III: 2.436, IV: 4.350, V: 6.960 },
+  };
+
+  try {
+    const nuevoRef = db.collection('configuracion_nomina').doc(String(nuevoAnio));
+    const nuevoSnap = await nuevoRef.get();
+
+    if (nuevoSnap.exists) {
+      console.log(`ℹ️ Config nómina ${nuevoAnio} ya existe — no se sobreescribe.`);
+      return;
+    }
+
+    const anteriorSnap = await db.collection('configuracion_nomina').doc(String(anioAnterior)).get();
+    const baseData = anteriorSnap.exists
+      ? anteriorSnap.data()
+      : { smmlv: 1823109, auxTransporte: 258064, tasas: TASAS_NODE_DEFAULT };
+
+    await nuevoRef.set({
+      ...baseData,
+      year: nuevoAnio,
+      tasas: baseData.tasas || TASAS_NODE_DEFAULT,
+      fechaVigencia: `${nuevoAnio}-01-01`,
+      clonadoDe: anioAnterior,
+      pendienteActualizacion: true,
+      actualizadoPor: 'Sistema (auto)',
+      actualizadoEn: FieldValue.serverTimestamp(),
+    });
+
+    console.log(`✅ Config nómina ${nuevoAnio} creada (copiada de ${anioAnterior}).`);
+
+    // Notificación in-app en Firestore
+    await db.collection('notifications').add({
+      tipo: 'nomina_config',
+      titulo: `Nómina ${nuevoAnio} — Actualiza SMMLV`,
+      mensaje: `Se creó la configuración de nómina ${nuevoAnio} copiando los valores de ${anioAnterior}. Por favor actualiza el SMMLV y Auxilio de Transporte vigente.`,
+      year: nuevoAnio,
+      leido: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Notificación push a administradores
+    const adminsSnap = await db.collection('users')
+      .where('role', 'in', ['ADMIN', 'SUPER_ADMIN'])
+      .get();
+
+    if (!adminsSnap.empty) {
+      const { sendPushToMultipleUsers } = require('./pushService');
+      await sendPushToMultipleUsers(
+        adminsSnap.docs.map((d) => d.id),
+        {
+          title: `📋 Nómina ${nuevoAnio} — Actualiza SMMLV`,
+          message: `Nuevo año fiscal. Actualiza el SMMLV y Auxilio de Transporte en el módulo de RRHH.`,
+          type: 'nomina_config',
+          priority: 'high',
+          data: { year: String(nuevoAnio) },
+        }
+      );
+      console.log(`🔔 Push enviado a ${adminsSnap.size} administrador(es).`);
+    }
+  } catch (err) {
+    console.error('❌ Error en clonarConfigNominaAnual:', err);
+    throw err;
   }
 });

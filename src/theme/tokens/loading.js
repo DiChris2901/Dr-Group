@@ -129,7 +129,7 @@ export const progressTokens = {
 
 // 🔄 LOADING STATES TOKENS - Estados empresariales específicos
 export const loadingStatesTokens = {
-  // Contextos empresariales DR Group
+  // Contextos empresariales Organizaci�n RDJ
   businessStates: {
     compromisos: {
       gradient: gradientTokensLegacy.primary,

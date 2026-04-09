@@ -1,5 +1,5 @@
 /**
- * 🎴 DR Group Design System 3.0 - Cards & Containers Tokens
+ * 🎴 Organizaci�n RDJ Design System 3.0 - Cards & Containers Tokens
  * Tokens de cards y contenedores extraídos de la pestaña establecida
  */
 

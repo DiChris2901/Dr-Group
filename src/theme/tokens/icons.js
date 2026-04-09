@@ -1,5 +1,5 @@
 /**
- * 🎯 DR Group Design System 3.0 - Icon Tokens
+ * 🎯 Organizaci�n RDJ Design System 3.0 - Icon Tokens
  * Tokens de iconos extraídos de la pestaña de íconos establecida
  */
 
@@ -84,7 +84,7 @@ export const iconCategoryTokens = {
     }
   },
 
-  // Iconos empresariales DR Group
+  // iconos empresariales Organizaci�n RDJ
   business: {
     icons: ['Business', 'AttachMoney', 'Analytics', 'TrendingUp', 'People', 'Assignment', 'Today', 'EventNote'],
     defaultSize: iconSizeTokens.large,

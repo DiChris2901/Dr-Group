@@ -633,7 +633,7 @@ const TaskProgressDialog = ({ open, onClose, task }) => {
       // FILA 1: Título Principal
       worksheet.mergeCells(1, 1, 1, totalColumns);
       const titleCell = worksheet.getCell(1, 1);
-      titleCell.value = 'DR GROUP';
+      titleCell.value = 'ORGANIZACIÓN RDJ';
       titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };

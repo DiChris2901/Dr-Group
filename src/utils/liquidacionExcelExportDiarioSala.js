@@ -137,7 +137,7 @@ const buildDailyDataset = (rawData, establecimiento) => {
 };
 
 // ================== EXPORT MAIN ==================
-export const exportarReporteDiarioSala = async (rawData, establecimiento, empresa = 'DR GROUP') => {
+export const exportarReporteDiarioSala = async (rawData, establecimiento, empresa = 'ORGANIZACIÓN RDJ') => {
   if (!rawData || !Array.isArray(rawData) || !rawData.length) throw new Error('Sin datos base para reporte diario');
   if (!establecimiento) throw new Error('Establecimiento no especificado');
 
@@ -147,7 +147,7 @@ export const exportarReporteDiarioSala = async (rawData, establecimiento, empres
   }
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'DR Group Dashboard';
+  wb.creator = 'Organización RDJ';
   wb.created = new Date();
 
   const dateKeys = [...grouped.keys()].sort();

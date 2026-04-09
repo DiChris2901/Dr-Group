@@ -1,5 +1,5 @@
 /**
- * 📱 DR Group Design System 3.0 - Header Tokens
+ * 📱 Organizaci�n RDJ Design System 3.0 - Header Tokens
  * Tokens de headers extraídos de la pestaña de headers establecida
  */
 

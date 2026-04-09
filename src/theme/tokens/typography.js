@@ -1,5 +1,5 @@
 /**
- * 📝 DR Group Design System 3.0 - Typography Tokens
+ * 📝 Organizaci�n RDJ Design System 3.0 - Typography Tokens
  * Tokens de tipografía extraídos de la Escala Tipográfica 3.0 establecida
  */
 

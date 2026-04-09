@@ -128,13 +128,18 @@ service cloud.firestore {
     
     // Tareas delegadas: Validación según participantes y permisos
     match /delegated_tasks/{taskId} {
-      // Lectura: Solo usuarios con permiso ver_todas o que sean participantes
+      // Lectura: Solo usuarios con permiso ver_todas, que sean participantes,
+      // o que sean el creador / el asignado (necesario para queries por asignadoA.uid y creadoPor.uid)
       allow read: if request.auth != null && (
         // Tiene permiso para ver todas las tareas
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions['tareas.ver_todas'] == true ||
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
-        // O es participante de la tarea
-        request.auth.uid in resource.data.participantes
+        // Es el creador de la tarea
+        resource.data.creadoPor.uid == request.auth.uid ||
+        // Es el asignado de la tarea
+        resource.data.asignadoA.uid == request.auth.uid ||
+        // O está en el array participantes (compatibilidad con documentos nuevos)
+        (resource.data.participantes != null && request.auth.uid in resource.data.participantes)
       );
       
       // Creación: Solo usuarios con permiso tareas o tareas.crear
@@ -158,9 +163,14 @@ service cloud.firestore {
       
       // Subcollection: Logs de progreso de tareas
       match /progressLogs/{logId} {
-        // Lectura: Solo participantes de la tarea
-        allow read: if request.auth != null && 
-          request.auth.uid in get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.participantes;
+        // Lectura: Creador, asignado, participantes o usuarios con permiso tareas
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.tareas == true ||
+          get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.creadoPor.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.asignadoA.uid == request.auth.uid ||
+          (get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.participantes != null &&
+           request.auth.uid in get(/databases/$(database)/documents/delegated_tasks/$(taskId)).data.participantes)
+        );
         
         // Creación: Solo el usuario asignado a la tarea
         allow create: if request.auth != null && 
@@ -283,6 +293,18 @@ service cloud.firestore {
     // Solicitudes (RRHH)
     match /solicitudes/{docId} {
       allow read, write: if request.auth != null;
+    }
+
+    // Nómina: Liquidaciones de nómina mensual
+    match /nomina/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Configuración de nómina: SMMLV, aux. transporte por año
+    match /configuracion_nomina/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPER_ADMIN'];
     }
 
     // Logs del sistema: Inmutables

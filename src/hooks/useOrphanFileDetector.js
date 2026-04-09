@@ -24,17 +24,18 @@ export const useOrphanFileDetector = () => {
     let totalSize = 0;
     // ✅ FIXED: Agregadas todas las carpetas existentes en Storage
     const folders = [
-      'commitments', 
-      'payments', 
-      'users', 
-      'companies', 
+      'commitments',
+      'payments',
+      'users',
+      'companies',
       'reports',
       'bank-certifications',
       'incomes',
       'invoices',
       'liquidaciones',
       'logos',
-      'profile-photos'
+      'profile-photos',
+      'tasks'
     ];
     let processedFolders = 0;
     
@@ -117,7 +118,7 @@ export const useOrphanFileDetector = () => {
     
     const references = new Set();
     // ✅ FIXED: Agregada colección 'incomes' que también maneja attachments
-    const collections = ['commitments', 'payments', 'users', 'companies', 'files', 'incomes'];
+    const collections = ['commitments', 'payments', 'users', 'companies', 'files', 'incomes', 'delegated_tasks'];
     let processedCollections = 0;
     
     try {

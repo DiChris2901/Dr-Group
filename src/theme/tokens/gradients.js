@@ -1,5 +1,5 @@
 /**
- * 🌈 DR Group Design System 3.0 - Gradient Tokens
+ * 🌈 Organizaci�n RDJ Design System 3.0 - Gradient Tokens
  * Tokens de gradientes extraídos del sistema establecido
  */
 

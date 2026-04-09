@@ -6,7 +6,7 @@ import { saveAs } from 'file-saver';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// ✅ BRAND COLORS - Paleta corporativa DR Group
+// ✅ BRAND COLORS - Paleta corporativa Organizaci�n RDJ
 const BRAND_COLORS = {
   primary: '0B3040',      // Azul oscuro corporativo
   secondary: '1A5F7A',    // Azul medio
@@ -144,9 +144,9 @@ export const exportarAsistenciasExcel = async (data) => {
     }, 0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'DR Group Dashboard';
+    wb.creator = 'Organización RDJ';
     wb.created = new Date();
-    wb.company = 'DR Group';
+    wb.company = 'Organización RDJ';
     
     const ws = wb.addWorksheet('Asistencias', {
       views: [{ state: 'frozen', ySplit: 7 }] // Freeze panes en fila 7
@@ -155,7 +155,7 @@ export const exportarAsistenciasExcel = async (data) => {
     // ✅ FILA 1: TÍTULO PRINCIPAL
     ws.mergeCells(1, 1, 1, COLUMN_DEFS.length);
     const titleCell = ws.getCell(1, 1);
-    titleCell.value = 'DR GROUP - CONTROL DE ASISTENCIAS';
+    titleCell.value = 'ORGANIZACIÓN RDJ - CONTROL DE ASISTENCIAS';
     Object.assign(titleCell, { style: fmtTitle });
     ws.getRow(1).height = 30;
 
@@ -294,7 +294,7 @@ export const exportarAsistenciasExcel = async (data) => {
 
     // ✅ GENERAR ARCHIVO
     const timestamp = format(new Date(), 'yyyy-MM-dd_HHmmss');
-    const filename = `asistencias_dr_group_${timestamp}.xlsx`;
+    const filename = `asistencias_org_rdj_${timestamp}.xlsx`;
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], {

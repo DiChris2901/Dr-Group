@@ -1,4 +1,4 @@
-Ôªøimport { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { auth, db } from '../config/firebase';
@@ -14,37 +14,37 @@ const useSettings = () => {
 };
 
 const defaultSettings = {
-  // Configuraci√≥n de Tema
+  // ConfiguraciÛn de Tema
   theme: {
     mode: 'light', // 'light' | 'dark' | 'auto'
     primaryColor: '#667eea', // Color primario personalizable
     secondaryColor: '#764ba2', // Color secundario personalizable
     borderRadius: 8, // Radio de bordes (4, 8, 12, 16)
     fontFamily: 'Inter', // Fuente principal
-    fontSize: 14, // Tama√±o de fuente base en px (12-18)
+    fontSize: 14, // TamaÒo de fuente base en px (12-18)
     fontScale: 100, // Escala global de fuente en porcentaje (100%, 125%, 150%, 175%, 200%)
     fontWeight: 400, // Peso de fuente base (300, 400, 500, 600)
     backgroundType: 'gradient', // 'solid' | 'gradient' | 'pattern'
     backgroundPreset: 'modern-blue', // Preset de fondo seleccionado
     compactMode: true, // Modo compacto global habilitado por defecto
-    animations: true, // ‚ö° MODO EMPRESARIAL: Animaciones habilitadas por defecto para mejor experiencia
+    animations: true, // ? MODO EMPRESARIAL: Animaciones habilitadas por defecto para mejor experiencia
   },
 
-  // Configuraci√≥n del Sidebar
+  // ConfiguraciÛn del Sidebar
   sidebar: {
     compactMode: true, // Modo compacto global del sidebar
     width: 280, // Ancho del sidebar (240, 280, 320)
     position: 'left', // 'left' | 'right'
-    showIcons: true, // Mostrar iconos en el men√∫
-    showLabels: true, // Mostrar etiquetas en el men√∫
-    grouping: true, // Agrupar elementos del men√∫
-    showActiveIndicator: true, // Mostrar indicador de secci√≥n activa
+    showIcons: true, // Mostrar iconos en el men˙
+    showLabels: true, // Mostrar etiquetas en el men˙
+    grouping: true, // Agrupar elementos del men˙
+    showActiveIndicator: true, // Mostrar indicador de secciÛn activa
     animationSpeed: 'normal', // 'slow' | 'normal' | 'fast' | 'none'
     hoverDelay: 300, // Retardo de hover en ms
     persistState: true, // Recordar estado entre sesiones
   },
 
-  // Configuraci√≥n del Dashboard
+  // ConfiguraciÛn del Dashboard
   dashboard: {
     layout: {
       columns: 3,
@@ -71,7 +71,7 @@ const defaultSettings = {
       autoRefresh: true,
       refreshInterval: 30,
       defaultPeriod: 'month',
-      animationsEnabled: false, // ‚ö° MODO EMPRESARIAL R√ÅPIDO
+      animationsEnabled: false, // ? MODO EMPRESARIAL R¡PIDO
       showTooltips: true
     },
     appearance: {
@@ -81,27 +81,27 @@ const defaultSettings = {
       transparencyLevel: 80
     },
     charts: {
-      defaultType: 'bar', // Tipo de gr√°fica predeterminado 
-      animations: 'smooth', // Animaciones en gr√°ficas: 'none', 'smooth', 'bounce', 'elastic'
-      colorScheme: 'corporativo', // Esquema de colores para gr√°ficas
+      defaultType: 'bar', // Tipo de gr·fica predeterminado 
+      animations: 'smooth', // Animaciones en gr·ficas: 'none', 'smooth', 'bounce', 'elastic'
+      colorScheme: 'corporativo', // Esquema de colores para gr·ficas
       showDataLabels: true, // Mostrar etiquetas de datos
-      enableZoom: true, // Habilitar zoom en gr√°ficas
-      gridLines: true // Mostrar l√≠neas de cuadr√≠cula
+      enableZoom: true, // Habilitar zoom en gr·ficas
+      gridLines: true // Mostrar lÌneas de cuadrÌcula
     }
   },
 
-  // Configuraci√≥n de Notificaciones
+  // ConfiguraciÛn de Notificaciones
   notifications: {
     enabled: true, // Habilitar notificaciones generales
     sound: true, // Sonido en notificaciones
     desktop: true, // Notificaciones de escritorio
     email: false, // Notificaciones por email
-    reminderDays: 3, // D√≠as de anticipaci√≥n para recordatorios
+    reminderDays: 3, // DÌas de anticipaciÛn para recordatorios
     overdueAlerts: true, // Alertas de vencimientos
     weeklyReport: true, // Reporte semanal
     
-    // Configuraciones espec√≠ficas del men√∫ de ajustes
-    proximosPagos: true, // Notificaciones de pr√≥ximos pagos
+    // Configuraciones especÌficas del men˙ de ajustes
+    proximosPagos: true, // Notificaciones de prÛximos pagos
     actualizacionesSistema: true, // Notificaciones de actualizaciones
     montosElevados: true, // Alertas de montos elevados
     pagosVencidos: true, // Alertas de pagos vencidos
@@ -109,23 +109,23 @@ const defaultSettings = {
     
     // Configuraciones adicionales
     dailyDigest: false, // Resumen diario
-    instantAlerts: true, // Alertas instant√°neas
+    instantAlerts: true, // Alertas instant·neas
     batchNotifications: false, // Agrupar notificaciones
     
-    // üí¨ Configuraciones de Chat
+    // ?? Configuraciones de Chat
     chat: {
       enabled: true, // Habilitar notificaciones de chat
       sound: true, // Sonido al recibir mensajes
-      toast: true, // Mostrar notificaci√≥n toast
-      vibrate: false, // Vibraci√≥n en dispositivos m√≥viles
+      toast: true, // Mostrar notificaciÛn toast
+      vibrate: false, // VibraciÛn en dispositivos mÛviles
     }
   },
 
-  // üé® Temas Predefinidos - Configuraciones completas aplicables con un clic
+  // ?? Temas Predefinidos - Configuraciones completas aplicables con un clic
   predefinedThemes: {
     corporativo: {
       name: 'Corporativo Azul',
-      description: 'Tema profesional con azul corporativo y tipograf√≠a elegante',
+      description: 'Tema profesional con azul corporativo y tipografÌa elegante',
       mode: 'light',
       primaryColor: '#1976d2',
       secondaryColor: '#42a5f5',
@@ -139,7 +139,7 @@ const defaultSettings = {
     },
     elegante: {
       name: 'Elegante Oscuro',
-      description: 'Dise√±o sofisticado con modo oscuro y acentos p√∫rpura',
+      description: 'DiseÒo sofisticado con modo oscuro y acentos p˙rpura',
       mode: 'dark',
       primaryColor: '#7c4dff',
       secondaryColor: '#b39ddb',
@@ -181,7 +181,7 @@ const defaultSettings = {
     },
     creativo: {
       name: 'Creativo Rosa',
-      description: 'Dise√±o vibrante y creativo con paleta rosa moderna',
+      description: 'DiseÒo vibrante y creativo con paleta rosa moderna',
       mode: 'light',
       primaryColor: '#e91e63',
       secondaryColor: '#f06292',
@@ -194,8 +194,8 @@ const defaultSettings = {
       animations: true
     },
     nocturno: {
-      name: 'Nocturno √çndigo',
-      description: 'Tema oscuro con √≠ndigo profundo para trabajo nocturno',
+      name: 'Nocturno Õndigo',
+      description: 'Tema oscuro con Ìndigo profundo para trabajo nocturno',
       mode: 'dark',
       primaryColor: '#3f51b5',
       secondaryColor: '#7986cb',
@@ -209,7 +209,7 @@ const defaultSettings = {
     },
     moderno: {
       name: 'Moderno Cian',
-      description: 'Interfaz contempor√°nea con cian vibrante y animaciones fluidas',
+      description: 'Interfaz contempor·nea con cian vibrante y animaciones fluidas',
       mode: 'light',
       primaryColor: '#00bcd4',
       secondaryColor: '#4dd0e1',
@@ -223,7 +223,7 @@ const defaultSettings = {
     },
     titanio: {
       name: 'Titanio Plateado',
-      description: 'Elegancia met√°lica con grises sofisticados y detalles plateados',
+      description: 'Elegancia met·lica con grises sofisticados y detalles plateados',
       mode: 'light',
       primaryColor: '#607d8b',
       secondaryColor: '#90a4ae',
@@ -264,8 +264,8 @@ const defaultSettings = {
       animations: true
     },
     royal: {
-      name: 'Royal P√∫rpura',
-      description: 'Majestuosidad real con p√∫rpuras profundos y detalles dorados',
+      name: 'Royal P˙rpura',
+      description: 'Majestuosidad real con p˙rpuras profundos y detalles dorados',
       mode: 'dark',
       primaryColor: '#673ab7',
       secondaryColor: '#9575cd',
@@ -279,7 +279,7 @@ const defaultSettings = {
     },
     ocean: {
       name: 'Ocean Azul Profundo',
-      description: 'Profundidad oce√°nica con azules marinos y aguamarinas',
+      description: 'Profundidad oce·nica con azules marinos y aguamarinas',
       mode: 'dark',
       primaryColor: '#0277bd',
       secondaryColor: '#4fc3f7',
@@ -307,7 +307,7 @@ const defaultSettings = {
     },
     arctic: {
       name: 'Arctic Blanco',
-      description: 'Pureza √°rtica con blancos cristalinos y azules helados',
+      description: 'Pureza ·rtica con blancos cristalinos y azules helados',
       mode: 'light',
       primaryColor: '#37474f',
       secondaryColor: '#78909c',
@@ -321,7 +321,7 @@ const defaultSettings = {
     },
     volcanic: {
       name: 'Volcanic Rojo',
-      description: 'Intensidad volc√°nica con rojos ardientes y grises carb√≥n',
+      description: 'Intensidad volc·nica con rojos ardientes y grises carbÛn',
       mode: 'dark',
       primaryColor: '#c62828',
       secondaryColor: '#ef5350',
@@ -349,7 +349,7 @@ const defaultSettings = {
     },
     cosmic: {
       name: 'Cosmic Violeta',
-      description: 'Misterio c√≥smico con violetas profundos y estrellas plateadas',
+      description: 'Misterio cÛsmico con violetas profundos y estrellas plateadas',
       mode: 'dark',
       primaryColor: '#512da8',
       secondaryColor: '#9575cd',
@@ -363,7 +363,7 @@ const defaultSettings = {
     },
     autumn: {
       name: 'Autumn Gold',
-      description: 'Calidez oto√±al con dorados brillantes y marrones terra',
+      description: 'Calidez otoÒal con dorados brillantes y marrones terra',
       mode: 'light',
       primaryColor: '#f57900',
       secondaryColor: '#ffb74d',
@@ -405,7 +405,7 @@ const defaultSettings = {
     },
     steel: {
       name: 'Steel Industrial',
-      description: 'Fortaleza industrial con grises met√°licos y azules acero',
+      description: 'Fortaleza industrial con grises met·licos y azules acero',
       mode: 'dark',
       primaryColor: '#455a64',
       secondaryColor: '#90a4ae',
@@ -419,7 +419,7 @@ const defaultSettings = {
     },
     sunrise: {
       name: 'Sunrise Amarillo',
-      description: 'Energ√≠a del amanecer con amarillos brillantes y naranjas c√°lidos',
+      description: 'EnergÌa del amanecer con amarillos brillantes y naranjas c·lidos',
       mode: 'light',
       primaryColor: '#f9a825',
       secondaryColor: '#ffcc02',
@@ -437,12 +437,12 @@ const defaultSettings = {
 // Presets de colores corporativos y creativos
 const backgroundPresets = {
   'solid-light': {
-    name: 'S√≥lido Claro',
+    name: 'SÛlido Claro',
     type: 'solid',
     background: '#f8fafc'
   },
   'solid-dark': {
-    name: 'S√≥lido Oscuro', 
+    name: 'SÛlido Oscuro', 
     type: 'solid',
     background: '#1e293b'
   },
@@ -462,7 +462,7 @@ const backgroundPresets = {
     background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)'
   },
   'purple-haze': {
-    name: 'Neblina P√∫rpura',
+    name: 'Neblina P˙rpura',
     type: 'gradient',
     background: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)'
   },
@@ -472,12 +472,12 @@ const backgroundPresets = {
     background: 'linear-gradient(135deg, #134e5e 0%, #71b280 100%)'
   },
   'cosmic-fusion': {
-    name: 'Fusi√≥n C√≥smica',
+    name: 'FusiÛn CÛsmica',
     type: 'gradient',
     background: 'linear-gradient(135deg, #fc00ff 0%, #00dbde 100%)'
   },
   'warm-flame': {
-    name: 'Llama C√°lida',
+    name: 'Llama C·lida',
     type: 'gradient',
     background: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)'
   },
@@ -491,10 +491,10 @@ const backgroundPresets = {
 const SettingsProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   
-  // ‚ö° Inicializar SIEMPRE desde localStorage (instant√°neo, sin flash)
+  // ? Inicializar SIEMPRE desde localStorage (instant·neo, sin flash)
   const getInitialSettings = () => {
     try {
-      const saved = localStorage.getItem('drgroup-settings');
+      const saved = localStorage.getItem('rdj-settings');
       if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
     } catch (e) { /* localStorage corrupto, usar defaults */ }
     return defaultSettings;
@@ -507,7 +507,7 @@ const SettingsProvider = ({ children }) => {
   // Ref para coordinar colores entre los 2 listeners
   const userColorsRef = useRef({});
 
-  // Listener para cambios de autenticaci√≥n
+  // Listener para cambios de autenticaciÛn
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -587,7 +587,7 @@ const SettingsProvider = ({ children }) => {
         const merged = mergeSettings(firebaseSettings, userTheme);
         setSettings(merged);
         
-        try { localStorage.setItem('drgroup-settings', JSON.stringify(merged)); } catch (e) { /* ignore */ }
+        try { localStorage.setItem('rdj-settings', JSON.stringify(merged)); } catch (e) { /* ignore */ }
       }
       setLoading(false);
     }, (err) => {
@@ -601,7 +601,7 @@ const SettingsProvider = ({ children }) => {
     };
   }, [user?.uid]);
 
-  // Funci√≥n para actualizar configuraci√≥n en Firebase
+  // FunciÛn para actualizar configuraciÛn en Firebase
   const updateSettings = async (categoryOrNewSettings, updates) => {
     try {
       let newSettings;
@@ -624,20 +624,20 @@ const SettingsProvider = ({ children }) => {
       setSettings(newSettings);
       
       // Guardar en localStorage como backup
-      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+      localStorage.setItem('rdj-settings', JSON.stringify(newSettings));
 
       // Si hay usuario autenticado, guardar en Firebase
       if (user) {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
         const userDocRef = doc(db, 'users', user.uid);
         
-        // Serializar correctamente para Firestore (evitar objetos anidados problem√°ticos)
+        // Serializar correctamente para Firestore (evitar objetos anidados problem·ticos)
         const firestoreData = JSON.parse(JSON.stringify(newSettings));
         
         // Remover propiedades que no se pueden serializar
         delete firestoreData.predefinedThemes; // No guardar temas predefinidos
         
-        // üé® CR√çTICO: Si se actualiz√≥ el tema, sincronizar con users/{uid}/theme PRIMERO
+        // ?? CRÕTICO: Si se actualizÛ el tema, sincronizar con users/{uid}/theme PRIMERO
         if (newSettings.theme) {
           await updateDoc(userDocRef, {
             theme: {
@@ -650,7 +650,7 @@ const SettingsProvider = ({ children }) => {
 
         }
         
-        // üîÑ LUEGO crear/actualizar userSettings/{uid} (esto disparar√° el listener)
+        // ?? LUEGO crear/actualizar userSettings/{uid} (esto disparar· el listener)
         // Usar setDoc con merge:true para crear si no existe
         await setDoc(userSettingsRef, {
           ...firestoreData,
@@ -663,7 +663,7 @@ const SettingsProvider = ({ children }) => {
       setError('Error al guardar configuraciones');
       
       // Revertir cambios en caso de error
-      const savedSettings = localStorage.getItem('drgroup-settings');
+      const savedSettings = localStorage.getItem('rdj-settings');
       if (savedSettings) {
         try {
           setSettings(JSON.parse(savedSettings));
@@ -674,7 +674,7 @@ const SettingsProvider = ({ children }) => {
     }
   };
 
-  // Funci√≥n para resetear configuraci√≥n
+  // FunciÛn para resetear configuraciÛn
   const resetSettings = async (category = null) => {
     try {
       let newSettings;
@@ -692,7 +692,7 @@ const SettingsProvider = ({ children }) => {
       setSettings(newSettings);
       
       // Guardar en localStorage
-      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+      localStorage.setItem('rdj-settings', JSON.stringify(newSettings));
 
       // Si hay usuario autenticado, actualizar en Firebase
       if (user) {
@@ -715,7 +715,7 @@ const SettingsProvider = ({ children }) => {
     }
   };
 
-  // üé® Funci√≥n para aplicar tema predefinido completo
+  // ?? FunciÛn para aplicar tema predefinido completo
   const applyPredefinedTheme = async (themeKey) => {
     try {
       const predefinedTheme = defaultSettings.predefinedThemes[themeKey];
@@ -761,14 +761,14 @@ const SettingsProvider = ({ children }) => {
       setSettings(newSettings);
 
       // Guardar en localStorage
-      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+      localStorage.setItem('rdj-settings', JSON.stringify(newSettings));
 
       // Guardar en Firebase si hay usuario autenticado
       if (user) {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
         const userDocRef = doc(db, 'users', user.uid);
         
-        // üé® CR√çTICO: Actualizar users/{uid}/theme PRIMERO (antes del listener)
+        // ?? CRÕTICO: Actualizar users/{uid}/theme PRIMERO (antes del listener)
         try {
           await updateDoc(userDocRef, {
             'theme.darkMode': predefinedTheme.mode === 'dark',
@@ -780,7 +780,7 @@ const SettingsProvider = ({ children }) => {
           console.error('[SETTINGS] Error actualizando users/{uid}/theme:', error);
         }
         
-        // üîÑ LUEGO crear/actualizar userSettings/{uid} (esto disparar√° el listener)
+        // ?? LUEGO crear/actualizar userSettings/{uid} (esto disparar· el listener)
         // Usar setDoc con merge:true para crear si no existe
         try {
           await setDoc(userSettingsRef, {
@@ -806,7 +806,7 @@ const SettingsProvider = ({ children }) => {
   };
 
   const value = {
-    settings, // ‚Üê Siempre v√°lido, nunca null
+    settings, // ? Siempre v·lido, nunca null
     updateSettings,
     resetSettings,
     applyPredefinedTheme,

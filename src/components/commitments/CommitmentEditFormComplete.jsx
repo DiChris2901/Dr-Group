@@ -1,4 +1,4 @@
-// ✅ Modal de Edición de Compromisos - DESIGN SYSTEM EMPRESARIAL DR GROUP
+// ✅ Modal de Edición de Compromisos - DESIGN SYSTEM EMPRESARIAL ORGANIZACI�N RDJ
 // Siguiendo Modal Design System docs/MODAL_DESIGN_SYSTEM.md
 
 import React, { useState, useEffect } from 'react';

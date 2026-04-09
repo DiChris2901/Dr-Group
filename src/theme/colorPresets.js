@@ -1,6 +1,6 @@
 /**
  * Professional Color Presets
- * Based on Minimal template for DR Group Dashboard
+ * Based on Minimal template for Organización RDJ Dashboard
  */
 
 export const primaryColorPresets = {

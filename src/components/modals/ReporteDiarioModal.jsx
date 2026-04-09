@@ -147,7 +147,7 @@ const ReporteDiarioModal = ({
           fontSize: '1rem',
           mt: 1
         }}>
-          Empresa: {empresa || 'DR Group'}
+          Empresa: {empresa || 'Organización RDJ'}
         </Typography>
       </Box>
 

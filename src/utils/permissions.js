@@ -1,4 +1,4 @@
-// Centralized permission helpers for DR Group Dashboard
+// Centralized permission helpers for Organización RDJ Dashboard
 // Determines admin privileges consistently across the app
 
 import { isSystemUser } from '../config/systemUsers';

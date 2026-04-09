@@ -1,5 +1,5 @@
 /**
- * DR Group - Excel Export Clientes
+ * Organizaci�n RDJ - Excel Export Clientes
  * FORMATO PYTHON (IDÉNTICO A LIQUIDACIONES)
  */
 
@@ -41,7 +41,7 @@ export const exportarClientesSpectacular = async (clientes) => {
 
     // CREAR WORKBOOK
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'DR Group Dashboard';
+    wb.creator = 'Organización RDJ';
     wb.created = new Date();
     
     // ========== HOJA 1: DIRECTORIO DE CLIENTES ==========
@@ -58,7 +58,7 @@ export const exportarClientesSpectacular = async (clientes) => {
     // FILA 1: TITULO
     ws.mergeCells(1, 1, 1, 8);
     const titleCell = ws.getCell(1, 1);
-    titleCell.value = 'DR GROUP';
+    titleCell.value = 'ORGANIZACIÓN RDJ';
     titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -224,7 +224,7 @@ export const exportarClientesSpectacular = async (clientes) => {
     // FILA 1: TITULO
     ws2.mergeCells(1, 1, 1, 7);
     const titleCell2 = ws2.getCell(1, 1);
-    titleCell2.value = 'DR GROUP';
+    titleCell2.value = 'ORGANIZACI�N RDJ';
     titleCell2.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
     titleCell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
     titleCell2.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -346,7 +346,7 @@ export const exportarClientesSpectacular = async (clientes) => {
     // FILA 1: TÍTULO PRINCIPAL
     ws3.mergeCells('A1:G1');
     const title3 = ws3.getCell('A1');
-    title3.value = '📋 HISTORIAL DE CAMBIOS - DR GROUP';
+    title3.value = '📋 HISTORIAL DE CAMBIOS - ORGANIZACIÓN RDJ';
     title3.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
     title3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
     title3.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -484,7 +484,7 @@ export const exportarClientesSpectacular = async (clientes) => {
 
     // GENERAR Y DESCARGAR
     const timestamp = new Date().toISOString().replace(/[:]/g, '-').slice(0, 19);
-    const filename = `DR-Group-Clientes-${timestamp}.xlsx`;
+    const filename = `Org-RDJ-Clientes-${timestamp}.xlsx`;
     
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

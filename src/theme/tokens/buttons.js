@@ -1,5 +1,5 @@
 /**
- * 🔘 DR Group Design System 3.0 - Button Tokens
+ * 🔘 Organizaci�n RDJ Design System 3.0 - Button Tokens
  * Tokens de botones extraídos de la pestaña de botones establecida
  */
 

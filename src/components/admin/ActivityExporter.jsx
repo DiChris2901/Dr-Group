@@ -214,7 +214,7 @@ ${stats ? Object.entries(stats.mostActiveUsers)
   .join('\n') : 'N/A'}
 
 Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss', { locale: es })}
-Sistema DR Group - Auditoría Empresarial
+Sistema Organización RDJ - Auditoría Empresarial
       `;
 
       const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });

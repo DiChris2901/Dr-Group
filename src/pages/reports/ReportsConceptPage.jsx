@@ -411,9 +411,9 @@ const ReportsConceptPage = () => {
 
       // 📊 CREAR WORKBOOK SIGUIENDO EXCEL_EXPORT_DESIGN_SYSTEM
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'DR Group Dashboard';
+      workbook.creator = 'Organización RDJ';
       workbook.created = new Date();
-      workbook.properties.title = "DR Group - Análisis por Concepto";
+      workbook.properties.title = "Organización RDJ - Análisis por Concepto";
       workbook.properties.subject = "Reporte Detallado de Compromisos por Concepto";
 
       // 🎨 BRAND_COLORS - FORMATO PYTHON PROFESIONAL (OBLIGATORIO)
@@ -449,7 +449,7 @@ const ReportsConceptPage = () => {
   // FILA 1: Título principal
   summarySheet.mergeCells(`A1:${lastColLetter}1`);
       const titleCell = summarySheet.getCell(1, 1);
-      titleCell.value = 'DR GROUP';
+      titleCell.value = 'ORGANIZACIÓN RDJ';
       titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
   titleCell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', wrapText: false };
@@ -603,7 +603,7 @@ const ReportsConceptPage = () => {
       // FILA 1: Título principal
       detailSheet.mergeCells('A1:G1');
       const detailTitle = detailSheet.getCell('A1');
-      detailTitle.value = 'DR GROUP';
+      detailTitle.value = 'ORGANIZACIÓN RDJ';
       detailTitle.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
       detailTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
       detailTitle.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -748,7 +748,7 @@ const ReportsConceptPage = () => {
 
       // � GENERAR Y DESCARGAR ARCHIVO
       const timestamp = new Date().toISOString().replace(/[:]/g, '-').slice(0, 19);
-      const filename = `DR-Group-Reporte-Conceptos-${timestamp}.xlsx`;
+      const filename = `RDJ-Reporte-Conceptos-${timestamp}.xlsx`;
       
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { 

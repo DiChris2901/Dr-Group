@@ -206,14 +206,14 @@ export const NotificationsProvider = ({ children }) => {
                   'long_break': 'break',
                 };
                 const groupMap = {
-                  'alerts': 'dr-group-alerts',
-                  'attendance': 'dr-group-attendance',
-                  'work-session': 'dr-group-work',
-                  'break': 'dr-group-break',
-                  'reminders': 'dr-group-reminders',
+                  'alerts': 'rdj-alerts',
+                  'attendance': 'rdj-attendance',
+                  'work-session': 'rdj-work',
+                  'break': 'rdj-break',
+                  'reminders': 'rdj-reminders',
                 };
                 const resolvedChannel = channelMap[notifType] || 'alerts';
-                const groupKey = groupMap[resolvedChannel] || 'dr-group-general';
+                const groupKey = groupMap[resolvedChannel] || 'rdj-general';
 
                 Notifications.scheduleNotificationAsync({
                   content: {

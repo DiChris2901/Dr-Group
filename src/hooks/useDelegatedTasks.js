@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   collection, 
   query, 
@@ -43,6 +43,17 @@ export const useDelegatedTasks = () => {
   const [hasMore, setHasMore] = useState(true);
   const TASKS_PER_PAGE = 10;
 
+  // Booleano ESTABLE para permisos — evita que un nuevo objeto de referencia en
+  // userProfile?.permissions recree el listener innecesariamente (causa de la "recarga" del usuario).
+  const hasPermissionVerTodas = useMemo(() => {
+    const perms = userProfile?.permissions;
+    return !!(perms?.['tareas.ver_todas'] ||
+              perms?.['tareas'] ||
+              (Array.isArray(perms) &&
+               (perms.includes('tareas.ver_todas') || perms.includes('tareas'))));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(userProfile?.permissions)]);
+
   // Función para cargar tareas con listener en tiempo real
   const loadTasks = useCallback((pageNumber = 1) => {
     if (!currentUser?.uid) {
@@ -54,84 +65,98 @@ export const useDelegatedTasks = () => {
     setLoading(true);
     setError(null);
 
-    // Query: Tareas donde el usuario es creador O asignado O tiene permiso ver_todas
-    const hasPermissionVerTodas = userProfile?.permissions?.['tareas.ver_todas'] || 
-                                  userProfile?.permissions?.['tareas'] ||
-                                  (Array.isArray(userProfile?.permissions) && 
-                                   (userProfile?.permissions.includes('tareas.ver_todas') ||
-                                    userProfile?.permissions.includes('tareas')));
-
-    let tasksQuery;
     if (hasPermissionVerTodas) {
-      // Ver todas las tareas
-      tasksQuery = query(
+      // ── ADMIN: cargar TODAS las tareas sin paginación para que los filtros
+      // cliente (por usuario, empresa, mes, etc.) operen sobre el dataset completo.
+      // La paginación server-side con filtros cliente-side causa que tareas de páginas
+      // posteriores no aparezcan al filtrar (el filtro solo ve la página actual).
+      const adminQuery = query(
         collection(db, 'delegated_tasks'),
-        orderBy('fechaCreacion', 'desc'),
-        limit(TASKS_PER_PAGE)
+        orderBy('fechaCreacion', 'desc')
       );
-    } else {
-      // Solo tareas propias (creadas o asignadas)
-      tasksQuery = query(
-        collection(db, 'delegated_tasks'),
-        where('participantes', 'array-contains', currentUser.uid),
-        orderBy('fechaCreacion', 'desc'),
-        limit(TASKS_PER_PAGE)
-      );
-    }
 
-    // Si es página siguiente, iniciar después del último documento
-    if (pageNumber > 1 && lastVisible) {
-      if (hasPermissionVerTodas) {
-        tasksQuery = query(
-          collection(db, 'delegated_tasks'),
-          orderBy('fechaCreacion', 'desc'),
-          startAfter(lastVisible),
-          limit(TASKS_PER_PAGE)
-        );
-      } else {
-        tasksQuery = query(
-          collection(db, 'delegated_tasks'),
-          where('participantes', 'array-contains', currentUser.uid),
-          orderBy('fechaCreacion', 'desc'),
-          startAfter(lastVisible),
-          limit(TASKS_PER_PAGE)
-        );
-      }
-    }
-
-    // Listener en tiempo real con onSnapshot
-    const unsubscribe = onSnapshot(
-      tasksQuery,
-      (snapshot) => {
-        const tasksData = [];
-        snapshot.forEach((doc) => {
-          tasksData.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-
-        // Guardar último documento para paginación
-        if (!snapshot.empty) {
-          setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      const unsubscribe = onSnapshot(
+        adminQuery,
+        (snapshot) => {
+          const tasksData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setTasks(tasksData);
+          setHasMore(false); // Sin paginación server-side para admin
+          setCurrentPage(1);
+          setLoading(false);
+        },
+        (err) => {
+          console.error('Error fetching delegated tasks (admin):', err);
+          setError(err.message);
+          setLoading(false);
         }
+      );
+      return unsubscribe;
+    }
 
-        setTasks(tasksData);
-        setHasMore(snapshot.docs.length === TASKS_PER_PAGE);
-        setCurrentPage(pageNumber);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('Error fetching delegated tasks:', err);
-        setError(err.message);
-        setLoading(false);
-      }
+    // ── USUARIO NORMAL: dos queries paralelas (asignadas + creadas) ──────────
+    // Se usa asignadoA.uid y creadoPor.uid en lugar de 'participantes'
+    // para compatibilidad con tareas creadas antes del campo participantes.
+    const assignedQuery = query(
+      collection(db, 'delegated_tasks'),
+      where('asignadoA.uid', '==', currentUser.uid)
+    );
+    const createdQuery = query(
+      collection(db, 'delegated_tasks'),
+      where('creadoPor.uid', '==', currentUser.uid)
     );
 
-    return unsubscribe;
-  }, [currentUser?.uid, userProfile, lastVisible]);
+    // Estado local de cada listener (closures estables)
+    let assignedDocs = [];
+    let createdDocs  = [];
+    let assignedReady = false;
+    let createdReady  = false;
 
-  // Cargar tareas al montar o cambiar usuario con listener en tiempo real
+    const mergeTasks = () => {
+      if (!assignedReady || !createdReady) return;
+      // Deduplicar por id, ordenar descendente por fechaCreacion
+      const seen = new Set();
+      const merged = [...assignedDocs, ...createdDocs].filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
+      merged.sort((a, b) => {
+        const aTs = a.fechaCreacion?.toDate?.() ?? new Date(a.fechaCreacion ?? 0);
+        const bTs = b.fechaCreacion?.toDate?.() ?? new Date(b.fechaCreacion ?? 0);
+        return bTs - aTs;
+      });
+      setTasks(merged);
+      setHasMore(false); // Paginación no aplica para queries duales
+      setCurrentPage(1);
+      setLoading(false);
+    };
+
+    const unsub1 = onSnapshot(
+      assignedQuery,
+      (snapshot) => {
+        assignedDocs  = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        assignedReady = true;
+        mergeTasks();
+      },
+      (err) => { console.error('Error query asignadas:', err); setError(err.message); setLoading(false); }
+    );
+
+    const unsub2 = onSnapshot(
+      createdQuery,
+      (snapshot) => {
+        createdDocs  = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        createdReady = true;
+        mergeTasks();
+      },
+      (err) => { console.error('Error query creadas:', err); setError(err.message); setLoading(false); }
+    );
+
+    return () => { unsub1(); unsub2(); };
+  }, [currentUser?.uid, hasPermissionVerTodas, lastVisible]);
+
+  // Cargar tareas al montar o cambiar usuario con listener en tiempo real.
+  // Depende de hasPermissionVerTodas (booleano estable) en lugar de userProfile?.permissions
+  // (objeto que cambia de referencia en cada snapshot de AuthContext aunque los datos sean iguales).
   useEffect(() => {
     const unsubscribe = loadTasks(1);
     return () => {
@@ -139,7 +164,7 @@ export const useDelegatedTasks = () => {
         unsubscribe();
       }
     };
-  }, [currentUser?.uid, userProfile?.permissions]);
+  }, [currentUser?.uid, hasPermissionVerTodas]);
 
   // Funciones de paginación
   const nextPage = useCallback(() => {
@@ -215,6 +240,7 @@ export const useDelegatedTasks = () => {
         empresa: taskData.empresa || null,
         
         // ADJUNTOS
+        adjunto: taskData.adjunto || null,
         archivosAdjuntos: [],
         
         // FECHAS

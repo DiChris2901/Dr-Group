@@ -110,7 +110,7 @@ const DrGroupLogo = ({
                <circle cx="35" cy="20" r="3" fill="#fbbf24" filter="url(#glow)" />
             </g>
             
-            {/* DrGroup Text (Right Side) */}
+            {/* RDJ Text (Right Side) */}
             <text 
               x="80" 
               y="26" 
@@ -120,7 +120,7 @@ const DrGroupLogo = ({
               fill="white"
               letterSpacing="-0.5px"
             >
-              DrGroup
+              RDJ
             </text>
             
             {/* Definiciones spectacular */}
@@ -222,7 +222,7 @@ const DrGroupLogo = ({
               transition: animationsEnabled ? 'all 0.3s ease' : 'none'
             }}
           >
-            DR
+              RDJ
           </Typography>
         </Box>
 
@@ -242,7 +242,7 @@ const DrGroupLogo = ({
                 opacity: 0.9
               }}
             >
-              GROUP
+              ORGANIZACIÓN RDJ
             </Typography>
           </Box>
         )}

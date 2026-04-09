@@ -1,4 +1,4 @@
-ï»¿import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { ref, serverTimestamp as rtdbServerTimestamp, set } from 'firebase/database';
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -6,8 +6,8 @@ import { auth, database, db } from '../config/firebase';
 import { useUserPresence } from '../hooks/useUserPresence';
 import { clearAllListeners } from '../utils/listenerManager';
 
-// Helper function para logs de auditorÃ­a (no podemos usar hooks dentro del provider)
-// Escribe a activity_logs (colecciÃ³n principal de auditorÃ­a, snake_case)
+// Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
+// Escribe a activity_logs (colección principal de auditoría, snake_case)
 const logAuthActivity = async (action, userId, details = {}) => {
   try {
     await addDoc(collection(db, 'activity_logs'), {
@@ -31,7 +31,7 @@ const logAuthActivity = async (action, userId, details = {}) => {
       sessionId: sessionStorage.getItem('sessionId') || 'anonymous'
     });
   } catch (error) {
-    console.error('âŒ Error creating audit log:', error);
+    console.error('? Error creating audit log:', error);
   }
 };
 
@@ -81,73 +81,73 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // ðŸŽ¨ CRÃTICO: Inicializar userProfile con cachÃ© para evitar flash de foto por defecto
+  // ?? CRÍTICO: Inicializar userProfile con caché para evitar flash de foto por defecto
   const getInitialUserProfile = () => {
     try {
-      const cached = localStorage.getItem('drgroup-userProfile');
+      const cached = localStorage.getItem('rdj-userProfile');
       if (cached) {
         const profile = JSON.parse(cached);
         return profile;
       }
     } catch (error) {
-      console.error('âŒ [INIT] Error leyendo perfil inicial:', error);
+      console.error('? [INIT] Error leyendo perfil inicial:', error);
     }
     return null;
   };
   
   const [currentUser, setCurrentUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(getInitialUserProfile); // âš¡ Inicializar con cachÃ©
+  const [userProfile, setUserProfile] = useState(getInitialUserProfile); // ? Inicializar con caché
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // ðŸŽ¯ Ref para detectar cambios reales de estado de autenticaciÃ³n
+  // ?? Ref para detectar cambios reales de estado de autenticación
   const prevUserRef = useRef(undefined); // undefined = no inicializado
 
   // Activar sistema de presencia para el usuario actual
   useUserPresence(currentUser?.uid);
 
-  // ðŸ’¾ Funciones helper para cachÃ© de userProfile en localStorage
+  // ?? Funciones helper para caché de userProfile en localStorage
   const saveUserProfileToCache = (profile) => {
     try {
-      localStorage.setItem('drgroup-userProfile', JSON.stringify(profile));
+      localStorage.setItem('rdj-userProfile', JSON.stringify(profile));
     } catch (error) {
-      console.error('âŒ [CACHE] Error guardando perfil:', error);
+      console.error('? [CACHE] Error guardando perfil:', error);
     }
   };
 
   const loadUserProfileFromCache = (userId) => {
     try {
-      const cached = localStorage.getItem('drgroup-userProfile');
+      const cached = localStorage.getItem('rdj-userProfile');
       if (cached) {
         const profile = JSON.parse(cached);
-        // Verificar que el cachÃ© es del usuario correcto
+        // Verificar que el caché es del usuario correcto
         if (profile.uid === userId) {
           return profile;
         } else {
-          localStorage.removeItem('drgroup-userProfile');
+          localStorage.removeItem('rdj-userProfile');
         }
       }
     } catch (error) {
-      console.error('âŒ [CACHE] Error leyendo perfil:', error);
+      console.error('? [CACHE] Error leyendo perfil:', error);
     }
     return null;
   };
   
-  // FunciÃ³n para iniciar sesiÃ³n
+  // Función para iniciar sesión
   const login = async (email, password) => {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
       
-      // ï¿½ FIRE-AND-FORGET: Toda la auditorÃ­a se ejecuta en background sin bloquear el login
-      // Esto permite que el dashboard cargue inmediatamente despuÃ©s de autenticarse
+      // ? FIRE-AND-FORGET: Toda la auditoría se ejecuta en background sin bloquear el login
+      // Esto permite que el dashboard cargue inmediatamente después de autenticarse
       const uid = result.user.uid;
       const userEmail = result.user.email;
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       Promise.resolve().then(async () => {
         try {
-          // ðŸ“ Registrar actividad de auditorÃ­a
+          // ?? Registrar actividad de auditoría
           logAuthActivity('user_login', uid, {
             email: userEmail,
             ipAddress: 'Unknown',
@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }) => {
             sessionId
           });
           
-          // ðŸ†• Registrar inicio de sesiÃ³n en historial
+          // ?? Registrar inicio de sesión en historial
           const loginHistoryId = `${uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           const loginHistoryRef = doc(db, 'loginHistory', loginHistoryId);
           setDoc(loginHistoryRef, {
@@ -170,14 +170,14 @@ export const AuthProvider = ({ children }) => {
             success: true
           }, { merge: true });
           
-          // âœ… Actualizar lastLogin
+          // ? Actualizar lastLogin
           const userDocRef = doc(db, 'users', uid);
           updateDoc(userDocRef, {
             lastLogin: new Date(),
             updatedAt: new Date()
           });
           
-          // ðŸ†• Crear sesiÃ³n activa
+          // ?? Crear sesión activa
           const sessionsRef = collection(db, 'activeSessions');
           const existingSessionsQuery = query(sessionsRef, where('userId', '==', uid));
           const existingSessionsSnapshot = await getDocs(existingSessionsQuery);
@@ -209,12 +209,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // FunciÃ³n para cerrar sesiÃ³n
+  // Función para cerrar sesión
   const logout = async () => {
     try {
       const userId = currentUser?.uid;
       
-      // ðŸ”´ MARCAR COMO OFFLINE EN RTDB ANTES DE TODO
+      // ?? MARCAR COMO OFFLINE EN RTDB ANTES DE TODO
       if (userId && database) {
         try {
           const userStatusRef = ref(database, `/status/${userId}`);
@@ -223,24 +223,24 @@ export const AuthProvider = ({ children }) => {
             last_changed: rtdbServerTimestamp()
           });
         } catch (rtdbError) {
-          console.error('âš ï¸ Error marcando offline en RTDB:', rtdbError);
+          console.error('?? Error marcando offline en RTDB:', rtdbError);
         }
       }
       
-      // ðŸ§¹ Limpiar listeners ANTES del signOut para evitar permission-denied
+      // ?? Limpiar listeners ANTES del signOut para evitar permission-denied
       clearAllListeners();
       
-      // ðŸ†• Limpiar sesiones activas antes de cerrar sesiÃ³n
+      // ?? Limpiar sesiones activas antes de cerrar sesión
       if (userId) {
         try {
-          // ðŸ“ Registrar actividad de auditorÃ­a - Cierre de sesiÃ³n
+          // ?? Registrar actividad de auditoría - Cierre de sesión
           await logAuthActivity('user_logout', userId, {
             email: currentUser.email,
-            sessionDuration: 'Unknown', // Se podrÃ­a calcular con timestamp de login
+            sessionDuration: 'Unknown', // Se podría calcular con timestamp de login
             reason: 'manual_logout'
           });
           
-          // Registrar cierre de sesiÃ³n en historial
+          // Registrar cierre de sesión en historial
           await addDoc(collection(db, 'loginHistory'), {
             userId: userId,
             action: 'logout',
@@ -251,7 +251,7 @@ export const AuthProvider = ({ children }) => {
             deviceInfo: getBrowserInfo()
           });
 
-          // Eliminar sesiÃ³n activa actual
+          // Eliminar sesión activa actual
           const sessionsRef = collection(db, 'activeSessions');
           const currentSessionQuery = query(
             sessionsRef, 
@@ -270,7 +270,7 @@ export const AuthProvider = ({ children }) => {
           await Promise.all(deletePromises);
           
         } catch (cleanupError) {
-          console.error('âš ï¸ Error en limpieza de sesiÃ³n:', cleanupError);
+          console.error('?? Error en limpieza de sesión:', cleanupError);
           // Continuar con el logout aunque falle la limpieza
         }
       }
@@ -278,14 +278,14 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
       setUserProfile(null);
       
-      // âœ… El listener onAuthStateChanged limpiarÃ¡ localStorage automÃ¡ticamente
+      // ? El listener onAuthStateChanged limpiará localStorage automáticamente
     } catch (error) {
       setError(error.message);
       throw error;
     }
   };
 
-  // FunciÃ³n para buscar usuario por email (para preview en login)
+  // Función para buscar usuario por email (para preview en login)
   const getUserByEmail = async (email) => {
     try {
       const usersRef = collection(db, 'users');
@@ -303,16 +303,16 @@ export const AuthProvider = ({ children }) => {
       }
       return null;
     } catch (error) {
-      console.error('âŒ Error buscando usuario por email:', error);
+      console.error('? Error buscando usuario por email:', error);
       return null;
     }
   };
 
-  // FunciÃ³n para verificar si un email tiene usuario registrado (sin autenticaciÃ³n)
+  // Función para verificar si un email tiene usuario registrado (sin autenticación)
   const checkEmailExists = async (email) => {
     try {
-      // Esta funciÃ³n intentarÃ¡ verificar si el email existe en la base de datos
-      // Si falla por permisos, retornarÃ¡ null y usaremos el preview genÃ©rico
+      // Esta función intentará verificar si el email existe en la base de datos
+      // Si falla por permisos, retornará null y usaremos el preview genérico
       const user = await getUserByEmail(email);
       return user;
     } catch (error) {
@@ -320,27 +320,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // FunciÃ³n para actualizar el perfil del usuario
+  // Función para actualizar el perfil del usuario
   const updateUserProfile = async (updates) => {
     try {
       
       if (!currentUser) {
-        console.error('âŒ AuthContext - No hay usuario autenticado');
+        console.error('? AuthContext - No hay usuario autenticado');
         throw new Error('No hay usuario autenticado');
       }
 
       const userDocRef = doc(db, 'users', currentUser.uid);
       
-      // ðŸš¨ CRÃTICO: NO crear documento automÃ¡ticamente, solo actualizar si existe
+      // ?? CRÍTICO: NO crear documento automáticamente, solo actualizar si existe
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        console.error('âŒ AuthContext - Documento de usuario NO existe. No se puede actualizar.');
+        console.error('? AuthContext - Documento de usuario NO existe. No se puede actualizar.');
         throw new Error('El perfil de usuario no existe. Debe ser creado por un administrador.');
       }
       
       
-      // Preparar datos de actualizaciÃ³n
+      // Preparar datos de actualización
       const updateData = {
         ...updates,
         updatedAt: new Date()
@@ -349,7 +349,7 @@ export const AuthProvider = ({ children }) => {
       // Actualizar en Firestore
       await updateDoc(userDocRef, updateData);
 
-      // ðŸ“ Registrar actividad de auditorÃ­a - ActualizaciÃ³n de perfil
+      // ?? Registrar actividad de auditoría - Actualización de perfil
       await logAuthActivity('profile_update', currentUser.uid, {
         email: currentUser.email,
         updatedFields: Object.keys(updates),
@@ -371,8 +371,8 @@ export const AuthProvider = ({ children }) => {
 
       return true;
     } catch (error) {
-      console.error('âŒ AuthContext - Error actualizando perfil:', error);
-      console.error('âŒ AuthContext - Error details:', {
+      console.error('? AuthContext - Error actualizando perfil:', error);
+      console.error('? AuthContext - Error details:', {
         message: error.message,
         code: error.code,
         stack: error.stack
@@ -381,7 +381,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ðŸ†• FunciÃ³n para actualizar actividad de la sesiÃ³n
+  // ?? Función para actualizar actividad de la sesión
   const updateSessionActivity = async () => {
     if (!currentUser) return;
 
@@ -402,27 +402,27 @@ export const AuthProvider = ({ children }) => {
       await Promise.all(updatePromises);
       
     } catch (error) {
-      console.error('âš ï¸ Error actualizando actividad de sesiÃ³n:', error);
+      console.error('?? Error actualizando actividad de sesión:', error);
     }
   };
 
-  // Escuchar cambios en el estado de autenticaciÃ³n
+  // Escuchar cambios en el estado de autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       const prevUser = prevUserRef.current;
       
-      // ðŸŽ¯ LÃ“GICA CORRECTA: Solo limpiar localStorage en cambio real de estado
-      if (prevUser !== undefined) { // Ignorar primera inicializaciÃ³n
+      // ?? LÓGICA CORRECTA: Solo limpiar localStorage en cambio real de estado
+      if (prevUser !== undefined) { // Ignorar primera inicialización
         if (prevUser !== null && user === null) {
-          // ðŸ§¹ Verdadero LOGOUT: Usuario estaba autenticado y ahora no
-          // âš¡ MANTENER localStorage como cachÃ© para prÃ³ximo login (evita flash de defaults)
-          // Solo limpiar perfil, los settings se mantienen para carga instantÃ¡nea
-          localStorage.removeItem('drgroup-userProfile');
+          // ?? Verdadero LOGOUT: Usuario estaba autenticado y ahora no
+          // ? MANTENER localStorage como caché para próximo login (evita flash de defaults)
+          // Solo limpiar perfil, los settings se mantienen para carga instantánea
+          localStorage.removeItem('rdj-userProfile');
         } else if (prevUser === null && user !== null) {
-          // ðŸŽ‰ LOGIN: Usuario se autenticÃ³
+          // ?? LOGIN: Usuario se autenticó
         }
       } else {
-        // Primera inicializaciÃ³n, no hacer nada
+        // Primera inicialización, no hacer nada
       }
       
       // Actualizar refs y estado
@@ -434,7 +434,7 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // ðŸ”¥ LISTENER EN TIEMPO REAL para el perfil del usuario (SEPARADO)
+  // ?? LISTENER EN TIEMPO REAL para el perfil del usuario (SEPARADO)
   // Se ejecuta solo cuando el uid del usuario cambia
   useEffect(() => {
     if (!currentUser?.uid) {
@@ -445,29 +445,29 @@ export const AuthProvider = ({ children }) => {
 
     const userDocRef = doc(db, 'users', currentUser.uid);
     
-    // âš¡ PASO 1: Cargar desde localStorage PRIMERO (instantÃ¡neo, sin lag)
+    // ? PASO 1: Cargar desde localStorage PRIMERO (instantáneo, sin lag)
     const cachedProfile = loadUserProfileFromCache(currentUser.uid);
     if (cachedProfile) {
       setUserProfile(cachedProfile);
     }
     
-    // ðŸ”„ PASO 2: Actualizar desde Firestore en background
+    // ?? PASO 2: Actualizar desde Firestore en background
     const initializeUserProfile = async () => {
       try {
         const docSnapshot = await getDoc(userDocRef);
         
         if (!docSnapshot.exists()) {
-          // ðŸš¨ CRÃTICO: NO crear documento automÃ¡ticamente (puede sobrescribir datos reales)
-          console.error('âŒ [AUTH] Perfil de usuario NO existe en Firestore:', currentUser.uid);
-          console.error('âŒ [AUTH] Email:', currentUser.email);
-          console.error('âš ï¸ [AUTH] Este usuario debe ser creado manualmente por un administrador');
+          // ?? CRÍTICO: NO crear documento automáticamente (puede sobrescribir datos reales)
+          console.error('? [AUTH] Perfil de usuario NO existe en Firestore:', currentUser.uid);
+          console.error('? [AUTH] Email:', currentUser.email);
+          console.error('?? [AUTH] Este usuario debe ser creado manualmente por un administrador');
           
-          // Usar datos del cachÃ© si existen, sino mostrar error
+          // Usar datos del caché si existen, sino mostrar error
           if (!cachedProfile) {
-            setError('Tu cuenta no estÃ¡ registrada en el sistema. Contacta al administrador.');
+            setError('Tu cuenta no está registrada en el sistema. Contacta al administrador.');
             setUserProfile(null);
           }
-          // Si hay cachÃ©, lo mantiene (ya se setUserProfile arriba)
+          // Si hay caché, lo mantiene (ya se setUserProfile arriba)
           return;
         }
         
@@ -479,16 +479,16 @@ export const AuthProvider = ({ children }) => {
           ...userData
         };
         setUserProfile(fullProfile);
-        saveUserProfileToCache(fullProfile); // Guardar en cachÃ© para prÃ³ximo Ctrl+R
+        saveUserProfileToCache(fullProfile); // Guardar en caché para próximo Ctrl+R
       } catch (error) {
-        console.error('âŒ Error cargando perfil inicial:', error);
+        console.error('? Error cargando perfil inicial:', error);
       }
     };
     
     // Cargar perfil inicial
     initializeUserProfile();
     
-    // Ahora sÃ­, activar listener en tiempo real para cambios futuros
+    // Ahora sí, activar listener en tiempo real para cambios futuros
     const unsubscribeProfile = onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
         const userData = docSnapshot.data();
@@ -500,11 +500,11 @@ export const AuthProvider = ({ children }) => {
         
         
         setUserProfile(fullProfile);
-        saveUserProfileToCache(fullProfile); // Actualizar cachÃ© con cambios en tiempo real
+        saveUserProfileToCache(fullProfile); // Actualizar caché con cambios en tiempo real
       }
-      // âœ… NO crear documento aquÃ­, solo responder a cambios
+      // ? NO crear documento aquí, solo responder a cambios
     }, (error) => {
-      console.error('âŒ Error en listener de perfil:', error);
+      console.error('? Error en listener de perfil:', error);
       setError('Error cargando datos del usuario');
     });
     
@@ -512,9 +512,9 @@ export const AuthProvider = ({ children }) => {
     return () => {
       unsubscribeProfile();
     };
-  }, [currentUser?.uid]); // âœ… Solo se ejecuta cuando cambia el UID, no el objeto completo
+  }, [currentUser?.uid]); // ? Solo se ejecuta cuando cambia el UID, no el objeto completo
 
-  // ðŸ†• Actualizar actividad de la sesiÃ³n cada 15 minutos
+  // ?? Actualizar actividad de la sesión cada 15 minutos
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -527,7 +527,7 @@ export const AuthProvider = ({ children }) => {
     }, 15 * 60 * 1000); // 15 minutos
 
     return () => clearInterval(interval);
-  }, [currentUser?.uid]); // âœ… Usar uid primitivo en lugar del objeto completo
+  }, [currentUser?.uid]); // ? Usar uid primitivo en lugar del objeto completo
 
   const value = {
     currentUser,
@@ -536,7 +536,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUserProfile,
-    updateSessionActivity, // ðŸ†• Nueva funciÃ³n disponible
+    updateSessionActivity, // ?? Nueva función disponible
     getUserByEmail,
     checkEmailExists,
     loading,

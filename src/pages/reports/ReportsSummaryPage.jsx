@@ -434,16 +434,16 @@ const ReportsSummaryPage = () => {
     // Crear workbook
     const wb = XLSX.utils.book_new();
     wb.Props = {
-      Title: "DR Group - Reporte Ejecutivo PREMIUM",
+      Title: "Organización RDJ - Reporte Ejecutivo PREMIUM",
       Subject: "Análisis Avanzado de Compromisos Financieros",
-      Author: "DR Group Dashboard",
+      Author: "Organización RDJ",
       CreatedDate: new Date()
     };
 
     // === HOJA 1: DASHBOARD EJECUTIVO ===
     const dashboardData = [
       // Header corporativo
-      ['DR GROUP - REPORTE EJECUTIVO PREMIUM', '', '', '', '', '', '', ''],
+      ['ORGANIZACIÓN RDJ - REPORTE EJECUTIVO PREMIUM', '', '', '', '', '', '', ''],
       [`Generado: ${new Date().toLocaleString('es-CO', { 
         timeZone: 'America/Bogota',
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -772,7 +772,7 @@ const ReportsSummaryPage = () => {
 
     // Generar y descargar archivo
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-    XLSX.writeFile(wb, `DR-Group-Reporte-Premium-${timestamp}.xlsx`);
+    XLSX.writeFile(wb, `RDJ-Reporte-Premium-${timestamp}.xlsx`);
 
   };
 
@@ -791,7 +791,7 @@ const ReportsSummaryPage = () => {
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('DR GROUP', pageWidth / 2, 25, { align: 'center' });
+    pdf.text('ORGANIZACIÓN RDJ', pageWidth / 2, 25, { align: 'center' });
     
     pdf.setFontSize(16);
     pdf.text('REPORTE EJECUTIVO DE COMPROMISOS FINANCIEROS', pageWidth / 2, 40, { align: 'center' });
@@ -887,11 +887,11 @@ const ReportsSummaryPage = () => {
     // === PIE DE PÁGINA ===
     pdf.setFontSize(8);
     pdf.setTextColor(128, 128, 128);
-    pdf.text('DR Group Dashboard - Reporte generado automaticamente', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text('Organización RDJ - Reporte generado automaticamente', pageWidth / 2, pageHeight - 10, { align: 'center' });
     
     // Generar y descargar
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-    pdf.save(`DR-Group-Reporte-PDF-${timestamp}.pdf`);
+    pdf.save(`RDJ-Reporte-PDF-${timestamp}.pdf`);
     
   };
 

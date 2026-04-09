@@ -288,8 +288,8 @@ const Taskbar = React.memo(() => {
       color: '#ff9800',
       permission: 'talento_humano',
       submenu: [
-        { label: 'Talento Humano', path: '/recursos-humanos', icon: BadgeIcon, permission: 'rrhh', alternativePermissions: ['solicitudes', 'solicitudes.gestionar', 'rrhh.dashboard', 'rrhh.liquidaciones', 'rrhh.reportes'] },
-        { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
+        { label: 'Talento Humano', path: '/recursos-humanos', icon: BadgeIcon, permission: 'rrhh' },
+        { label: 'Realizar Solicitudes', path: '/solicitudes', icon: AssignmentIcon, permission: 'solicitudes' },
         { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' }
       ]
     },
