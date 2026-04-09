@@ -12,7 +12,6 @@ export const checkTodaySessionInCache = async (uid, todayStr) => {
     const cached = await AsyncStorage.getItem(cacheKey);
     if (cached) {
       const sessionData = JSON.parse(cached);
-      console.log('✅ CAPA 1 - Registro encontrado en caché local:', sessionData.sessionId);
       return sessionData;
     }
     return null;
@@ -33,7 +32,6 @@ export const saveTodaySessionInCache = async (uid, todayStr, sessionId) => {
     const cacheKey = `session_${uid}_${todayStr}`;
     const data = { sessionId, timestamp: Date.now() };
     await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
-    console.log('💾 Registro guardado en caché local:', cacheKey);
   } catch (error) {
     console.error('Error guardando en caché:', error);
   }

@@ -55,7 +55,6 @@ export const guardarEnCola = async (uid, fecha, accion) => {
     cola.acciones.push(accion);
     
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cola));
-    console.log('✅ Acción guardada en cola:', accion.tipo);
     return true;
   } catch (error) {
     console.error('❌ Error al guardar en cola:', error);

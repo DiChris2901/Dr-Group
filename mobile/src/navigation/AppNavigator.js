@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissionChangeNotifier } from '../hooks/usePermissionChangeNotifier';
 import { ActivityIndicator, View } from 'react-native';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { useTheme } from '../contexts/ThemeContext';
+import { usePermissions } from '../hooks/usePermissions';
+import { APP_PERMISSIONS } from '../constants/permissions';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -30,8 +33,30 @@ import EmpleadoDetailScreen from '../screens/empleados/EmpleadoDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
+const createProtectedScreen = (Component, permission) => {
+  const ProtectedComponent = (props) => {
+    const { can, loading } = usePermissions();
+    useEffect(() => {
+      if (!loading && !can(permission)) {
+        props.navigation.goBack();
+      }
+    }, [loading, can, props.navigation]);
+    if (loading || !can(permission)) return null;
+    return React.createElement(Component, props);
+  };
+  ProtectedComponent.displayName = 'Protected(' + Component.name + ')';
+  return ProtectedComponent;
+};
+
+const ProtectedUsersScreen = createProtectedScreen(UsersScreen, APP_PERMISSIONS.USUARIOS_GESTIONAR);
+const ProtectedAdminNovedadesScreen = createProtectedScreen(AdminNovedadesScreen, APP_PERMISSIONS.ADMIN_NOVEDADES);
+const ProtectedAdminSettingsScreen = createProtectedScreen(AdminSettingsScreen, APP_PERMISSIONS.ADMIN_SETTINGS);
+const ProtectedAdminCreateAlertScreen = createProtectedScreen(AdminCreateAlertScreen, APP_PERMISSIONS.ADMIN_CREATE_ALERT);
+const ProtectedAdminNotificationControlScreen = createProtectedScreen(AdminNotificationControlScreen, APP_PERMISSIONS.ADMIN_NOTIFICATION_CONTROL);
+
 function AppNavigator({ navigation }, ref) {
   const { user, userProfile, loading } = useAuth();
+  const { getPrimaryColor } = useTheme();
   
   // ✅ Hook para notificar cambios de permisos en tiempo real
   const { renderDialog } = usePermissionChangeNotifier();
@@ -40,7 +65,7 @@ function AppNavigator({ navigation }, ref) {
   if (loading || (user && !userProfile)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#667eea" />
+        <ActivityIndicator size="large" color={getPrimaryColor()} />
       </View>
     );
   }
@@ -62,15 +87,15 @@ function AppNavigator({ navigation }, ref) {
             {/* ✅ Pantallas Comunes (Accesibles por Stack) */}
             <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />
             <Stack.Screen name="Novedades" component={NovedadesScreen} />
-            <Stack.Screen name="AdminNovedades" component={AdminNovedadesScreen} />
-            <Stack.Screen name="AdminSettings" component={AdminSettingsScreen} />
-            <Stack.Screen name="AdminCreateAlert" component={AdminCreateAlertScreen} />
-            <Stack.Screen name="Users" component={UsersScreen} />
+            <Stack.Screen name="AdminNovedades" component={ProtectedAdminNovedadesScreen} />
+            <Stack.Screen name="AdminSettings" component={ProtectedAdminSettingsScreen} />
+            <Stack.Screen name="AdminCreateAlert" component={ProtectedAdminCreateAlertScreen} />
+            <Stack.Screen name="Users" component={ProtectedUsersScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
-            <Stack.Screen name="AdminNotificationControl" component={AdminNotificationControlScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="AdminNotificationControl" component={ProtectedAdminNotificationControlScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Empresas" component={EmpresasScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EmpresaDetail" component={EmpresaDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Empleados" component={EmpleadosScreen} options={{ headerShown: false }} />

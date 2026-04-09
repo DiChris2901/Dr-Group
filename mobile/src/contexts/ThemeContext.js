@@ -232,7 +232,7 @@ export const ThemeProvider = ({ children }) => {
         default: Haptics.selectionAsync();
       }
     } catch (error) {
-      console.log('Haptics error:', error);
+      console.error('Haptics error:', error);
     }
   }, [hapticsEnabled, hapticsIntensity]);
 

@@ -96,7 +96,7 @@ export default function LoginScreen() {
           setDynamicAvatar(null);
         }
       } catch (error) {
-        console.log('Error fetching dynamic avatar:', error);
+        console.error('Error fetching dynamic avatar:', error);
         // Fallar silenciosamente (puede ser por permisos si no está logueado)
       }
     };

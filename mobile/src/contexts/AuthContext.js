@@ -67,7 +67,6 @@ export const AuthProvider = ({ children }) => {
     // ✅ ACTUALIZADO: Usa el nuevo sistema de offlineSync.js
   const syncPendingActions = async () => {
     try {
-      console.log('🔄 Iniciando sincronización de acciones pendientes...');
       const { exitosas, fallidas } = await procesarColaOfflineSync();
       
       if (exitosas > 0) {
@@ -113,7 +112,7 @@ export const AuthProvider = ({ children }) => {
                   os: Platform.OS,
                   version: Platform.Version
                 }
-              }).catch(e => console.log('Error actualizando login:', e));
+              }).catch(e => console.error('Error actualizando login:', e));
               // Push token registration is handled by NotificationsContext
             }
           }
@@ -121,7 +120,7 @@ export const AuthProvider = ({ children }) => {
           // NOTA: La carga de sesión activa se maneja ahora en el useEffect de abajo con onSnapshot
           // para soportar actualizaciones en tiempo real (ej. reapertura por admin).
         } catch (e) {
-          console.log('Error cargando datos iniciales (posible offline):', e);
+          console.error('Error cargando datos iniciales:', e);
         }
       } else {
         setUser(null);
@@ -210,7 +209,7 @@ export const AuthProvider = ({ children }) => {
         checkPreviousOpenSession(user.uid);
       }
     }, (error) => {
-      console.log("Error escuchando sesión:", error);
+      console.error("Error escuchando sesión:", error);
     });
 
     return () => unsubscribe();
@@ -236,7 +235,7 @@ export const AuthProvider = ({ children }) => {
         setActiveSession(null);
       }
     } catch (e) {
-      console.log("Error buscando sesiones previas:", e);
+      console.error("Error buscando sesiones previas:", e);
     }
   }, []);
 
@@ -264,7 +263,6 @@ export const AuthProvider = ({ children }) => {
 
       // ✅ Ya no auto-registramos entrada al login
       // El usuario debe presionar "Iniciar Jornada" manualmente
-      console.log('Login exitoso - Usuario debe iniciar jornada manualmente');
       return { success: true, user };
     } catch (error) {
       console.error('Error en signIn:', error);
@@ -289,7 +287,6 @@ export const AuthProvider = ({ children }) => {
     try {
       // 🔒 CAPA 1: CANDADO DE PROCESAMIENTO (Prevenir doble tap)
       if (isStartingSession) {
-        console.log('⚠️ Ya se está iniciando una jornada, ignorando toque duplicado');
         throw new Error('Ya se está procesando el inicio de jornada. Por favor espera...');
       }
       
@@ -311,7 +308,6 @@ export const AuthProvider = ({ children }) => {
       // � CAPA 1: Verificar caché local PRIMERO (más rápido y funciona offline)
       const cachedSession = await checkTodaySessionInCache(user.uid, todayStr);
       if (cachedSession) {
-        console.log('✅ Registro encontrado en caché, verificando estado...');
         try {
           const docSnap = await getDoc(doc(db, 'asistencias', cachedSession.sessionId));
           if (docSnap.exists()) {
@@ -321,7 +317,6 @@ export const AuthProvider = ({ children }) => {
             // Dejar que la validación de Firestore abajo lance el error correcto
             // para que DashboardScreen ofrezca la opción de reapertura
             if (sessionData.salida || sessionData.estadoActual === 'finalizado') {
-              console.log('⚠️ Sesión en caché está finalizada, continuando a validación...');
               // Actualizar activeSession para que la UI refleje el estado
               setActiveSession(sessionData);
               // NO retornar - continuar al flujo de validación de Firestore
@@ -352,7 +347,6 @@ export const AuthProvider = ({ children }) => {
         while (attempt <= maxRetries) {
           try {
             attempt++;
-            console.log(`🔍 CAPA 2 - Intento ${attempt}/${maxRetries + 1} de consultar Firestore...`);
             
             // ⚡ Query con timeout de 8 segundos
             const queryPromise = getDocsFromServer(qToday);
@@ -361,14 +355,10 @@ export const AuthProvider = ({ children }) => {
             );
             
             snapshotToday = await Promise.race([queryPromise, timeoutPromise]);
-            console.log('✅ Query exitosa en intento', attempt);
             break; // Éxito, salir del loop
           } catch (e) {
-            console.log(`⚠️ Intento ${attempt} falló:`, e.message);
-            
             if (attempt > maxRetries) {
               // Último intento: usar caché local
-              console.log('⚠️ Todos los intentos fallaron, usando caché local');
               try {
                 snapshotToday = await getDocs(qToday);
               } catch (cacheError) {
@@ -392,7 +382,6 @@ export const AuthProvider = ({ children }) => {
           });
 
           const existingSession = sessions[0];
-          console.log(`🔎 Verificando sesión ${existingSession.id}. Salida:`, existingSession.salida ? 'SÍ' : 'NO');
 
           if (existingSession.salida) {
             throw new Error('Ya finalizaste tu jornada de hoy. Si fue un error, contacta a tu supervisor para que autorice una reapertura.');
@@ -538,7 +527,7 @@ export const AuthProvider = ({ children }) => {
                   location.tipo = 'Remoto (Sin Config)';
                 }
               } catch (e) {
-                console.log('Error verificando oficina:', e);
+                console.error('Error verificando oficina:', e);
                 location.tipo = 'Remoto (Error)';
               }
             }

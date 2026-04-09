@@ -255,7 +255,7 @@ export const NotificationsProvider = ({ children }) => {
     },
     (error) => {
       // ✅ Manejo de errores silencioso para evitar spam en consola
-      console.log('⚠️ Error en listener de notificaciones (esperado al cerrar sesión):', error.code);
+      console.error('Error en listener de notificaciones:', error.code);
     });
 
     return () => unsubscribe();
@@ -451,7 +451,7 @@ export const NotificationsProvider = ({ children }) => {
             vibrationEnabled = prefs.vibration !== false;
           }
         } catch (e) {
-          console.log('Usando configuración por defecto');
+          // use default notification settings
         }
       }
 
@@ -474,7 +474,6 @@ export const NotificationsProvider = ({ children }) => {
         },
         trigger: null,
       });
-      console.log('✅ Notificación programada');
     } catch (error) {
       console.error('❌ Error programando notificación:', error);
     }
@@ -484,7 +483,6 @@ export const NotificationsProvider = ({ children }) => {
   const cancelNotification = useCallback(async (notificationId) => {
     try {
       await Notifications.dismissNotificationAsync(notificationId);
-      console.log('✅ Notificación cancelada:', notificationId);
     } catch (error) {
       console.error('❌ Error cancelando notificación:', error);
     }
@@ -494,7 +492,6 @@ export const NotificationsProvider = ({ children }) => {
   const cancelAllNotifications = useCallback(async () => {
     try {
       await Notifications.dismissAllNotificationsAsync();
-      console.log('✅ Todas las notificaciones canceladas');
     } catch (error) {
       console.error('❌ Error cancelando notificaciones:', error);
     }
