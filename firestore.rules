@@ -114,12 +114,16 @@ service cloud.firestore {
     
     // PermissionsApp: Permisos granulares de la app móvil
     match /PermissionsApp/{uid} {
-      // Lectura: Solo el propio usuario puede leer sus permisos
-      allow read: if request.auth.uid == uid;
+      // Lectura: El propio usuario puede leer sus permisos,
+      //          o ADMIN/SUPERADMIN pueden leer los de cualquier usuario (para gestión)
+      allow read: if request.auth != null && (
+        request.auth.uid == uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.appRole in ['ADMIN', 'SUPERADMIN']
+      );
       
-      // Escritura: Solo SUPERADMIN puede modificar permisos
+      // Escritura: ADMIN o SUPERADMIN pueden modificar permisos
       allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.appRole == 'SUPERADMIN';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.appRole in ['ADMIN', 'SUPERADMIN'];
     }
 
     // ========================================
