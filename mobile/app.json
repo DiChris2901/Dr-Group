@@ -2,7 +2,7 @@
     "expo":  {
                  "name":  "RDJ Asistencia",
                  "slug":  "rdj-mobile",
-                 "version":  "3.9.3",
+                 "version":  "3.9.4",
                  "orientation":  "default",
                  "icon":  "./assets/icon.png",
                  "userInterfaceStyle":  "light",
@@ -17,7 +17,7 @@
                              "bundleIdentifier":  "com.orgrdj.asistencia"
                          },
                  "android":  {
-                                 "versionCode":  35,
+                                 "versionCode":  36,
                                  "adaptiveIcon":  {
                                                       "foregroundImage":  "./assets/adaptive-icon.png",
                                                       "backgroundColor":  "#004A98"

@@ -230,18 +230,49 @@ export const AuthProvider = ({ children }) => {
       );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        const docData = snapshot.docs[0].data();
-        // Solo si NO es de hoy (porque la de hoy ya la hubiera detectado el listener)
         const now = new Date();
         const todayStr = getTodayStr(now);
-        if (docData.fecha !== todayStr) {
-           setActiveSession({ ...docData, id: snapshot.docs[0].id });
+
+        for (const docSnap of snapshot.docs) {
+          const docData = docSnap.data();
+          // Solo procesar sesiones de días ANTERIORES (las de hoy las maneja el listener)
+          if (docData.fecha === todayStr) continue;
+
+          // ✅ Auto-cerrar sesiones de días anteriores que quedaron abiertas
+          try {
+            const entradaDate = docData.entrada?.hora?.toDate
+              ? docData.entrada.hora.toDate()
+              : docData.entrada?.hora ? new Date(docData.entrada.hora) : now;
+
+            // Calcular hora de cierre estimada: entrada + 9 horas (jornada estándar)
+            const cierreEstimado = new Date(entradaDate.getTime() + 9 * 60 * 60 * 1000);
+            const salidaTimestamp = Timestamp.fromDate(cierreEstimado);
+
+            await updateDoc(doc(db, 'asistencias', docSnap.id), {
+              salida: {
+                hora: salidaTimestamp,
+                ubicacion: { tipo: 'Auto-cierre (sesión olvidada)' }
+              },
+              horasTrabajadas: '09:00:00',
+              estadoActual: 'finalizado',
+              autoFinalizada: true,
+              autoFinalizadaMotivo: 'Sesión no cerrada del día anterior - auto-cierre por sistema',
+              updatedAt: Timestamp.now()
+            });
+            console.log(`✅ Sesión antigua ${docSnap.id} (${docData.fecha}) auto-cerrada`);
+          } catch (updateError) {
+            console.error(`Error auto-cerrando sesión ${docSnap.id}:`, updateError);
+          }
         }
+
+        // Después de auto-cerrar, no hay sesión activa
+        setActiveSession(null);
       } else {
         setActiveSession(null);
       }
     } catch (e) {
       console.error("Error buscando sesiones previas:", e);
+      setActiveSession(null);
     }
   }, []);
 
@@ -814,7 +845,7 @@ export const AuthProvider = ({ children }) => {
       
       const breakInicio = Timestamp.now();
       const updatedBreaks = [
-        ...activeSession.breaks,
+        ...(activeSession.breaks || []),
         {
           inicio: breakInicio,
           fin: null,
@@ -869,7 +900,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const finalizarBreak = async () => {
-    if (!activeSession || activeSession.breaks.length === 0) return;
+    if (!activeSession || !activeSession.breaks || activeSession.breaks.length === 0) return;
 
     // 🔒 Prevenir doble-tap
     if (actionInProgressRef.current) {
@@ -1208,7 +1239,7 @@ export const AuthProvider = ({ children }) => {
       const diffMs = salidaDate - entradaDate;
       let tiempoDescansoMs = 0;
       
-      activeSession.breaks.forEach(b => {
+      (activeSession.breaks || []).forEach(b => {
         // Prioridad 1: Calcular desde timestamps (más preciso, incluye gap breaks de reapertura)
         if (b.inicio && b.fin) {
           const inicioBreak = b.inicio.toDate ? b.inicio.toDate() : new Date(b.inicio);

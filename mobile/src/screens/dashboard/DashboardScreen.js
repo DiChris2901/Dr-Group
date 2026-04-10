@@ -168,13 +168,25 @@ export default function DashboardScreen() {
   // ✅ Timer Logic
   useEffect(() => {
     const updateTimer = () => {
-      if (!activeSession || activeSession.estadoActual === 'finalizado') {
+      if (!activeSession || activeSession.estadoActual === 'finalizado' || !activeSession.entrada?.hora) {
         setTiempoTrabajado('00:00:00');
         setProgress(0);
         return;
       }
       
       const ahora = new Date();
+
+      // ✅ Guard: Detectar sesiones de días anteriores (no deberían estar activas)
+      const entradaCheck = activeSession.entrada.hora.toDate 
+        ? activeSession.entrada.hora.toDate() 
+        : new Date(activeSession.entrada.hora);
+      const horasDesdeEntrada = (ahora - entradaCheck) / (1000 * 60 * 60);
+      if (horasDesdeEntrada > 24) {
+        // Sesión obsoleta (> 24h), no intentar calcular timer
+        setTiempoTrabajado('--:--:--');
+        setProgress(0);
+        return;
+      }
 
       // 1. Si está en BREAK
       if (activeSession.estadoActual === 'break') {
